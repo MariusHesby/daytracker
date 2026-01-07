@@ -1,26 +1,243 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* iOS Color System - Light Mode (more colorful) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Background colors - subtle warm tint */
+  --ios-bg: #f5f3f0;
+  --ios-bg-secondary: rgba(255, 255, 255, 0.8);
+  --ios-bg-tertiary: rgba(255, 255, 255, 0.8);
+  
+  /* Card/grouped backgrounds - 20% transparent */
+  --ios-card: rgba(255, 255, 255, 0.8);
+  
+  /* Text colors */
+  --ios-label: #1a1a2e;
+  --ios-label-secondary: #4a4a5a;
+  --ios-label-tertiary: #6a6a7a;
+  
+  /* System colors - vibrant */
+  --ios-blue: #0066ff;
+  --ios-green: #00c853;
+  --ios-red: #ff3d71;
+  --ios-orange: #ff9100;
+  --ios-yellow: #ffd600;
+  --ios-teal: #00bcd4;
+  --ios-purple: #7c4dff;
+  
+  /* Separators */
+  --ios-separator: rgba(60, 60, 67, 0.1);
+  --ios-separator-opaque: #e0ddd8;
+  
+  /* Accent gradient colors */
+  --gradient-start: #667eea;
+  --gradient-end: #764ba2;
+  
+  /* For backward compatibility */
+  --background: var(--ios-bg);
+  --foreground: var(--ios-label);
+}
+
+/* Dark Mode */
+.dark {
+  /* Dark mode backgrounds */
+  --ios-bg: #000000;
+  --ios-bg-secondary: rgba(28, 28, 30, 0.8);
+  --ios-bg-tertiary: rgba(44, 44, 46, 0.8);
+  
+  /* Dark mode cards - 20% transparent */
+  --ios-card: rgba(28, 28, 30, 0.8);
+  
+  /* Dark mode text */
+  --ios-label: #ffffff;
+  --ios-label-secondary: #ebebf5;
+  --ios-label-tertiary: #ebebf5;
+  
+  /* System colors - slightly muted for dark */
+  --ios-blue: #0a84ff;
+  --ios-green: #30d158;
+  --ios-red: #ff453a;
+  --ios-orange: #ff9f0a;
+  --ios-yellow: #ffd60a;
+  --ios-teal: #64d2ff;
+  --ios-purple: #bf5af2;
+  
+  /* Dark separators */
+  --ios-separator: rgba(84, 84, 88, 0.65);
+  --ios-separator-opaque: #38383a;
+  
+  --gradient-start: #4c5c96;
+  --gradient-end: #5a3d7a;
+  
+  --background: var(--ios-bg);
+  --foreground: var(--ios-label);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ios-bg: var(--ios-bg);
+  --color-ios-bg-secondary: var(--ios-bg-secondary);
+  --color-ios-card: var(--ios-card);
+  --color-ios-card-dark: #1c1c1e;
+  --color-ios-bg-dark: #000000;
+  --color-ios-blue: var(--ios-blue);
+  --color-ios-green: var(--ios-green);
+  --color-ios-red: var(--ios-red);
+  --color-ios-orange: var(--ios-orange);
+  --color-ios-separator: var(--ios-separator);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* iOS System Font */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif;
+  background-color: var(--ios-bg);
+  color: var(--ios-label);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Safe area padding for notched devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* iOS-style animations */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* iOS tap highlight */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS-style list separators */
+.ios-separator {
+  border-color: var(--ios-separator);
+}
+
+/* Splash Screen Animations */
+@keyframes draw-d {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fade-in-scale {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in-line {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-draw-d {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: draw-d 0.8s ease-out forwards;
+}
+
+.animate-dot-1 {
+  opacity: 0;
+  animation: fade-in-scale 0.3s ease-out 0.3s forwards;
+}
+
+.animate-dot-2 {
+  opacity: 0;
+  animation: fade-in-scale 0.3s ease-out 0.45s forwards;
+}
+
+.animate-dot-3 {
+  opacity: 0;
+  animation: fade-in-scale 0.3s ease-out 0.6s forwards;
+}
+
+.animate-line-1 {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: slide-in-line 0.3s ease-out 0.5s forwards;
+}
+
+.animate-line-2 {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: slide-in-line 0.3s ease-out 0.65s forwards;
+}
+
+.animate-line-3 {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: slide-in-line 0.3s ease-out 0.8s forwards;
+}
+
+.animate-fade-in-up {
+  opacity: 0;
+  animation: fade-in-up 0.4s ease-out 0.9s forwards;
+}
+
