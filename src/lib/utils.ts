@@ -94,7 +94,7 @@ export function calculateStatistics(
 
       const sorted = Object.entries(valueCounts).sort((a, b) => b[1] - a[1]);
       mostCommonValue = sorted[0]?.[0];
-    } else if (activityType?.valueType === 'number') {
+    } else if (activityType?.valueType === 'counter') {
       const numericValues = activityEntries
         .map(e => Number(e.value))
         .filter(v => !isNaN(v));

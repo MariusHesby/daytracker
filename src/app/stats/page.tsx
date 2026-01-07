@@ -1229,27 +1229,6 @@ export default function StatsPage() {
                   );
                 })}
               </div>
-
-              {/* Additional Stats for Numbers */}
-              {getActivityType(selectedStat.activityTypeId)?.valueType ===
-                "number" &&
-                selectedStat.averageValue !== undefined && (
-                  <div className='mt-6 pt-4 border-t border-gray-200/80 dark:border-gray-700/80'>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-[15px] text-gray-500 dark:text-gray-400'>
-                        Average
-                      </span>
-                      <span className='text-[22px] font-semibold text-ios-blue'>
-                        {selectedStat.averageValue.toFixed(1)}
-                        {getActivityType(selectedStat.activityTypeId)?.unit && (
-                          <span className='text-[15px] font-normal text-gray-500 ml-1'>
-                            {getActivityType(selectedStat.activityTypeId)?.unit}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                )}
             </div>
           </div>
         ) : (

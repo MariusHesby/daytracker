@@ -20,9 +20,6 @@ export function EntryList({ entries, onEdit }: EntryListProps) {
     if (type?.valueType === "boolean") {
       return entry.value ? "Yes" : "No";
     }
-    if (type?.valueType === "number" && type.unit) {
-      return `${entry.value} ${type.unit}`;
-    }
     return String(entry.value);
   };
 
