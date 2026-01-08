@@ -75,28 +75,40 @@ export default function FriendsPage() {
         incoming = await getIncomingRequests(user.email);
       } catch (e: unknown) {
         const err = e as { message?: string; code?: string; details?: string };
-        console.error("Failed to load incoming requests:", err?.message || err?.code || JSON.stringify(e));
+        console.error(
+          "Failed to load incoming requests:",
+          err?.message || err?.code || JSON.stringify(e)
+        );
       }
 
       try {
         outgoing = await getOutgoingRequests(user.id);
       } catch (e: unknown) {
         const err = e as { message?: string; code?: string; details?: string };
-        console.error("Failed to load outgoing requests:", err?.message || err?.code || JSON.stringify(e));
+        console.error(
+          "Failed to load outgoing requests:",
+          err?.message || err?.code || JSON.stringify(e)
+        );
       }
 
       try {
         shared = await getSharedWithMe(user.id);
       } catch (e: unknown) {
         const err = e as { message?: string; code?: string; details?: string };
-        console.error("Failed to load shared with me:", err?.message || err?.code || JSON.stringify(e));
+        console.error(
+          "Failed to load shared with me:",
+          err?.message || err?.code || JSON.stringify(e)
+        );
       }
 
       try {
         shares = await getMyShares(user.id);
       } catch (e: unknown) {
         const err = e as { message?: string; code?: string; details?: string };
-        console.error("Failed to load my shares:", err?.message || err?.code || JSON.stringify(e));
+        console.error(
+          "Failed to load my shares:",
+          err?.message || err?.code || JSON.stringify(e)
+        );
       }
 
       setIncomingRequests(incoming);
@@ -294,7 +306,7 @@ export default function FriendsPage() {
                     {sharedUser.email}
                   </p>
                   <p className='text-sm text-gray-500 mt-1'>
-                    {sharedUser.activityTypes.length} {t("friends.activities")}
+                    {sharedUser.activityTypeIds?.length || sharedUser.activityTypes.length} {t("friends.activities")}
                   </p>
                 </button>
               ))
