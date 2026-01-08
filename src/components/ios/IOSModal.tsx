@@ -42,7 +42,7 @@ export function IOSModal({
   };
 
   return (
-    <div className='fixed inset-0 z-50 flex items-end sm:items-center justify-center'>
+    <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
       {/* Backdrop */}
       <div
         className='absolute inset-0 bg-black/40 backdrop-blur-sm'
@@ -52,9 +52,9 @@ export function IOSModal({
       {/* Modal content */}
       <div
         className={cn(
-          "relative w-full bg-white dark:bg-ios-card-dark rounded-t-2xl sm:rounded-2xl overflow-hidden",
-          "animate-in slide-in-from-bottom duration-300",
-          "max-h-[90vh] flex flex-col",
+          "relative w-full bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden",
+          "animate-in zoom-in-95 duration-200",
+          "max-h-[80vh] flex flex-col",
           size !== "fullscreen" && sizeClasses[size]
         )}>
         {/* Header */}
@@ -77,7 +77,7 @@ export function IOSModal({
         )}
 
         {/* Body */}
-        <div className='flex-1 overflow-y-auto'>{children}</div>
+        <div className='flex-1 overflow-y-auto p-4'>{children}</div>
       </div>
     </div>
   );

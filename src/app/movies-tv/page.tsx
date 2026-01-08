@@ -1,10 +1,149 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
 import { formatDate, addDays, cn } from "@/lib/utils";
 import { LogEntry } from "@/types";
 import { IOSSegmentedControl } from "@/components/ios";
+import { IOSModal } from "@/components/ios";
+import { searchMedia } from "@/lib/omdb";
+
+const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
+
+// Search for movie posters using both OMDB and TMDb APIs
+async function searchPosters(title: string): Promise<string[]> {
+  const posters: string[] = [];
+
+  // Try OMDB first
+  try {
+    const omdbResults = await searchMedia(title);
+    for (const result of omdbResults) {
+      if (result.Poster && result.Poster !== "N/A") {
+        posters.push(result.Poster);
+      }
+      if (posters.length >= 3) break;
+    }
+  } catch (error) {
+    console.error("OMDB poster search error:", error);
+  }
+
+  // If we don't have enough posters, try TMDb
+  if (posters.length < 3 && TMDB_API_KEY) {
+    try {
+      const tmdbSearchUrl = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
+        title
+      )}`;
+      const response = await fetch(tmdbSearchUrl);
+      if (response.ok) {
+        const data = await response.json();
+        for (const result of data.results || []) {
+          if (result.poster_path) {
+            const posterUrl = `https://image.tmdb.org/t/p/w500${result.poster_path}`;
+            if (!posters.includes(posterUrl)) {
+              posters.push(posterUrl);
+            }
+          }
+          if (posters.length >= 6) break;
+        }
+      }
+    } catch (error) {
+      console.error("TMDb poster search error:", error);
+    }
+  }
+
+  return posters.slice(0, 6);
+}
+
+function PosterPickerModal({
+  isOpen,
+  onClose,
+  entry,
+  onSelectPoster,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  entry: LogEntry;
+  onSelectPoster: (posterUrl: string) => void;
+}) {
+  const [posters, setPosters] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [customUrl, setCustomUrl] = useState("");
+  const title = typeof entry.value === "string" ? entry.value : "";
+
+  useEffect(() => {
+    if (isOpen && title) {
+      setLoading(true);
+      searchPosters(title).then((results) => {
+        setPosters(results);
+        setLoading(false);
+      });
+    }
+  }, [isOpen, title]);
+
+  return (
+    <IOSModal isOpen={isOpen} onClose={onClose} title='Choose Poster'>
+      <div className='space-y-4'>
+        <p className='text-sm text-gray-500 dark:text-gray-400'>
+          Select a poster for &quot;{title}&quot;
+        </p>
+
+        {loading ? (
+          <div className='flex justify-center py-8'>
+            <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-ios-blue'></div>
+          </div>
+        ) : posters.length > 0 ? (
+          <div className='grid grid-cols-3 gap-3'>
+            {posters.map((poster, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  onSelectPoster(poster);
+                  onClose();
+                }}
+                className='aspect-2/3 rounded-lg overflow-hidden border-2 border-transparent hover:border-ios-blue transition-all'>
+                <img
+                  src={poster}
+                  alt={`Poster option ${index + 1}`}
+                  className='w-full h-full object-cover'
+                />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className='text-center text-gray-500 py-4'>
+            No posters found. Try adding a custom URL below.
+          </p>
+        )}
+
+        <div className='pt-2 border-t border-gray-200 dark:border-gray-700'>
+          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+            Or enter a custom poster URL
+          </label>
+          <div className='flex gap-2'>
+            <input
+              type='url'
+              value={customUrl}
+              onChange={(e) => setCustomUrl(e.target.value)}
+              placeholder='https://...'
+              className='flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white text-sm'
+            />
+            <button
+              onClick={() => {
+                if (customUrl) {
+                  onSelectPoster(customUrl);
+                  onClose();
+                }
+              }}
+              disabled={!customUrl}
+              className='px-4 py-2 bg-ios-blue text-white rounded-lg text-sm font-medium disabled:opacity-50'>
+              Use
+            </button>
+          </div>
+        </div>
+      </div>
+    </IOSModal>
+  );
+}
 
 function StarRating({
   rating,
@@ -16,11 +155,53 @@ function StarRating({
   size?: "sm" | "md" | "lg";
 }) {
   const [hovered, setHovered] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const displayRating = hovered ?? rating ?? 0;
   const sizeClasses = { sm: "w-4 h-4", md: "w-5 h-5", lg: "w-6 h-6" };
 
+  const getRatingFromPosition = useCallback((clientX: number) => {
+    if (!containerRef.current) return null;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const starWidth = rect.width / 10;
+    const star = Math.ceil(x / starWidth);
+    return Math.max(1, Math.min(10, star));
+  }, []);
+
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      setIsDragging(true);
+      const rating = getRatingFromPosition(e.touches[0].clientX);
+      if (rating) setHovered(rating);
+    },
+    [getRatingFromPosition]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isDragging) return;
+      const rating = getRatingFromPosition(e.touches[0].clientX);
+      if (rating) setHovered(rating);
+    },
+    [isDragging, getRatingFromPosition]
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    if (hovered && onRate) {
+      onRate(hovered);
+    }
+    setIsDragging(false);
+    setHovered(null);
+  }, [hovered, onRate]);
+
   return (
-    <div className='flex gap-0.5'>
+    <div
+      ref={containerRef}
+      className='flex gap-0.5 touch-none'
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
         <button
           key={star}
@@ -47,13 +228,16 @@ function StarRating({
 function MediaCard({
   entry,
   onRate,
+  onUpdatePoster,
   layout = "grid",
 }: {
   entry: LogEntry;
   onRate: (entryId: string, rating: number) => void;
+  onUpdatePoster: (entryId: string, posterUrl: string) => void;
   layout?: "grid" | "list";
 }) {
   const [showRating, setShowRating] = useState(false);
+  const [showPosterPicker, setShowPosterPicker] = useState(false);
   const title = typeof entry.value === "string" ? entry.value : "";
 
   if (layout === "list") {
@@ -67,19 +251,31 @@ function MediaCard({
           })}
         </p>
         <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden shadow-sm flex'>
-          <div className='relative w-20 h-28 shrink-0 bg-gray-200 dark:bg-gray-800'>
+          <button
+            onClick={() => setShowPosterPicker(true)}
+            className='relative w-20 h-28 shrink-0 bg-gray-200 dark:bg-gray-800 group'>
             {entry.poster ? (
-              <img
-                src={entry.poster}
-                alt={title}
-                className='w-full h-full object-cover'
-              />
+              <>
+                <img
+                  src={entry.poster}
+                  alt={title}
+                  className='w-full h-full object-cover'
+                />
+                <div className='absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center'>
+                  <span className='text-white opacity-0 group-hover:opacity-100 text-xs'>
+                    Change
+                  </span>
+                </div>
+              </>
             ) : (
-              <div className='w-full h-full flex items-center justify-center text-2xl'>
+              <div className='w-full h-full flex flex-col items-center justify-center text-2xl hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors'>
                 🎬
+                <span className='text-[10px] text-gray-500 dark:text-gray-400 mt-1'>
+                  Add poster
+                </span>
               </div>
             )}
-          </div>
+          </button>
           <div className='p-3 flex-1 flex flex-col justify-start min-w-0'>
             <h3 className='font-semibold text-gray-900 dark:text-white text-[15px] line-clamp-2'>
               {title}
@@ -94,18 +290,11 @@ function MediaCard({
                 <button
                   onClick={() => setShowRating(true)}
                   className='text-[14px] text-ios-blue flex items-center gap-1'>
-                  <svg className='w-4 h-4' viewBox='0 0 512 512' fill='none'>
-                    <path
-                      d='M160 120 L160 392 L280 392 C360 392 420 320 420 256 C420 192 360 120 280 120 L160 120 Z'
-                      fill='none'
-                      stroke='currentColor'
-                      strokeWidth='40'
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                    />
-                    <circle cx='220' cy='200' r='16' fill='currentColor' />
-                    <circle cx='220' cy='256' r='16' fill='currentColor' />
-                    <circle cx='220' cy='312' r='16' fill='currentColor' />
+                  <svg
+                    className='w-4 h-4'
+                    viewBox='0 0 24 24'
+                    fill='currentColor'>
+                    <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
                   </svg>
                   {entry.userRating}
                 </button>
@@ -136,6 +325,12 @@ function MediaCard({
             ) : null}
           </div>
         </div>
+        <PosterPickerModal
+          isOpen={showPosterPicker}
+          onClose={() => setShowPosterPicker(false)}
+          entry={entry}
+          onSelectPoster={(url) => onUpdatePoster(entry.id, url)}
+        />
       </div>
     );
   }
@@ -150,19 +345,31 @@ function MediaCard({
         })}
       </p>
       <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden shadow-sm h-full flex flex-col'>
-        <div className='relative aspect-2/3 bg-gray-200 dark:bg-gray-800'>
+        <button
+          onClick={() => setShowPosterPicker(true)}
+          className='relative aspect-2/3 bg-gray-200 dark:bg-gray-800 group'>
           {entry.poster ? (
-            <img
-              src={entry.poster}
-              alt={title}
-              className='w-full h-full object-cover'
-            />
+            <>
+              <img
+                src={entry.poster}
+                alt={title}
+                className='w-full h-full object-cover'
+              />
+              <div className='absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center'>
+                <span className='text-white opacity-0 group-hover:opacity-100 text-sm'>
+                  Change
+                </span>
+              </div>
+            </>
           ) : (
-            <div className='w-full h-full flex items-center justify-center text-4xl'>
+            <div className='w-full h-full flex flex-col items-center justify-center text-4xl hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors'>
               🎬
+              <span className='text-[10px] text-gray-500 dark:text-gray-400 mt-1'>
+                Add poster
+              </span>
             </div>
           )}
-        </div>
+        </button>
         <div className='p-2.5 flex flex-col flex-1'>
           <h3 className='font-semibold text-gray-900 dark:text-white text-[14px] line-clamp-2'>
             {title}
@@ -177,18 +384,11 @@ function MediaCard({
               <button
                 onClick={() => setShowRating(true)}
                 className='text-[14px] text-ios-blue flex items-center gap-1'>
-                <svg className='w-4 h-4' viewBox='0 0 512 512' fill='none'>
-                  <path
-                    d='M160 120 L160 392 L280 392 C360 392 420 320 420 256 C420 192 360 120 280 120 L160 120 Z'
-                    fill='none'
-                    stroke='currentColor'
-                    strokeWidth='40'
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                  />
-                  <circle cx='220' cy='200' r='16' fill='currentColor' />
-                  <circle cx='220' cy='256' r='16' fill='currentColor' />
-                  <circle cx='220' cy='312' r='16' fill='currentColor' />
+                <svg
+                  className='w-4 h-4'
+                  viewBox='0 0 24 24'
+                  fill='currentColor'>
+                  <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
                 </svg>
                 {entry.userRating}
               </button>
@@ -219,6 +419,12 @@ function MediaCard({
           ) : null}
         </div>
       </div>
+      <PosterPickerModal
+        isOpen={showPosterPicker}
+        onClose={() => setShowPosterPicker(false)}
+        entry={entry}
+        onSelectPoster={(url) => onUpdatePoster(entry.id, url)}
+      />
     </div>
   );
 }
@@ -298,6 +504,11 @@ export default function MoviesPage() {
   const handleRate = async (entryId: string, rating: number) => {
     const entry = entries.find((e) => e.id === entryId);
     if (entry) await updateEntry({ ...entry, userRating: rating });
+  };
+
+  const handleUpdatePoster = async (entryId: string, posterUrl: string) => {
+    const entry = entries.find((e) => e.id === entryId);
+    if (entry) await updateEntry({ ...entry, poster: posterUrl });
   };
 
   return (
@@ -383,6 +594,7 @@ export default function MoviesPage() {
                 key={entry.id}
                 entry={entry}
                 onRate={handleRate}
+                onUpdatePoster={handleUpdatePoster}
                 layout='grid'
               />
             ))}
@@ -394,6 +606,7 @@ export default function MoviesPage() {
                 key={entry.id}
                 entry={entry}
                 onRate={handleRate}
+                onUpdatePoster={handleUpdatePoster}
                 layout='list'
               />
             ))}

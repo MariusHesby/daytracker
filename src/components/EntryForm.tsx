@@ -6,7 +6,6 @@ import { ActivityType, Suggestion } from "@/types";
 import { cn } from "@/lib/utils";
 import { Icon, icons, IconName } from "./Icons";
 import { MediaSearch } from "./MediaSearch";
-import { getMediaDetails } from "@/lib/omdb";
 
 interface EntryFormProps {
   date: string;
@@ -216,15 +215,15 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     title: string,
     imdbId: string,
     year: string,
-    poster: string
+    poster: string,
+    rating?: string
   ) => {
-    const details = await getMediaDetails(imdbId);
+    // TMDb IDs start with "tmdb-", we use rating from the search result instead of fetching OMDB details
     const displayTitle = `${title} (${year})`;
     await handleSaveValue(typeId, displayTitle, {
       imdbId,
       poster: poster !== "N/A" ? poster : undefined,
-      imdbRating:
-        details?.imdbRating !== "N/A" ? details?.imdbRating : undefined,
+      imdbRating: rating && rating !== "N/A" ? rating : undefined,
       year,
     });
   };
@@ -237,8 +236,8 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         <div className='pt-3 space-y-3'>
           <MediaSearch
             type={mediaType}
-            onSelect={(title, imdbId, year, poster) =>
-              handleMediaSelect(type.id, title, imdbId, year, poster)
+            onSelect={(title, imdbId, year, poster, rating) =>
+              handleMediaSelect(type.id, title, imdbId, year, poster, rating)
             }
             placeholder={
               mediaType === "movie"

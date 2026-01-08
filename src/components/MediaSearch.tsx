@@ -2,11 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  searchMedia,
-  MediaSearchResult,
-  getPosterUrl,
-  isOMDBConfigured,
-} from "@/lib/omdb";
+  searchTMDb,
+  TMDbMediaResult,
+  getTMDbPosterUrl,
+  isTMDbConfigured,
+} from "@/lib/tmdb";
 import { cn } from "@/lib/utils";
 
 interface MediaSearchProps {
@@ -15,7 +15,8 @@ interface MediaSearchProps {
     title: string,
     imdbId: string,
     year: string,
-    poster: string
+    poster: string,
+    rating?: string
   ) => void;
   placeholder?: string;
   initialValue?: string;
@@ -28,13 +29,13 @@ export function MediaSearch({
   initialValue = "",
 }: MediaSearchProps) {
   const [query, setQuery] = useState(initialValue);
-  const [results, setResults] = useState<MediaSearchResult[]>([]);
+  const [results, setResults] = useState<TMDbMediaResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [isConfigured, setIsConfigured] = useState(true);
 
   useEffect(() => {
-    setIsConfigured(isOMDBConfigured());
+    setIsConfigured(isTMDbConfigured());
   }, []);
 
   // Debounced search
@@ -46,7 +47,7 @@ export function MediaSearch({
 
     const timer = setTimeout(async () => {
       setIsLoading(true);
-      const searchResults = await searchMedia(query, type);
+      const searchResults = await searchTMDb(query, type);
       setResults(searchResults);
       setIsLoading(false);
       setShowResults(true);
@@ -56,11 +57,17 @@ export function MediaSearch({
   }, [query, type]);
 
   const handleSelect = useCallback(
-    (result: MediaSearchResult) => {
+    (result: TMDbMediaResult) => {
       const titleWithYear = `${result.Title} (${result.Year})`;
       setQuery(titleWithYear);
       setShowResults(false);
-      onSelect(result.Title, result.imdbID, result.Year, result.Poster);
+      onSelect(
+        result.Title,
+        result.imdbID,
+        result.Year,
+        result.Poster,
+        result.Rating
+      );
     },
     [onSelect]
   );
@@ -68,16 +75,16 @@ export function MediaSearch({
   if (!isConfigured) {
     return (
       <div className='text-sm text-amber-600 dark:text-amber-400 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg'>
-        <p className='font-medium'>OMDB API not configured</p>
+        <p className='font-medium'>TMDb API not configured</p>
         <p className='text-xs mt-1'>
           Add{" "}
           <code className='bg-amber-100 dark:bg-amber-800 px-1 rounded'>
-            NEXT_PUBLIC_OMDB_API_KEY
+            NEXT_PUBLIC_TMDB_API_KEY
           </code>{" "}
           to .env.local
         </p>
         <a
-          href='https://www.omdbapi.com/apikey.aspx'
+          href='https://www.themoviedb.org/settings/api'
           target='_blank'
           rel='noopener noreferrer'
           className='text-xs text-amber-700 dark:text-amber-300 underline mt-1 inline-block'>
@@ -139,7 +146,7 @@ export function MediaSearch({
                 )}>
                 {/* Poster thumbnail */}
                 <img
-                  src={getPosterUrl(result.Poster)}
+                  src={getTMDbPosterUrl(result.Poster)}
                   alt={result.Title}
                   className='w-10 h-14 object-cover rounded-md bg-gray-200 dark:bg-gray-700 flex-shrink-0'
                 />
@@ -150,6 +157,7 @@ export function MediaSearch({
                   <p className='text-sm text-gray-500 dark:text-gray-400'>
                     {result.Year} •{" "}
                     {result.Type === "movie" ? "Movie" : "TV Series"}
+                    {result.Rating !== "N/A" && ` • ⭐ ${result.Rating}`}
                   </p>
                 </div>
               </button>

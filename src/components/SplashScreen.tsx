@@ -6,16 +6,16 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
   const [phase, setPhase] = useState<"logo" | "fadeOut" | "done">("logo");
 
   useEffect(() => {
-    // Show logo animation for 1.5 seconds
+    // Show logo animation for 2.5 seconds
     const logoTimer = setTimeout(() => {
       setPhase("fadeOut");
-    }, 1500);
+    }, 2500);
 
-    // Complete after fade out (1.5s + 2s fade = 3.5s total)
+    // Complete after fade out (2.5s + 0.5s = 3s total)
     const completeTimer = setTimeout(() => {
       setPhase("done");
       onComplete();
-    }, 3500);
+    }, 3000);
 
     return () => {
       clearTimeout(logoTimer);
@@ -27,7 +27,7 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-ios-bg dark:bg-ios-bg-dark transition-opacity duration-2000 ${
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-ios-bg dark:bg-ios-bg-dark transition-opacity duration-500 ${
         phase === "fadeOut" ? "opacity-0" : "opacity-100"
       }`}>
       <div className='flex flex-col items-center gap-4'>
