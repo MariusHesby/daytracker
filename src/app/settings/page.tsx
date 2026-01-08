@@ -146,14 +146,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <button
-                  onClick={handleSyncData}
-                  disabled={isSyncingData || isSyncing}
-                  className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-blue text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 border-b border-gray-200/80 dark:border-gray-700/80'>
-                  {isSyncingData || isSyncing
-                    ? t("settings.syncing")
-                    : t("settings.syncNow")}
-                </button>
-                <button
                   onClick={handleSignOut}
                   disabled={authLoading}
                   className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50'>
