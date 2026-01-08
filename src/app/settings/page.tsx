@@ -14,27 +14,42 @@ export default function SettingsPage() {
   const { language, setLanguage, t } = useLanguage();
   const {
     user,
-    signInWithMagicLink,
+    signInWithEmail,
+    signUpWithEmail,
     signOut,
     isLoading: authLoading,
   } = useAuth();
   const activityManagerRef = useRef<ActivityTypeManagerRef>(null);
   const [isAddingActivity, setIsAddingActivity] = useState(false);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [isSyncingData, setIsSyncingData] = useState(false);
 
-  const handleSignIn = async () => {
+  const handleAuth = async () => {
     if (!email.trim()) {
       setAuthMessage(t("settings.enterEmail"));
       return;
     }
+    if (!password.trim() || password.length < 6) {
+      setAuthMessage(t("settings.passwordMin"));
+      return;
+    }
     setAuthMessage(null);
-    const { error } = await signInWithMagicLink(email);
-    if (error) {
-      setAuthMessage(error.message);
+
+    if (isSignUp) {
+      const { error } = await signUpWithEmail(email, password);
+      if (error) {
+        setAuthMessage(error.message);
+      } else {
+        setAuthMessage(t("settings.accountCreated"));
+      }
     } else {
-      setAuthMessage(t("settings.checkEmail"));
+      const { error } = await signInWithEmail(email, password);
+      if (error) {
+        setAuthMessage(error.message);
+      }
     }
   };
 
@@ -135,15 +150,36 @@ export default function SettingsPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={t("settings.emailPlaceholder")}
+                  autoCapitalize='none'
+                  autoCorrect='off'
+                  className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-[17px] text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue'
+                />
+                <input
+                  type='password'
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={t("settings.passwordPlaceholder")}
                   className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-[17px] text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue'
                 />
                 <button
-                  onClick={handleSignIn}
+                  onClick={handleAuth}
                   disabled={authLoading}
                   className='w-full px-4 py-3 bg-ios-blue text-white rounded-lg text-[17px] font-medium active:opacity-80 disabled:opacity-50'>
                   {authLoading
-                    ? t("settings.sending")
-                    : t("settings.signInWithEmail")}
+                    ? t("settings.loading")
+                    : isSignUp
+                      ? t("settings.createAccount")
+                      : t("settings.signIn")}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    setAuthMessage(null);
+                  }}
+                  className='w-full py-2 text-[15px] text-ios-blue'>
+                  {isSignUp
+                    ? t("settings.haveAccount")
+                    : t("settings.noAccount")}
                 </button>
               </div>
             )}
