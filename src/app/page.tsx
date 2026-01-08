@@ -46,12 +46,57 @@ export default function HomePage() {
             strokeLinejoin='round'
             className='text-ios-blue'
           />
-          <circle cx='220' cy='200' r='20' fill='currentColor' className='text-ios-blue' />
-          <circle cx='220' cy='256' r='20' fill='currentColor' className='text-ios-blue' />
-          <circle cx='220' cy='312' r='20' fill='currentColor' className='text-ios-blue' />
-          <line x1='240' y1='200' x2='320' y2='200' stroke='currentColor' strokeWidth='12' strokeLinecap='round' className='text-ios-blue' />
-          <line x1='240' y1='256' x2='340' y2='256' stroke='currentColor' strokeWidth='12' strokeLinecap='round' className='text-ios-blue' />
-          <line x1='240' y1='312' x2='300' y2='312' stroke='currentColor' strokeWidth='12' strokeLinecap='round' className='text-ios-blue' />
+          <circle
+            cx='220'
+            cy='200'
+            r='20'
+            fill='currentColor'
+            className='text-ios-blue'
+          />
+          <circle
+            cx='220'
+            cy='256'
+            r='20'
+            fill='currentColor'
+            className='text-ios-blue'
+          />
+          <circle
+            cx='220'
+            cy='312'
+            r='20'
+            fill='currentColor'
+            className='text-ios-blue'
+          />
+          <line
+            x1='240'
+            y1='200'
+            x2='320'
+            y2='200'
+            stroke='currentColor'
+            strokeWidth='12'
+            strokeLinecap='round'
+            className='text-ios-blue'
+          />
+          <line
+            x1='240'
+            y1='256'
+            x2='340'
+            y2='256'
+            stroke='currentColor'
+            strokeWidth='12'
+            strokeLinecap='round'
+            className='text-ios-blue'
+          />
+          <line
+            x1='240'
+            y1='312'
+            x2='300'
+            y2='312'
+            stroke='currentColor'
+            strokeWidth='12'
+            strokeLinecap='round'
+            className='text-ios-blue'
+          />
         </svg>
         <h1 className='text-xl font-semibold text-gray-900 dark:text-white'>
           DayTracker

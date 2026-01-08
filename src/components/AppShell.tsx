@@ -157,11 +157,31 @@ const SettingsIcon = ({ filled = false }: { filled?: boolean }) => (
   </svg>
 );
 
+const FriendsIcon = ({ filled = false }: { filled?: boolean }) => (
+  <svg
+    viewBox='0 0 24 24'
+    fill={filled ? "currentColor" : "none"}
+    stroke='currentColor'
+    strokeWidth={filled ? 0 : 1.5}
+    className='w-full h-full'>
+    {filled ? (
+      <path d='M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z' />
+    ) : (
+      <>
+        <circle cx='9' cy='7' r='3' />
+        <circle cx='17' cy='7' r='2.5' />
+        <path d='M3 18v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1' strokeLinecap='round' />
+        <path d='M15 13.9c1.5.2 4 1 4 2.6V18' strokeLinecap='round' />
+      </>
+    )}
+  </svg>
+);
+
 interface AppShellProps {
   children: ReactNode;
 }
 
-const TABS = ["/", "/movies-tv", "/stats", "/settings"];
+const TABS = ["/", "/movies-tv", "/stats", "/friends", "/settings"];
 
 export function AppShell({ children }: AppShellProps) {
   const { t } = useLanguage();
@@ -270,6 +290,12 @@ export function AppShell({ children }: AppShellProps) {
       label: t("tab.statistics"),
       icon: <StatsIcon />,
       activeIcon: <StatsIcon filled />,
+    },
+    {
+      href: "/friends",
+      label: t("tab.friends"),
+      icon: <FriendsIcon />,
+      activeIcon: <FriendsIcon filled />,
     },
     {
       href: "/settings",

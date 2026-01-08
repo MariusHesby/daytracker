@@ -54,3 +54,22 @@ export interface DbSuggestion {
   count: number;
   last_used: string;
 }
+
+export interface DbShareRequest {
+  id: string;
+  from_user_id: string;
+  from_email: string;
+  to_email: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbShare {
+  id: string;
+  owner_id: string;
+  viewer_id: string;
+  activity_type_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
