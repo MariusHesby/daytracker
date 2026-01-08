@@ -110,7 +110,7 @@ export default function SettingsPage() {
   ] as const;
 
   return (
-    <div className='min-h-screen pb-16'>
+    <div className='pb-16'>
       {/* Main Content */}
       <main className='max-w-lg mx-auto px-4 py-3 space-y-4'>
         {/* Account Section */}

@@ -512,7 +512,7 @@ export default function MoviesPage() {
   };
 
   return (
-    <div className='min-h-screen pb-16'>
+    <div className='pb-16'>
       <div className='px-4 pt-3 mb-3'>
         <IOSSegmentedControl
           options={[

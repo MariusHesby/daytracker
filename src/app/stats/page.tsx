@@ -615,7 +615,7 @@ export default function StatsPage() {
   ];
 
   return (
-    <div className='min-h-screen pb-16' onClick={handleBackgroundClick}>
+    <div className='pb-16' onClick={handleBackgroundClick}>
       {/* Time Range Selector - iOS Segmented Control */}
       <div className='px-4 py-3 mb-0'>
         <IOSSegmentedControl
