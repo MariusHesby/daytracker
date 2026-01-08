@@ -199,15 +199,25 @@ export default function FriendsPage() {
   const handleViewUserData = async (sharedUser: SharedUser) => {
     setViewingUser(sharedUser);
     try {
+      // Use activityTypeIds if available (from shares table), otherwise use activityTypes
+      const activityIds = sharedUser.activityTypeIds || sharedUser.activityTypes.map((a) => a.id);
+      
+      if (activityIds.length === 0) {
+        console.log("No activity IDs to fetch");
+        setSharedEntries([]);
+        return;
+      }
+
       const entries = await getSharedEntries(
         sharedUser.id,
-        sharedUser.activityTypes.map((a) => a.id),
+        activityIds,
         "2000-01-01",
         "2100-01-01"
       );
       setSharedEntries(entries);
     } catch (error) {
       console.error("Failed to load shared entries:", error);
+      setSharedEntries([]);
     }
   };
 
@@ -306,7 +316,9 @@ export default function FriendsPage() {
                     {sharedUser.email}
                   </p>
                   <p className='text-sm text-gray-500 mt-1'>
-                    {sharedUser.activityTypeIds?.length || sharedUser.activityTypes.length} {t("friends.activities")}
+                    {sharedUser.activityTypeIds?.length ||
+                      sharedUser.activityTypes.length}{" "}
+                    {t("friends.activities")}
                   </p>
                 </button>
               ))
