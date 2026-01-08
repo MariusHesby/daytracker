@@ -12,7 +12,12 @@ export default function SettingsPage() {
   const { isLoading, syncToCloud, isSyncing } = useApp();
   const { theme, setTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
-  const { user, signInWithMagicLink, signOut, isLoading: authLoading } = useAuth();
+  const {
+    user,
+    signInWithMagicLink,
+    signOut,
+    isLoading: authLoading,
+  } = useAuth();
   const activityManagerRef = useRef<ActivityTypeManagerRef>(null);
   const [isAddingActivity, setIsAddingActivity] = useState(false);
   const [email, setEmail] = useState("");
@@ -84,12 +89,23 @@ export default function SettingsPage() {
                 <div className='px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
                   <div className='flex items-center gap-3'>
                     <div className='w-10 h-10 rounded-full bg-ios-blue flex items-center justify-center'>
-                      <svg className='w-5 h-5 text-white' fill='none' viewBox='0 0 24 24' strokeWidth={2} stroke='currentColor'>
-                        <path strokeLinecap='round' strokeLinejoin='round' d='M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z' />
+                      <svg
+                        className='w-5 h-5 text-white'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        strokeWidth={2}
+                        stroke='currentColor'>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z'
+                        />
                       </svg>
                     </div>
                     <div>
-                      <p className='text-[17px] text-gray-900 dark:text-white'>{t("settings.loggedIn")}</p>
+                      <p className='text-[17px] text-gray-900 dark:text-white'>
+                        {t("settings.loggedIn")}
+                      </p>
                       <p className='text-[14px] text-gray-500'>{user.email}</p>
                     </div>
                   </div>
@@ -98,7 +114,9 @@ export default function SettingsPage() {
                   onClick={handleSyncData}
                   disabled={isSyncingData || isSyncing}
                   className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-blue text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 border-b border-gray-200/80 dark:border-gray-700/80'>
-                  {isSyncingData || isSyncing ? t("settings.syncing") : t("settings.syncNow")}
+                  {isSyncingData || isSyncing
+                    ? t("settings.syncing")
+                    : t("settings.syncNow")}
                 </button>
                 <button
                   onClick={handleSignOut}
@@ -123,7 +141,9 @@ export default function SettingsPage() {
                   onClick={handleSignIn}
                   disabled={authLoading}
                   className='w-full px-4 py-3 bg-ios-blue text-white rounded-lg text-[17px] font-medium active:opacity-80 disabled:opacity-50'>
-                  {authLoading ? t("settings.sending") : t("settings.signInWithEmail")}
+                  {authLoading
+                    ? t("settings.sending")
+                    : t("settings.signInWithEmail")}
                 </button>
               </div>
             )}

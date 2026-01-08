@@ -120,7 +120,8 @@ export const translations = {
     "settings.syncing": "Syncing...",
     "settings.syncComplete": "Data synced successfully!",
     "settings.syncFailed": "Sync failed. Please try again.",
-    "settings.cloudSyncDesc": "Sign in to keep your data safe in the cloud and sync across devices.",
+    "settings.cloudSyncDesc":
+      "Sign in to keep your data safe in the cloud and sync across devices.",
 
     // Media Search
     "media.notConfigured": "OMDB API not configured",
@@ -230,7 +231,8 @@ export const translations = {
     "settings.account": "Konto",
     "settings.loggedIn": "Logget inn",
     "settings.signOut": "Logg ut",
-    "settings.signInDesc": "Logg inn for å synkronisere data på tvers av enheter",
+    "settings.signInDesc":
+      "Logg inn for å synkronisere data på tvers av enheter",
     "settings.emailPlaceholder": "Skriv inn e-posten din",
     "settings.signInWithEmail": "Logg inn med e-post",
     "settings.sending": "Sender...",
@@ -240,7 +242,8 @@ export const translations = {
     "settings.syncing": "Synkroniserer...",
     "settings.syncComplete": "Data synkronisert!",
     "settings.syncFailed": "Synkronisering feilet. Prøv igjen.",
-    "settings.cloudSyncDesc": "Logg inn for å holde dataene dine trygge i skyen og synkronisere på tvers av enheter.",
+    "settings.cloudSyncDesc":
+      "Logg inn for å holde dataene dine trygge i skyen og synkronisere på tvers av enheter.",
 
     // Media Search
     "media.notConfigured": "OMDB API ikke konfigurert",
