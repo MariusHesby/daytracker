@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useRef, useCallback } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { IOSTabBar } from "./ios";
 import { useLanguage } from "@/context/LanguageContext";
 import { SplashScreen } from "./SplashScreen";
@@ -162,8 +163,71 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const { t } = useLanguage();
+  const router = useRouter();
+  const pathname = usePathname();
   const [showSplash, setShowSplash] = useState(true);
   const [hasSeenSplash, setHasSeenSplash] = useState(false);
+  
+  // Swipe handling
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const tabs = ["/", "/movies-tv", "/stats", "/settings"];
+
+  const handleSwipe = useCallback((direction: "left" | "right") => {
+    const currentIndex = tabs.indexOf(pathname);
+    if (currentIndex === -1) return;
+
+    if (direction === "left" && currentIndex < tabs.length - 1) {
+      router.push(tabs[currentIndex + 1]);
+    } else if (direction === "right" && currentIndex > 0) {
+      router.push(tabs[currentIndex - 1]);
+    }
+  }, [pathname, router, tabs]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (touchStartX.current === null || touchStartY.current === null) return;
+
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      
+      const deltaX = touchEndX - touchStartX.current;
+      const deltaY = touchEndY - touchStartY.current;
+      
+      // Only trigger swipe if horizontal movement is greater than vertical
+      // and the swipe is at least 80px
+      const minSwipeDistance = 80;
+      
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+        if (deltaX > 0) {
+          handleSwipe("right");
+        } else {
+          handleSwipe("left");
+        }
+      }
+
+      touchStartX.current = null;
+      touchStartY.current = null;
+    };
+
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [handleSwipe]);
 
   useEffect(() => {
     // Check if user has seen splash before in this session
@@ -208,7 +272,7 @@ export function AppShell({ children }: AppShellProps) {
   ];
 
   return (
-    <div className='min-h-screen bg-ios-bg dark:bg-ios-bg-dark relative'>
+    <div ref={containerRef} className='min-h-screen bg-ios-bg dark:bg-ios-bg-dark relative'>
       {showSplash && !hasSeenSplash && (
         <SplashScreen onComplete={handleSplashComplete} />
       )}
