@@ -70,47 +70,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
 
         if (user) {
-          // User is logged in - load from Supabase
+          // User is logged in - load from Supabase only
           const types = await cloudDb.getActivityTypesFromSupabase(user.id);
 
-          // Auto-sync: If cloud is empty but local has data, sync automatically
-          if (types.length === 0) {
-            await db.initDB();
-            const localTypes = await db.getActivityTypes();
-            const localEntries = await db.getEntries(
-              "1900-01-01",
-              "2100-12-31"
-            );
-
-            if (localTypes.length > 0) {
-              console.log("Auto-syncing local data to cloud...");
-              setIsSyncing(true);
-              await cloudDb.syncLocalToSupabase(
-                user.id,
-                localTypes,
-                localEntries
-              );
-              setIsSyncing(false);
-
-              // Reload from cloud after sync
-              const syncedTypes = await cloudDb.getActivityTypesFromSupabase(
-                user.id
-              );
-              const sortedTypes = syncedTypes.sort((a, b) => {
-                const orderA = a.order ?? Infinity;
-                const orderB = b.order ?? Infinity;
-                if (orderA !== orderB) return orderA - orderB;
-                return (
-                  new Date(a.createdAt).getTime() -
-                  new Date(b.createdAt).getTime()
-                );
-              });
-              setActivityTypes(sortedTypes);
-              setIsLoading(false);
-              return;
-            }
-          }
-
+          // If cloud is empty, DON'T auto-sync local data (it might belong to another user)
+          // Instead, start fresh - user can manually sync from settings if needed
           const sortedTypes = types.sort((a, b) => {
             const orderA = a.order ?? Infinity;
             const orderB = b.order ?? Infinity;
