@@ -106,6 +106,22 @@ export const translations = {
     "settings.deleteAllDesc":
       "This will delete all logged data and all activity types.",
 
+    // Account/Auth
+    "settings.account": "Account",
+    "settings.loggedIn": "Logged in",
+    "settings.signOut": "Sign Out",
+    "settings.signInDesc": "Sign in to sync your data across devices",
+    "settings.emailPlaceholder": "Enter your email",
+    "settings.signInWithEmail": "Sign in with Email",
+    "settings.sending": "Sending...",
+    "settings.checkEmail": "Check your email for the login link!",
+    "settings.enterEmail": "Please enter your email",
+    "settings.syncNow": "Sync Now",
+    "settings.syncing": "Syncing...",
+    "settings.syncComplete": "Data synced successfully!",
+    "settings.syncFailed": "Sync failed. Please try again.",
+    "settings.cloudSyncDesc": "Sign in to keep your data safe in the cloud and sync across devices.",
+
     // Media Search
     "media.notConfigured": "OMDB API not configured",
     "media.addApiKey": "Add",
@@ -209,6 +225,22 @@ export const translations = {
       "Er du sikker på at du vil slette all data? Dette kan ikke angres.",
     "settings.deleteAllDesc":
       "Dette vil slette all loggført data og alle aktivitetstyper.",
+
+    // Account/Auth
+    "settings.account": "Konto",
+    "settings.loggedIn": "Logget inn",
+    "settings.signOut": "Logg ut",
+    "settings.signInDesc": "Logg inn for å synkronisere data på tvers av enheter",
+    "settings.emailPlaceholder": "Skriv inn e-posten din",
+    "settings.signInWithEmail": "Logg inn med e-post",
+    "settings.sending": "Sender...",
+    "settings.checkEmail": "Sjekk e-posten din for innloggingslenken!",
+    "settings.enterEmail": "Vennligst skriv inn e-posten din",
+    "settings.syncNow": "Synkroniser nå",
+    "settings.syncing": "Synkroniserer...",
+    "settings.syncComplete": "Data synkronisert!",
+    "settings.syncFailed": "Synkronisering feilet. Prøv igjen.",
+    "settings.cloudSyncDesc": "Logg inn for å holde dataene dine trygge i skyen og synkronisere på tvers av enheter.",
 
     // Media Search
     "media.notConfigured": "OMDB API ikke konfigurert",

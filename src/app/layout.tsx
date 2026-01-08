@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { AppProvider } from "@/context/AppContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { LanguageProvider } from "@/context/LanguageContext";
+import { AuthProvider } from "@/context/AuthContext";
 import { AppShell } from "@/components";
 import "./globals.css";
 
@@ -35,13 +36,15 @@ export default function RootLayout({
   return (
     <html lang='en' suppressHydrationWarning>
       <body className='antialiased bg-ios-bg dark:bg-ios-bg-dark'>
-        <LanguageProvider>
-          <ThemeProvider>
-            <AppProvider>
-              <AppShell>{children}</AppShell>
-            </AppProvider>
-          </ThemeProvider>
-        </LanguageProvider>
+        <AuthProvider>
+          <LanguageProvider>
+            <ThemeProvider>
+              <AppProvider>
+                <AppShell>{children}</AppShell>
+              </AppProvider>
+            </ThemeProvider>
+          </LanguageProvider>
+        </AuthProvider>
       </body>
     </html>
   );
