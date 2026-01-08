@@ -29,7 +29,7 @@ export default function HomePage() {
   }
 
   return (
-    <div ref={scrollRef} className='min-h-screen overflow-y-auto'>
+    <div ref={scrollRef} className='overflow-y-auto'>
       {/* Header with Logo */}
       <div className='flex items-center justify-center gap-3 pt-3 pb-1'>
         <svg

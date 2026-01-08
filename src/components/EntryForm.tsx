@@ -529,7 +529,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
             {/* Activity row */}
             <div
               className={cn(
-                "flex items-center min-h-[44px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
+                "flex items-center min-h-[40px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
                 isExpanded && "bg-gray-50 dark:bg-gray-800/50"
               )}
               onClick={handleRowClick}>
@@ -557,7 +557,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
               {/* Content and right-aligned controls */}
               <div
                 className={cn(
-                  "flex-1 py-3 flex items-center",
+                  "flex-1 py-2 flex items-center",
                   !isLast &&
                     !isExpanded &&
                     "border-b border-gray-200/80 dark:border-gray-700/80"

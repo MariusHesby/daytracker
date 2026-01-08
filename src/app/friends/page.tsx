@@ -191,7 +191,7 @@ export default function FriendsPage() {
   }
 
   return (
-    <div className='min-h-screen pb-24'>
+    <div className='min-h-screen pb-16'>
       <main className='max-w-lg mx-auto px-4 py-3 space-y-4'>
         {/* Header */}
         <div className='flex items-center justify-between'>

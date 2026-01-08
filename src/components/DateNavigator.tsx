@@ -24,7 +24,7 @@ export function DateNavigator({ date, onChange }: DateNavigatorProps) {
   const today = isToday(date);
 
   return (
-    <div className='flex items-center justify-between bg-white/80 dark:bg-ios-card-dark rounded-xl p-1'>
+    <div className='flex items-center justify-between bg-white/80 dark:bg-ios-card-dark rounded-xl'>
       <button
         onClick={handlePrevDay}
         className={cn(
