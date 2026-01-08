@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: "Track your daily activities and habits",
   icons: {
     icon: "/icon.svg",
-    apple: "/logo.svg",
+    apple: "/apple-touch-icon.png",
   },
   appleWebApp: {
     capable: true,
