@@ -311,7 +311,7 @@ export function AppShell({ children }: AppShellProps) {
   return (
     <div
       ref={containerRef}
-      className='min-h-screen bg-ios-bg dark:bg-ios-bg-dark relative'>
+      className='bg-ios-bg dark:bg-ios-bg-dark relative'>
       {showSplash && !hasSeenSplash && (
         <SplashScreen onComplete={handleSplashComplete} />
       )}
