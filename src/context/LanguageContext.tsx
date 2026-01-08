@@ -120,8 +120,10 @@ export const translations = {
     "settings.noAccount": "Don't have an account? Create one",
     "settings.passwordMin": "Password must be at least 6 characters",
     "settings.accountCreated": "Account created! You are now logged in.",
-    "settings.checkEmailConfirm": "Check your email to confirm your account, then sign in.",
-    "settings.invalidCredentials": "Invalid email or password. Please try again.",
+    "settings.checkEmailConfirm":
+      "Check your email to confirm your account, then sign in.",
+    "settings.invalidCredentials":
+      "Invalid email or password. Please try again.",
     "settings.enterEmail": "Please enter your email",
     "settings.syncNow": "Sync Now",
     "settings.syncing": "Syncing...",
@@ -249,7 +251,8 @@ export const translations = {
     "settings.noAccount": "Har du ikke en konto? Opprett en",
     "settings.passwordMin": "Passord må være minst 6 tegn",
     "settings.accountCreated": "Konto opprettet! Du er nå logget inn.",
-    "settings.checkEmailConfirm": "Sjekk e-posten din for å bekrefte kontoen, deretter logg inn.",
+    "settings.checkEmailConfirm":
+      "Sjekk e-posten din for å bekrefte kontoen, deretter logg inn.",
     "settings.invalidCredentials": "Ugyldig e-post eller passord. Prøv igjen.",
     "settings.enterEmail": "Vennligst skriv inn e-posten din",
     "settings.syncNow": "Synkroniser nå",

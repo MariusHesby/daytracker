@@ -255,20 +255,40 @@ export async function syncLocalToSupabase(
 ): Promise<{ activityTypeIdMap: Map<string, string> }> {
   const activityTypeIdMap = new Map<string, string>();
 
-  // First, add all activity types and track ID mapping
+  // First, get existing activity types from cloud
+  const existingTypes = await getActivityTypesFromSupabase(userId);
+  const existingByName = new Map(existingTypes.map(t => [t.name.toLowerCase(), t]));
+
+  // Add or map activity types
   for (const type of activityTypes) {
-    const newType = await addActivityTypeToSupabase(userId, type);
-    activityTypeIdMap.set(type.id, newType.id);
+    const existing = existingByName.get(type.name.toLowerCase());
+    if (existing) {
+      // Already exists in cloud, just map the ID
+      activityTypeIdMap.set(type.id, existing.id);
+    } else {
+      // Doesn't exist, create new
+      const newType = await addActivityTypeToSupabase(userId, type);
+      activityTypeIdMap.set(type.id, newType.id);
+    }
   }
 
-  // Then add all entries with updated activity type IDs
+  // Get existing entries to avoid duplicates
+  const existingEntries = await getEntriesFromSupabase(userId, "1900-01-01", "2100-12-31");
+  const existingEntryKeys = new Set(
+    existingEntries.map(e => `${e.date}-${e.activityTypeId}-${JSON.stringify(e.value)}`)
+  );
+
+  // Then add entries that don't already exist
   for (const entry of entries) {
     const newActivityTypeId = activityTypeIdMap.get(entry.activityTypeId);
     if (newActivityTypeId) {
-      await addEntryToSupabase(userId, {
-        ...entry,
-        activityTypeId: newActivityTypeId,
-      });
+      const entryKey = `${entry.date}-${newActivityTypeId}-${JSON.stringify(entry.value)}`;
+      if (!existingEntryKeys.has(entryKey)) {
+        await addEntryToSupabase(userId, {
+          ...entry,
+          activityTypeId: newActivityTypeId,
+        });
+      }
     }
   }
 

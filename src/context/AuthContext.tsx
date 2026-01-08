@@ -22,7 +22,11 @@ interface AuthContextType {
   signUpWithEmail: (
     email: string,
     password: string
-  ) => Promise<{ error: Error | null; needsConfirmation?: boolean; user?: User | null }>;
+  ) => Promise<{
+    error: Error | null;
+    needsConfirmation?: boolean;
+    user?: User | null;
+  }>;
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -72,14 +76,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         options: {
           // Skip email confirmation for PWA usage
-          emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
+          emailRedirectTo:
+            typeof window !== "undefined" ? window.location.origin : undefined,
         },
       });
-      
+
       // If signup succeeded but user needs to confirm email
       const needsConfirmation = data?.user && !data?.session;
-      
-      return { 
+
+      return {
         error: error as Error | null,
         needsConfirmation,
         user: data?.user,
