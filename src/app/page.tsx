@@ -31,7 +31,7 @@ export default function HomePage() {
   return (
     <div ref={scrollRef} className='min-h-screen overflow-y-auto'>
       {/* Header with Logo */}
-      <div className='flex items-center justify-center gap-3 pt-6 pb-2'>
+      <div className='flex items-center justify-center gap-3 pt-3 pb-1'>
         <svg
           className='w-10 h-10'
           viewBox='0 0 512 512'
@@ -104,12 +104,12 @@ export default function HomePage() {
       </div>
 
       {/* Date Navigator */}
-      <div className='px-4 pt-2 pb-4'>
+      <div className='px-4 pt-1 pb-3'>
         <DateNavigator date={selectedDate} onChange={setSelectedDate} />
       </div>
 
       {/* Main Content */}
-      <main className='px-4 pb-6'>
+      <main className='px-4 pb-4'>
         <EntryForm date={selectedDate} />
       </main>
     </div>

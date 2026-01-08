@@ -112,7 +112,7 @@ export default function SettingsPage() {
   return (
     <div className='min-h-screen pb-24'>
       {/* Main Content */}
-      <main className='max-w-lg mx-auto px-4 py-6 space-y-6'>
+      <main className='max-w-lg mx-auto px-4 py-3 space-y-4'>
         {/* Account Section */}
         <section>
           <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>

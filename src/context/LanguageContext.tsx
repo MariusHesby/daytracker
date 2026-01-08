@@ -155,12 +155,14 @@ export const translations = {
     "friends.edit": "Edit",
     "friends.remove": "Remove",
     "friends.sendRequest": "Send Request",
-    "friends.sendRequestDesc": "Enter the email of the friend you want to request access from:",
+    "friends.sendRequestDesc":
+      "Enter the email of the friend you want to request access from:",
     "friends.emailPlaceholder": "friend@example.com",
     "friends.send": "Send Request",
     "friends.requestSent": "Request sent!",
     "friends.requestAccepted": "Request accepted!",
-    "friends.confirmRemove": "Are you sure you want to stop sharing with this person?",
+    "friends.confirmRemove":
+      "Are you sure you want to stop sharing with this person?",
     "friends.selectActivities": "Select Activities to Share",
     "friends.selectActivitiesDesc": "Choose which activities to share with",
     "friends.acceptAndShare": "Accept & Share",
@@ -323,12 +325,14 @@ export const translations = {
     "friends.edit": "Rediger",
     "friends.remove": "Fjern",
     "friends.sendRequest": "Send forespørsel",
-    "friends.sendRequestDesc": "Skriv inn e-posten til vennen du vil be om tilgang fra:",
+    "friends.sendRequestDesc":
+      "Skriv inn e-posten til vennen du vil be om tilgang fra:",
     "friends.emailPlaceholder": "venn@eksempel.no",
     "friends.send": "Send forespørsel",
     "friends.requestSent": "Forespørsel sendt!",
     "friends.requestAccepted": "Forespørsel godtatt!",
-    "friends.confirmRemove": "Er du sikker på at du vil slutte å dele med denne personen?",
+    "friends.confirmRemove":
+      "Er du sikker på at du vil slutte å dele med denne personen?",
     "friends.selectActivities": "Velg aktiviteter å dele",
     "friends.selectActivitiesDesc": "Velg hvilke aktiviteter du vil dele med",
     "friends.acceptAndShare": "Godta og del",

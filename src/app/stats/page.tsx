@@ -617,7 +617,7 @@ export default function StatsPage() {
   return (
     <div className='min-h-screen pb-24' onClick={handleBackgroundClick}>
       {/* Time Range Selector - iOS Segmented Control */}
-      <div className='px-4 py-6 mb-0'>
+      <div className='px-4 py-3 mb-0'>
         <IOSSegmentedControl
           options={TIME_RANGES.map((r) => ({ value: r.value, label: r.label }))}
           value={timeRange}
@@ -628,7 +628,7 @@ export default function StatsPage() {
       {/* Main Content */}
       <main className='max-w-lg mx-auto px-4'>
         {/* Activity Type Selector */}
-        <div className='mb-6'>
+        <div className='mb-4'>
           <div className='flex flex-wrap gap-2'>
             {activityTypes.map((type, index) => {
               const stat = statistics.find((s) => s.activityTypeId === type.id);

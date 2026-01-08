@@ -170,7 +170,10 @@ const FriendsIcon = ({ filled = false }: { filled?: boolean }) => (
       <>
         <circle cx='9' cy='7' r='3' />
         <circle cx='17' cy='7' r='2.5' />
-        <path d='M3 18v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1' strokeLinecap='round' />
+        <path
+          d='M3 18v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1'
+          strokeLinecap='round'
+        />
         <path d='M15 13.9c1.5.2 4 1 4 2.6V18' strokeLinecap='round' />
       </>
     )}

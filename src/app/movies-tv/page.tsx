@@ -513,7 +513,7 @@ export default function MoviesPage() {
 
   return (
     <div className='min-h-screen pb-24'>
-      <div className='px-4 pt-6 mb-4'>
+      <div className='px-4 pt-3 mb-3'>
         <IOSSegmentedControl
           options={[
             { value: "movies", label: "Movies (" + stats.totalMovies + ")" },
@@ -524,7 +524,7 @@ export default function MoviesPage() {
         />
       </div>
 
-      <div className='px-4 mb-4 flex gap-2 items-center'>
+      <div className='px-4 mb-3 flex gap-2 items-center'>
         <div className='flex gap-2 flex-1'>
           {[
             { value: "date", label: "Newest" },
