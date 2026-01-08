@@ -73,26 +73,30 @@ export default function FriendsPage() {
 
       try {
         incoming = await getIncomingRequests(user.email);
-      } catch (e) {
-        console.error("Failed to load incoming requests:", e);
+      } catch (e: unknown) {
+        const err = e as { message?: string; code?: string; details?: string };
+        console.error("Failed to load incoming requests:", err?.message || err?.code || JSON.stringify(e));
       }
 
       try {
         outgoing = await getOutgoingRequests(user.id);
-      } catch (e) {
-        console.error("Failed to load outgoing requests:", e);
+      } catch (e: unknown) {
+        const err = e as { message?: string; code?: string; details?: string };
+        console.error("Failed to load outgoing requests:", err?.message || err?.code || JSON.stringify(e));
       }
 
       try {
         shared = await getSharedWithMe(user.id);
-      } catch (e) {
-        console.error("Failed to load shared with me:", e);
+      } catch (e: unknown) {
+        const err = e as { message?: string; code?: string; details?: string };
+        console.error("Failed to load shared with me:", err?.message || err?.code || JSON.stringify(e));
       }
 
       try {
         shares = await getMyShares(user.id);
-      } catch (e) {
-        console.error("Failed to load my shares:", e);
+      } catch (e: unknown) {
+        const err = e as { message?: string; code?: string; details?: string };
+        console.error("Failed to load my shares:", err?.message || err?.code || JSON.stringify(e));
       }
 
       setIncomingRequests(incoming);
