@@ -580,9 +580,15 @@ export default function MoviesPage() {
       <main className='px-4'>
         {mediaEntries.length === 0 ? (
           <div className='text-center py-12'>
-            <p className='text-4xl mb-4'>
-              {activeTab === "movies" ? "🎬" : "📺"}
-            </p>
+            <svg
+              className='w-16 h-16 mx-auto mb-4 text-gray-400 dark:text-gray-500'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth={1.5}>
+              <rect x='2' y='4' width='20' height='16' rx='2' />
+              <path d='M7 4v16M17 4v16M2 9h5M17 9h5M2 15h5M17 15h5' />
+            </svg>
             <p className='text-gray-500'>
               No {activeTab === "movies" ? "movies" : "series"} found
             </p>
