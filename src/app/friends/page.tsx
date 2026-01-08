@@ -65,12 +65,35 @@ export default function FriendsPage() {
 
     setIsLoading(true);
     try {
-      const [incoming, outgoing, shared, shares] = await Promise.all([
-        getIncomingRequests(user.email),
-        getOutgoingRequests(user.id),
-        getSharedWithMe(user.id),
-        getMyShares(user.id),
-      ]);
+      // Load each query separately to identify which one fails
+      let incoming: ShareRequest[] = [];
+      let outgoing: ShareRequest[] = [];
+      let shared: SharedUser[] = [];
+      let shares: { share: Share; viewerEmail: string }[] = [];
+
+      try {
+        incoming = await getIncomingRequests(user.email);
+      } catch (e) {
+        console.error("Failed to load incoming requests:", e);
+      }
+
+      try {
+        outgoing = await getOutgoingRequests(user.id);
+      } catch (e) {
+        console.error("Failed to load outgoing requests:", e);
+      }
+
+      try {
+        shared = await getSharedWithMe(user.id);
+      } catch (e) {
+        console.error("Failed to load shared with me:", e);
+      }
+
+      try {
+        shares = await getMyShares(user.id);
+      } catch (e) {
+        console.error("Failed to load my shares:", e);
+      }
 
       setIncomingRequests(incoming);
       setOutgoingRequests(outgoing);

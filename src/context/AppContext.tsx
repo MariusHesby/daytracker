@@ -75,7 +75,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
           // If cloud is empty, create default activity types for the new user
           if (types.length === 0) {
-            console.log("New user detected, creating default activity types...");
+            console.log(
+              "New user detected, creating default activity types..."
+            );
             types = await cloudDb.initializeDefaultActivityTypes(user.id);
           }
 
