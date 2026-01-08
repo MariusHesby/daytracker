@@ -71,10 +71,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         if (user) {
           // User is logged in - load from Supabase only
-          const types = await cloudDb.getActivityTypesFromSupabase(user.id);
+          let types = await cloudDb.getActivityTypesFromSupabase(user.id);
 
-          // If cloud is empty, DON'T auto-sync local data (it might belong to another user)
-          // Instead, start fresh - user can manually sync from settings if needed
+          // If cloud is empty, create default activity types for the new user
+          if (types.length === 0) {
+            console.log("New user detected, creating default activity types...");
+            types = await cloudDb.initializeDefaultActivityTypes(user.id);
+          }
+
           const sortedTypes = types.sort((a, b) => {
             const orderA = a.order ?? Infinity;
             const orderB = b.order ?? Infinity;

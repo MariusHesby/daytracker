@@ -1,6 +1,6 @@
 // Supabase sync functions for DayTracker
 import { supabase, DbActivityType, DbLogEntry, DbSuggestion } from './supabase';
-import { ActivityType, LogEntry, Suggestion } from '@/types';
+import { ActivityType, LogEntry, Suggestion, DEFAULT_ACTIVITY_TYPES } from '@/types';
 
 // Convert DB types to app types
 function dbToActivityType(db: DbActivityType): ActivityType {
@@ -53,6 +53,22 @@ export async function getActivityTypesFromSupabase(userId: string): Promise<Acti
 
   if (error) throw error;
   return (data || []).map(dbToActivityType);
+}
+
+// Initialize default activity types for new users
+export async function initializeDefaultActivityTypes(userId: string): Promise<ActivityType[]> {
+  const createdTypes: ActivityType[] = [];
+  
+  for (let i = 0; i < DEFAULT_ACTIVITY_TYPES.length; i++) {
+    const type = DEFAULT_ACTIVITY_TYPES[i];
+    const newType = await addActivityTypeToSupabase(userId, {
+      ...type,
+      order: i,
+    });
+    createdTypes.push(newType);
+  }
+  
+  return createdTypes;
 }
 
 export async function addActivityTypeToSupabase(
