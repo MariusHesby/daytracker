@@ -196,6 +196,7 @@ export function AppShell({ children }: AppShellProps) {
   // Swipe handling
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
+  const touchStartTime = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleSwipe = useCallback(
@@ -219,25 +220,35 @@ export function AppShell({ children }: AppShellProps) {
     const handleTouchStart = (e: TouchEvent) => {
       touchStartX.current = e.touches[0].clientX;
       touchStartY.current = e.touches[0].clientY;
+      touchStartTime.current = Date.now();
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      if (touchStartX.current === null || touchStartY.current === null) return;
+      if (touchStartX.current === null || touchStartY.current === null || touchStartTime.current === null) return;
 
       const touchEndX = e.changedTouches[0].clientX;
       const touchEndY = e.changedTouches[0].clientY;
+      const touchDuration = Date.now() - touchStartTime.current;
 
       const deltaX = touchEndX - touchStartX.current;
       const deltaY = touchEndY - touchStartY.current;
 
-      // Only trigger swipe if horizontal movement is significantly greater than vertical
-      // and the swipe is at least 50px (reduced from 80px for easier swiping)
-      const minSwipeDistance = 50;
+      // Calculate velocity (pixels per millisecond)
+      const velocityX = Math.abs(deltaX) / touchDuration;
 
-      if (
-        Math.abs(deltaX) > Math.abs(deltaY) * 1.5 &&
-        Math.abs(deltaX) > minSwipeDistance
-      ) {
+      // Swipe detection:
+      // - Minimum 30px horizontal movement (reduced for easier swiping)
+      // - OR fast swipe (high velocity) with at least 20px movement
+      // - Horizontal movement must be greater than vertical
+      const minSwipeDistance = 30;
+      const minFastSwipeDistance = 20;
+      const fastSwipeVelocity = 0.3; // pixels per ms
+
+      const isHorizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+      const isLongEnough = Math.abs(deltaX) > minSwipeDistance;
+      const isFastEnough = velocityX > fastSwipeVelocity && Math.abs(deltaX) > minFastSwipeDistance;
+
+      if (isHorizontalSwipe && (isLongEnough || isFastEnough)) {
         if (deltaX > 0) {
           handleSwipe("right");
         } else {
@@ -247,6 +258,7 @@ export function AppShell({ children }: AppShellProps) {
 
       touchStartX.current = null;
       touchStartY.current = null;
+      touchStartTime.current = null;
     };
 
     container.addEventListener("touchstart", handleTouchStart, {
