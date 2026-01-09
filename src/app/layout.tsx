@@ -9,6 +9,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "DayTracker",
   description: "Track your daily activities and habits",
+  manifest: "/manifest.json",
   icons: {
     icon: "/icon.svg",
     apple: "/apple-touch-icon.png",
