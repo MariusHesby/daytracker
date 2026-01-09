@@ -19,8 +19,10 @@ import {
   ShareRequest,
   SharedUser,
   Share,
+  UserProfile,
 } from "@/lib/sharing";
 import { IOSModal } from "@/components/ios";
+import { Avatar } from "@/components/ProfileSetup";
 
 export default function FriendsPage() {
   const { user } = useAuth();
@@ -35,7 +37,7 @@ export default function FriendsPage() {
   const [outgoingRequests, setOutgoingRequests] = useState<ShareRequest[]>([]);
   const [sharedWithMe, setSharedWithMe] = useState<SharedUser[]>([]);
   const [myShares, setMyShares] = useState<
-    { share: Share; viewerEmail: string }[]
+    { share: Share; viewerEmail: string; viewerProfile?: UserProfile }[]
   >([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -49,6 +51,7 @@ export default function FriendsPage() {
   const [selectedShare, setSelectedShare] = useState<{
     share: Share;
     viewerEmail: string;
+    viewerProfile?: UserProfile;
   } | null>(null);
   const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>(
     []
@@ -293,15 +296,25 @@ export default function FriendsPage() {
                 <button
                   key={sharedUser.id}
                   onClick={() => handleViewUserData(sharedUser)}
-                  className='w-full p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl text-left'>
-                  <p className='font-medium text-gray-900 dark:text-white'>
-                    {sharedUser.email}
-                  </p>
-                  <p className='text-sm text-gray-500 mt-1'>
-                    {sharedUser.activityTypeIds?.length ||
-                      sharedUser.activityTypes.length}{" "}
-                    {t("friends.activities")}
-                  </p>
+                  className='w-full p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl text-left flex items-center gap-3'>
+                  <Avatar
+                    avatar={sharedUser.profile?.avatar || null}
+                    size='md'
+                  />
+                  <div className='flex-1 min-w-0'>
+                    <p className='font-medium text-gray-900 dark:text-white truncate'>
+                      {sharedUser.profile?.fullName || sharedUser.email}
+                    </p>
+                    <p className='text-sm text-gray-500 truncate'>
+                      {sharedUser.email}
+                    </p>
+                  </div>
+                  <div className='flex-shrink-0 w-8 h-8 bg-ios-blue/10 rounded-full flex items-center justify-center'>
+                    <span className='text-sm font-medium text-ios-blue'>
+                      {sharedUser.activityTypeIds?.length ||
+                        sharedUser.activityTypes.length}
+                    </span>
+                  </div>
                 </button>
               ))
             )}
@@ -326,15 +339,21 @@ export default function FriendsPage() {
                     <div
                       key={req.id}
                       className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl flex items-center justify-between'>
-                      <div>
-                        <p className='font-medium text-gray-900 dark:text-white'>
-                          {req.fromEmail}
-                        </p>
-                        <p className='text-xs text-gray-500'>
-                          {t("friends.wantsAccess")}
-                        </p>
+                      <div className='flex items-center gap-3 min-w-0 flex-1'>
+                        <Avatar
+                          avatar={req.profile?.avatar || null}
+                          size='md'
+                        />
+                        <div className='min-w-0'>
+                          <p className='font-medium text-gray-900 dark:text-white truncate'>
+                            {req.profile?.fullName || req.fromEmail}
+                          </p>
+                          <p className='text-sm text-gray-500 truncate'>
+                            {req.fromEmail}
+                          </p>
+                        </div>
                       </div>
-                      <div className='flex gap-2'>
+                      <div className='flex gap-2 flex-shrink-0'>
                         <button
                           onClick={() => {
                             setSelectedRequest(req);
@@ -370,19 +389,32 @@ export default function FriendsPage() {
                   {outgoingRequests.map((req) => (
                     <div
                       key={req.id}
-                      className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl flex items-center justify-between'>
-                      <div>
-                        <p className='font-medium text-gray-900 dark:text-white'>
+                      className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl flex items-center gap-3'>
+                      <Avatar avatar={req.profile?.avatar || null} size='md' />
+                      <div className='min-w-0 flex-1'>
+                        <p className='font-medium text-gray-900 dark:text-white truncate'>
+                          {req.profile?.fullName || req.toEmail}
+                        </p>
+                        <p className='text-sm text-gray-500 truncate'>
                           {req.toEmail}
                         </p>
-                        <p className='text-xs text-gray-500'>
-                          {req.status === "pending"
-                            ? t("friends.pending")
-                            : req.status === "accepted"
-                            ? t("friends.accepted")
-                            : t("friends.rejected")}
-                        </p>
                       </div>
+                      <span
+                        className={cn(
+                          "text-xs px-2 py-1 rounded-full flex-shrink-0",
+                          req.status === "pending" &&
+                            "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                          req.status === "accepted" &&
+                            "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                          req.status === "rejected" &&
+                            "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                        )}>
+                        {req.status === "pending"
+                          ? t("friends.pending")
+                          : req.status === "accepted"
+                          ? t("friends.accepted")
+                          : t("friends.rejected")}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -400,23 +432,33 @@ export default function FriendsPage() {
                 <p className='text-gray-500'>{t("friends.noShares")}</p>
               </div>
             ) : (
-              myShares.map(({ share, viewerEmail }) => (
+              myShares.map(({ share, viewerEmail, viewerProfile }) => (
                 <div
                   key={share.id}
                   className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl'>
-                  <div className='flex items-center justify-between'>
-                    <div>
-                      <p className='font-medium text-gray-900 dark:text-white'>
+                  <div className='flex items-center gap-3'>
+                    <Avatar avatar={viewerProfile?.avatar || null} size='md' />
+                    <div className='flex-1 min-w-0'>
+                      <p className='font-medium text-gray-900 dark:text-white truncate'>
+                        {viewerProfile?.fullName || viewerEmail}
+                      </p>
+                      <p className='text-sm text-gray-500 truncate'>
                         {viewerEmail}
                       </p>
-                      <p className='text-sm text-gray-500 mt-1'>
-                        {share.activityTypeIds.length} {t("friends.activities")}
-                      </p>
                     </div>
-                    <div className='flex gap-2'>
+                    <div className='flex items-center gap-2 flex-shrink-0'>
+                      <div className='w-8 h-8 bg-ios-blue/10 rounded-full flex items-center justify-center'>
+                        <span className='text-sm font-medium text-ios-blue'>
+                          {share.activityTypeIds.length}
+                        </span>
+                      </div>
                       <button
                         onClick={() => {
-                          setSelectedShare({ share, viewerEmail });
+                          setSelectedShare({
+                            share,
+                            viewerEmail,
+                            viewerProfile,
+                          });
                           setSelectedActivityTypes(share.activityTypeIds);
                           setShowEditShare(true);
                         }}

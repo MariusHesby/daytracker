@@ -3,7 +3,7 @@ import { AppProvider } from "@/context/AppContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { AppShell } from "@/components";
+import { AppShell, ProfileSetupWrapper } from "@/components";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -41,6 +41,7 @@ export default function RootLayout({
           <LanguageProvider>
             <ThemeProvider>
               <AppProvider>
+                <ProfileSetupWrapper />
                 <AppShell>{children}</AppShell>
               </AppProvider>
             </ThemeProvider>

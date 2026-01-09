@@ -73,3 +73,12 @@ export interface DbShare {
   created_at: string;
   updated_at: string;
 }
+
+export interface DbProfile {
+  id: string;
+  user_id: string;
+  full_name: string;
+  avatar: string | null;
+  created_at: string;
+  updated_at: string;
+}

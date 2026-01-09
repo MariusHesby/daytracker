@@ -183,6 +183,22 @@ export const translations = {
     "media.tvSeries": "TV Series",
     "media.openImdb": "Open on IMDB",
     "media.viewImdb": "View on IMDB",
+
+    // Profile
+    "profile.setupTitle": "Complete Your Profile",
+    "profile.setupDesc": "Tell us a bit about yourself",
+    "profile.chooseAvatar": "Choose an avatar",
+    "profile.fullName": "Full Name",
+    "profile.fullNamePlaceholder": "Enter your full name",
+    "profile.nameRequired": "Please enter your name",
+    "profile.saving": "Saving...",
+    "profile.continue": "Continue",
+    "profile.editProfile": "Edit Profile",
+    "profile.save": "Save",
+    "profile.upload": "Upload",
+    "profile.invalidImage": "Please select an image file",
+    "profile.imageTooLarge": "Image must be under 2MB",
+    "profile.uploadFailed": "Failed to upload image",
   },
   no: {
     // Tabs
@@ -355,6 +371,22 @@ export const translations = {
     "media.tvSeries": "TV-serie",
     "media.openImdb": "Åpne på IMDB",
     "media.viewImdb": "Se på IMDB",
+
+    // Profile
+    "profile.setupTitle": "Fullfør profilen din",
+    "profile.setupDesc": "Fortell oss litt om deg selv",
+    "profile.chooseAvatar": "Velg en avatar",
+    "profile.fullName": "Fullt navn",
+    "profile.fullNamePlaceholder": "Skriv inn ditt fulle navn",
+    "profile.nameRequired": "Vennligst skriv inn navnet ditt",
+    "profile.saving": "Lagrer...",
+    "profile.continue": "Fortsett",
+    "profile.editProfile": "Rediger profil",
+    "profile.save": "Lagre",
+    "profile.upload": "Last opp",
+    "profile.invalidImage": "Velg en bildefil",
+    "profile.imageTooLarge": "Bildet må være under 2MB",
+    "profile.uploadFailed": "Kunne ikke laste opp bilde",
   },
 } as const;
 

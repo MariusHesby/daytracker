@@ -6,6 +6,59 @@ import { IOSTabBar } from "./ios";
 import { useLanguage } from "@/context/LanguageContext";
 import { SplashScreen } from "./SplashScreen";
 
+// Pull-to-refresh indicator component
+function PullToRefreshIndicator({
+  pullDistance,
+  isRefreshing,
+}: {
+  pullDistance: number;
+  isRefreshing: boolean;
+}) {
+  const threshold = 80;
+  const progress = Math.min(pullDistance / threshold, 1);
+  const rotation = isRefreshing ? 0 : progress * 180;
+
+  if (pullDistance <= 0 && !isRefreshing) return null;
+
+  return (
+    <div
+      className='fixed left-0 right-0 flex justify-center z-50 pointer-events-none transition-transform duration-200'
+      style={{
+        top: Math.min(pullDistance * 0.5, 60) + "px",
+        opacity: isRefreshing ? 1 : progress,
+      }}>
+      <div
+        className={`w-8 h-8 flex items-center justify-center rounded-full bg-white dark:bg-gray-800 shadow-lg ${
+          isRefreshing ? "animate-spin" : ""
+        }`}>
+        <svg
+          viewBox='0 0 24 24'
+          className='w-5 h-5 text-blue-500'
+          style={{ transform: `rotate(${rotation}deg)` }}>
+          {isRefreshing ? (
+            <path
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              d='M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83'
+            />
+          ) : (
+            <path
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              d='M12 4v8m0 0l-3-3m3 3l3-3M4 14c0 4 4 6 8 6s8-2 8-6'
+            />
+          )}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 // Subtle background logo component
 function BackgroundLogo() {
   return (
@@ -193,6 +246,12 @@ export function AppShell({ children }: AppShellProps) {
   const [showSplash, setShowSplash] = useState(true);
   const [hasSeenSplash, setHasSeenSplash] = useState(false);
 
+  // Pull-to-refresh state
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const pullStartY = useRef<number | null>(null);
+  const isPulling = useRef(false);
+
   // Swipe handling
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -221,6 +280,35 @@ export function AppShell({ children }: AppShellProps) {
       touchStartX.current = e.touches[0].clientX;
       touchStartY.current = e.touches[0].clientY;
       touchStartTime.current = Date.now();
+
+      // Check if we're at the top of the page for pull-to-refresh
+      if (window.scrollY <= 0 && !isRefreshing) {
+        pullStartY.current = e.touches[0].clientY;
+        isPulling.current = true;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      // Handle pull-to-refresh
+      if (isPulling.current && pullStartY.current !== null && !isRefreshing) {
+        const currentY = e.touches[0].clientY;
+        const deltaY = currentY - pullStartY.current;
+
+        // Only pull down, not up
+        if (deltaY > 0 && window.scrollY <= 0) {
+          // Apply resistance - the further you pull, the harder it gets
+          const resistance = 0.5;
+          const distance = deltaY * resistance;
+          setPullDistance(distance);
+
+          // Prevent default scrolling when pulling
+          if (distance > 10) {
+            e.preventDefault();
+          }
+        } else {
+          setPullDistance(0);
+        }
+      }
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
@@ -264,6 +352,25 @@ export function AppShell({ children }: AppShellProps) {
         }
       }
 
+      // Handle pull-to-refresh on touch end
+      if (isPulling.current && pullDistance > 80) {
+        setIsRefreshing(true);
+        setPullDistance(0);
+
+        // Perform refresh
+        router.refresh();
+
+        // Also trigger a page reload after a short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      } else {
+        setPullDistance(0);
+      }
+
+      isPulling.current = false;
+      pullStartY.current = null;
+
       touchStartX.current = null;
       touchStartY.current = null;
       touchStartTime.current = null;
@@ -272,13 +379,17 @@ export function AppShell({ children }: AppShellProps) {
     container.addEventListener("touchstart", handleTouchStart, {
       passive: true,
     });
+    container.addEventListener("touchmove", handleTouchMove, {
+      passive: false,
+    });
     container.addEventListener("touchend", handleTouchEnd, { passive: true });
 
     return () => {
       container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [handleSwipe]);
+  }, [handleSwipe, pullDistance, isRefreshing, router]);
 
   useEffect(() => {
     // Check if user has seen splash before in this session
@@ -329,7 +440,13 @@ export function AppShell({ children }: AppShellProps) {
   ];
 
   return (
-    <div ref={containerRef} className='min-h-screen bg-ios-bg dark:bg-ios-bg-dark relative'>
+    <div
+      ref={containerRef}
+      className='min-h-screen bg-ios-bg dark:bg-ios-bg-dark relative'>
+      <PullToRefreshIndicator
+        pullDistance={pullDistance}
+        isRefreshing={isRefreshing}
+      />
       {showSplash && !hasSeenSplash && (
         <SplashScreen onComplete={handleSplashComplete} />
       )}

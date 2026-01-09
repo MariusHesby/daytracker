@@ -1,5 +1,5 @@
 // Sharing functions for DayTracker
-import { supabase, DbShareRequest, DbShare, DbActivityType, DbLogEntry } from './supabase';
+import { supabase, DbShareRequest, DbShare, DbActivityType, DbLogEntry, DbProfile } from './supabase';
 import { ActivityType, LogEntry } from '@/types';
 
 // Convert DB types to app types
@@ -34,6 +34,11 @@ function dbToLogEntry(db: DbLogEntry): LogEntry {
   };
 }
 
+export interface UserProfile {
+  fullName: string;
+  avatar: string | null;
+}
+
 export interface ShareRequest {
   id: string;
   fromUserId: string;
@@ -41,6 +46,7 @@ export interface ShareRequest {
   toEmail: string;
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: Date;
+  profile?: UserProfile;
 }
 
 export interface Share {
@@ -56,6 +62,24 @@ export interface SharedUser {
   email: string;
   activityTypes: ActivityType[];
   activityTypeIds?: string[];
+  profile?: UserProfile;
+}
+
+// Helper function to get profile by user ID
+async function getProfileByUserId(userId: string): Promise<UserProfile | undefined> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('full_name, avatar')
+    .eq('user_id', userId)
+    .single();
+  
+  if (!data) return undefined;
+  
+  const profile = data as DbProfile;
+  return {
+    fullName: profile.full_name,
+    avatar: profile.avatar,
+  };
 }
 
 // Send a share request to another user
@@ -105,14 +129,21 @@ export async function getIncomingRequests(userEmail: string): Promise<ShareReque
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return (data || []).map((r: DbShareRequest) => ({
-    id: r.id,
-    fromUserId: r.from_user_id,
-    fromEmail: r.from_email,
-    toEmail: r.to_email,
-    status: r.status,
-    createdAt: new Date(r.created_at),
-  }));
+  
+  const requests: ShareRequest[] = [];
+  for (const r of (data || []) as DbShareRequest[]) {
+    const profile = await getProfileByUserId(r.from_user_id);
+    requests.push({
+      id: r.id,
+      fromUserId: r.from_user_id,
+      fromEmail: r.from_email,
+      toEmail: r.to_email,
+      status: r.status,
+      createdAt: new Date(r.created_at),
+      profile,
+    });
+  }
+  return requests;
 }
 
 // Get outgoing share requests
@@ -124,14 +155,37 @@ export async function getOutgoingRequests(userId: string): Promise<ShareRequest[
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return (data || []).map((r: DbShareRequest) => ({
-    id: r.id,
-    fromUserId: r.from_user_id,
-    fromEmail: r.from_email,
-    toEmail: r.to_email,
-    status: r.status,
-    createdAt: new Date(r.created_at),
-  }));
+  
+  // For outgoing requests, we want to look up the recipient's profile by their email
+  // But since we don't have their user_id directly, we'll need to find it
+  const requests: ShareRequest[] = [];
+  for (const r of (data || []) as DbShareRequest[]) {
+    // Try to find profile via share if accepted
+    let profile: UserProfile | undefined;
+    if (r.status === 'accepted') {
+      // Find the share to get viewer_id, then get their profile
+      const { data: shareData } = await supabase
+        .from('shares')
+        .select('viewer_id')
+        .eq('owner_id', userId)
+        .single();
+      
+      if (shareData) {
+        profile = await getProfileByUserId(shareData.viewer_id);
+      }
+    }
+    
+    requests.push({
+      id: r.id,
+      fromUserId: r.from_user_id,
+      fromEmail: r.from_email,
+      toEmail: r.to_email,
+      status: r.status,
+      createdAt: new Date(r.created_at),
+      profile,
+    });
+  }
+  return requests;
 }
 
 // Accept a share request with selected activity types
@@ -247,12 +301,16 @@ export async function getSharedWithMe(viewerId: string): Promise<SharedUser[]> {
     }
 
     const activityTypeIds = share.activity_type_ids || [];
+    
+    // Get owner's profile
+    const profile = await getProfileByUserId(share.owner_id);
 
     sharedUsers.push({
       id: share.owner_id,
       email: ownerEmail,
       activityTypes: [],
       activityTypeIds: activityTypeIds,
+      profile,
     });
   }
 
@@ -263,6 +321,7 @@ export async function getSharedWithMe(viewerId: string): Promise<SharedUser[]> {
 export async function getMyShares(ownerId: string): Promise<{
   share: Share;
   viewerEmail: string;
+  viewerProfile?: UserProfile;
 }[]> {
   const { data: shares, error } = await supabase
     .from('shares')
@@ -272,7 +331,7 @@ export async function getMyShares(ownerId: string): Promise<{
   if (error) throw error;
   if (!shares || shares.length === 0) return [];
 
-  const result: { share: Share; viewerEmail: string }[] = [];
+  const result: { share: Share; viewerEmail: string; viewerProfile?: UserProfile }[] = [];
 
   for (const share of shares as DbShare[]) {
     // Get viewer email from share_requests
@@ -281,6 +340,9 @@ export async function getMyShares(ownerId: string): Promise<{
       .select('from_email')
       .eq('from_user_id', share.viewer_id)
       .limit(1);
+    
+    // Get viewer's profile
+    const viewerProfile = await getProfileByUserId(share.viewer_id);
 
     result.push({
       share: {
@@ -291,6 +353,7 @@ export async function getMyShares(ownerId: string): Promise<{
         createdAt: new Date(share.created_at),
       },
       viewerEmail: requestData?.[0]?.from_email || 'Unknown',
+      viewerProfile,
     });
   }
 
