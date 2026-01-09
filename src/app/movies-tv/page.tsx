@@ -541,7 +541,14 @@ export default function MoviesPage() {
         </div>
       )}
 
-      <div className='px-4 pt-3 mb-3'>
+      {/* Header */}
+      <div className='px-4 pt-6 pb-4'>
+        <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
+          Movies & TV
+        </h1>
+      </div>
+
+      <div className='px-4 mb-3'>
         <IOSSegmentedControl
           options={[
             { value: "movies", label: "Movies (" + stats.totalMovies + ")" },

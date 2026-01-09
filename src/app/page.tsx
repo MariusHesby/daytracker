@@ -55,7 +55,7 @@ export default function HomePage() {
       )}
 
       {/* Header with Logo */}
-      <div className='flex items-center justify-center gap-3 pt-3 pb-1'>
+      <div className='flex items-center justify-center gap-3 pt-6 pb-4'>
         <svg
           className='w-10 h-10'
           viewBox='0 0 512 512'
