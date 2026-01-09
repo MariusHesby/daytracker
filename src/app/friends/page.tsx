@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -15,18 +16,17 @@ import {
   getMyShares,
   removeShare,
   updateSharePermissions,
-  getSharedEntries,
   ShareRequest,
   SharedUser,
   Share,
 } from "@/lib/sharing";
 import { IOSModal } from "@/components/ios";
-import { LogEntry, ActivityType } from "@/types";
 
 export default function FriendsPage() {
   const { user } = useAuth();
-  const { activityTypes } = useApp();
+  const { activityTypes, setViewingUser } = useApp();
   const { t } = useLanguage();
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<
     "shared" | "requests" | "myShares"
@@ -55,10 +55,6 @@ export default function FriendsPage() {
   );
   const [requestEmail, setRequestEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-
-  // View shared data
-  const [viewingUser, setViewingUser] = useState<SharedUser | null>(null);
-  const [sharedEntries, setSharedEntries] = useState<LogEntry[]>([]);
 
   const loadData = useCallback(async () => {
     if (!user?.email) return;
@@ -196,29 +192,15 @@ export default function FriendsPage() {
     }
   };
 
-  const handleViewUserData = async (sharedUser: SharedUser) => {
-    setViewingUser(sharedUser);
-    try {
-      // Use activityTypeIds if available (from shares table), otherwise use activityTypes
-      const activityIds = sharedUser.activityTypeIds || sharedUser.activityTypes.map((a) => a.id);
-      
-      if (activityIds.length === 0) {
-        console.log("No activity IDs to fetch");
-        setSharedEntries([]);
-        return;
-      }
-
-      const entries = await getSharedEntries(
-        sharedUser.id,
-        activityIds,
-        "2000-01-01",
-        "2100-01-01"
-      );
-      setSharedEntries(entries);
-    } catch (error) {
-      console.error("Failed to load shared entries:", error);
-      setSharedEntries([]);
-    }
+  const handleViewUserData = (sharedUser: SharedUser) => {
+    // Set the viewing user in AppContext and navigate to home
+    setViewingUser({
+      id: sharedUser.id,
+      email: sharedUser.email,
+      activityTypeIds:
+        sharedUser.activityTypeIds || sharedUser.activityTypes.map((a) => a.id),
+    });
+    router.push("/");
   };
 
   if (!user) {
@@ -568,48 +550,6 @@ export default function FriendsPage() {
             className='w-full px-4 py-3 bg-ios-blue text-white rounded-lg font-medium'>
             {t("friends.saveChanges")}
           </button>
-        </div>
-      </IOSModal>
-
-      {/* View Shared Data Modal */}
-      <IOSModal
-        isOpen={!!viewingUser}
-        onClose={() => {
-          setViewingUser(null);
-          setSharedEntries([]);
-        }}
-        title={viewingUser?.email || ""}>
-        <div className='space-y-4 max-h-[60vh] overflow-y-auto'>
-          {viewingUser?.activityTypes.map((type) => {
-            const typeEntries = sharedEntries.filter(
-              (e) => e.activityTypeId === type.id
-            );
-            return (
-              <div key={type.id} className='space-y-2'>
-                <h4 className='font-medium text-gray-900 dark:text-white'>
-                  {type.icon} {type.name}
-                </h4>
-                {typeEntries.length === 0 ? (
-                  <p className='text-sm text-gray-500'>
-                    {t("friends.noEntries")}
-                  </p>
-                ) : (
-                  <div className='space-y-1'>
-                    {typeEntries.slice(0, 10).map((entry) => (
-                      <div
-                        key={entry.id}
-                        className='flex justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm'>
-                        <span className='text-gray-500'>{entry.date}</span>
-                        <span className='text-gray-900 dark:text-white'>
-                          {String(entry.value)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
       </IOSModal>
     </div>

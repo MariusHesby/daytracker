@@ -26,6 +26,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     loadEntriesForDateRange,
     deleteEntry,
     updateEntry,
+    isViewingOther,
   } = useApp();
   const [expandedTypeId, setExpandedTypeId] = useState<string | null>(null);
   const [savedValues, setSavedValues] = useState<Record<string, SavedValue[]>>(
@@ -84,6 +85,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
       year?: string;
     }
   ) => {
+    // Don't allow editing when viewing another user's data
+    if (isViewingOther) return;
+
     const type = activityTypes.find((t) => t.id === typeId);
     if (!type) return;
 
@@ -163,6 +167,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   };
 
   const removeSavedValue = async (typeId: string, entryId: string) => {
+    // Don't allow editing when viewing another user's data
+    if (isViewingOther) return;
+
     try {
       await deleteEntry(entryId);
     } catch (error) {
@@ -187,6 +194,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   };
 
   const toggleExpanded = (typeId: string) => {
+    // Don't allow expanding input form when viewing another user's data
+    if (isViewingOther) return;
+
     if (expandedTypeId === typeId) {
       setExpandedTypeId(null);
       setCustomValue("");

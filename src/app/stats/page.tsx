@@ -283,7 +283,14 @@ function CalendarNavHeader({
 }
 
 export default function StatsPage() {
-  const { entries, loadEntriesForDateRange, activityTypes } = useApp();
+  const {
+    entries,
+    loadEntriesForDateRange,
+    activityTypes,
+    viewingUser,
+    setViewingUser,
+    isViewingOther,
+  } = useApp();
   const [timeRange, setTimeRange] = useState<TimeRange>("week");
   const [offset, setOffset] = useState(0); // 0 = current, -1 = previous, etc.
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
@@ -616,6 +623,21 @@ export default function StatsPage() {
 
   return (
     <div className='pb-16' onClick={handleBackgroundClick}>
+      {/* Viewing Another User Banner */}
+      {isViewingOther && viewingUser && (
+        <div className='bg-ios-blue text-white px-4 py-3 flex items-center justify-between'>
+          <div>
+            <p className='text-sm font-medium'>Viewing shared data</p>
+            <p className='text-xs opacity-80'>{viewingUser.email}</p>
+          </div>
+          <button
+            onClick={() => setViewingUser(null)}
+            className='px-3 py-1.5 bg-white/20 rounded-lg text-sm font-medium hover:bg-white/30 transition-colors'>
+            Back to my data
+          </button>
+        </div>
+      )}
+
       {/* Time Range Selector - iOS Segmented Control */}
       <div className='px-4 py-3 mb-0'>
         <IOSSegmentedControl

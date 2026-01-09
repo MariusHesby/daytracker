@@ -207,57 +207,52 @@ export async function getSharedWithMe(viewerId: string): Promise<SharedUser[]> {
     .select('*')
     .eq('viewer_id', viewerId);
 
+  console.log('getSharedWithMe - viewerId:', viewerId);
+  console.log('getSharedWithMe - shares:', shares);
+  console.log('getSharedWithMe - error:', sharesError);
+
   if (sharesError) throw sharesError;
   if (!shares || shares.length === 0) return [];
 
   const sharedUsers: SharedUser[] = [];
 
   for (const share of shares as DbShare[]) {
-    // Get owner email from share_requests - the viewer sent a request TO the owner
-    // So we need to find a request where from_user_id = viewerId and the owner accepted
-    const { data: requestData } = await supabase
-      .from('share_requests')
-      .select('to_email, from_email')
-      .or(`and(from_user_id.eq.${viewerId},status.eq.accepted),and(from_user_id.eq.${share.owner_id})`)
-      .limit(5);
-
-    // Find the email - it could be in to_email (if we sent request) or from_email (if they sent)
+    // Get owner email - the owner accepted our request, so their email is in from_email
+    // where they sent a request to us, OR we sent a request to them (to_email)
     let ownerEmail = 'Unknown';
-    if (requestData && requestData.length > 0) {
-      // Check if any request has our owner_id's email
-      for (const req of requestData) {
-        // If we sent the request, owner email is in to_email
-        // Actually, let's just use from_email from the share_requests where from_user_id = owner_id
-        if (req.from_email) {
-          ownerEmail = req.from_email;
-          break;
-        }
-      }
+
+    // First try: Check if we sent a request to the owner (our fromUserId, their email in to_email)
+    const { data: sentByUs } = await supabase
+      .from('share_requests')
+      .select('to_email')
+      .eq('from_user_id', viewerId)
+      .eq('status', 'accepted');
+
+    console.log('Requests sent by us:', sentByUs);
+
+    // Second try: Check requests where owner sent to us (we're the to_email)
+    const { data: sentByOwner } = await supabase
+      .from('share_requests')
+      .select('from_email, from_user_id')
+      .eq('from_user_id', share.owner_id)
+      .eq('status', 'accepted');
+
+    console.log('Requests sent by owner:', sentByOwner);
+
+    // Get email from either source
+    if (sentByOwner && sentByOwner.length > 0) {
+      ownerEmail = sentByOwner[0].from_email || 'Unknown';
+    } else if (sentByUs && sentByUs.length > 0) {
+      ownerEmail = sentByUs[0].to_email || 'Unknown';
     }
 
-    // If still unknown, try another approach
-    if (ownerEmail === 'Unknown') {
-      const { data: ownerRequest } = await supabase
-        .from('share_requests')
-        .select('from_email')
-        .eq('from_user_id', share.owner_id)
-        .limit(1);
-      
-      if (ownerRequest && ownerRequest.length > 0) {
-        ownerEmail = ownerRequest[0].from_email || 'Unknown';
-      }
-    }
-
-    // Get shared activity types - need to use RPC or service role for cross-user access
-    // For now, we'll store activity type info differently
-    // Actually, we need to query activity_types with the owner's permission via shares
     const activityTypeIds = share.activity_type_ids || [];
 
     sharedUsers.push({
       id: share.owner_id,
       email: ownerEmail,
-      activityTypes: [], // We'll load these when viewing the user's data
-      activityTypeIds: activityTypeIds, // Store the IDs for later use
+      activityTypes: [],
+      activityTypeIds: activityTypeIds,
     });
   }
 

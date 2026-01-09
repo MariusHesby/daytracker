@@ -2,12 +2,21 @@
 
 import { useEffect, useRef } from "react";
 import { useApp } from "@/context/AppContext";
+import { useLanguage } from "@/context/LanguageContext";
 import { EntryForm, DateNavigator } from "@/components";
 import { addDays } from "@/lib/utils";
 
 export default function HomePage() {
-  const { selectedDate, setSelectedDate, loadEntriesForDateRange, isLoading } =
-    useApp();
+  const {
+    selectedDate,
+    setSelectedDate,
+    loadEntriesForDateRange,
+    isLoading,
+    viewingUser,
+    setViewingUser,
+    isViewingOther,
+  } = useApp();
+  const { t } = useLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load entries for a wide range to support media date updates
@@ -30,6 +39,21 @@ export default function HomePage() {
 
   return (
     <div ref={scrollRef} className='overflow-y-auto'>
+      {/* Viewing Another User Banner */}
+      {isViewingOther && viewingUser && (
+        <div className='bg-ios-blue text-white px-4 py-3 flex items-center justify-between'>
+          <div>
+            <p className='text-sm font-medium'>{t("friends.viewingData")}</p>
+            <p className='text-xs opacity-80'>{viewingUser.email}</p>
+          </div>
+          <button
+            onClick={() => setViewingUser(null)}
+            className='px-3 py-1.5 bg-white/20 rounded-lg text-sm font-medium hover:bg-white/30 transition-colors'>
+            {t("friends.backToMyData")}
+          </button>
+        </div>
+      )}
+
       {/* Header with Logo */}
       <div className='flex items-center justify-center gap-3 pt-3 pb-1'>
         <svg

@@ -171,6 +171,8 @@ export const translations = {
     "friends.saveChanges": "Save Changes",
     "friends.noEntries": "No entries",
     "friends.loginRequired": "Please log in to use the sharing feature",
+    "friends.viewingData": "Viewing shared data",
+    "friends.backToMyData": "Back to my data",
 
     // Media Search
     "media.notConfigured": "OMDB API not configured",
@@ -341,6 +343,8 @@ export const translations = {
     "friends.saveChanges": "Lagre endringer",
     "friends.noEntries": "Ingen registreringer",
     "friends.loginRequired": "Logg inn for å bruke delingsfunksjonen",
+    "friends.viewingData": "Ser på delt data",
+    "friends.backToMyData": "Tilbake til mine data",
 
     // Media Search
     "media.notConfigured": "OMDB API ikke konfigurert",

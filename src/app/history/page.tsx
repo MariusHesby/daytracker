@@ -224,8 +224,15 @@ function MediaCard({
 }
 
 export default function MoviesPage() {
-  const { entries, loadEntriesForDateRange, activityTypes, updateEntry } =
-    useApp();
+  const {
+    entries,
+    loadEntriesForDateRange,
+    activityTypes,
+    updateEntry,
+    viewingUser,
+    setViewingUser,
+    isViewingOther,
+  } = useApp();
   const [activeTab, setActiveTab] = useState<"movies" | "series">("movies");
   const [sortBy, setSortBy] = useState<"date" | "rating" | "imdb">("date");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
@@ -296,12 +303,30 @@ export default function MoviesPage() {
   }, [entries, movieTypeId, seriesTypeId]);
 
   const handleRate = async (entryId: string, rating: number) => {
+    // Don't allow rating when viewing another user's data
+    if (isViewingOther) return;
+
     const entry = entries.find((e) => e.id === entryId);
     if (entry) await updateEntry({ ...entry, userRating: rating });
   };
 
   return (
     <div className='pb-16'>
+      {/* Viewing Another User Banner */}
+      {isViewingOther && viewingUser && (
+        <div className='bg-ios-blue text-white px-4 py-3 flex items-center justify-between'>
+          <div>
+            <p className='text-sm font-medium'>Viewing shared data</p>
+            <p className='text-xs opacity-80'>{viewingUser.email}</p>
+          </div>
+          <button
+            onClick={() => setViewingUser(null)}
+            className='px-3 py-1.5 bg-white/20 rounded-lg text-sm font-medium hover:bg-white/30 transition-colors'>
+            Back to my data
+          </button>
+        </div>
+      )}
+
       <div className='px-4 pt-6 mb-4'>
         <IOSSegmentedControl
           options={[

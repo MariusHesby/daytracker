@@ -45,6 +45,13 @@ interface AppContextType {
   isLoading: boolean;
   selectedDate: string;
   setSelectedDate: (date: string) => void;
+
+  // Viewing as another user (for shared data)
+  viewingUser: { id: string; email: string; activityTypeIds: string[] } | null;
+  setViewingUser: (
+    user: { id: string; email: string; activityTypeIds: string[] } | null
+  ) => void;
+  isViewingOther: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -62,6 +69,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     start: string;
     end: string;
   } | null>(null);
+
+  // Viewing as another user (shared data)
+  const [viewingUser, setViewingUser] = useState<{
+    id: string;
+    email: string;
+    activityTypeIds: string[];
+  } | null>(null);
+  const isViewingOther = viewingUser !== null;
 
   // Initialize database and load data
   useEffect(() => {
@@ -232,20 +247,113 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadEntriesForDateRange = useCallback(
     async (start: string, end: string) => {
       setCurrentDateRange({ start, end });
-      if (user) {
+
+      // If viewing another user's data, load their entries
+      const targetUserId = viewingUser?.id || user?.id;
+
+      if (targetUserId && user) {
         const loadedEntries = await cloudDb.getEntriesFromSupabase(
-          user.id,
+          targetUserId,
           start,
           end
         );
-        setEntries(loadedEntries);
-      } else {
+        // Filter entries if viewing another user
+        if (viewingUser) {
+          const filteredEntries = loadedEntries.filter((e) =>
+            viewingUser.activityTypeIds.includes(e.activityTypeId)
+          );
+          setEntries(filteredEntries);
+        } else {
+          setEntries(loadedEntries);
+        }
+      } else if (!user) {
         const loadedEntries = await db.getEntries(start, end);
         setEntries(loadedEntries);
       }
     },
-    [user]
+    [user, viewingUser]
   );
+
+  // Load activity types when viewingUser changes
+  useEffect(() => {
+    async function loadViewingUserData() {
+      if (!user) return;
+
+      if (viewingUser) {
+        console.log("Loading data for viewingUser:", viewingUser);
+        // Load the other user's activity types (filtered by shared IDs)
+        try {
+          const allTypes = await cloudDb.getActivityTypesFromSupabase(
+            viewingUser.id
+          );
+          console.log("All types from other user:", allTypes);
+          console.log("Shared activityTypeIds:", viewingUser.activityTypeIds);
+
+          // Only include activity types that were shared with us
+          const sharedTypes = allTypes.filter((t) =>
+            viewingUser.activityTypeIds.includes(t.id)
+          );
+          console.log("Filtered shared types:", sharedTypes);
+
+          const sortedTypes = sharedTypes.sort((a, b) => {
+            const orderA = a.order ?? Infinity;
+            const orderB = b.order ?? Infinity;
+            if (orderA !== orderB) return orderA - orderB;
+            return (
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+          });
+          setActivityTypes(sortedTypes);
+
+          // Reload entries for current date range
+          if (currentDateRange) {
+            const loadedEntries = await cloudDb.getEntriesFromSupabase(
+              viewingUser.id,
+              currentDateRange.start,
+              currentDateRange.end
+            );
+            console.log("Loaded entries for other user:", loadedEntries);
+            // Filter to only shared activity types
+            const filteredEntries = loadedEntries.filter((e) =>
+              viewingUser.activityTypeIds.includes(e.activityTypeId)
+            );
+            console.log("Filtered entries:", filteredEntries);
+            setEntries(filteredEntries);
+          }
+        } catch (error) {
+          console.error("Failed to load viewing user data:", error);
+        }
+      } else {
+        // Load own activity types
+        try {
+          const types = await cloudDb.getActivityTypesFromSupabase(user.id);
+          const sortedTypes = types.sort((a, b) => {
+            const orderA = a.order ?? Infinity;
+            const orderB = b.order ?? Infinity;
+            if (orderA !== orderB) return orderA - orderB;
+            return (
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+          });
+          setActivityTypes(sortedTypes);
+
+          // Reload entries for current date range
+          if (currentDateRange) {
+            const loadedEntries = await cloudDb.getEntriesFromSupabase(
+              user.id,
+              currentDateRange.start,
+              currentDateRange.end
+            );
+            setEntries(loadedEntries);
+          }
+        } catch (error) {
+          console.error("Failed to load own data:", error);
+        }
+      }
+    }
+
+    loadViewingUserData();
+  }, [viewingUser, user]);
 
   const addEntry = useCallback(
     async (entry: Omit<LogEntry, "id" | "createdAt" | "updatedAt">) => {
@@ -338,6 +446,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isLoading,
         selectedDate,
         setSelectedDate,
+        viewingUser,
+        setViewingUser,
+        isViewingOther,
       }}>
       {children}
     </AppContext.Provider>
