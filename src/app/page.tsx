@@ -54,75 +54,9 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Header with Logo */}
-      <div className='flex items-center justify-center gap-3 pt-6 pb-4'>
-        <svg
-          className='w-10 h-10'
-          viewBox='0 0 512 512'
-          fill='none'
-          xmlns='http://www.w3.org/2000/svg'>
-          <path
-            d='M160 120 L160 392 L280 392 C360 392 420 320 420 256 C420 192 360 120 280 120 L160 120 Z'
-            fill='none'
-            stroke='currentColor'
-            strokeWidth='32'
-            strokeLinecap='round'
-            strokeLinejoin='round'
-            className='text-ios-blue'
-          />
-          <circle
-            cx='220'
-            cy='200'
-            r='20'
-            fill='currentColor'
-            className='text-ios-blue'
-          />
-          <circle
-            cx='220'
-            cy='256'
-            r='20'
-            fill='currentColor'
-            className='text-ios-blue'
-          />
-          <circle
-            cx='220'
-            cy='312'
-            r='20'
-            fill='currentColor'
-            className='text-ios-blue'
-          />
-          <line
-            x1='240'
-            y1='200'
-            x2='320'
-            y2='200'
-            stroke='currentColor'
-            strokeWidth='12'
-            strokeLinecap='round'
-            className='text-ios-blue'
-          />
-          <line
-            x1='240'
-            y1='256'
-            x2='340'
-            y2='256'
-            stroke='currentColor'
-            strokeWidth='12'
-            strokeLinecap='round'
-            className='text-ios-blue'
-          />
-          <line
-            x1='240'
-            y1='312'
-            x2='300'
-            y2='312'
-            stroke='currentColor'
-            strokeWidth='12'
-            strokeLinecap='round'
-            className='text-ios-blue'
-          />
-        </svg>
-        <h1 className='text-xl font-semibold text-gray-900 dark:text-white'>
+      {/* Header */}
+      <div className='px-4 pt-6 pb-4'>
+        <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
           DayTracker
         </h1>
       </div>
