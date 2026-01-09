@@ -67,18 +67,19 @@ export interface SharedUser {
 
 // Helper function to get profile by user ID
 async function getProfileByUserId(userId: string): Promise<UserProfile | undefined> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .select('full_name, avatar')
     .eq('user_id', userId)
     .single();
   
-  if (!data) return undefined;
+  console.log('getProfileByUserId -', userId, '- data:', data, '- error:', error);
   
-  const profile = data as DbProfile;
+  if (!data || error) return undefined;
+  
   return {
-    fullName: profile.full_name,
-    avatar: profile.avatar,
+    fullName: data.full_name,
+    avatar: data.avatar,
   };
 }
 

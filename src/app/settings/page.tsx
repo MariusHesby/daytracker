@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 export default function SettingsPage() {
   const { isLoading, syncToCloud, isSyncing } = useApp();
   const { theme, setTheme } = useTheme();
-  const { language, setLanguage, t } = useLanguage();
+  const { t } = useLanguage();
   const {
     user,
     signInWithEmail,
@@ -102,11 +102,6 @@ export default function SettingsPage() {
     { value: "light", label: t("settings.light") },
     { value: "dark", label: t("settings.dark") },
     { value: "system", label: t("settings.system") },
-  ] as const;
-
-  const languageOptions = [
-    { value: "en", label: "English" },
-    { value: "no", label: "Norsk" },
   ] as const;
 
   return (
@@ -249,43 +244,6 @@ export default function SettingsPage() {
           <p className='text-[13px] text-gray-500 dark:text-gray-400 px-4 mt-2'>
             {t("settings.cloudSyncDesc")}
           </p>
-        </section>
-
-        {/* Language Section */}
-        <section>
-          <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
-            {t("settings.language")}
-          </h2>
-          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
-            {languageOptions.map((option, index) => (
-              <button
-                key={option.value}
-                onClick={() => setLanguage(option.value)}
-                className={cn(
-                  "w-full px-4 py-3 flex items-center justify-between min-h-[44px] text-left active:bg-gray-100 dark:active:bg-gray-700",
-                  index < languageOptions.length - 1 &&
-                    "border-b border-gray-200/80 dark:border-gray-700/80"
-                )}>
-                <span className='text-[17px] text-gray-900 dark:text-white'>
-                  {option.label}
-                </span>
-                {language === option.value && (
-                  <svg
-                    className='w-5 h-5 text-ios-blue'
-                    fill='none'
-                    viewBox='0 0 24 24'
-                    strokeWidth={2.5}
-                    stroke='currentColor'>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      d='M4.5 12.75l6 6 9-13.5'
-                    />
-                  </svg>
-                )}
-              </button>
-            ))}
-          </div>
         </section>
 
         {/* Theme Section */}
