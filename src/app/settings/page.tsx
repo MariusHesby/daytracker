@@ -107,7 +107,12 @@ export default function SettingsPage() {
   return (
     <div className='pb-16'>
       {/* Main Content */}
-      <main className='max-w-lg mx-auto px-4 py-3 space-y-4'>
+      <main className='max-w-lg mx-auto px-4 pt-6 pb-4 space-y-6'>
+        {/* Header */}
+        <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
+          Settings
+        </h1>
+
         {/* Account Section */}
         <section>
           <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>

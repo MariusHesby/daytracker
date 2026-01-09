@@ -226,7 +226,7 @@ export default function FriendsPage() {
 
   return (
     <div className='pb-16'>
-      <main className='max-w-lg mx-auto px-4 py-3 space-y-4'>
+      <main className='max-w-lg mx-auto px-4 pt-6 pb-4 space-y-6'>
         {/* Header */}
         <div className='flex items-center justify-between'>
           <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>

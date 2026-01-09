@@ -638,8 +638,15 @@ export default function StatsPage() {
         </div>
       )}
 
+      {/* Header */}
+      <div className='px-4 pt-6 pb-4'>
+        <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
+          Statistics
+        </h1>
+      </div>
+
       {/* Time Range Selector - iOS Segmented Control */}
-      <div className='px-4 py-3 mb-0'>
+      <div className='px-4 pb-3'>
         <IOSSegmentedControl
           options={TIME_RANGES.map((r) => ({ value: r.value, label: r.label }))}
           value={timeRange}
