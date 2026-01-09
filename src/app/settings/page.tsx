@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -30,6 +30,18 @@ export default function SettingsPage() {
     "info"
   );
   const [isSyncingData, setIsSyncingData] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+
+  // Detect if app is running as standalone PWA and platform
+  useEffect(() => {
+    const standalone = window.matchMedia("(display-mode: standalone)").matches 
+      || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    setIsStandalone(standalone);
+    
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    setIsIOS(iOS);
+  }, []);
 
   const handleAuth = async () => {
     if (!email.trim()) {
@@ -287,6 +299,53 @@ export default function SettingsPage() {
             ))}
           </div>
         </section>
+
+        {/* Add to Home Screen Section - only show if not already standalone */}
+        {!isStandalone && (
+          <section>
+            <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
+              Install App
+            </h2>
+            <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+              <div className='px-4 py-3 min-h-[44px]'>
+                <div className='flex items-center gap-3 mb-2'>
+                  <div className='w-10 h-10 bg-ios-blue rounded-xl flex items-center justify-center'>
+                    <svg className='w-5 h-5 text-white' fill='none' viewBox='0 0 24 24' strokeWidth={2} stroke='currentColor'>
+                      <path strokeLinecap='round' strokeLinejoin='round' d='M12 4.5v15m7.5-7.5h-15' />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className='text-[17px] text-gray-900 dark:text-white font-medium'>
+                      Add to Home Screen
+                    </span>
+                  </div>
+                </div>
+                {isIOS ? (
+                  <div className='text-[15px] text-gray-500 dark:text-gray-400 space-y-2'>
+                    <p>To install DayTracker on your iPhone:</p>
+                    <ol className='list-decimal list-inside space-y-1 ml-1'>
+                      <li>Tap the <span className='inline-flex items-center mx-1'>
+                        <svg className='w-4 h-4' fill='none' viewBox='0 0 24 24' strokeWidth={1.5} stroke='currentColor'>
+                          <path strokeLinecap='round' strokeLinejoin='round' d='M9 8.25H7.5a2.25 2.25 0 0 0-2.25 2.25v9a2.25 2.25 0 0 0 2.25 2.25h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25H15m0-3-3-3m0 0-3 3m3-3V15' />
+                        </svg>
+                      </span> Share button</li>
+                      <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+                      <li>Tap <strong>Add</strong> in the top right</li>
+                    </ol>
+                  </div>
+                ) : (
+                  <div className='text-[15px] text-gray-500 dark:text-gray-400 space-y-2'>
+                    <p>To install DayTracker:</p>
+                    <ol className='list-decimal list-inside space-y-1 ml-1'>
+                      <li>Tap the menu button (⋮) in your browser</li>
+                      <li>Select <strong>Install app</strong> or <strong>Add to Home Screen</strong></li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Activity Types Section */}
         <section>
