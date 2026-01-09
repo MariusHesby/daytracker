@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, ReactNode } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { supabase } from "@/lib/supabase";
@@ -23,7 +23,7 @@ function AvatarIcon({
   icon: string;
   className?: string;
 }) {
-  const iconPaths: Record<string, JSX.Element> = {
+  const iconPaths: Record<string, ReactNode> = {
     person: (
       <path
         strokeLinecap='round'
