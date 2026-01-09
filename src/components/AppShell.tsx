@@ -224,7 +224,12 @@ export function AppShell({ children }: AppShellProps) {
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      if (touchStartX.current === null || touchStartY.current === null || touchStartTime.current === null) return;
+      if (
+        touchStartX.current === null ||
+        touchStartY.current === null ||
+        touchStartTime.current === null
+      )
+        return;
 
       const touchEndX = e.changedTouches[0].clientX;
       const touchEndY = e.changedTouches[0].clientY;
@@ -236,17 +241,20 @@ export function AppShell({ children }: AppShellProps) {
       // Calculate velocity (pixels per millisecond)
       const velocityX = Math.abs(deltaX) / touchDuration;
 
-      // Swipe detection:
-      // - Minimum 30px horizontal movement (reduced for easier swiping)
-      // - OR fast swipe (high velocity) with at least 20px movement
-      // - Horizontal movement must be greater than vertical
-      const minSwipeDistance = 30;
-      const minFastSwipeDistance = 20;
-      const fastSwipeVelocity = 0.3; // pixels per ms
+      // Very responsive swipe detection:
+      // - Only 20px minimum horizontal movement
+      // - Allow diagonal swipes (horizontal just needs to be slightly more than vertical)
+      // - Fast swipes work with just 15px
+      const minSwipeDistance = 20;
+      const minFastSwipeDistance = 15;
+      const fastSwipeVelocity = 0.2; // pixels per ms
 
-      const isHorizontalSwipe = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+      // Much more lenient - horizontal just needs to be equal or greater than vertical
+      const isHorizontalSwipe = Math.abs(deltaX) >= Math.abs(deltaY);
       const isLongEnough = Math.abs(deltaX) > minSwipeDistance;
-      const isFastEnough = velocityX > fastSwipeVelocity && Math.abs(deltaX) > minFastSwipeDistance;
+      const isFastEnough =
+        velocityX > fastSwipeVelocity &&
+        Math.abs(deltaX) > minFastSwipeDistance;
 
       if (isHorizontalSwipe && (isLongEnough || isFastEnough)) {
         if (deltaX > 0) {
