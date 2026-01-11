@@ -16,10 +16,12 @@ import {
   getMyShares,
   removeShare,
   updateSharePermissions,
+  searchUsers,
   ShareRequest,
   SharedUser,
   Share,
   UserProfile,
+  SearchResult,
 } from "@/lib/sharing";
 import { IOSModal } from "@/components/ios";
 import { Avatar } from "@/components/ProfileSetup";
@@ -58,6 +60,11 @@ export default function FriendsPage() {
   );
   const [requestEmail, setRequestEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!user?.email) return;
@@ -125,19 +132,45 @@ export default function FriendsPage() {
     loadData();
   }, [loadData]);
 
-  const handleSendRequest = async () => {
-    if (!user?.email || !requestEmail.trim()) return;
+  // Search for users with debounce
+  useEffect(() => {
+    if (!user?.id || searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const results = await searchUsers(searchQuery, user.id);
+        setSearchResults(results);
+      } catch (error) {
+        console.error("Search error:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, user?.id]);
+
+  const handleSendRequest = async (email?: string) => {
+    const targetEmail = email || requestEmail.trim().toLowerCase();
+    if (!user?.email || !targetEmail) return;
 
     const { error } = await sendShareRequest(
       user.id,
       user.email,
-      requestEmail.trim().toLowerCase()
+      targetEmail
     );
     if (error) {
       setMessage(error.message);
     } else {
       setMessage(t("friends.requestSent"));
       setRequestEmail("");
+      setSearchQuery("");
+      setSearchResults([]);
       setShowSendRequest(false);
       loadData();
     }
@@ -482,21 +515,96 @@ export default function FriendsPage() {
       {/* Send Request Modal */}
       <IOSModal
         isOpen={showSendRequest}
-        onClose={() => setShowSendRequest(false)}
-        title={t("friends.sendRequest")}>
+        onClose={() => {
+          setShowSendRequest(false);
+          setSearchQuery("");
+          setSearchResults([]);
+          setRequestEmail("");
+        }}
+        title={t("friends.addFriend")}>
         <div className='space-y-4'>
-          <p className='text-sm text-gray-500'>
-            {t("friends.sendRequestDesc")}
-          </p>
-          <input
-            type='email'
-            value={requestEmail}
-            onChange={(e) => setRequestEmail(e.target.value)}
-            placeholder={t("friends.emailPlaceholder")}
-            className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white'
-          />
+          {/* Search Section */}
+          <div>
+            <p className='text-sm text-gray-500 mb-2'>
+              {t("friends.searchUsers")}
+            </p>
+            <input
+              type='text'
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("friends.searchPlaceholder")}
+              className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white'
+            />
+            {searchQuery.length > 0 && searchQuery.length < 2 && (
+              <p className='text-xs text-gray-400 mt-1'>
+                {t("friends.searchHint")}
+              </p>
+            )}
+          </div>
+
+          {/* Search Results */}
+          {isSearching && (
+            <div className='flex justify-center py-4'>
+              <div className='w-5 h-5 border-2 border-ios-blue border-t-transparent rounded-full animate-spin' />
+            </div>
+          )}
+
+          {!isSearching && searchResults.length > 0 && (
+            <div className='space-y-2 max-h-48 overflow-y-auto'>
+              {searchResults.map((result) => (
+                <div
+                  key={result.userId}
+                  className='flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg'>
+                  <Avatar avatar={result.avatar} size='sm' />
+                  <div className='flex-1 min-w-0'>
+                    <p className='font-medium text-gray-900 dark:text-white truncate'>
+                      {result.fullName}
+                    </p>
+                    {result.email && (
+                      <p className='text-xs text-gray-500 truncate'>
+                        {result.email}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleSendRequest(result.email)}
+                    disabled={!result.email}
+                    className='px-3 py-1.5 bg-ios-blue text-white rounded-lg text-sm font-medium disabled:opacity-50'>
+                    {t("friends.send")}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!isSearching && searchQuery.length >= 2 && searchResults.length === 0 && (
+            <p className='text-sm text-gray-500 text-center py-4'>
+              {t("friends.noResults")}
+            </p>
+          )}
+
+          {/* Divider */}
+          <div className='flex items-center gap-3'>
+            <div className='flex-1 h-px bg-gray-200 dark:bg-gray-600' />
+            <span className='text-xs text-gray-400'>or</span>
+            <div className='flex-1 h-px bg-gray-200 dark:bg-gray-600' />
+          </div>
+
+          {/* Direct Email Input */}
+          <div>
+            <p className='text-sm text-gray-500 mb-2'>
+              {t("friends.sendRequestDesc")}
+            </p>
+            <input
+              type='email'
+              value={requestEmail}
+              onChange={(e) => setRequestEmail(e.target.value)}
+              placeholder={t("friends.emailPlaceholder")}
+              className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white'
+            />
+          </div>
           <button
-            onClick={handleSendRequest}
+            onClick={() => handleSendRequest()}
             disabled={!requestEmail.trim()}
             className='w-full px-4 py-3 bg-ios-blue text-white rounded-lg font-medium disabled:opacity-50'>
             {t("friends.send")}

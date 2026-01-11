@@ -252,7 +252,7 @@ export function AppShell({ children }: AppShellProps) {
     // Only check on first mount
     if (initialPathRef.current === null) {
       initialPathRef.current = pathname;
-      
+
       if (typeof window !== "undefined" && pathname === "/settings") {
         const isStandalone =
           window.matchMedia("(display-mode: standalone)").matches ||

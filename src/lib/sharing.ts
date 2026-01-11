@@ -65,6 +65,97 @@ export interface SharedUser {
   profile?: UserProfile;
 }
 
+export interface SearchResult {
+  userId: string;
+  email: string;
+  fullName: string;
+  avatar: string | null;
+}
+
+// Search for users by name or email
+export async function searchUsers(
+  query: string,
+  currentUserId: string
+): Promise<SearchResult[]> {
+  if (!query || query.length < 2) return [];
+
+  const searchTerm = `%${query.toLowerCase()}%`;
+
+  // Search in auth.users via profiles table (which has user_id linked to auth.users)
+  // We need to join profiles with a way to get email - use the from_email in share_requests
+  // Actually, we need a different approach - search profiles and use RPC or a view
+  
+  // For now, search profiles by full_name and also check share_requests for emails
+  const { data: profileResults, error: profileError } = await supabase
+    .from('profiles')
+    .select('user_id, full_name, avatar')
+    .ilike('full_name', searchTerm)
+    .neq('user_id', currentUserId)
+    .limit(10);
+
+  if (profileError) {
+    console.error('Profile search error:', profileError);
+  }
+
+  // Also search by email in share_requests (from_email field shows user emails)
+  const { data: emailResults, error: emailError } = await supabase
+    .from('share_requests')
+    .select('from_user_id, from_email')
+    .ilike('from_email', searchTerm)
+    .neq('from_user_id', currentUserId)
+    .limit(10);
+
+  if (emailError) {
+    console.error('Email search error:', emailError);
+  }
+
+  // Combine results, avoiding duplicates
+  const results: SearchResult[] = [];
+  const seenUserIds = new Set<string>();
+
+  // Add profile results (need to get email separately)
+  if (profileResults) {
+    for (const profile of profileResults) {
+      if (!seenUserIds.has(profile.user_id)) {
+        seenUserIds.add(profile.user_id);
+        // Try to get email from share_requests
+        const { data: emailData } = await supabase
+          .from('share_requests')
+          .select('from_email')
+          .eq('from_user_id', profile.user_id)
+          .limit(1)
+          .single();
+        
+        results.push({
+          userId: profile.user_id,
+          email: emailData?.from_email || '',
+          fullName: profile.full_name,
+          avatar: profile.avatar,
+        });
+      }
+    }
+  }
+
+  // Add email search results
+  if (emailResults) {
+    for (const req of emailResults) {
+      if (!seenUserIds.has(req.from_user_id)) {
+        seenUserIds.add(req.from_user_id);
+        // Get profile for this user
+        const profile = await getProfileByUserId(req.from_user_id);
+        results.push({
+          userId: req.from_user_id,
+          email: req.from_email,
+          fullName: profile?.fullName || req.from_email.split('@')[0],
+          avatar: profile?.avatar || null,
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
 // Helper function to get profile by user ID
 async function getProfileByUserId(userId: string): Promise<UserProfile | undefined> {
   const { data, error } = await supabase

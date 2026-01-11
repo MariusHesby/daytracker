@@ -162,6 +162,11 @@ const translations = {
   "friends.loginRequired": "Please log in to use the sharing feature",
   "friends.viewingData": "Viewing shared data",
   "friends.backToMyData": "Back to my data",
+  "friends.searchUsers": "Search Users",
+  "friends.searchPlaceholder": "Search by name or email...",
+  "friends.noResults": "No users found",
+  "friends.searchHint": "Type at least 2 characters to search",
+  "friends.sendTo": "Send request to",
 
   // Media Search
   "media.notConfigured": "OMDB API not configured",
