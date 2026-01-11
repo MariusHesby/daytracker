@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function AuthCallbackPage() {
-  const [status, setStatus] = useState<"loading" | "success" | "error">(
-    "loading"
-  );
+  const [status, setStatus] = useState<
+    "loading" | "success" | "error" | "reset-password"
+  >("loading");
   const [message, setMessage] = useState("Logging you in...");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -18,6 +21,7 @@ export default function AuthCallbackPage() {
         );
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
+        const type = hashParams.get("type");
 
         if (accessToken && refreshToken) {
           // Set the session manually
@@ -28,6 +32,13 @@ export default function AuthCallbackPage() {
 
           if (error) {
             throw error;
+          }
+
+          // Check if this is a password recovery flow
+          if (type === "recovery") {
+            setStatus("reset-password");
+            setMessage("Enter your new password");
+            return;
           }
 
           setStatus("success");
@@ -66,6 +77,40 @@ export default function AuthCallbackPage() {
     handleAuthCallback();
   }, []);
 
+  const handleUpdatePassword = async () => {
+    if (newPassword.length < 6) {
+      setMessage("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMessage("Passwords do not match");
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        setMessage(error.message);
+        setIsUpdating(false);
+        return;
+      }
+
+      setStatus("success");
+      setMessage("Password updated successfully!");
+      setTimeout(() => {
+        window.location.href = window.location.origin + "/settings";
+      }, 1500);
+    } catch (err) {
+      console.error("Password update error:", err);
+      setMessage("Failed to update password. Please try again.");
+      setIsUpdating(false);
+    }
+  };
+
   return (
     <div className='min-h-screen flex flex-col items-center justify-center p-6 bg-ios-gray-light dark:bg-ios-gray-dark'>
       <div className='bg-white dark:bg-ios-card-dark rounded-2xl p-8 max-w-sm w-full text-center shadow-lg'>
@@ -102,6 +147,53 @@ export default function AuthCallbackPage() {
               <p className='font-medium'>
                 Open DayTracker from your home screen
               </p>
+            </div>
+          </>
+        )}
+
+        {status === "reset-password" && (
+          <>
+            <div className='w-16 h-16 bg-ios-blue/10 rounded-full flex items-center justify-center mx-auto mb-4'>
+              <svg
+                className='w-8 h-8 text-ios-blue'
+                fill='none'
+                viewBox='0 0 24 24'
+                strokeWidth={2}
+                stroke='currentColor'>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z'
+                />
+              </svg>
+            </div>
+            <h2 className='text-[20px] font-semibold text-gray-900 dark:text-white mb-2'>
+              Reset Password
+            </h2>
+            <p className='text-[15px] text-gray-500 dark:text-gray-400 mb-4'>
+              {message}
+            </p>
+            <div className='space-y-3'>
+              <input
+                type='password'
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder='New password (min 6 characters)'
+                className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-[17px] text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue'
+              />
+              <input
+                type='password'
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder='Confirm new password'
+                className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-[17px] text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue'
+              />
+              <button
+                onClick={handleUpdatePassword}
+                disabled={isUpdating || !newPassword || !confirmPassword}
+                className='w-full px-6 py-3 bg-ios-blue text-white rounded-xl text-[17px] font-medium disabled:opacity-50'>
+                {isUpdating ? 'Updating...' : 'Update Password'}
+              </button>
             </div>
           </>
         )}

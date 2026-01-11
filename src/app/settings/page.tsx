@@ -102,8 +102,10 @@ export default function SettingsPage() {
       setAuthMessage(error.message);
       setAuthMessageType("error");
     } else {
-      setAuthMessage(t("settings.resetEmailSent"));
-      setAuthMessageType("info");
+      // Show success alert
+      alert(t("settings.resetEmailSent"));
+      setIsResetPassword(false);
+      setAuthMessage(null);
     }
   };
 
