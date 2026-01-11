@@ -171,6 +171,7 @@ function StarRating({
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
+      e.stopPropagation();
       setIsDragging(true);
       const rating = getRatingFromPosition(e.touches[0].clientX);
       if (rating) setHovered(rating);
@@ -180,6 +181,7 @@ function StarRating({
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
+      e.stopPropagation();
       if (!isDragging) return;
       const rating = getRatingFromPosition(e.touches[0].clientX);
       if (rating) setHovered(rating);
@@ -187,13 +189,17 @@ function StarRating({
     [isDragging, getRatingFromPosition]
   );
 
-  const handleTouchEnd = useCallback(() => {
-    if (hovered && onRate) {
-      onRate(hovered);
-    }
-    setIsDragging(false);
-    setHovered(null);
-  }, [hovered, onRate]);
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      e.stopPropagation();
+      if (hovered && onRate) {
+        onRate(hovered);
+      }
+      setIsDragging(false);
+      setHovered(null);
+    },
+    [hovered, onRate]
+  );
 
   return (
     <div
