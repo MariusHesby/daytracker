@@ -181,8 +181,12 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={handleSignOut}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    handleSignOut();
+                  }}
                   disabled={authLoading}
-                  className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50'>
+                  className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 cursor-pointer'>
                   {t("settings.signOut")}
                 </button>
               </>
