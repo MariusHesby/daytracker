@@ -50,11 +50,13 @@ export type TimeRange = 'week' | 'month' | 'year' | 'all';
 
 // Default activity types to start with (using icon names from Icons.tsx)
 export const DEFAULT_ACTIVITY_TYPES: Omit<ActivityType, 'id' | 'createdAt'>[] = [
-  { name: 'Workout', icon: 'workout', valueType: 'checkmark', isDefault: true },
-  { name: 'Alcohol', icon: 'alcohol', valueType: 'checkmark', isDefault: true },
   { name: 'Movie', icon: 'movie', valueType: 'text', isDefault: true },
   { name: 'TV Series', icon: 'tv', valueType: 'text', isDefault: true },
-  { name: 'Protein', icon: 'protein', valueType: 'text', isDefault: true },
+  { name: 'Lunch', icon: 'meal', valueType: 'text', isDefault: true },
+  { name: 'Dinner', icon: 'meal', valueType: 'text', isDefault: true },
+  { name: 'Workout', icon: 'workout', valueType: 'checkmark', isDefault: true },
+  { name: 'Alcohol', icon: 'alcohol', valueType: 'checkmark', isDefault: true },
+  { name: 'Event', icon: 'event', valueType: 'text', isDefault: true },
   { name: 'Period', icon: 'period', valueType: 'checkmark', isDefault: true },
   { name: 'Sleep', icon: 'sleep', valueType: 'mood', isDefault: true },
 ];
