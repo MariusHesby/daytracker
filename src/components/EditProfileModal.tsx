@@ -187,9 +187,9 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className='fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center'>
+    <div className='fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center pb-20 sm:pb-0'>
       <div
-        className='w-full sm:max-w-md bg-white dark:bg-ios-card-dark rounded-t-2xl sm:rounded-2xl p-6 space-y-5 shadow-xl max-h-[90vh] overflow-y-auto'
+        className='w-full sm:max-w-md bg-white dark:bg-ios-card-dark rounded-t-2xl sm:rounded-2xl p-6 pb-8 space-y-5 shadow-xl max-h-[85vh] overflow-y-auto'
         onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className='flex items-center justify-between'>
