@@ -30,7 +30,7 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
       className={`fixed inset-0 z-[100] flex items-center justify-center bg-ios-bg dark:bg-ios-bg-dark transition-opacity duration-500 ${
         phase === "fadeOut" ? "opacity-0" : "opacity-100"
       }`}>
-      <div className='flex flex-col items-center gap-4'>
+      <div className='flex flex-col items-center gap-2 -mt-24'>
         {/* Animated Logo */}
         <svg
           className='w-32 h-32'
