@@ -37,7 +37,7 @@ export default function AuthCallbackPage() {
           // For iOS, we'll show instructions since we can't programmatically open the PWA
           setTimeout(() => {
             // Try to redirect to origin (this will work if opened in browser)
-            window.location.href = window.location.origin + "/settings";
+            window.location.href = window.location.origin + "/";
           }, 1500);
         } else {
           // Check if we already have a session (user might have refreshed)
@@ -48,7 +48,7 @@ export default function AuthCallbackPage() {
             setStatus("success");
             setMessage("Already logged in! Redirecting...");
             setTimeout(() => {
-              window.location.href = window.location.origin + "/settings";
+              window.location.href = window.location.origin + "/";
             }, 1000);
           } else {
             // No tokens found, might be an error or expired link
@@ -126,9 +126,9 @@ export default function AuthCallbackPage() {
               {message}
             </p>
             <a
-              href='/settings'
+              href='/'
               className='inline-block px-6 py-3 bg-ios-blue text-white rounded-xl text-[17px] font-medium'>
-              Go to Settings
+              Go to App
             </a>
           </>
         )}
