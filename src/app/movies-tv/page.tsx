@@ -158,7 +158,7 @@ function StarRating({
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const displayRating = hovered ?? rating ?? 0;
-  const sizeClasses = { sm: "w-4 h-4", md: "w-5 h-5", lg: "w-6 h-6" };
+  const sizeClasses = { sm: "w-5 h-5", md: "w-6 h-6", lg: "w-7 h-7" };
 
   const getRatingFromPosition = useCallback((clientX: number) => {
     if (!containerRef.current) return null;
@@ -172,6 +172,7 @@ function StarRating({
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
       e.stopPropagation();
+      e.preventDefault();
       setIsDragging(true);
       const rating = getRatingFromPosition(e.touches[0].clientX);
       if (rating) setHovered(rating);
@@ -182,6 +183,7 @@ function StarRating({
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
       e.stopPropagation();
+      e.preventDefault();
       if (!isDragging) return;
       const rating = getRatingFromPosition(e.touches[0].clientX);
       if (rating) setHovered(rating);
@@ -192,6 +194,7 @@ function StarRating({
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
       e.stopPropagation();
+      e.preventDefault();
       if (hovered && onRate) {
         onRate(hovered);
       }
@@ -204,17 +207,19 @@ function StarRating({
   return (
     <div
       ref={containerRef}
-      className='flex gap-0.5 touch-none'
+      className='flex gap-1 touch-none select-none'
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}>
+      onTouchEnd={handleTouchEnd}
+      style={{ touchAction: 'none' }}>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
         <button
           key={star}
           onClick={() => onRate?.(star)}
           onMouseEnter={() => setHovered(star)}
           onMouseLeave={() => setHovered(null)}
-          className='transition-transform hover:scale-110'>
+          className='transition-transform hover:scale-110 touch-none'
+          style={{ touchAction: 'none' }}>
           <svg
             className={cn(
               sizeClasses[size],
