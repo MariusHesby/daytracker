@@ -245,14 +245,24 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [showSplash, setShowSplash] = useState(true);
   const [hasSeenSplash, setHasSeenSplash] = useState(false);
+  const initialPathRef = useRef<string | null>(null);
 
-  // Redirect to Today tab when PWA starts at /settings (cached from old install)
+  // Redirect to Today tab ONLY on PWA first load if it started at /settings (cached from old install)
   useEffect(() => {
-    if (typeof window !== 'undefined' && pathname === '/settings') {
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-      if (isStandalone) {
-        router.replace('/');
+    // Only check on first mount
+    if (initialPathRef.current === null) {
+      initialPathRef.current = pathname;
+      
+      if (typeof window !== "undefined" && pathname === "/settings") {
+        const isStandalone =
+          window.matchMedia("(display-mode: standalone)").matches ||
+          (window.navigator as Navigator & { standalone?: boolean })
+            .standalone === true;
+        // Only redirect if this is the initial PWA launch
+        if (isStandalone && !sessionStorage.getItem("hasNavigated")) {
+          sessionStorage.setItem("hasNavigated", "true");
+          router.replace("/");
+        }
       }
     }
   }, [pathname, router]);
@@ -290,7 +300,7 @@ export function AppShell({ children }: AppShellProps) {
     const handleTouchStart = (e: TouchEvent) => {
       // Check if touch started on an element that should prevent swipe
       const target = e.target as HTMLElement;
-      if (target.closest('[data-no-swipe]')) {
+      if (target.closest("[data-no-swipe]")) {
         touchStartX.current = null;
         touchStartY.current = null;
         touchStartTime.current = null;
