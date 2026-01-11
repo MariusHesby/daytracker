@@ -174,7 +174,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.error("Supabase signOut error:", e);
+    }
+    // Clear auth storage manually to ensure sign out works
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("daytracker-auth");
+      // Clear any other Supabase storage keys
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith("sb-") || key.includes("supabase")) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
+    // Update state immediately
+    setUser(null);
+    setSession(null);
+    setProfile(null);
   }, []);
 
   const createProfile = useCallback(

@@ -111,12 +111,16 @@ export default function SettingsPage() {
     try {
       await signOut();
       setAuthMessage(null);
-      // Force reload to clear all state
-      window.location.href = "/";
+      // Small delay to ensure state is cleared, then reload
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 100);
     } catch (error) {
       console.error("Sign out error:", error);
       // Force reload anyway
-      window.location.href = "/";
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 100);
     }
   };
 
