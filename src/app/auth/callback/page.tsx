@@ -101,9 +101,7 @@ export default function AuthCallbackPage() {
 
       setStatus("success");
       setMessage("Password updated successfully!");
-      setTimeout(() => {
-        window.location.href = window.location.origin + "/settings";
-      }, 1500);
+      // Don't auto-redirect, show instructions instead
     } catch (err) {
       console.error("Password update error:", err);
       setMessage("Failed to update password. Please try again.");
@@ -139,15 +137,18 @@ export default function AuthCallbackPage() {
                 />
               </svg>
             </div>
-            <p className='text-[17px] text-gray-900 dark:text-white mb-4'>
+            <p className='text-[17px] text-gray-900 dark:text-white mb-2'>
               {message}
             </p>
-            <div className='text-[15px] text-gray-500 dark:text-gray-400 space-y-2'>
-              <p>If the app doesn&apos;t open automatically:</p>
+            <div className='text-[15px] text-gray-500 dark:text-gray-400 space-y-3 mb-4'>
+              <p>Your password has been updated.</p>
               <p className='font-medium'>
-                Open DayTracker from your home screen
+                Return to DayTracker from your home screen to continue.
               </p>
             </div>
+            <p className='text-[13px] text-gray-400 dark:text-gray-500'>
+              You can close this browser tab.
+            </p>
           </>
         )}
 
@@ -192,7 +193,7 @@ export default function AuthCallbackPage() {
                 onClick={handleUpdatePassword}
                 disabled={isUpdating || !newPassword || !confirmPassword}
                 className='w-full px-6 py-3 bg-ios-blue text-white rounded-xl text-[17px] font-medium disabled:opacity-50'>
-                {isUpdating ? 'Updating...' : 'Update Password'}
+                {isUpdating ? "Updating..." : "Update Password"}
               </button>
             </div>
           </>

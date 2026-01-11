@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [isResetPassword, setIsResetPassword] = useState(false);
+  const [resetLinkSent, setResetLinkSent] = useState(false);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [authMessageType, setAuthMessageType] = useState<"info" | "error">(
     "info"
@@ -96,15 +97,14 @@ export default function SettingsPage() {
       return;
     }
     setAuthMessage(null);
+    setResetLinkSent(false);
 
     const { error } = await resetPassword(email.trim());
     if (error) {
       setAuthMessage(error.message);
       setAuthMessageType("error");
     } else {
-      // Show success alert
-      alert(t("settings.resetEmailSent"));
-      setIsResetPassword(false);
+      setResetLinkSent(true);
       setAuthMessage(null);
     }
   };
@@ -272,15 +272,21 @@ export default function SettingsPage() {
                   <>
                     <button
                       onClick={handleResetPassword}
-                      disabled={authLoading}
-                      className='w-full px-4 py-3 bg-ios-blue text-white rounded-lg text-[17px] font-medium active:opacity-80 disabled:opacity-50'>
+                      disabled={authLoading || resetLinkSent}
+                      className={cn(
+                        "w-full px-4 py-3 text-white rounded-lg text-[17px] font-medium active:opacity-80 disabled:opacity-50 transition-colors",
+                        resetLinkSent ? "bg-green-500" : "bg-ios-blue"
+                      )}>
                       {authLoading
                         ? t("settings.loading")
+                        : resetLinkSent
+                        ? t("settings.resetLinkSent")
                         : t("settings.sendResetLink")}
                     </button>
                     <button
                       onClick={() => {
                         setIsResetPassword(false);
+                        setResetLinkSent(false);
                         setAuthMessage(null);
                       }}
                       className='w-full py-2 text-[15px] text-ios-blue'>

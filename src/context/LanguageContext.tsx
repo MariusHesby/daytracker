@@ -119,6 +119,7 @@ const translations = {
   "settings.resetPasswordDesc":
     "Enter your email to receive a password reset link.",
   "settings.resetEmailSent": "Password reset email sent! Check your inbox.",
+  "settings.resetLinkSent": "Link sent to your e-mail",
   "settings.sendResetLink": "Send Reset Link",
   "settings.backToSignIn": "Back to Sign In",
   "settings.syncNow": "Sync Now",
