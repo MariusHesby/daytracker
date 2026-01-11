@@ -159,11 +159,7 @@ export default function FriendsPage() {
     const targetEmail = email || requestEmail.trim().toLowerCase();
     if (!user?.email || !targetEmail) return;
 
-    const { error } = await sendShareRequest(
-      user.id,
-      user.email,
-      targetEmail
-    );
+    const { error } = await sendShareRequest(user.id, user.email, targetEmail);
     if (error) {
       setMessage(error.message);
     } else {
@@ -577,11 +573,13 @@ export default function FriendsPage() {
             </div>
           )}
 
-          {!isSearching && searchQuery.length >= 2 && searchResults.length === 0 && (
-            <p className='text-sm text-gray-500 text-center py-4'>
-              {t("friends.noResults")}
-            </p>
-          )}
+          {!isSearching &&
+            searchQuery.length >= 2 &&
+            searchResults.length === 0 && (
+              <p className='text-sm text-gray-500 text-center py-4'>
+                {t("friends.noResults")}
+              </p>
+            )}
 
           {/* Divider */}
           <div className='flex items-center gap-3'>
