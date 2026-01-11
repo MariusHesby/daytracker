@@ -108,8 +108,16 @@ export default function SettingsPage() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    setAuthMessage(null);
+    try {
+      await signOut();
+      setAuthMessage(null);
+      // Force reload to clear all state
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Sign out error:", error);
+      // Force reload anyway
+      window.location.href = "/";
+    }
   };
 
   const handleSyncData = async () => {
