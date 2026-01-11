@@ -5,7 +5,12 @@ import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
-import { ActivityTypeManager, ActivityTypeManagerRef } from "@/components";
+import {
+  ActivityTypeManager,
+  ActivityTypeManagerRef,
+  Avatar,
+  EditProfileModal,
+} from "@/components";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
@@ -14,6 +19,7 @@ export default function SettingsPage() {
   const { t } = useLanguage();
   const {
     user,
+    profile,
     signInWithEmail,
     signUpWithEmail,
     resetPassword,
@@ -22,6 +28,7 @@ export default function SettingsPage() {
   } = useAuth();
   const activityManagerRef = useRef<ActivityTypeManagerRef>(null);
   const [isAddingActivity, setIsAddingActivity] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -169,30 +176,31 @@ export default function SettingsPage() {
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             {user ? (
               <>
-                <div className='px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+                <button
+                  onClick={() => setIsEditingProfile(true)}
+                  className='w-full px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80 active:bg-gray-100 dark:active:bg-gray-700'>
                   <div className='flex items-center gap-3'>
-                    <div className='w-10 h-10 rounded-full bg-ios-blue flex items-center justify-center'>
-                      <svg
-                        className='w-5 h-5 text-white'
-                        fill='none'
-                        viewBox='0 0 24 24'
-                        strokeWidth={2}
-                        stroke='currentColor'>
-                        <path
-                          strokeLinecap='round'
-                          strokeLinejoin='round'
-                          d='M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z'
-                        />
-                      </svg>
-                    </div>
-                    <div>
+                    <Avatar avatar={profile?.avatar || null} size='md' />
+                    <div className='flex-1 text-left'>
                       <p className='text-[17px] text-gray-900 dark:text-white'>
-                        {t("settings.loggedIn")}
+                        {profile?.fullName || t("settings.loggedIn")}
                       </p>
                       <p className='text-[14px] text-gray-500'>{user.email}</p>
                     </div>
+                    <svg
+                      className='w-5 h-5 text-gray-400'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      strokeWidth={2}
+                      stroke='currentColor'>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M8.25 4.5l7.5 7.5-7.5 7.5'
+                      />
+                    </svg>
                   </div>
-                </div>
+                </button>
                 <button
                   onClick={handleSignOut}
                   onTouchEnd={(e) => {
@@ -275,7 +283,7 @@ export default function SettingsPage() {
                       disabled={authLoading || resetLinkSent}
                       className={cn(
                         "w-full px-4 py-3 text-white rounded-lg text-[17px] font-medium active:opacity-80 disabled:opacity-50 transition-colors",
-                        resetLinkSent ? "bg-green-500" : "bg-ios-blue"
+                        resetLinkSent ? "bg-green-600" : "bg-ios-blue"
                       )}>
                       {authLoading
                         ? t("settings.loading")
@@ -532,6 +540,12 @@ export default function SettingsPage() {
           </p>
         </section>
       </main>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditingProfile}
+        onClose={() => setIsEditingProfile(false)}
+      />
     </div>
   );
 }

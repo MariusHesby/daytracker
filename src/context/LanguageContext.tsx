@@ -4,6 +4,9 @@ import { createContext, useContext, ReactNode } from "react";
 
 // Translation keys and their values
 const translations = {
+  // Common
+  "common.cancel": "Cancel",
+
   // Tabs
   "tab.today": "Today",
   "tab.moviesTv": "Movies & TV",
@@ -100,6 +103,9 @@ const translations = {
   "settings.account": "Account",
   "settings.loggedIn": "Logged in",
   "settings.signOut": "Sign Out",
+  "settings.email": "Email",
+  "settings.emailCannotChange": "Email cannot be changed",
+  "settings.profileUpdated": "Profile updated!",
   "settings.signInDesc": "Sign in to sync your data across devices",
   "settings.emailPlaceholder": "Enter your email",
   "settings.passwordPlaceholder": "Enter password (min 6 characters)",
