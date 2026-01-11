@@ -81,15 +81,11 @@ export async function searchUsers(
 
   const searchTerm = `%${query.toLowerCase()}%`;
 
-  // Search in auth.users via profiles table (which has user_id linked to auth.users)
-  // We need to join profiles with a way to get email - use the from_email in share_requests
-  // Actually, we need a different approach - search profiles and use RPC or a view
-  
-  // For now, search profiles by full_name and also check share_requests for emails
+  // Search profiles by full_name or email
   const { data: profileResults, error: profileError } = await supabase
     .from('profiles')
-    .select('user_id, full_name, avatar')
-    .ilike('full_name', searchTerm)
+    .select('user_id, full_name, email, avatar')
+    .or(`full_name.ilike.${searchTerm},email.ilike.${searchTerm}`)
     .neq('user_id', currentUserId)
     .limit(10);
 
@@ -97,7 +93,7 @@ export async function searchUsers(
     console.error('Profile search error:', profileError);
   }
 
-  // Also search by email in share_requests (from_email field shows user emails)
+  // Also search by email in share_requests for users who haven't set up their profile yet
   const { data: emailResults, error: emailError } = await supabase
     .from('share_requests')
     .select('from_user_id, from_email')
@@ -113,22 +109,14 @@ export async function searchUsers(
   const results: SearchResult[] = [];
   const seenUserIds = new Set<string>();
 
-  // Add profile results (need to get email separately)
+  // Add profile results
   if (profileResults) {
     for (const profile of profileResults) {
       if (!seenUserIds.has(profile.user_id)) {
         seenUserIds.add(profile.user_id);
-        // Try to get email from share_requests
-        const { data: emailData } = await supabase
-          .from('share_requests')
-          .select('from_email')
-          .eq('from_user_id', profile.user_id)
-          .limit(1)
-          .single();
-        
         results.push({
           userId: profile.user_id,
-          email: emailData?.from_email || '',
+          email: profile.email || '',
           fullName: profile.full_name,
           avatar: profile.avatar,
         });
@@ -136,7 +124,7 @@ export async function searchUsers(
     }
   }
 
-  // Add email search results
+  // Add email search results (for users without email in profile)
   if (emailResults) {
     for (const req of emailResults) {
       if (!seenUserIds.has(req.from_user_id)) {

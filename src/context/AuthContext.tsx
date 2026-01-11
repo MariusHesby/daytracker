@@ -202,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.from("profiles").insert({
         user_id: user.id,
         full_name: fullName,
+        email: user.email,
         avatar: avatar,
       });
 

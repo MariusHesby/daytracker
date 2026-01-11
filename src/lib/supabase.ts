@@ -78,6 +78,7 @@ export interface DbProfile {
   id: string;
   user_id: string;
   full_name: string;
+  email: string | null;
   avatar: string | null;
   created_at: string;
   updated_at: string;

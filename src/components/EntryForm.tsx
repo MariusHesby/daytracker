@@ -340,7 +340,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
               </div>
               {/* Autocomplete dropdown */}
               {showFilteredSuggestions && (
-                <div className='absolute left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-10'>
+                <div className='absolute left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50'>
                   {filteredSuggestions.slice(0, 5).map((sugg) => (
                     <button
                       key={sugg.value}
@@ -489,7 +489,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   };
 
   return (
-    <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+    <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible'>
       {activityTypes.map((type, index) => {
         const typeSavedValues = savedValues[type.id] || [];
         const hasSavedValues = typeSavedValues.length > 0;
