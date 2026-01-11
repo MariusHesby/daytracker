@@ -279,9 +279,24 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     switch (type.valueType) {
       case "text": {
         const typeSuggestions = suggestions[type.id] || [];
+        // Filter suggestions based on what the user is typing
+        const filteredSuggestions = customValue.trim()
+          ? typeSuggestions.filter((sugg) =>
+              sugg.value.toLowerCase().includes(customValue.toLowerCase())
+            )
+          : typeSuggestions;
+        // Only show suggestions that aren't exact matches
+        const showFilteredSuggestions =
+          customValue.trim() &&
+          filteredSuggestions.length > 0 &&
+          !filteredSuggestions.some(
+            (s) => s.value.toLowerCase() === customValue.toLowerCase()
+          );
+
         return (
           <div className='pt-3 space-y-3'>
-            {typeSuggestions.length > 0 && (
+            {/* Show all suggestions when not typing */}
+            {!customValue.trim() && typeSuggestions.length > 0 && (
               <div className='flex flex-wrap gap-2'>
                 {typeSuggestions.map((sugg) => (
                   <button
@@ -293,33 +308,48 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                 ))}
               </div>
             )}
-            <div className='flex gap-2'>
-              <input
-                type='text'
-                value={customValue}
-                onChange={(e) => setCustomValue(e.target.value)}
-                placeholder={
-                  typeSuggestions.length > 0
-                    ? "Or enter new..."
-                    : "Enter value..."
-                }
-                className='flex-1 px-3 py-2 rounded-lg text-[17px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && customValue.trim()) {
-                    handleSaveValue(type.id, customValue.trim());
+            <div className='relative'>
+              <div className='flex gap-2'>
+                <input
+                  type='text'
+                  value={customValue}
+                  onChange={(e) => setCustomValue(e.target.value)}
+                  placeholder={
+                    typeSuggestions.length > 0
+                      ? "Or enter new..."
+                      : "Enter value..."
                   }
-                  if (e.key === "Escape") {
-                    setExpandedTypeId(null);
-                  }
-                }}
-              />
-              {customValue.trim() && (
-                <button
-                  onClick={() => handleSaveValue(type.id, customValue.trim())}
-                  className='px-4 py-2 rounded-lg bg-ios-blue text-white text-[17px] font-medium'>
-                  Add
-                </button>
+                  className='flex-1 px-3 py-2 rounded-lg text-[17px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && customValue.trim()) {
+                      handleSaveValue(type.id, customValue.trim());
+                    }
+                    if (e.key === "Escape") {
+                      setExpandedTypeId(null);
+                    }
+                  }}
+                />
+                {customValue.trim() && (
+                  <button
+                    onClick={() => handleSaveValue(type.id, customValue.trim())}
+                    className='px-4 py-2 rounded-lg bg-ios-blue text-white text-[17px] font-medium'>
+                    Add
+                  </button>
+                )}
+              </div>
+              {/* Autocomplete dropdown */}
+              {showFilteredSuggestions && (
+                <div className='absolute left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-10'>
+                  {filteredSuggestions.slice(0, 5).map((sugg) => (
+                    <button
+                      key={sugg.value}
+                      onClick={() => handleSaveValue(type.id, sugg.value)}
+                      className='w-full px-3 py-2.5 text-left text-[17px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 border-b border-gray-100 dark:border-gray-700 last:border-b-0'>
+                      {sugg.value}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
