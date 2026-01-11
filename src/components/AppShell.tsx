@@ -277,6 +277,15 @@ export function AppShell({ children }: AppShellProps) {
     if (!container) return;
 
     const handleTouchStart = (e: TouchEvent) => {
+      // Check if touch started on an element that should prevent swipe
+      const target = e.target as HTMLElement;
+      if (target.closest('[data-no-swipe]')) {
+        touchStartX.current = null;
+        touchStartY.current = null;
+        touchStartTime.current = null;
+        return;
+      }
+
       touchStartX.current = e.touches[0].clientX;
       touchStartY.current = e.touches[0].clientY;
       touchStartTime.current = Date.now();

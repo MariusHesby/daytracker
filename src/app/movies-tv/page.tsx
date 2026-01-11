@@ -207,11 +207,12 @@ function StarRating({
   return (
     <div
       ref={containerRef}
+      data-no-swipe
       className='flex gap-1 touch-none select-none'
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      style={{ touchAction: 'none' }}>
+      style={{ touchAction: "none" }}>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
         <button
           key={star}
@@ -219,7 +220,7 @@ function StarRating({
           onMouseEnter={() => setHovered(star)}
           onMouseLeave={() => setHovered(null)}
           className='transition-transform hover:scale-110 touch-none'
-          style={{ touchAction: 'none' }}>
+          style={{ touchAction: "none" }}>
           <svg
             className={cn(
               sizeClasses[size],
