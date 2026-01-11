@@ -246,6 +246,17 @@ export function AppShell({ children }: AppShellProps) {
   const [showSplash, setShowSplash] = useState(true);
   const [hasSeenSplash, setHasSeenSplash] = useState(false);
 
+  // Redirect to Today tab when PWA starts at /settings (cached from old install)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && pathname === '/settings') {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+      if (isStandalone) {
+        router.replace('/');
+      }
+    }
+  }, [pathname, router]);
+
   // Pull-to-refresh state
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
