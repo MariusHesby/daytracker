@@ -440,7 +440,10 @@ export default function FriendsPage() {
                     <div
                       key={req.id}
                       className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl flex items-center gap-3'>
-                      <Avatar avatar={req.toProfile?.avatar || null} size='md' />
+                      <Avatar
+                        avatar={req.toProfile?.avatar || null}
+                        size='md'
+                      />
                       <div className='min-w-0 flex-1'>
                         <p className='font-medium text-gray-900 dark:text-white truncate'>
                           {req.toProfile?.fullName || req.toEmail}

@@ -166,6 +166,23 @@ async function getProfileByUserId(userId: string): Promise<UserProfile | undefin
   };
 }
 
+// Helper function to get profile by email
+async function getProfileByEmail(email: string): Promise<UserProfile | undefined> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('full_name, avatar, email')
+    .eq('email', email)
+    .single();
+  
+  if (!data || error) return undefined;
+  
+  return {
+    fullName: data.full_name,
+    avatar: data.avatar,
+    email: data.email || undefined,
+  };
+}
+
 // Send a share request to another user by email
 export async function sendShareRequest(
   fromUserId: string,
@@ -343,10 +360,13 @@ export async function getOutgoingRequests(userId: string): Promise<ShareRequest[
   
   const requests: ShareRequest[] = [];
   for (const r of (data || []) as DbShareRequest[]) {
-    // Get recipient's profile using to_user_id
+    // Get recipient's profile using to_user_id, or look up by email
     let toProfile: UserProfile | undefined;
     if (r.to_user_id) {
       toProfile = await getProfileByUserId(r.to_user_id);
+    } else if (r.to_email && !r.to_email.includes('@daytracker.local')) {
+      // Try to find user by email if no to_user_id
+      toProfile = await getProfileByEmail(r.to_email);
     }
     
     // For accepted requests, also get profile from share
