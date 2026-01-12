@@ -84,3 +84,51 @@ export interface DbProfile {
   created_at: string;
   updated_at: string;
 }
+
+export interface DbLockedDay {
+  id: string;
+  user_id: string;
+  date: string;
+  created_at: string;
+}
+
+// Locked days functions
+export async function getLockedDays(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('locked_days')
+    .select('date')
+    .eq('user_id', userId);
+  
+  if (error) {
+    console.error('Error fetching locked days:', error);
+    return [];
+  }
+  
+  return (data || []).map(d => d.date);
+}
+
+export async function lockDay(userId: string, date: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('locked_days')
+    .insert({ user_id: userId, date });
+  
+  if (error) {
+    console.error('Error locking day:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function unlockDay(userId: string, date: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('locked_days')
+    .delete()
+    .eq('user_id', userId)
+    .eq('date', date);
+  
+  if (error) {
+    console.error('Error unlocking day:', error);
+    return false;
+  }
+  return true;
+}

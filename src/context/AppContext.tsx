@@ -11,6 +11,7 @@ import {
 import { ActivityType, LogEntry, Suggestion } from "@/types";
 import * as db from "@/lib/db";
 import * as cloudDb from "@/lib/supabase-sync";
+import { getLockedDays, lockDay, unlockDay } from "@/lib/supabase";
 import { useAuth } from "./AuthContext";
 
 interface AppContextType {
@@ -52,6 +53,11 @@ interface AppContextType {
     user: { id: string; email: string; activityTypeIds: string[] } | null
   ) => void;
   isViewingOther: boolean;
+
+  // Locked days
+  lockedDays: string[];
+  isDayLocked: (date: string) => boolean;
+  toggleDayLock: (date: string) => Promise<boolean>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -69,6 +75,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     start: string;
     end: string;
   } | null>(null);
+  const [lockedDays, setLockedDays] = useState<string[]>([]);
 
   // Viewing as another user (shared data)
   const [viewingUser, setViewingUser] = useState<{
@@ -105,6 +112,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
             );
           });
           setActivityTypes(sortedTypes);
+
+          // Load locked days
+          const locked = await getLockedDays(user.id);
+          setLockedDays(locked);
         } else {
           // Not logged in - use local IndexedDB
           await db.initDB();
@@ -119,6 +130,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             );
           });
           setActivityTypes(sortedTypes);
+          setLockedDays([]);
         }
 
         setIsLoading(false);
@@ -422,6 +434,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [user]
   );
 
+  // Locked days
+  const isDayLocked = useCallback(
+    (date: string) => {
+      return lockedDays.includes(date);
+    },
+    [lockedDays]
+  );
+
+  const toggleDayLock = useCallback(
+    async (date: string): Promise<boolean> => {
+      if (!user) return false;
+
+      const isLocked = lockedDays.includes(date);
+
+      if (isLocked) {
+        const success = await unlockDay(user.id, date);
+        if (success) {
+          setLockedDays((prev) => prev.filter((d) => d !== date));
+        }
+        return !isLocked; // Return new state (unlocked = false)
+      } else {
+        const success = await lockDay(user.id, date);
+        if (success) {
+          setLockedDays((prev) => [...prev, date]);
+        }
+        return !isLocked; // Return new state (locked = true)
+      }
+    },
+    [user, lockedDays]
+  );
+
   // Filter out hidden activity types for normal use
   const visibleActivityTypes = activityTypes.filter((t) => !t.hidden);
 
@@ -449,6 +492,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         viewingUser,
         setViewingUser,
         isViewingOther,
+        lockedDays,
+        isDayLocked,
+        toggleDayLock,
       }}>
       {children}
     </AppContext.Provider>

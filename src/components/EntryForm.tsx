@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
 import { ActivityType, Suggestion } from "@/types";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,18 @@ type SavedValue = {
   id: string;
 };
 
+// Confetti particle for celebration
+interface Particle {
+  id: number;
+  x: number;
+  y: number;
+  color: string;
+  size: number;
+  rotation: number;
+  velocityX: number;
+  velocityY: number;
+}
+
 export function EntryForm({ date, onSuccess }: EntryFormProps) {
   const {
     activityTypes,
@@ -27,6 +39,8 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     deleteEntry,
     updateEntry,
     isViewingOther,
+    isDayLocked,
+    toggleDayLock,
   } = useApp();
   const [expandedTypeId, setExpandedTypeId] = useState<string | null>(null);
   const [savedValues, setSavedValues] = useState<Record<string, SavedValue[]>>(
@@ -40,6 +54,57 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   const [lastClickTime, setLastClickTime] = useState<Record<string, number>>(
     {}
   );
+  const [isLocking, setIsLocking] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [particles, setParticles] = useState<Particle[]>([]);
+
+  const isLocked = isDayLocked(date);
+
+  // Generate confetti particles for celebration
+  const createParticles = useCallback(() => {
+    const colors = ['#34C759', '#FFD60A', '#FF9500', '#FF3B30', '#AF52DE', '#5856D6', '#007AFF'];
+    const newParticles: Particle[] = [];
+    for (let i = 0; i < 50; i++) {
+      newParticles.push({
+        id: i,
+        x: 50 + (Math.random() - 0.5) * 20,
+        y: 50,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: Math.random() * 8 + 4,
+        rotation: Math.random() * 360,
+        velocityX: (Math.random() - 0.5) * 15,
+        velocityY: -Math.random() * 15 - 5,
+      });
+    }
+    setParticles(newParticles);
+  }, []);
+
+  // Animate celebration
+  useEffect(() => {
+    if (!showCelebration) return;
+    
+    createParticles();
+    
+    const timer = setTimeout(() => {
+      setShowCelebration(false);
+      setParticles([]);
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, [showCelebration, createParticles]);
+
+  // Handle lock toggle
+  const handleLockToggle = async () => {
+    if (isViewingOther) return;
+    
+    setIsLocking(true);
+    const newLockedState = await toggleDayLock(date);
+    setIsLocking(false);
+    
+    if (newLockedState) {
+      setShowCelebration(true);
+    }
+  };
 
   useEffect(() => {
     loadEntriesForDateRange(date, date);
@@ -570,7 +635,8 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
             <div
               className={cn(
                 "flex items-center min-h-[40px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
-                isExpanded && "bg-gray-50 dark:bg-gray-800/50"
+                isExpanded && "bg-gray-50 dark:bg-gray-800/50",
+                isLocked && "pointer-events-none opacity-75"
               )}
               onClick={handleRowClick}>
               {/* Icon */}
@@ -578,14 +644,14 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                 <div
                   className={cn(
                     "w-8 h-8 rounded-lg flex items-center justify-center mr-3 shrink-0",
-                    hasSavedValues ? "bg-ios-green/10" : "bg-ios-blue/10"
+                    isLocked ? "bg-ios-green/10" : hasSavedValues ? "bg-ios-green/10" : "bg-ios-blue/10"
                   )}>
                   {type.icon in icons ? (
                     <Icon
                       name={type.icon as IconName}
                       className={cn(
                         "w-5 h-5",
-                        hasSavedValues ? "text-ios-green" : "text-ios-blue"
+                        isLocked ? "text-ios-green" : hasSavedValues ? "text-ios-green" : "text-ios-blue"
                       )}
                     />
                   ) : (
@@ -841,6 +907,64 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
           </div>
         );
       })}
+
+      {/* Lock Day Button */}
+      {!isViewingOther && (
+        <div className='mt-4 relative'>
+          {/* Celebration overlay */}
+          {showCelebration && (
+            <div className='absolute inset-0 pointer-events-none overflow-hidden rounded-xl'>
+              {particles.map((particle) => (
+                <div
+                  key={particle.id}
+                  className='absolute animate-confetti'
+                  style={{
+                    left: `${particle.x}%`,
+                    top: `${particle.y}%`,
+                    width: particle.size,
+                    height: particle.size,
+                    backgroundColor: particle.color,
+                    transform: `rotate(${particle.rotation}deg)`,
+                    '--vx': particle.velocityX,
+                    '--vy': particle.velocityY,
+                  } as React.CSSProperties}
+                />
+              ))}
+            </div>
+          )}
+          
+          <button
+            onClick={handleLockToggle}
+            disabled={isLocking}
+            className={cn(
+              'w-full py-4 rounded-xl flex items-center justify-center gap-3 transition-all duration-300',
+              'active:scale-[0.98]',
+              isLocked
+                ? 'bg-ios-green text-white shadow-lg shadow-ios-green/30'
+                : 'bg-white/80 dark:bg-ios-card-dark text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700',
+              isLocking && 'opacity-70 cursor-not-allowed'
+            )}>
+            {/* Lock icon with animation */}
+            <div className={cn(
+              'transition-transform duration-500',
+              isLocked && 'animate-bounce-once'
+            )}>
+              {isLocked ? (
+                <svg className='w-6 h-6' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+                  <path strokeLinecap='round' strokeLinejoin='round' d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' />
+                </svg>
+              ) : (
+                <svg className='w-6 h-6' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+                  <path strokeLinecap='round' strokeLinejoin='round' d='M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z' />
+                </svg>
+              )}
+            </div>
+            <span className='font-semibold text-[17px]'>
+              {isLocking ? 'Working...' : isLocked ? 'Day Locked ✨' : 'Lock Day'}
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
