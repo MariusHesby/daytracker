@@ -566,451 +566,453 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
 
   return (
     <>
-    <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible'>
-      {activityTypes.map((type, index) => {
-        const typeSavedValues = savedValues[type.id] || [];
-        const hasSavedValues = typeSavedValues.length > 0;
-        const isExpanded = expandedTypeId === type.id;
-        const isLast = index === activityTypes.length - 1;
-        const isCheckmark = type.valueType === "checkmark";
-        const isCounter = type.valueType === "counter";
-        const isMood = type.valueType === "mood";
+      <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible'>
+        {activityTypes.map((type, index) => {
+          const typeSavedValues = savedValues[type.id] || [];
+          const hasSavedValues = typeSavedValues.length > 0;
+          const isExpanded = expandedTypeId === type.id;
+          const isLast = index === activityTypes.length - 1;
+          const isCheckmark = type.valueType === "checkmark";
+          const isCounter = type.valueType === "counter";
+          const isMood = type.valueType === "mood";
 
-        // Get current counter value
-        const currentCounterValue =
-          isCounter && hasSavedValues
-            ? typeof typeSavedValues[0].value === "number"
-              ? typeSavedValues[0].value
-              : 0
-            : 0;
+          // Get current counter value
+          const currentCounterValue =
+            isCounter && hasSavedValues
+              ? typeof typeSavedValues[0].value === "number"
+                ? typeSavedValues[0].value
+                : 0
+              : 0;
 
-        const handleCounterChange = (delta: number) => {
-          const newValue = Math.max(0, currentCounterValue + delta);
-          if (newValue === 0 && hasSavedValues) {
-            // Remove entry when counter reaches 0
-            deleteEntry(typeSavedValues[0].id);
-          } else if (newValue > 0) {
-            handleSaveValue(type.id, newValue);
-          }
-        };
+          const handleCounterChange = (delta: number) => {
+            const newValue = Math.max(0, currentCounterValue + delta);
+            if (newValue === 0 && hasSavedValues) {
+              // Remove entry when counter reaches 0
+              deleteEntry(typeSavedValues[0].id);
+            } else if (newValue > 0) {
+              handleSaveValue(type.id, newValue);
+            }
+          };
 
-        const handleRowClick = () => {
-          if (isCheckmark) {
-            const now = Date.now();
-            const lastClick = lastClickTime[type.id] || 0;
-            const isDoubleClick = now - lastClick < 400; // 400ms for double-click
-            setLastClickTime({ ...lastClickTime, [type.id]: now });
+          const handleRowClick = () => {
+            if (isCheckmark) {
+              const now = Date.now();
+              const lastClick = lastClickTime[type.id] || 0;
+              const isDoubleClick = now - lastClick < 400; // 400ms for double-click
+              setLastClickTime({ ...lastClickTime, [type.id]: now });
 
-            if (isDoubleClick) {
-              // Double-click: set to "skipped" (red X)
-              if (hasSavedValues) {
-                // Delete existing and add skipped
-                typeSavedValues.forEach((saved) => {
-                  deleteEntry(saved.id);
-                });
-              }
-              handleSaveValue(type.id, "skipped");
-            } else {
-              // Single click: toggle between checked and unchecked
-              if (hasSavedValues) {
-                const currentValue = typeSavedValues[0]?.value;
-                if (currentValue === "skipped") {
-                  // If skipped, remove it
-                  typeSavedValues.forEach((saved) => {
-                    deleteEntry(saved.id);
-                  });
-                } else {
-                  // If checked, remove the checkmark
+              if (isDoubleClick) {
+                // Double-click: set to "skipped" (red X)
+                if (hasSavedValues) {
+                  // Delete existing and add skipped
                   typeSavedValues.forEach((saved) => {
                     deleteEntry(saved.id);
                   });
                 }
+                handleSaveValue(type.id, "skipped");
               } else {
-                // Add the checkmark
-                handleSaveValue(type.id, true);
+                // Single click: toggle between checked and unchecked
+                if (hasSavedValues) {
+                  const currentValue = typeSavedValues[0]?.value;
+                  if (currentValue === "skipped") {
+                    // If skipped, remove it
+                    typeSavedValues.forEach((saved) => {
+                      deleteEntry(saved.id);
+                    });
+                  } else {
+                    // If checked, remove the checkmark
+                    typeSavedValues.forEach((saved) => {
+                      deleteEntry(saved.id);
+                    });
+                  }
+                } else {
+                  // Add the checkmark
+                  handleSaveValue(type.id, true);
+                }
               }
+            } else if (isCounter) {
+              // For counter, tapping row resets to 0 if not already 0
+              if (currentCounterValue > 0 && hasSavedValues) {
+                deleteEntry(typeSavedValues[0].id);
+              }
+              // If already 0, do nothing
+            } else {
+              toggleExpanded(type.id);
             }
-          } else if (isCounter) {
-            // For counter, tapping row resets to 0 if not already 0
-            if (currentCounterValue > 0 && hasSavedValues) {
-              deleteEntry(typeSavedValues[0].id);
-            }
-            // If already 0, do nothing
-          } else {
-            toggleExpanded(type.id);
-          }
-        };
+          };
 
-        return (
-          <div key={type.id}>
-            {/* Activity row */}
-            <div
-              className={cn(
-                "flex items-center min-h-[40px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
-                isExpanded && "bg-gray-50 dark:bg-gray-800/50",
-                isLocked && "pointer-events-none opacity-75"
-              )}
-              onClick={handleRowClick}>
-              {/* Icon */}
-              {type.icon && (
+          return (
+            <div key={type.id}>
+              {/* Activity row */}
+              <div
+                className={cn(
+                  "flex items-center min-h-[40px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
+                  isExpanded && "bg-gray-50 dark:bg-gray-800/50",
+                  isLocked && "pointer-events-none opacity-75"
+                )}
+                onClick={handleRowClick}>
+                {/* Icon */}
+                {type.icon && (
+                  <div
+                    className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center mr-3 shrink-0",
+                      isLocked
+                        ? "bg-ios-green/10"
+                        : hasSavedValues
+                        ? "bg-ios-green/10"
+                        : "bg-ios-blue/10"
+                    )}>
+                    {type.icon in icons ? (
+                      <Icon
+                        name={type.icon as IconName}
+                        className={cn(
+                          "w-5 h-5",
+                          isLocked
+                            ? "text-ios-green"
+                            : hasSavedValues
+                            ? "text-ios-green"
+                            : "text-ios-blue"
+                        )}
+                      />
+                    ) : (
+                      <span className='text-lg'>{type.icon}</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Content and right-aligned controls */}
                 <div
                   className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center mr-3 shrink-0",
-                    isLocked
-                      ? "bg-ios-green/10"
-                      : hasSavedValues
-                      ? "bg-ios-green/10"
-                      : "bg-ios-blue/10"
+                    "flex-1 py-2 flex items-center",
+                    !isLast &&
+                      !isExpanded &&
+                      "border-b border-gray-200/80 dark:border-gray-700/80"
                   )}>
-                  {type.icon in icons ? (
-                    <Icon
-                      name={type.icon as IconName}
-                      className={cn(
-                        "w-5 h-5",
-                        isLocked
-                          ? "text-ios-green"
-                          : hasSavedValues
-                          ? "text-ios-green"
-                          : "text-ios-blue"
+                  {/* Main label and inline text value */}
+                  <div className='flex-1 min-w-0 flex items-center gap-2'>
+                    <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
+                      {type.name}
+                    </span>
+                    {/* Only show inline value for text type */}
+                    {hasSavedValues &&
+                      !isExpanded &&
+                      type.valueType === "text" && (
+                        <span className='text-[15px] text-gray-400 dark:text-gray-500 truncate'>
+                          {typeSavedValues.map((saved, i) => (
+                            <span key={saved.id}>
+                              {formatValue(saved.value, type.id)}
+                              {i < typeSavedValues.length - 1 && ", "}
+                            </span>
+                          ))}
+                        </span>
                       )}
-                    />
-                  ) : (
-                    <span className='text-lg'>{type.icon}</span>
-                  )}
-                </div>
-              )}
+                  </div>
 
-              {/* Content and right-aligned controls */}
-              <div
-                className={cn(
-                  "flex-1 py-2 flex items-center",
-                  !isLast &&
-                    !isExpanded &&
-                    "border-b border-gray-200/80 dark:border-gray-700/80"
-                )}>
-                {/* Main label and inline text value */}
-                <div className='flex-1 min-w-0 flex items-center gap-2'>
-                  <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
-                    {type.name}
-                  </span>
-                  {/* Only show inline value for text type */}
-                  {hasSavedValues &&
-                    !isExpanded &&
-                    type.valueType === "text" && (
-                      <span className='text-[15px] text-gray-400 dark:text-gray-500 truncate'>
-                        {typeSavedValues.map((saved, i) => (
-                          <span key={saved.id}>
-                            {formatValue(saved.value, type.id)}
-                            {i < typeSavedValues.length - 1 && ", "}
+                  {/* Right-aligned value type controls (except text) */}
+                  {(isCheckmark ||
+                    isMood ||
+                    isCounter ||
+                    type.valueType === "boolean") && (
+                    <div className='flex items-center gap-2 ml-auto shrink-0'>
+                      {/* Checkmark icon */}
+                      {isCheckmark && hasSavedValues && (
+                        <>
+                          {typeSavedValues[0]?.value === "skipped" ? (
+                            <svg
+                              className='w-5 h-5 text-ios-red shrink-0'
+                              fill='none'
+                              stroke='currentColor'
+                              viewBox='0 0 24 24'
+                              strokeWidth={3}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M6 18L18 6M6 6l12 12'
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              className='w-5 h-5 text-ios-green shrink-0'
+                              fill='none'
+                              stroke='currentColor'
+                              viewBox='0 0 24 24'
+                              strokeWidth={3}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M5 13l4 4L19 7'
+                              />
+                            </svg>
+                          )}
+                        </>
+                      )}
+                      {/* Mood icon display */}
+                      {isMood && hasSavedValues && (
+                        <span className='shrink-0'>
+                          {typeSavedValues[0].value === "happy" && (
+                            <svg
+                              className='w-5 h-5 text-ios-green'
+                              viewBox='0 0 24 24'
+                              fill='none'
+                              stroke='currentColor'
+                              strokeWidth='2'
+                              strokeLinecap='round'
+                              strokeLinejoin='round'>
+                              <circle cx='12' cy='12' r='10' />
+                              <path d='M8 14s1.5 2 4 2 4-2 4-2' />
+                              <line
+                                x1='9'
+                                y1='9'
+                                x2='9.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                              <line
+                                x1='15'
+                                y1='9'
+                                x2='15.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                            </svg>
+                          )}
+                          {typeSavedValues[0].value === "neutral" && (
+                            <svg
+                              className='w-5 h-5 text-ios-orange'
+                              viewBox='0 0 24 24'
+                              fill='none'
+                              stroke='currentColor'
+                              strokeWidth='2'
+                              strokeLinecap='round'
+                              strokeLinejoin='round'>
+                              <circle cx='12' cy='12' r='10' />
+                              <line x1='8' y1='15' x2='16' y2='15' />
+                              <line
+                                x1='9'
+                                y1='9'
+                                x2='9.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                              <line
+                                x1='15'
+                                y1='9'
+                                x2='15.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                            </svg>
+                          )}
+                          {typeSavedValues[0].value === "sad" && (
+                            <svg
+                              className='w-5 h-5 text-ios-red'
+                              viewBox='0 0 24 24'
+                              fill='none'
+                              stroke='currentColor'
+                              strokeWidth='2'
+                              strokeLinecap='round'
+                              strokeLinejoin='round'>
+                              <circle cx='12' cy='12' r='10' />
+                              <path d='M16 16s-1.5-2-4-2-4 2-4 2' />
+                              <line
+                                x1='9'
+                                y1='9'
+                                x2='9.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                              <line
+                                x1='15'
+                                y1='9'
+                                x2='15.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                            </svg>
+                          )}
+                        </span>
+                      )}
+                      {/* Counter controls */}
+                      {isCounter && (
+                        <div
+                          className='flex items-center gap-x-2'
+                          onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCounterChange(-1);
+                            }}
+                            disabled={currentCounterValue === 0}
+                            className={cn(
+                              "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-gray-200 dark:border-gray-600",
+                              "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 shadow-none",
+                              "active:bg-gray-100 dark:active:bg-gray-700 active:scale-95 transition-transform",
+                              currentCounterValue === 0 && "opacity-30"
+                            )}>
+                            −
+                          </button>
+                          <span
+                            className={cn(
+                              "w-7 text-center text-[17px] font-semibold tabular-nums",
+                              currentCounterValue > 0
+                                ? "text-ios-green"
+                                : "text-gray-400 dark:text-gray-500"
+                            )}>
+                            {currentCounterValue}
                           </span>
-                        ))}
-                      </span>
-                    )}
-                </div>
-
-                {/* Right-aligned value type controls (except text) */}
-                {(isCheckmark ||
-                  isMood ||
-                  isCounter ||
-                  type.valueType === "boolean") && (
-                  <div className='flex items-center gap-2 ml-auto shrink-0'>
-                    {/* Checkmark icon */}
-                    {isCheckmark && hasSavedValues && (
-                      <>
-                        {typeSavedValues[0]?.value === "skipped" ? (
-                          <svg
-                            className='w-5 h-5 text-ios-red shrink-0'
-                            fill='none'
-                            stroke='currentColor'
-                            viewBox='0 0 24 24'
-                            strokeWidth={3}>
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              d='M6 18L18 6M6 6l12 12'
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            className='w-5 h-5 text-ios-green shrink-0'
-                            fill='none'
-                            stroke='currentColor'
-                            viewBox='0 0 24 24'
-                            strokeWidth={3}>
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              d='M5 13l4 4L19 7'
-                            />
-                          </svg>
-                        )}
-                      </>
-                    )}
-                    {/* Mood icon display */}
-                    {isMood && hasSavedValues && (
-                      <span className='shrink-0'>
-                        {typeSavedValues[0].value === "happy" && (
-                          <svg
-                            className='w-5 h-5 text-ios-green'
-                            viewBox='0 0 24 24'
-                            fill='none'
-                            stroke='currentColor'
-                            strokeWidth='2'
-                            strokeLinecap='round'
-                            strokeLinejoin='round'>
-                            <circle cx='12' cy='12' r='10' />
-                            <path d='M8 14s1.5 2 4 2 4-2 4-2' />
-                            <line
-                              x1='9'
-                              y1='9'
-                              x2='9.01'
-                              y2='9'
-                              strokeWidth='3'
-                            />
-                            <line
-                              x1='15'
-                              y1='9'
-                              x2='15.01'
-                              y2='9'
-                              strokeWidth='3'
-                            />
-                          </svg>
-                        )}
-                        {typeSavedValues[0].value === "neutral" && (
-                          <svg
-                            className='w-5 h-5 text-ios-orange'
-                            viewBox='0 0 24 24'
-                            fill='none'
-                            stroke='currentColor'
-                            strokeWidth='2'
-                            strokeLinecap='round'
-                            strokeLinejoin='round'>
-                            <circle cx='12' cy='12' r='10' />
-                            <line x1='8' y1='15' x2='16' y2='15' />
-                            <line
-                              x1='9'
-                              y1='9'
-                              x2='9.01'
-                              y2='9'
-                              strokeWidth='3'
-                            />
-                            <line
-                              x1='15'
-                              y1='9'
-                              x2='15.01'
-                              y2='9'
-                              strokeWidth='3'
-                            />
-                          </svg>
-                        )}
-                        {typeSavedValues[0].value === "sad" && (
-                          <svg
-                            className='w-5 h-5 text-ios-red'
-                            viewBox='0 0 24 24'
-                            fill='none'
-                            stroke='currentColor'
-                            strokeWidth='2'
-                            strokeLinecap='round'
-                            strokeLinejoin='round'>
-                            <circle cx='12' cy='12' r='10' />
-                            <path d='M16 16s-1.5-2-4-2-4 2-4 2' />
-                            <line
-                              x1='9'
-                              y1='9'
-                              x2='9.01'
-                              y2='9'
-                              strokeWidth='3'
-                            />
-                            <line
-                              x1='15'
-                              y1='9'
-                              x2='15.01'
-                              y2='9'
-                              strokeWidth='3'
-                            />
-                          </svg>
-                        )}
-                      </span>
-                    )}
-                    {/* Counter controls */}
-                    {isCounter && (
-                      <div
-                        className='flex items-center gap-x-2'
-                        onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCounterChange(-1);
-                          }}
-                          disabled={currentCounterValue === 0}
-                          className={cn(
-                            "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-gray-200 dark:border-gray-600",
-                            "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 shadow-none",
-                            "active:bg-gray-100 dark:active:bg-gray-700 active:scale-95 transition-transform",
-                            currentCounterValue === 0 && "opacity-30"
-                          )}>
-                          −
-                        </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCounterChange(1);
+                            }}
+                            className={cn(
+                              "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-ios-blue/20",
+                              "bg-ios-blue/5 text-ios-blue shadow-none",
+                              "active:bg-ios-blue/10 active:scale-95 transition-transform"
+                            )}>
+                            +
+                          </button>
+                        </div>
+                      )}
+                      {/* Boolean value display (show check or x if saved) */}
+                      {type.valueType === "boolean" && hasSavedValues && (
                         <span
                           className={cn(
-                            "w-7 text-center text-[17px] font-semibold tabular-nums",
-                            currentCounterValue > 0
+                            "w-5 h-5 flex items-center justify-center text-[17px] font-bold",
+                            typeSavedValues[0].value
                               ? "text-ios-green"
-                              : "text-gray-400 dark:text-gray-500"
+                              : "text-ios-red"
                           )}>
-                          {currentCounterValue}
+                          {typeSavedValues[0].value ? "✓" : "✗"}
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCounterChange(1);
-                          }}
-                          className={cn(
-                            "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-ios-blue/20",
-                            "bg-ios-blue/5 text-ios-blue shadow-none",
-                            "active:bg-ios-blue/10 active:scale-95 transition-transform"
-                          )}>
-                          +
-                        </button>
-                      </div>
-                    )}
-                    {/* Boolean value display (show check or x if saved) */}
-                    {type.valueType === "boolean" && hasSavedValues && (
-                      <span
-                        className={cn(
-                          "w-5 h-5 flex items-center justify-center text-[17px] font-bold",
-                          typeSavedValues[0].value
-                            ? "text-ios-green"
-                            : "text-ios-red"
-                        )}>
-                        {typeSavedValues[0].value ? "✓" : "✗"}
-                      </span>
-                    )}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Expanded content - not for checkmark or counter types */}
+              {isExpanded && !isCheckmark && !isCounter && (
+                <div
+                  className={cn(
+                    "px-4 pb-4 bg-gray-50 dark:bg-gray-800/50",
+                    !isLast &&
+                      "border-b border-gray-200/80 dark:border-gray-700/80"
+                  )}>
+                  {/* Saved values with delete option - not for mood type */}
+                  {hasSavedValues && !isMood && (
+                    <div className='flex flex-wrap gap-2 pb-3'>
+                      {typeSavedValues.map((saved) => (
+                        <span
+                          key={saved.id}
+                          className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
+                          {formatValue(saved.value, type.id)}
+                          <button
+                            type='button'
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeSavedValue(type.id, saved.id);
+                            }}
+                            className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {renderExpandedInput(type)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Lock Day Button - Outside activity list */}
+      {!isViewingOther && (
+        <div className='mt-6 flex justify-center relative'>
+          {/* Celebration overlay - fixed position to prevent scrollbars */}
+          {showCelebration && (
+            <div className='fixed inset-0 pointer-events-none overflow-hidden z-50'>
+              <div className='absolute inset-0 flex items-center justify-center'>
+                {particles.map((particle) => (
+                  <div
+                    key={particle.id}
+                    className='absolute animate-confetti'
+                    style={
+                      {
+                        left: `${particle.x}%`,
+                        top: `${particle.y}%`,
+                        width: particle.size,
+                        height: particle.size,
+                        backgroundColor: particle.color,
+                        transform: `rotate(${particle.rotation}deg)`,
+                        "--vx": particle.velocityX,
+                        "--vy": particle.velocityY,
+                      } as React.CSSProperties
+                    }
+                  />
+                ))}
               </div>
             </div>
+          )}
 
-            {/* Expanded content - not for checkmark or counter types */}
-            {isExpanded && !isCheckmark && !isCounter && (
-              <div
-                className={cn(
-                  "px-4 pb-4 bg-gray-50 dark:bg-gray-800/50",
-                  !isLast &&
-                    "border-b border-gray-200/80 dark:border-gray-700/80"
-                )}>
-                {/* Saved values with delete option - not for mood type */}
-                {hasSavedValues && !isMood && (
-                  <div className='flex flex-wrap gap-2 pb-3'>
-                    {typeSavedValues.map((saved) => (
-                      <span
-                        key={saved.id}
-                        className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
-                        {formatValue(saved.value, type.id)}
-                        <button
-                          type='button'
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeSavedValue(type.id, saved.id);
-                          }}
-                          className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {renderExpandedInput(type)}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-
-    {/* Lock Day Button - Outside activity list */}
-    {!isViewingOther && (
-      <div className='mt-6 flex justify-center relative'>
-        {/* Celebration overlay - extends beyond button */}
-        {showCelebration && (
-          <div className='absolute -inset-20 pointer-events-none overflow-visible z-50'>
-            {particles.map((particle) => (
-              <div
-                key={particle.id}
-                className='absolute animate-confetti'
-                style={
-                  {
-                    left: `${particle.x}%`,
-                    top: `${particle.y}%`,
-                    width: particle.size,
-                    height: particle.size,
-                    backgroundColor: particle.color,
-                    transform: `rotate(${particle.rotation}deg)`,
-                    "--vx": particle.velocityX,
-                    "--vy": particle.velocityY,
-                  } as React.CSSProperties
-                }
-              />
-            ))}
-          </div>
-        )}
-
-        <button
-          onClick={handleLockToggle}
-          disabled={isLocking}
-          className={cn(
-            "px-6 py-2.5 rounded-full flex items-center justify-center gap-2 transition-all duration-300",
-            "active:scale-[0.98]",
-            isLocked
-              ? "bg-ios-green text-white shadow-lg shadow-ios-green/30"
-              : "bg-white/80 dark:bg-ios-card-dark text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700",
-            isLocking && "opacity-70 cursor-not-allowed"
-          )}>
-          {/* Lock icon with animation */}
-          <div
+          <button
+            onClick={handleLockToggle}
+            disabled={isLocking}
             className={cn(
-              "transition-transform duration-500",
-              isLocked && "animate-bounce-once"
+              "px-6 py-2.5 rounded-full flex items-center justify-center gap-2 transition-all duration-300",
+              "active:scale-[0.98]",
+              isLocked
+                ? "bg-ios-green text-white shadow-lg shadow-ios-green/30"
+                : "bg-white/80 dark:bg-ios-card-dark text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700",
+              isLocking && "opacity-70 cursor-not-allowed"
             )}>
-            {isLocked ? (
-              <svg
-                className='w-4 h-4'
-                fill='none'
-                viewBox='0 0 24 24'
-                stroke='currentColor'
-                strokeWidth={2}>
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'
-                />
-              </svg>
-            ) : (
-              <svg
-                className='w-4 h-4'
-                fill='none'
-                viewBox='0 0 24 24'
-                stroke='currentColor'
-                strokeWidth={2}>
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  d='M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z'
-                />
-              </svg>
-            )}
-          </div>
-          <span className='font-medium text-[14px]'>
-            {isLocking
-              ? "Working..."
-              : isLocked
-              ? "Day Locked ✨"
-              : "Lock Day"}
-          </span>
-        </button>
-      </div>
-    )}
+            {/* Lock icon with animation */}
+            <div
+              className={cn(
+                "transition-transform duration-500",
+                isLocked && "animate-bounce-once"
+              )}>
+              {isLocked ? (
+                <svg
+                  className='w-4 h-4'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={2}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className='w-4 h-4'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={2}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z'
+                  />
+                </svg>
+              )}
+            </div>
+            <span className='font-medium text-[14px]'>
+              {isLocking
+                ? "Working..."
+                : isLocked
+                ? "Day Locked ✨"
+                : "Lock Day"}
+            </span>
+          </button>
+        </div>
+      )}
     </>
   );
 }
