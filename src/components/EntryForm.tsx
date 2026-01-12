@@ -70,18 +70,21 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
       "#AF52DE",
       "#5856D6",
       "#007AFF",
+      "#00C7BE",
+      "#FF2D55",
+      "#5AC8FA",
     ];
     const newParticles: Particle[] = [];
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < 150; i++) {
       newParticles.push({
         id: i,
-        x: 50 + (Math.random() - 0.5) * 20,
-        y: 50,
+        x: 50 + (Math.random() - 0.5) * 60,
+        y: 50 + (Math.random() - 0.5) * 30,
         color: colors[Math.floor(Math.random() * colors.length)],
-        size: Math.random() * 8 + 4,
+        size: Math.random() * 10 + 4,
         rotation: Math.random() * 360,
-        velocityX: (Math.random() - 0.5) * 15,
-        velocityY: -Math.random() * 15 - 5,
+        velocityX: (Math.random() - 0.5) * 25,
+        velocityY: -Math.random() * 20 - 8,
       });
     }
     setParticles(newParticles);
@@ -926,10 +929,10 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
 
       {/* Lock Day Button */}
       {!isViewingOther && (
-        <div className='mt-4 relative'>
-          {/* Celebration overlay */}
+        <div className='mt-8 mb-4 px-4 relative'>
+          {/* Celebration overlay - extends beyond button */}
           {showCelebration && (
-            <div className='absolute inset-0 pointer-events-none overflow-hidden rounded-xl'>
+            <div className='absolute -inset-20 pointer-events-none overflow-visible z-50'>
               {particles.map((particle) => (
                 <div
                   key={particle.id}
@@ -955,7 +958,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
             onClick={handleLockToggle}
             disabled={isLocking}
             className={cn(
-              "w-full py-4 rounded-xl flex items-center justify-center gap-3 transition-all duration-300",
+              "w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-all duration-300",
               "active:scale-[0.98]",
               isLocked
                 ? "bg-ios-green text-white shadow-lg shadow-ios-green/30"
@@ -970,7 +973,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
               )}>
               {isLocked ? (
                 <svg
-                  className='w-6 h-6'
+                  className='w-5 h-5'
                   fill='none'
                   viewBox='0 0 24 24'
                   stroke='currentColor'
@@ -983,7 +986,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                 </svg>
               ) : (
                 <svg
-                  className='w-6 h-6'
+                  className='w-5 h-5'
                   fill='none'
                   viewBox='0 0 24 24'
                   stroke='currentColor'
@@ -996,7 +999,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                 </svg>
               )}
             </div>
-            <span className='font-semibold text-[17px]'>
+            <span className='font-medium text-[15px]'>
               {isLocking
                 ? "Working..."
                 : isLocked
