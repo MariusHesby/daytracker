@@ -94,41 +94,61 @@ export interface DbLockedDay {
 
 // Locked days functions
 export async function getLockedDays(userId: string): Promise<string[]> {
-  const { data, error } = await supabase
-    .from('locked_days')
-    .select('date')
-    .eq('user_id', userId);
-  
-  if (error) {
-    console.error('Error fetching locked days:', error);
+  try {
+    const { data, error } = await supabase
+      .from('locked_days')
+      .select('date')
+      .eq('user_id', userId);
+    
+    if (error) {
+      // Table might not exist yet - this is ok, just return empty array
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.warn('locked_days table does not exist yet');
+        return [];
+      }
+      console.error('Error fetching locked days:', error.message);
+      return [];
+    }
+    
+    return (data || []).map(d => d.date);
+  } catch (e) {
+    console.warn('getLockedDays failed:', e);
     return [];
   }
-  
-  return (data || []).map(d => d.date);
 }
 
 export async function lockDay(userId: string, date: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('locked_days')
-    .insert({ user_id: userId, date });
-  
-  if (error) {
-    console.error('Error locking day:', error);
+  try {
+    const { error } = await supabase
+      .from('locked_days')
+      .insert({ user_id: userId, date });
+    
+    if (error) {
+      console.error('Error locking day:', error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('lockDay failed:', e);
     return false;
   }
-  return true;
 }
 
 export async function unlockDay(userId: string, date: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('locked_days')
-    .delete()
-    .eq('user_id', userId)
-    .eq('date', date);
-  
-  if (error) {
-    console.error('Error unlocking day:', error);
+  try {
+    const { error } = await supabase
+      .from('locked_days')
+      .delete()
+      .eq('user_id', userId)
+      .eq('date', date);
+    
+    if (error) {
+      console.error('Error unlocking day:', error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn('unlockDay failed:', e);
     return false;
   }
-  return true;
 }
