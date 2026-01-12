@@ -8,6 +8,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import { cn } from "@/lib/utils";
 import {
   sendShareRequest,
+  sendShareRequestByUserId,
   getIncomingRequests,
   getOutgoingRequests,
   acceptShareRequest,
@@ -78,7 +79,7 @@ export default function FriendsPage() {
       let shares: { share: Share; viewerEmail: string }[] = [];
 
       try {
-        incoming = await getIncomingRequests(user.email);
+        incoming = await getIncomingRequests(user.email, user.id);
       } catch (e: unknown) {
         const err = e as { message?: string; code?: string; details?: string };
         console.error(
@@ -165,6 +166,26 @@ export default function FriendsPage() {
     } else {
       setMessage(t("friends.requestSent"));
       setRequestEmail("");
+      setSearchQuery("");
+      setSearchResults([]);
+      setShowSendRequest(false);
+      loadData();
+    }
+  };
+
+  const handleSendRequestToUser = async (result: SearchResult) => {
+    if (!user?.email) return;
+
+    const { error } = await sendShareRequestByUserId(
+      user.id,
+      user.email,
+      result.userId,
+      result.email || undefined
+    );
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage(t("friends.requestSent"));
       setSearchQuery("");
       setSearchResults([]);
       setShowSendRequest(false);
@@ -563,9 +584,8 @@ export default function FriendsPage() {
                     )}
                   </div>
                   <button
-                    onClick={() => handleSendRequest(result.email)}
-                    disabled={!result.email}
-                    className='px-3 py-1.5 bg-ios-blue text-white rounded-lg text-sm font-medium disabled:opacity-50'>
+                    onClick={() => handleSendRequestToUser(result)}
+                    className='px-3 py-1.5 bg-ios-blue text-white rounded-lg text-sm font-medium'>
                     {t("friends.send")}
                   </button>
                 </div>

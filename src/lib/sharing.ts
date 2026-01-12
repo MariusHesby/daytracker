@@ -162,7 +162,7 @@ async function getProfileByUserId(userId: string): Promise<UserProfile | undefin
   };
 }
 
-// Send a share request to another user
+// Send a share request to another user by email
 export async function sendShareRequest(
   fromUserId: string,
   fromEmail: string,
@@ -199,19 +199,120 @@ export async function sendShareRequest(
   return { error: error as Error | null };
 }
 
-// Get incoming share requests
-export async function getIncomingRequests(userEmail: string): Promise<ShareRequest[]> {
-  const { data, error } = await supabase
+// Send a share request to another user by their user ID (from search results)
+export async function sendShareRequestByUserId(
+  fromUserId: string,
+  fromEmail: string,
+  toUserId: string,
+  toEmail?: string
+): Promise<{ error: Error | null }> {
+  // We need the target user's email for the share_requests table
+  // If not provided, try to get it from their profile or existing requests
+  let targetEmail = toEmail;
+  
+  if (!targetEmail) {
+    // Try to get email from profile
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('user_id', toUserId)
+      .single();
+    
+    if (profileData?.email) {
+      targetEmail = profileData.email;
+    }
+  }
+  
+  if (!targetEmail) {
+    // Try to get email from share_requests where they were the sender
+    const { data: reqData } = await supabase
+      .from('share_requests')
+      .select('from_email')
+      .eq('from_user_id', toUserId)
+      .limit(1)
+      .single();
+    
+    if (reqData?.from_email) {
+      targetEmail = reqData.from_email;
+    }
+  }
+  
+  if (!targetEmail) {
+    // As a last resort, use a placeholder with user ID
+    // The target user can still see and accept the request based on their user ID
+    targetEmail = `user_${toUserId}@daytracker.local`;
+  }
+
+  // Check if request already exists (by user ID)
+  const { data: existing } = await supabase
+    .from('share_requests')
+    .select('id, status')
+    .eq('from_user_id', fromUserId)
+    .eq('to_email', targetEmail)
+    .single();
+
+  if (existing) {
+    if (existing.status === 'pending') {
+      return { error: new Error('Request already sent') };
+    }
+    // Update existing rejected request to pending
+    const { error } = await supabase
+      .from('share_requests')
+      .update({ status: 'pending', updated_at: new Date().toISOString() })
+      .eq('id', existing.id);
+    return { error: error as Error | null };
+  }
+
+  const { error } = await supabase
+    .from('share_requests')
+    .insert({
+      from_user_id: fromUserId,
+      from_email: fromEmail,
+      to_email: targetEmail,
+      to_user_id: toUserId,
+    });
+
+  return { error: error as Error | null };
+}
+
+// Get incoming share requests (by email or user ID)
+export async function getIncomingRequests(userEmail: string, userId?: string): Promise<ShareRequest[]> {
+  // Get requests by email
+  const { data: emailData, error: emailError } = await supabase
     .from('share_requests')
     .select('*')
     .eq('to_email', userEmail)
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (emailError) throw emailError;
+  
+  // Also get requests by user ID if provided
+  let userIdData: DbShareRequest[] = [];
+  if (userId) {
+    const { data, error } = await supabase
+      .from('share_requests')
+      .select('*')
+      .eq('to_user_id', userId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      userIdData = data as DbShareRequest[];
+    }
+  }
+  
+  // Combine and deduplicate
+  const allData = [...(emailData || []), ...userIdData] as DbShareRequest[];
+  const seen = new Set<string>();
+  const uniqueData = allData.filter(r => {
+    if (seen.has(r.id)) return false;
+    seen.add(r.id);
+    return true;
+  });
   
   const requests: ShareRequest[] = [];
-  for (const r of (data || []) as DbShareRequest[]) {
+  for (const r of uniqueData) {
     const profile = await getProfileByUserId(r.from_user_id);
     requests.push({
       id: r.id,

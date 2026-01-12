@@ -60,6 +60,7 @@ export interface DbShareRequest {
   from_user_id: string;
   from_email: string;
   to_email: string;
+  to_user_id: string | null;
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;
   updated_at: string;
