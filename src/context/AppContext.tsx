@@ -178,7 +178,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error("Sync failed:", error);
-      throw error;
+      // Re-throw as proper Error
+      if (error instanceof Error) throw error;
+      throw new Error(
+        typeof error === "object" ? JSON.stringify(error) : String(error)
+      );
     } finally {
       setIsSyncing(false);
     }

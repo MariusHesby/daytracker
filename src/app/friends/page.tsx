@@ -16,6 +16,7 @@ import {
   getSharedWithMe,
   getMyShares,
   removeShare,
+  removeSharedConnection,
   updateSharePermissions,
   searchUsers,
   ShareRequest,
@@ -26,6 +27,7 @@ import {
 } from "@/lib/sharing";
 import { IOSModal } from "@/components/ios";
 import { Avatar } from "@/components/ProfileSetup";
+import { Icon, IconName, icons } from "@/components/Icons";
 
 export default function FriendsPage() {
   const { user } = useAuth();
@@ -48,6 +50,8 @@ export default function FriendsPage() {
   const [showSendRequest, setShowSendRequest] = useState(false);
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [showEditShare, setShowEditShare] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [userToRemove, setUserToRemove] = useState<SharedUser | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<ShareRequest | null>(
     null
   );
@@ -66,6 +70,25 @@ export default function FriendsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Last viewed timestamps for notification system
+  const [lastViewedTimes, setLastViewedTimes] = useState<
+    Record<string, Record<string, string>>
+  >({});
+
+  // Load last viewed times from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("friendActivityLastViewed");
+      if (stored) {
+        try {
+          setLastViewedTimes(JSON.parse(stored));
+        } catch (e) {
+          console.error("Failed to parse last viewed times:", e);
+        }
+      }
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!user?.email) return;
@@ -230,6 +253,17 @@ export default function FriendsPage() {
     }
   };
 
+  const handleRemoveFriend = async () => {
+    if (!userToRemove || !user) return;
+
+    const { error } = await removeSharedConnection(userToRemove.id, user.id);
+    if (!error) {
+      setShowRemoveConfirm(false);
+      setUserToRemove(null);
+      loadData();
+    }
+  };
+
   const handleUpdateShare = async () => {
     if (!selectedShare) return;
 
@@ -246,6 +280,23 @@ export default function FriendsPage() {
   };
 
   const handleViewUserData = (sharedUser: SharedUser) => {
+    // Update last viewed times for all activities of this user
+    if (sharedUser.lastActivityDates && typeof window !== "undefined") {
+      const newLastViewed = { ...lastViewedTimes };
+      if (!newLastViewed[sharedUser.id]) {
+        newLastViewed[sharedUser.id] = {};
+      }
+      // Mark all activities as viewed with current timestamp
+      for (const activityId of Object.keys(sharedUser.lastActivityDates)) {
+        newLastViewed[sharedUser.id][activityId] = new Date().toISOString();
+      }
+      setLastViewedTimes(newLastViewed);
+      localStorage.setItem(
+        "friendActivityLastViewed",
+        JSON.stringify(newLastViewed)
+      );
+    }
+
     // Set the viewing user in AppContext and navigate to home
     setViewingUser({
       id: sharedUser.id,
@@ -342,31 +393,104 @@ export default function FriendsPage() {
                 <p className='text-gray-500'>{t("friends.noSharedData")}</p>
               </div>
             ) : (
-              sharedWithMe.map((sharedUser) => (
-                <button
-                  key={sharedUser.id}
-                  onClick={() => handleViewUserData(sharedUser)}
-                  className='w-full p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl text-left flex items-center gap-3'>
-                  <Avatar
-                    avatar={sharedUser.profile?.avatar || null}
-                    size='md'
-                  />
-                  <div className='flex-1 min-w-0'>
-                    <p className='font-medium text-gray-900 dark:text-white truncate'>
-                      {sharedUser.profile?.fullName || sharedUser.email}
-                    </p>
-                    <p className='text-sm text-gray-500 truncate'>
-                      {sharedUser.email}
-                    </p>
-                  </div>
-                  <div className='flex-shrink-0 w-8 h-8 bg-ios-blue/10 rounded-full flex items-center justify-center'>
-                    <span className='text-sm font-medium text-ios-blue'>
-                      {sharedUser.activityTypeIds?.length ||
-                        sharedUser.activityTypes.length}
-                    </span>
-                  </div>
-                </button>
-              ))
+              <div className='space-y-2'>
+                {sharedWithMe.map((sharedUser) => {
+                  // Get the activity types with icons
+                  const sharedActivities = (
+                    sharedUser.activityTypes || []
+                  ).filter((at) => at.icon && at.icon in icons);
+
+                  // Helper to check if activity has new updates
+                  const hasNewActivity = (activityId: string) => {
+                    const lastActivityDate =
+                      sharedUser.lastActivityDates?.[activityId];
+                    if (!lastActivityDate) return false;
+
+                    const lastViewed =
+                      lastViewedTimes[sharedUser.id]?.[activityId];
+                    if (!lastViewed) return true; // Never viewed = new
+
+                    // Compare dates - if last activity is newer than last viewed, show dot
+                    return new Date(lastActivityDate) > new Date(lastViewed);
+                  };
+
+                  return (
+                    <div
+                      key={sharedUser.id}
+                      onClick={() => handleViewUserData(sharedUser)}
+                      className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl cursor-pointer active:bg-gray-50 dark:active:bg-gray-700/50 transition-colors'>
+                      <div className='flex items-center gap-3'>
+                        <Avatar
+                          avatar={sharedUser.profile?.avatar || null}
+                          size='md'
+                        />
+                        <div className='min-w-0 flex-1'>
+                          <p className='font-medium text-gray-900 dark:text-white truncate'>
+                            {sharedUser.profile?.fullName ||
+                              sharedUser.email.split("@")[0]}
+                          </p>
+                          <p className='text-sm text-gray-500 truncate'>
+                            {sharedUser.email}
+                          </p>
+                        </div>
+                        {/* Heart button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // TODO: Implement favorite/movie view toggle
+                          }}
+                          className='p-2 group shrink-0'>
+                          <svg
+                            viewBox='0 0 24 24'
+                            className='w-6 h-6 text-gray-300 dark:text-gray-600 group-hover:text-ios-blue group-hover:fill-ios-blue group-active:text-ios-blue group-active:fill-ios-blue transition-colors'
+                            fill='none'
+                            stroke='currentColor'
+                            strokeWidth='2'>
+                            <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
+                          </svg>
+                        </button>
+                        {/* Remove button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUserToRemove(sharedUser);
+                            setShowRemoveConfirm(true);
+                          }}
+                          className='p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors shrink-0'>
+                          <svg
+                            viewBox='0 0 24 24'
+                            className='w-5 h-5'
+                            fill='none'
+                            stroke='currentColor'
+                            strokeWidth='2'>
+                            <path d='M6 18L18 6M6 6l12 12' />
+                          </svg>
+                        </button>
+                      </div>
+                      {/* Activity icons on new line */}
+                      {sharedActivities.length > 0 && (
+                        <div className='flex flex-wrap gap-2 mt-3 ml-13'>
+                          {sharedActivities.map((activity) => (
+                            <div
+                              key={activity.id}
+                              className='relative w-6 h-6 text-gray-500 dark:text-gray-400'
+                              title={activity.name}>
+                              <Icon
+                                name={activity.icon as IconName}
+                                className='w-6 h-6'
+                              />
+                              {/* Notification dot - shows when activity has updates */}
+                              {hasNewActivity(activity.id) && (
+                                <div className='absolute -top-1 -right-1 w-2.5 h-2.5 bg-ios-blue rounded-full border-2 border-white dark:border-ios-card-dark' />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
@@ -723,6 +847,43 @@ export default function FriendsPage() {
             className='w-full px-4 py-3 bg-ios-blue text-white rounded-lg font-medium'>
             {t("friends.saveChanges")}
           </button>
+        </div>
+      </IOSModal>
+
+      {/* Remove Friend Confirmation Modal */}
+      <IOSModal
+        isOpen={showRemoveConfirm}
+        onClose={() => {
+          setShowRemoveConfirm(false);
+          setUserToRemove(null);
+        }}
+        title={t("friends.removeFriend") || "Remove Friend"}>
+        <div className='space-y-4'>
+          <div className='flex flex-col items-center py-4'>
+            <Avatar avatar={userToRemove?.profile?.avatar || null} size='lg' />
+            <p className='mt-3 font-medium text-gray-900 dark:text-white'>
+              {userToRemove?.profile?.fullName || userToRemove?.email}
+            </p>
+          </div>
+          <p className='text-sm text-gray-500 dark:text-gray-400 text-center'>
+            {t("friends.removeFriendWarning") ||
+              "You will no longer be able to see their activities. They would need to share with you again if you want to reconnect."}
+          </p>
+          <div className='flex gap-3'>
+            <button
+              onClick={() => {
+                setShowRemoveConfirm(false);
+                setUserToRemove(null);
+              }}
+              className='flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg font-medium'>
+              {t("common.cancel") || "Cancel"}
+            </button>
+            <button
+              onClick={handleRemoveFriend}
+              className='flex-1 px-4 py-3 bg-red-500 text-white rounded-lg font-medium'>
+              {t("common.remove") || "Remove"}
+            </button>
+          </div>
         </div>
       </IOSModal>
     </div>

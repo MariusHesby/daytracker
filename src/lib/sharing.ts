@@ -66,6 +66,7 @@ export interface SharedUser {
   activityTypes: ActivityType[];
   activityTypeIds?: string[];
   profile?: UserProfile;
+  lastActivityDates?: Record<string, string>; // activityTypeId -> last entry date ISO string
 }
 
 export interface SearchResult {
@@ -317,7 +318,7 @@ export async function getIncomingRequests(userEmail: string, userId?: string): P
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
 
-  if (emailError) throw emailError;
+  if (emailError) throw new Error(emailError.message || 'Failed to get incoming requests');
   
   // Also get requests by user ID if provided
   let userIdData: DbShareRequest[] = [];
@@ -367,7 +368,7 @@ export async function getOutgoingRequests(userId: string): Promise<ShareRequest[
     .eq('from_user_id', userId)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Failed to get outgoing requests');
   
   const requests: ShareRequest[] = [];
   for (const r of (data || []) as DbShareRequest[]) {
@@ -475,6 +476,17 @@ export async function removeShare(shareId: string): Promise<{ error: Error | nul
   return { error: error as Error | null };
 }
 
+// Remove a shared connection (stop viewing someone's data)
+export async function removeSharedConnection(ownerId: string, viewerId: string): Promise<{ error: Error | null }> {
+  const { error } = await supabase
+    .from('shares')
+    .delete()
+    .eq('owner_id', ownerId)
+    .eq('viewer_id', viewerId);
+
+  return { error: error as Error | null };
+}
+
 // Get users who share with me (I can view their data)
 export async function getSharedWithMe(viewerId: string): Promise<SharedUser[]> {
   const { data: shares, error: sharesError } = await supabase
@@ -486,7 +498,7 @@ export async function getSharedWithMe(viewerId: string): Promise<SharedUser[]> {
   console.log('getSharedWithMe - shares:', shares);
   console.log('getSharedWithMe - error:', sharesError);
 
-  if (sharesError) throw sharesError;
+  if (sharesError) throw new Error(sharesError.message || 'Failed to get shared users');
   if (!shares || shares.length === 0) return [];
 
   const sharedUsers: SharedUser[] = [];
@@ -526,12 +538,52 @@ export async function getSharedWithMe(viewerId: string): Promise<SharedUser[]> {
     // Get owner's profile
     const profile = await getProfileByUserId(share.owner_id);
 
+    // Get owner's activity types to show their icons
+    const { data: ownerActivityTypes } = await supabase
+      .from('activity_types')
+      .select('*')
+      .eq('user_id', share.owner_id)
+      .in('id', activityTypeIds.length > 0 ? activityTypeIds : ['__none__']);
+
+    const activityTypes: ActivityType[] = (ownerActivityTypes || []).map((at: DbActivityType) => ({
+      id: at.id,
+      name: at.name,
+      icon: at.icon || undefined,
+      valueType: at.value_type,
+      unit: at.unit || undefined,
+      order: at.sort_order || undefined,
+      isDefault: at.is_default,
+      hidden: at.hidden,
+      createdAt: new Date(at.created_at),
+    }));
+
+    // Get the latest entry date for each shared activity type
+    const lastActivityDates: Record<string, string> = {};
+    if (activityTypeIds.length > 0) {
+      const { data: latestEntries } = await supabase
+        .from('entries')
+        .select('activity_type_id, date')
+        .eq('user_id', share.owner_id)
+        .in('activity_type_id', activityTypeIds)
+        .order('date', { ascending: false });
+
+      // Get the most recent date for each activity type
+      if (latestEntries) {
+        for (const entry of latestEntries) {
+          if (!lastActivityDates[entry.activity_type_id]) {
+            lastActivityDates[entry.activity_type_id] = entry.date;
+          }
+        }
+      }
+    }
+
     sharedUsers.push({
       id: share.owner_id,
       email: ownerEmail,
-      activityTypes: [],
+      activityTypes: activityTypes,
       activityTypeIds: activityTypeIds,
       profile,
+      lastActivityDates,
     });
   }
 
@@ -549,7 +601,7 @@ export async function getMyShares(ownerId: string): Promise<{
     .select('*')
     .eq('owner_id', ownerId);
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Failed to get my shares');
   if (!shares || shares.length === 0) return [];
 
   const result: { share: Share; viewerEmail: string; viewerProfile?: UserProfile }[] = [];
@@ -597,6 +649,6 @@ export async function getSharedEntries(
     .lte('date', endDate)
     .order('date', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Failed to get shared entries');
   return (data || []).map(dbToLogEntry);
 }

@@ -166,6 +166,9 @@ const translations = {
   "friends.requestAccepted": "Request accepted!",
   "friends.confirmRemove":
     "Are you sure you want to stop sharing with this person?",
+  "friends.removeFriend": "Remove Friend",
+  "friends.removeFriendWarning":
+    "You will no longer be able to see their activities. They would need to share with you again if you want to reconnect.",
   "friends.selectActivities": "Select Activities to Share",
   "friends.selectActivitiesDesc": "Choose which activities to share with",
   "friends.acceptAndShare": "Accept & Share",
@@ -181,6 +184,9 @@ const translations = {
   "friends.noResults": "No users found",
   "friends.searchHint": "Type at least 2 characters to search",
   "friends.sendTo": "Send request to",
+
+  // Common
+  "common.remove": "Remove",
 
   // Media Search
   "media.notConfigured": "OMDB API not configured",

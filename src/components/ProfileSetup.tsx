@@ -119,7 +119,8 @@ export function ProfileSetup() {
         .from("avatars")
         .upload(filePath, file);
 
-      if (uploadError) throw uploadError;
+      if (uploadError)
+        throw new Error(uploadError.message || "Failed to upload image");
 
       const {
         data: { publicUrl },

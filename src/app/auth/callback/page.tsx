@@ -31,7 +31,7 @@ export default function AuthCallbackPage() {
           });
 
           if (error) {
-            throw error;
+            throw new Error(error.message || "Failed to set session");
           }
 
           // Check if this is a password recovery flow

@@ -2,6 +2,11 @@
 import { supabase, DbActivityType, DbLogEntry, DbSuggestion } from './supabase';
 import { ActivityType, LogEntry, Suggestion, DEFAULT_ACTIVITY_TYPES } from '@/types';
 
+// Helper to convert Supabase errors to proper Error instances
+function throwError(error: { message?: string; code?: string } | null, fallbackMessage: string): never {
+  throw new Error(error?.message || fallbackMessage);
+}
+
 // Convert DB types to app types
 function dbToActivityType(db: DbActivityType): ActivityType {
   return {
@@ -51,7 +56,7 @@ export async function getActivityTypesFromSupabase(userId: string): Promise<Acti
     .eq('user_id', userId)
     .order('sort_order', { ascending: true, nullsFirst: false });
 
-  if (error) throw error;
+  if (error) throwError(error, "Database operation failed");
   return (data || []).map(dbToActivityType);
 }
 
@@ -90,7 +95,7 @@ export async function addActivityTypeToSupabase(
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throwError(error, "Database operation failed");
   return dbToActivityType(data);
 }
 
@@ -109,7 +114,7 @@ export async function updateActivityTypeInSupabase(type: ActivityType): Promise<
     })
     .eq('id', type.id);
 
-  if (error) throw error;
+  if (error) throwError(error, "Database operation failed");
 }
 
 export async function deleteActivityTypeFromSupabase(id: string): Promise<void> {
@@ -118,7 +123,7 @@ export async function deleteActivityTypeFromSupabase(id: string): Promise<void> 
     .delete()
     .eq('id', id);
 
-  if (error) throw error;
+  if (error) throwError(error, "Database operation failed");
 }
 
 export async function reorderActivityTypesInSupabase(types: ActivityType[]): Promise<void> {
@@ -133,7 +138,7 @@ export async function reorderActivityTypesInSupabase(types: ActivityType[]): Pro
       .update({ sort_order: update.sort_order })
       .eq('id', update.id);
     
-    if (error) throw error;
+    if (error) throwError(error, "Database operation failed");
   }
 }
 
@@ -151,7 +156,7 @@ export async function getEntriesFromSupabase(
     .lte('date', endDate)
     .order('date', { ascending: false });
 
-  if (error) throw error;
+  if (error) throwError(error, "Database operation failed");
   return (data || []).map(dbToLogEntry);
 }
 
@@ -176,7 +181,7 @@ export async function addEntryToSupabase(
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throwError(error, "Database operation failed");
   return dbToLogEntry(data);
 }
 
@@ -199,7 +204,7 @@ export async function updateEntryInSupabase(entry: LogEntry): Promise<LogEntry> 
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throwError(error, "Database operation failed");
   return dbToLogEntry(data);
 }
 
@@ -209,7 +214,7 @@ export async function deleteEntryFromSupabase(id: string): Promise<void> {
     .delete()
     .eq('id', id);
 
-  if (error) throw error;
+  if (error) throwError(error, "Database operation failed");
 }
 
 // Suggestions
@@ -225,7 +230,7 @@ export async function getSuggestionsFromSupabase(
     .order('count', { ascending: false })
     .limit(10);
 
-  if (error) throw error;
+  if (error) throwError(error, "Database operation failed");
   return (data || []).map(dbToSuggestion);
 }
 
