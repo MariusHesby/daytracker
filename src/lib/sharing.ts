@@ -37,6 +37,7 @@ function dbToLogEntry(db: DbLogEntry): LogEntry {
 export interface UserProfile {
   fullName: string;
   avatar: string | null;
+  email?: string;
 }
 
 export interface ShareRequest {
@@ -44,9 +45,11 @@ export interface ShareRequest {
   fromUserId: string;
   fromEmail: string;
   toEmail: string;
+  toUserId?: string;
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: Date;
   profile?: UserProfile;
+  toProfile?: UserProfile;
 }
 
 export interface Share {
@@ -148,7 +151,7 @@ export async function searchUsers(
 async function getProfileByUserId(userId: string): Promise<UserProfile | undefined> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, avatar')
+    .select('full_name, avatar, email')
     .eq('user_id', userId)
     .single();
   
@@ -159,6 +162,7 @@ async function getProfileByUserId(userId: string): Promise<UserProfile | undefin
   return {
     fullName: data.full_name,
     avatar: data.avatar,
+    email: data.email || undefined,
   };
 }
 
@@ -337,14 +341,17 @@ export async function getOutgoingRequests(userId: string): Promise<ShareRequest[
 
   if (error) throw error;
   
-  // For outgoing requests, we want to look up the recipient's profile by their email
-  // But since we don't have their user_id directly, we'll need to find it
   const requests: ShareRequest[] = [];
   for (const r of (data || []) as DbShareRequest[]) {
-    // Try to find profile via share if accepted
+    // Get recipient's profile using to_user_id
+    let toProfile: UserProfile | undefined;
+    if (r.to_user_id) {
+      toProfile = await getProfileByUserId(r.to_user_id);
+    }
+    
+    // For accepted requests, also get profile from share
     let profile: UserProfile | undefined;
     if (r.status === 'accepted') {
-      // Find the share to get viewer_id, then get their profile
       const { data: shareData } = await supabase
         .from('shares')
         .select('viewer_id')
@@ -361,9 +368,11 @@ export async function getOutgoingRequests(userId: string): Promise<ShareRequest[
       fromUserId: r.from_user_id,
       fromEmail: r.from_email,
       toEmail: r.to_email,
+      toUserId: r.to_user_id || undefined,
       status: r.status,
       createdAt: new Date(r.created_at),
       profile,
+      toProfile,
     });
   }
   return requests;
