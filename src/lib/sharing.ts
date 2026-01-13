@@ -154,9 +154,7 @@ async function getProfileByUserId(userId: string): Promise<UserProfile | undefin
     .from('profiles')
     .select('full_name, avatar, email')
     .eq('user_id', userId)
-    .single();
-  
-  console.log('getProfileByUserId -', userId, '- data:', data, '- error:', error);
+    .maybeSingle();
   
   if (!data || error) return undefined;
   
@@ -173,7 +171,7 @@ async function getProfileByEmail(email: string): Promise<UserProfile | undefined
     .from('profiles')
     .select('full_name, avatar, email')
     .eq('email', email)
-    .single();
+    .maybeSingle();
   
   if (!data || error) return undefined;
   
@@ -196,7 +194,7 @@ export async function sendShareRequest(
     .select('id, status')
     .eq('from_user_id', fromUserId)
     .eq('to_email', toEmail)
-    .single();
+    .maybeSingle();
 
   if (existing) {
     if (existing.status === 'pending') {
@@ -239,7 +237,7 @@ export async function sendShareRequestByUserId(
         .from('profiles')
         .select('email')
         .eq('user_id', toUserId)
-        .single();
+        .maybeSingle();
       
       if (profileData?.email) {
         targetEmail = profileData.email;
@@ -253,7 +251,7 @@ export async function sendShareRequestByUserId(
         .select('from_email')
         .eq('from_user_id', toUserId)
         .limit(1)
-        .single();
+        .maybeSingle();
       
       if (reqData?.from_email) {
         targetEmail = reqData.from_email;
@@ -388,7 +386,7 @@ export async function getOutgoingRequests(userId: string): Promise<ShareRequest[
         .from('shares')
         .select('viewer_id')
         .eq('owner_id', userId)
-        .single();
+        .maybeSingle();
       
       if (shareData) {
         profile = await getProfileByUserId(shareData.viewer_id);
@@ -557,22 +555,21 @@ export async function getSharedWithMe(viewerId: string): Promise<SharedUser[]> {
       createdAt: new Date(at.created_at),
     }));
 
-    // Get the latest entry date for each shared activity type
+    // Get the latest entry update time for each shared activity type using RPC function
     const lastActivityDates: Record<string, string> = {};
     if (activityTypeIds.length > 0) {
-      const { data: latestEntries } = await supabase
-        .from('entries')
-        .select('activity_type_id, date')
-        .eq('user_id', share.owner_id)
-        .in('activity_type_id', activityTypeIds)
-        .order('date', { ascending: false });
+      const { data: latestEntries, error: rpcError } = await supabase
+        .rpc('get_shared_activity_dates', {
+          p_owner_id: share.owner_id,
+          p_viewer_id: viewerId,
+          p_activity_type_ids: activityTypeIds,
+        });
 
-      // Get the most recent date for each activity type
-      if (latestEntries) {
-        for (const entry of latestEntries) {
-          if (!lastActivityDates[entry.activity_type_id]) {
-            lastActivityDates[entry.activity_type_id] = entry.date;
-          }
+      if (rpcError) {
+        console.warn('RPC get_shared_activity_dates not available, activity notifications disabled:', rpcError.message);
+      } else if (latestEntries) {
+        for (const entry of latestEntries as { activity_type_id: string; last_updated: string }[]) {
+          lastActivityDates[entry.activity_type_id] = entry.last_updated;
         }
       }
     }

@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
 import { formatDate, addDays, cn } from "@/lib/utils";
 import { LogEntry } from "@/types";
 import { IOSSegmentedControl } from "@/components/ios";
 import { IOSModal } from "@/components/ios";
 import { searchMedia } from "@/lib/omdb";
+import { getSharedWithMe, SharedUser } from "@/lib/sharing";
+import { supabase } from "@/lib/supabase";
 
 const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
@@ -442,6 +445,7 @@ function MediaCard({
 }
 
 export default function MoviesPage() {
+  const { user } = useAuth();
   const {
     entries,
     loadEntriesForDateRange,
@@ -454,6 +458,131 @@ export default function MoviesPage() {
   const [activeTab, setActiveTab] = useState<"movies" | "series">("movies");
   const [sortBy, setSortBy] = useState<"date" | "rating" | "imdb">("date");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+
+  // Favorites filter state
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [minStarRating, setMinStarRating] = useState(1);
+  const [favoriteFriends, setFavoriteFriends] = useState<string[]>([]);
+  const [favoriteEntries, setFavoriteEntries] = useState<LogEntry[]>([]);
+  const [loadingFavorites, setLoadingFavorites] = useState(false);
+  const [favoriteUsers, setFavoriteUsers] = useState<Map<string, SharedUser>>(
+    new Map()
+  );
+  // Map from activity_type_id to type ('movie' | 'series')
+  const [favoriteActivityTypes, setFavoriteActivityTypes] = useState<
+    Map<string, "movie" | "series">
+  >(new Map());
+
+  // Load favorite friends from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const favorites = localStorage.getItem("favoriteFriends");
+      if (favorites) {
+        try {
+          setFavoriteFriends(JSON.parse(favorites));
+        } catch (e) {
+          console.error("Failed to parse favorite friends:", e);
+        }
+      }
+    }
+  }, []);
+
+  // Fetch movies from favorite friends when showFavorites is enabled
+  useEffect(() => {
+    const fetchFavoriteMovies = async () => {
+      if (!showFavorites || !user?.id || favoriteFriends.length === 0) {
+        setFavoriteEntries([]);
+        return;
+      }
+
+      setLoadingFavorites(true);
+      try {
+        // Get shared users to verify we have access
+        const sharedUsers = await getSharedWithMe(user.id);
+        const userMap = new Map<string, SharedUser>();
+        const activityTypeMap = new Map<string, "movie" | "series">();
+
+        sharedUsers.forEach((su) => {
+          userMap.set(su.id, su);
+          // Build activity type map from each user's shared activity types
+          su.activityTypes.forEach((at) => {
+            const name = at.name.toLowerCase();
+            if (name.includes("movie") || name.includes("film")) {
+              activityTypeMap.set(at.id, "movie");
+            } else if (name.includes("tv") || name.includes("series")) {
+              activityTypeMap.set(at.id, "series");
+            }
+          });
+        });
+
+        setFavoriteUsers(userMap);
+        setFavoriteActivityTypes(activityTypeMap);
+
+        // Filter to only favorites we actually have access to
+        const validFavorites = favoriteFriends.filter((id) => userMap.has(id));
+
+        if (validFavorites.length === 0) {
+          setFavoriteEntries([]);
+          setLoadingFavorites(false);
+          return;
+        }
+
+        // Fetch entries from favorite friends using RPC function
+        const { data: entries, error } = await supabase.rpc(
+          "get_shared_entries",
+          {
+            p_viewer_id: user.id,
+            p_owner_ids: validFavorites,
+          }
+        );
+
+        if (error) {
+          console.warn("RPC get_shared_entries not available:", error.message);
+          setFavoriteEntries([]);
+        } else if (entries) {
+          const mapped: LogEntry[] = entries.map(
+            (e: {
+              id: string;
+              user_id: string;
+              activity_type_id: string;
+              date: string;
+              value: string | number | boolean;
+              note: string | null;
+              imdb_id: string | null;
+              poster: string | null;
+              imdb_rating: string | null;
+              year: string | null;
+              user_rating: number | null;
+              created_at: string;
+              updated_at: string;
+            }) => ({
+              id: e.id,
+              date: e.date,
+              activityTypeId: e.activity_type_id,
+              value: e.value,
+              note: e.note || undefined,
+              imdbId: e.imdb_id || undefined,
+              poster: e.poster || undefined,
+              imdbRating: e.imdb_rating || undefined,
+              year: e.year || undefined,
+              userRating: e.user_rating || undefined,
+              createdAt: new Date(e.created_at),
+              updatedAt: new Date(e.updated_at),
+              ownerId: e.user_id,
+            })
+          );
+          setFavoriteEntries(mapped);
+        }
+      } catch (error) {
+        console.error("Failed to fetch favorite movies:", error);
+        setFavoriteEntries([]);
+      } finally {
+        setLoadingFavorites(false);
+      }
+    };
+
+    fetchFavoriteMovies();
+  }, [showFavorites, user?.id, favoriteFriends]);
 
   const movieTypeId = useMemo(() => {
     return activityTypes.find(
@@ -478,6 +607,45 @@ export default function MoviesPage() {
   }, [loadEntriesForDateRange]);
 
   const mediaEntries = useMemo(() => {
+    // When showing favorites, use favoriteEntries instead
+    if (showFavorites) {
+      // Filter favorite entries by type (movie or series based on favoriteActivityTypes map)
+      const filteredEntries = favoriteEntries.filter((e) => {
+        const type = favoriteActivityTypes.get(e.activityTypeId);
+        if (activeTab === "movies") {
+          return type === "movie";
+        } else {
+          return type === "series";
+        }
+      });
+
+      // Filter by minimum star rating
+      const ratingFiltered = filteredEntries.filter(
+        (e) => (e.userRating || 0) >= minStarRating
+      );
+
+      // Group by value (title) and keep only the highest rated entry for each
+      const uniqueByTitle = new Map<string, LogEntry>();
+      ratingFiltered.forEach((entry) => {
+        const key = String(entry.value).toLowerCase();
+        const existing = uniqueByTitle.get(key);
+        if (!existing || (entry.userRating || 0) > (existing.userRating || 0)) {
+          uniqueByTitle.set(key, entry);
+        }
+      });
+
+      // Convert back to array and sort
+      return Array.from(uniqueByTitle.values()).sort((a, b) => {
+        if (sortBy === "rating")
+          return (b.userRating || 0) - (a.userRating || 0);
+        if (sortBy === "imdb")
+          return (
+            parseFloat(b.imdbRating || "0") - parseFloat(a.imdbRating || "0")
+          );
+        return b.date.localeCompare(a.date);
+      });
+    }
+
     const typeId = activeTab === "movies" ? movieTypeId : seriesTypeId;
     if (!typeId) return [];
 
@@ -503,7 +671,17 @@ export default function MoviesPage() {
         );
       return b.date.localeCompare(a.date);
     });
-  }, [entries, activeTab, movieTypeId, seriesTypeId, sortBy]);
+  }, [
+    entries,
+    activeTab,
+    movieTypeId,
+    seriesTypeId,
+    sortBy,
+    showFavorites,
+    favoriteEntries,
+    minStarRating,
+    favoriteActivityTypes,
+  ]);
 
   const stats = useMemo(() => {
     const movies = entries.filter((e) => e.activityTypeId === movieTypeId);
@@ -563,8 +741,8 @@ export default function MoviesPage() {
       <div className='px-4 mb-3'>
         <IOSSegmentedControl
           options={[
-            { value: "movies", label: "Movies (" + stats.totalMovies + ")" },
-            { value: "series", label: "Series (" + stats.totalSeries + ")" },
+            { value: "movies", label: "Movies" },
+            { value: "series", label: "Series" },
           ]}
           value={activeTab}
           onChange={(v) => setActiveTab(v as "movies" | "series")}
@@ -572,7 +750,7 @@ export default function MoviesPage() {
       </div>
 
       <div className='px-4 mb-3 flex gap-2 items-center'>
-        <div className='flex gap-2 flex-1'>
+        <div className='flex gap-2 flex-1 flex-wrap'>
           {[
             { value: "date", label: "Newest" },
             { value: "rating", label: "My rating" },
@@ -580,16 +758,37 @@ export default function MoviesPage() {
           ].map((option) => (
             <button
               key={option.value}
-              onClick={() => setSortBy(option.value as typeof sortBy)}
+              onClick={() => {
+                setShowFavorites(false);
+                setSortBy(option.value as typeof sortBy);
+              }}
               className={cn(
                 "px-4 py-2 rounded-full text-[13px] font-medium",
-                sortBy === option.value
+                !showFavorites && sortBy === option.value
                   ? "bg-ios-blue text-white"
                   : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300"
               )}>
               {option.label}
             </button>
           ))}
+          {/* Heart button for favorites */}
+          <button
+            onClick={() => setShowFavorites(!showFavorites)}
+            className={cn(
+              "px-4 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
+              showFavorites
+                ? "bg-red-500 text-white"
+                : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300"
+            )}>
+            <svg
+              viewBox='0 0 24 24'
+              className='w-4 h-4'
+              fill={showFavorites ? "currentColor" : "none"}
+              stroke='currentColor'
+              strokeWidth='2'>
+              <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
+            </svg>
+          </button>
         </div>
         <button
           onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
@@ -624,8 +823,51 @@ export default function MoviesPage() {
         </button>
       </div>
 
+      {/* Star rating filter when showing favorites */}
+      {showFavorites && (
+        <div className='px-4 mb-3'>
+          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl p-3'>
+            <p className='text-sm text-gray-500 dark:text-gray-400 mb-2'>
+              Minimum rating from favorites:
+            </p>
+            <div className='flex items-center gap-1'>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
+                <button
+                  key={star}
+                  onClick={() => setMinStarRating(star)}
+                  className='transition-transform hover:scale-110'>
+                  <svg
+                    className={cn(
+                      "w-6 h-6",
+                      star <= minStarRating
+                        ? "text-amber-400 fill-amber-400"
+                        : "text-gray-300 dark:text-gray-600 fill-gray-300 dark:fill-gray-600"
+                    )}
+                    viewBox='0 0 24 24'>
+                    <path d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' />
+                  </svg>
+                </button>
+              ))}
+              <span className='ml-2 text-sm text-gray-600 dark:text-gray-300'>
+                {minStarRating}+
+              </span>
+            </div>
+            {favoriteFriends.length === 0 && (
+              <p className='text-xs text-gray-400 mt-2'>
+                No favorites yet. Add favorites from the Friends tab.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <main className='px-4'>
-        {mediaEntries.length === 0 ? (
+        {loadingFavorites ? (
+          <div className='text-center py-12'>
+            <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-ios-blue mx-auto mb-4'></div>
+            <p className='text-gray-500'>Loading favorites...</p>
+          </div>
+        ) : mediaEntries.length === 0 ? (
           <div className='text-center py-12'>
             <svg
               className='w-16 h-16 mx-auto mb-4 text-gray-400 dark:text-gray-500'
@@ -637,7 +879,13 @@ export default function MoviesPage() {
               <path d='M7 4v16M17 4v16M2 9h5M17 9h5M2 15h5M17 15h5' />
             </svg>
             <p className='text-gray-500'>
-              No {activeTab === "movies" ? "movies" : "series"} found
+              {showFavorites
+                ? favoriteFriends.length === 0
+                  ? "No favorites yet. Add favorites from the Friends tab."
+                  : `No ${
+                      activeTab === "movies" ? "movies" : "series"
+                    } from favorites with rating ${minStarRating}+`
+                : `No ${activeTab === "movies" ? "movies" : "series"} found`}
             </p>
           </div>
         ) : viewMode === "grid" ? (

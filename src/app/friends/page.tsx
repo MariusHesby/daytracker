@@ -76,7 +76,10 @@ export default function FriendsPage() {
     Record<string, Record<string, string>>
   >({});
 
-  // Load last viewed times from localStorage on mount
+  // Favorite friends for Movies & TV filtering
+  const [favoriteFriends, setFavoriteFriends] = useState<string[]>([]);
+
+  // Load last viewed times and favorites from localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("friendActivityLastViewed");
@@ -87,8 +90,27 @@ export default function FriendsPage() {
           console.error("Failed to parse last viewed times:", e);
         }
       }
+
+      const favorites = localStorage.getItem("favoriteFriends");
+      if (favorites) {
+        try {
+          setFavoriteFriends(JSON.parse(favorites));
+        } catch (e) {
+          console.error("Failed to parse favorite friends:", e);
+        }
+      }
     }
   }, []);
+
+  const toggleFavorite = (userId: string) => {
+    setFavoriteFriends((prev) => {
+      const newFavorites = prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId];
+      localStorage.setItem("favoriteFriends", JSON.stringify(newFavorites));
+      return newFavorites;
+    });
+  };
 
   const loadData = useCallback(async () => {
     if (!user?.email) return;
@@ -437,13 +459,21 @@ export default function FriendsPage() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            // TODO: Implement favorite/movie view toggle
+                            toggleFavorite(sharedUser.id);
                           }}
-                          className='p-2 group shrink-0'>
+                          className='p-2 shrink-0'>
                           <svg
                             viewBox='0 0 24 24'
-                            className='w-6 h-6 text-gray-300 dark:text-gray-600 group-hover:text-ios-blue group-hover:fill-ios-blue group-active:text-ios-blue group-active:fill-ios-blue transition-colors'
-                            fill='none'
+                            className={`w-6 h-6 transition-colors ${
+                              favoriteFriends.includes(sharedUser.id)
+                                ? "text-red-500 fill-red-500"
+                                : "text-gray-300 dark:text-gray-600 hover:text-red-400 hover:fill-red-400"
+                            }`}
+                            fill={
+                              favoriteFriends.includes(sharedUser.id)
+                                ? "currentColor"
+                                : "none"
+                            }
                             stroke='currentColor'
                             strokeWidth='2'>
                             <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
@@ -469,20 +499,20 @@ export default function FriendsPage() {
                       </div>
                       {/* Activity icons on new line */}
                       {sharedActivities.length > 0 && (
-                        <div className='flex flex-wrap gap-2 mt-3 ml-13'>
+                        <div className='flex flex-wrap gap-4 mt-3 ml-13'>
                           {sharedActivities.map((activity) => (
                             <div
                               key={activity.id}
-                              className='relative w-6 h-6 text-gray-500 dark:text-gray-400'
+                              className={`w-3 h-3 ${
+                                hasNewActivity(activity.id)
+                                  ? "text-green-500"
+                                  : "text-gray-300 dark:text-gray-600"
+                              }`}
                               title={activity.name}>
                               <Icon
                                 name={activity.icon as IconName}
-                                className='w-6 h-6'
+                                className='w-3 h-3'
                               />
-                              {/* Notification dot - shows when activity has updates */}
-                              {hasNewActivity(activity.id) && (
-                                <div className='absolute -top-1 -right-1 w-2.5 h-2.5 bg-ios-blue rounded-full border-2 border-white dark:border-ios-card-dark' />
-                              )}
                             </div>
                           ))}
                         </div>

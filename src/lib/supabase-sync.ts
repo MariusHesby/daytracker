@@ -222,16 +222,24 @@ export async function getSuggestionsFromSupabase(
   userId: string,
   activityTypeId: string
 ): Promise<Suggestion[]> {
-  const { data, error } = await supabase
-    .from('suggestions')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('activity_type_id', activityTypeId)
-    .order('count', { ascending: false })
-    .limit(10);
+  try {
+    const { data, error } = await supabase
+      .from('suggestions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('activity_type_id', activityTypeId)
+      .order('count', { ascending: false })
+      .limit(10);
 
-  if (error) throwError(error, "Database operation failed");
-  return (data || []).map(dbToSuggestion);
+    if (error) {
+      console.warn('Failed to fetch suggestions:', error.message);
+      return [];
+    }
+    return (data || []).map(dbToSuggestion);
+  } catch (e) {
+    console.warn('Network error fetching suggestions:', e);
+    return [];
+  }
 }
 
 export async function addOrUpdateSuggestionInSupabase(

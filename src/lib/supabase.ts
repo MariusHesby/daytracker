@@ -13,7 +13,22 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
+  global: {
+    headers: {
+      'x-client-info': 'daytracker-pwa',
+    },
+  },
 });
+
+// Handle auth errors globally - clear invalid sessions
+if (typeof window !== 'undefined') {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
+      // Clear any stale auth data
+      localStorage.removeItem('daytracker-auth');
+    }
+  });
+}
 
 // Type definitions for Supabase tables
 export interface DbActivityType {
