@@ -40,6 +40,7 @@ export default function FriendsPage() {
   >("shared");
   const [incomingRequests, setIncomingRequests] = useState<ShareRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<ShareRequest[]>([]);
+  const [hideOutgoingRequests, setHideOutgoingRequests] = useState(false);
   const [sharedWithMe, setSharedWithMe] = useState<SharedUser[]>([]);
   const [myShares, setMyShares] = useState<
     { share: Share; viewerEmail: string; viewerProfile?: UserProfile }[]
@@ -264,6 +265,10 @@ export default function FriendsPage() {
     if (!error) {
       loadData();
     }
+  };
+
+  const handleClearAllOutgoing = () => {
+    setHideOutgoingRequests(true);
   };
 
   const handleRemoveShare = async (shareId: string) => {
@@ -581,10 +586,19 @@ export default function FriendsPage() {
 
             {/* Outgoing */}
             <div>
-              <h3 className='text-sm font-medium text-gray-500 mb-2'>
-                {t("friends.outgoing")}
-              </h3>
-              {outgoingRequests.length === 0 ? (
+              <div className='flex items-center justify-between mb-2'>
+                <h3 className='text-sm font-medium text-gray-500'>
+                  {t("friends.outgoing")}
+                </h3>
+                {outgoingRequests.length > 0 && !hideOutgoingRequests && (
+                  <button
+                    onClick={handleClearAllOutgoing}
+                    className='text-xs text-red-500 hover:text-red-600 font-medium'>
+                    {t("friends.clearAll")}
+                  </button>
+                )}
+              </div>
+              {outgoingRequests.length === 0 || hideOutgoingRequests ? (
                 <p className='text-sm text-gray-400 py-4 text-center'>
                   {t("friends.noOutgoing")}
                 </p>

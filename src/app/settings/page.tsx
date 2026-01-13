@@ -42,6 +42,21 @@ export default function SettingsPage() {
   const [isSyncingData, setIsSyncingData] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [periodAlertEnabled, setPeriodAlertEnabled] = useState(false);
+
+  // Load period alert setting from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const enabled = localStorage.getItem("periodAlertEnabled") === "true";
+      setPeriodAlertEnabled(enabled);
+    }
+  }, []);
+
+  const togglePeriodAlert = () => {
+    const newValue = !periodAlertEnabled;
+    setPeriodAlertEnabled(newValue);
+    localStorage.setItem("periodAlertEnabled", String(newValue));
+  };
 
   // Detect if app is running as standalone PWA and platform
   useEffect(() => {
@@ -388,6 +403,41 @@ export default function SettingsPage() {
                 )}
               </button>
             ))}
+          </div>
+        </section>
+
+        {/* Period Alert Section */}
+        <section>
+          <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
+            Period Tracker
+          </h2>
+          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+            <button
+              onClick={togglePeriodAlert}
+              className='w-full px-4 py-3 flex items-center justify-between min-h-[44px] text-left active:bg-gray-100 dark:active:bg-gray-700'>
+              <div className='flex-1'>
+                <span className='text-[17px] text-gray-900 dark:text-white'>
+                  Alert your loved one
+                </span>
+                <p className='text-[13px] text-gray-500 dark:text-gray-400 mt-0.5'>
+                  Show fun messages when period status changes
+                </p>
+              </div>
+              <div
+                className={cn(
+                  "w-[51px] h-[31px] rounded-full p-[2px] transition-colors duration-200",
+                  periodAlertEnabled
+                    ? "bg-ios-green"
+                    : "bg-gray-300 dark:bg-gray-600"
+                )}>
+                <div
+                  className={cn(
+                    "w-[27px] h-[27px] rounded-full bg-white shadow transition-transform duration-200",
+                    periodAlertEnabled ? "translate-x-[20px]" : "translate-x-0"
+                  )}
+                />
+              </div>
+            </button>
           </div>
         </section>
 

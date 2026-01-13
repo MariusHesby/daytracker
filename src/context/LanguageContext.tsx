@@ -166,6 +166,7 @@ const translations = {
   "friends.requestAccepted": "Request accepted!",
   "friends.confirmRemove":
     "Are you sure you want to stop sharing with this person?",
+  "friends.clearAll": "Clear",
   "friends.removeFriend": "Remove Friend",
   "friends.removeFriendWarning":
     "You will no longer be able to see their activities. They would need to share with you again if you want to reconnect.",

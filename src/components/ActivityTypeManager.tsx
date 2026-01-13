@@ -6,7 +6,13 @@ import { ActivityType } from "@/types";
 import { cn } from "@/lib/utils";
 import { Icon, IconPicker, icons, IconName } from "./Icons";
 
-type ValueType = "text" | "boolean" | "checkmark" | "counter" | "mood";
+type ValueType =
+  | "text"
+  | "boolean"
+  | "checkmark"
+  | "counter"
+  | "mood"
+  | "period-mood";
 
 const VALUE_TYPE_OPTIONS: {
   value: ValueType;
@@ -21,6 +27,11 @@ const VALUE_TYPE_OPTIONS: {
     description: "Tap once for ✓ or double tap for ✗",
   },
   { value: "mood", label: "Mood", description: "Happy, neutral, or sad" },
+  {
+    value: "period-mood",
+    label: "Period Tracker",
+    description: "Red, orange, or green status",
+  },
 ];
 
 export interface ActivityTypeManagerRef {

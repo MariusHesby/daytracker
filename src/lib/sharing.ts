@@ -448,6 +448,26 @@ export async function rejectShareRequest(requestId: string): Promise<{ error: Er
   return { error: error as Error | null };
 }
 
+// Cancel/delete a single outgoing share request
+export async function cancelShareRequest(requestId: string): Promise<{ error: Error | null }> {
+  const { error } = await supabase
+    .from('share_requests')
+    .delete()
+    .eq('id', requestId);
+
+  return { error: error as Error | null };
+}
+
+// Clear all outgoing share requests for a user
+export async function clearAllOutgoingRequests(userId: string): Promise<{ error: Error | null }> {
+  const { error } = await supabase
+    .from('share_requests')
+    .delete()
+    .eq('from_user_id', userId);
+
+  return { error: error as Error | null };
+}
+
 // Update share permissions
 export async function updateSharePermissions(
   shareId: string,
