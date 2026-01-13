@@ -12,3 +12,4 @@ export { AppShell } from './AppShell';
 export { ProfileSetup, Avatar } from './ProfileSetup';
 export { ProfileSetupWrapper } from './ProfileSetupWrapper';
 export { EditProfileModal } from './EditProfileModal';
+export { PeriodAlertPopup } from './PeriodAlertPopup';

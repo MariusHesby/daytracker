@@ -199,10 +199,14 @@ const translations = {
   "common.ok": "OK",
 
   // Period Alert
-  "period.alertTitle": "Mood Update",
-  "period.moodHappy": "Feeling good today! 💚",
-  "period.moodNeutral": "Feeling okay today. 🧡",
-  "period.moodSad": "Having a rough day. Be extra kind! ❤️",
+  "period.alertTitle": "Period Alert",
+  "period.moodSad": "Oh no! Auntie Red has arrived 🩸",
+  "period.moodHappy":
+    "Whoop whoop, the store is open - go get her some flowers man! 💐",
+  "period.moodNeutralFromSad":
+    "Oh, we're half way there / Oh-oh, livin' on a prayer / Take my hand, we'll make it, I swear / Oh-oh, livin' on a prayer 🎸",
+  "period.moodNeutralFromHappy":
+    "Back off man, just back the fuck off, not in the mood 😤",
 
   // Media Search
   "media.notConfigured": "OMDB API not configured",
