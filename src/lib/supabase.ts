@@ -3,6 +3,40 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
+// Clear invalid auth data before creating client
+if (typeof window !== 'undefined') {
+  try {
+    const authData = localStorage.getItem('daytracker-auth');
+    if (authData) {
+      const parsed = JSON.parse(authData);
+      // Check if the stored session is missing required tokens or expired
+      const isInvalid = !parsed || 
+        !parsed.refresh_token || 
+        !parsed.access_token ||
+        (parsed.expires_at && new Date(parsed.expires_at * 1000) < new Date());
+      
+      if (isInvalid) {
+        console.warn('Clearing invalid/expired auth session');
+        localStorage.removeItem('daytracker-auth');
+        // Also clear any other Supabase storage keys
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith('sb-') || key.includes('supabase')) {
+            localStorage.removeItem(key);
+          }
+        });
+      }
+    }
+  } catch {
+    // If we can't parse, remove the invalid data
+    localStorage.removeItem('daytracker-auth');
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('sb-') || key.includes('supabase')) {
+        localStorage.removeItem(key);
+      }
+    });
+  }
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     // Use localStorage to persist sessions - works across browser and PWA
@@ -26,6 +60,22 @@ if (typeof window !== 'undefined') {
     if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
       // Clear any stale auth data
       localStorage.removeItem('daytracker-auth');
+    }
+  });
+  
+  // Also check session validity on load and clear if invalid
+  supabase.auth.getSession().then(({ error }) => {
+    if (error?.message?.includes('Refresh Token') || error?.message?.includes('refresh_token')) {
+      console.warn('Invalid refresh token detected, clearing session');
+      localStorage.removeItem('daytracker-auth');
+      // Clear any other Supabase storage keys
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('sb-') || key.includes('supabase')) {
+          localStorage.removeItem(key);
+        }
+      });
+      // Reload to get a fresh state
+      window.location.reload();
     }
   });
 }

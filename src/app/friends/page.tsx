@@ -64,9 +64,6 @@ export default function FriendsPage() {
   const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>(
     []
   );
-  const [periodAlertActivityId, setPeriodAlertActivityId] = useState<
-    string | null
-  >(null);
   const [requestEmail, setRequestEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -82,6 +79,9 @@ export default function FriendsPage() {
 
   // Favorite friends for Movies & TV filtering
   const [favoriteFriends, setFavoriteFriends] = useState<string[]>([]);
+
+  // Period alert friends - alert when their Period mood changes
+  const [periodAlertFriends, setPeriodAlertFriends] = useState<string[]>([]);
 
   // Load last viewed times and favorites from localStorage on mount
   useEffect(() => {
@@ -103,6 +103,15 @@ export default function FriendsPage() {
           console.error("Failed to parse favorite friends:", e);
         }
       }
+
+      const periodAlerts = localStorage.getItem("periodAlertFriendsList");
+      if (periodAlerts) {
+        try {
+          setPeriodAlertFriends(JSON.parse(periodAlerts));
+        } catch (e) {
+          console.error("Failed to parse period alert friends:", e);
+        }
+      }
     }
   }, []);
 
@@ -113,6 +122,16 @@ export default function FriendsPage() {
         : [...prev, userId];
       localStorage.setItem("favoriteFriends", JSON.stringify(newFavorites));
       return newFavorites;
+    });
+  };
+
+  const togglePeriodAlert = (userId: string) => {
+    setPeriodAlertFriends((prev) => {
+      const newAlerts = prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId];
+      localStorage.setItem("periodAlertFriendsList", JSON.stringify(newAlerts));
+      return newAlerts;
     });
   };
 
@@ -255,26 +274,10 @@ export default function FriendsPage() {
     if (error) {
       setMessage(error.message);
     } else {
-      // Save period alert setting if a Period activity was selected with alert enabled
-      if (
-        periodAlertActivityId &&
-        selectedActivityTypes.includes(periodAlertActivityId)
-      ) {
-        const existingAlerts = JSON.parse(
-          localStorage.getItem("periodAlertFriends") || "{}"
-        );
-        existingAlerts[selectedRequest.fromUserId] = periodAlertActivityId;
-        localStorage.setItem(
-          "periodAlertFriends",
-          JSON.stringify(existingAlerts)
-        );
-      }
-
       setMessage(t("friends.requestAccepted"));
       setShowAcceptModal(false);
       setSelectedRequest(null);
       setSelectedActivityTypes([]);
-      setPeriodAlertActivityId(null);
       loadData();
     }
   };
@@ -501,6 +504,32 @@ export default function FriendsPage() {
                             stroke='currentColor'
                             strokeWidth='2'>
                             <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
+                          </svg>
+                        </button>
+                        {/* Bell button for period alerts */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePeriodAlert(sharedUser.id);
+                          }}
+                          className='p-2 shrink-0'
+                          title={t("friends.alertLovedOne")}>
+                          <svg
+                            viewBox='0 0 24 24'
+                            className={`w-5 h-5 transition-colors ${
+                              periodAlertFriends.includes(sharedUser.id)
+                                ? "text-yellow-500 fill-yellow-500"
+                                : "text-gray-300 dark:text-gray-600 hover:text-yellow-400"
+                            }`}
+                            fill={
+                              periodAlertFriends.includes(sharedUser.id)
+                                ? "currentColor"
+                                : "none"
+                            }
+                            stroke='currentColor'
+                            strokeWidth='2'>
+                            <path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9' />
+                            <path d='M13.73 21a2 2 0 0 1-3.46 0' />
                           </svg>
                         </button>
                         {/* Remove button */}
@@ -833,53 +862,30 @@ export default function FriendsPage() {
           </p>
           <div className='space-y-2 max-h-60 overflow-y-auto'>
             {activityTypes.map((type) => (
-              <div key={type.id} className='space-y-1'>
-                <label className='flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-pointer'>
-                  <input
-                    type='checkbox'
-                    checked={selectedActivityTypes.includes(type.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedActivityTypes([
-                          ...selectedActivityTypes,
-                          type.id,
-                        ]);
-                      } else {
-                        setSelectedActivityTypes(
-                          selectedActivityTypes.filter((id) => id !== type.id)
-                        );
-                        // Clear period alert if Period is unchecked
-                        if (type.name.toLowerCase() === "period") {
-                          setPeriodAlertActivityId(null);
-                        }
-                      }
-                    }}
-                    className='w-5 h-5 rounded text-ios-blue'
-                  />
-                  <span className='text-gray-900 dark:text-white'>
-                    {type.icon} {type.name}
-                  </span>
-                </label>
-                {/* Period alert toggle */}
-                {type.name.toLowerCase() === "period" &&
-                  selectedActivityTypes.includes(type.id) && (
-                    <label className='flex items-center gap-2 ml-8 p-2 text-sm cursor-pointer'>
-                      <input
-                        type='checkbox'
-                        checked={periodAlertActivityId === type.id}
-                        onChange={(e) => {
-                          setPeriodAlertActivityId(
-                            e.target.checked ? type.id : null
-                          );
-                        }}
-                        className='w-4 h-4 rounded text-ios-blue'
-                      />
-                      <span className='text-gray-600 dark:text-gray-400'>
-                        🔔 {t("friends.alertLovedOne")}
-                      </span>
-                    </label>
-                  )}
-              </div>
+              <label
+                key={type.id}
+                className='flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-pointer'>
+                <input
+                  type='checkbox'
+                  checked={selectedActivityTypes.includes(type.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedActivityTypes([
+                        ...selectedActivityTypes,
+                        type.id,
+                      ]);
+                    } else {
+                      setSelectedActivityTypes(
+                        selectedActivityTypes.filter((id) => id !== type.id)
+                      );
+                    }
+                  }}
+                  className='w-5 h-5 rounded text-ios-blue'
+                />
+                <span className='text-gray-900 dark:text-white'>
+                  {type.icon} {type.name}
+                </span>
+              </label>
             ))}
           </div>
           <button

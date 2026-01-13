@@ -196,6 +196,13 @@ const translations = {
 
   // Common
   "common.remove": "Remove",
+  "common.ok": "OK",
+
+  // Period Alert
+  "period.alertTitle": "Mood Update",
+  "period.moodHappy": "Feeling good today! 💚",
+  "period.moodNeutral": "Feeling okay today. 🧡",
+  "period.moodSad": "Having a rough day. Be extra kind! ❤️",
 
   // Media Search
   "media.notConfigured": "OMDB API not configured",
