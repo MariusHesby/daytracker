@@ -39,6 +39,7 @@ interface AuthContextType {
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<{ error: Error | null }>;
   createProfile: (
     fullName: string,
     avatar: string | null
@@ -217,6 +218,84 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    if (!user) return { error: new Error("Not logged in") };
+
+    try {
+      const userId = user.id;
+
+      // Delete all user data from Supabase tables in order
+      // 1. Delete shares (both as owner and viewer)
+      await supabase.from("shares").delete().eq("owner_id", userId);
+      await supabase.from("shares").delete().eq("viewer_id", userId);
+
+      // 2. Delete share requests (both sent and received)
+      await supabase.from("share_requests").delete().eq("from_user_id", userId);
+      await supabase.from("share_requests").delete().eq("to_user_id", userId);
+
+      // 3. Delete locked days
+      await supabase.from("locked_days").delete().eq("user_id", userId);
+
+      // 4. Delete suggestions
+      await supabase.from("suggestions").delete().eq("user_id", userId);
+
+      // 5. Delete log entries
+      await supabase.from("log_entries").delete().eq("user_id", userId);
+
+      // 6. Delete activity types
+      await supabase.from("activity_types").delete().eq("user_id", userId);
+
+      // 7. Delete profile
+      await supabase.from("profiles").delete().eq("user_id", userId);
+
+      // 8. Delete the auth user account using RPC function
+      // Note: This requires creating the following function in Supabase SQL Editor:
+      /*
+        CREATE OR REPLACE FUNCTION delete_user_account()
+        RETURNS void
+        LANGUAGE plpgsql
+        SECURITY DEFINER
+        AS $$
+        BEGIN
+          DELETE FROM auth.users WHERE id = auth.uid();
+        END;
+        $$;
+      */
+      const { error: deleteError } = await supabase.rpc("delete_user_account");
+
+      if (deleteError) {
+        console.error("Could not delete auth user:", deleteError.message);
+        // Data is already deleted, user can still be removed manually from Supabase dashboard
+      }
+
+      // Clear all local storage
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        // Clear IndexedDB
+        const databases = await indexedDB.databases();
+        for (const db of databases) {
+          if (db.name) {
+            indexedDB.deleteDatabase(db.name);
+          }
+        }
+      }
+
+      // Sign out
+      await supabase.auth.signOut();
+
+      // Update state
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setNeedsProfileSetup(false);
+
+      return { error: null };
+    } catch (e) {
+      console.error("Delete account error:", e);
+      return { error: e as Error };
+    }
+  }, [user]);
+
   const createProfile = useCallback(
     async (fullName: string, avatar: string | null) => {
       if (!user) return { error: new Error("Not logged in") };
@@ -293,6 +372,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithMagicLink,
         resetPassword,
         signOut,
+        deleteAccount,
         createProfile,
         updateProfile,
         getProfileByUserId,

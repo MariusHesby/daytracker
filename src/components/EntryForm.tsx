@@ -58,13 +58,6 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   const [showCelebration, setShowCelebration] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
 
-  // Period alert state
-  const [periodAlert, setPeriodAlert] = useState<{
-    show: boolean;
-    mood: "red" | "orange" | "green";
-    message: string;
-  } | null>(null);
-
   const isLocked = isDayLocked(date);
 
   // Generate confetti particles for celebration
@@ -110,71 +103,6 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
 
     return () => clearTimeout(timer);
   }, [showCelebration, createParticles]);
-
-  // Auto-hide period alert after 5 seconds
-  useEffect(() => {
-    if (!periodAlert?.show) return;
-
-    const timer = setTimeout(() => {
-      setPeriodAlert(null);
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [periodAlert]);
-
-  // Get previous period mood from recent entries
-  const getPreviousPeriodMood = useCallback(
-    (typeId: string): "red" | "orange" | "green" | null => {
-      // Find period entries sorted by date descending
-      const periodEntries = entries
-        .filter((e) => e.activityTypeId === typeId && e.date !== date)
-        .sort((a, b) => b.date.localeCompare(a.date));
-
-      if (periodEntries.length > 0) {
-        const value = periodEntries[0].value;
-        if (value === "red" || value === "orange" || value === "green") {
-          return value;
-        }
-      }
-      return null;
-    },
-    [entries, date]
-  );
-
-  // Check if period alerts are enabled
-  const isPeriodAlertEnabled = useCallback((): boolean => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("periodAlertEnabled") === "true";
-  }, []);
-
-  // Send period alert notification
-  const sendPeriodAlert = useCallback(
-    (
-      mood: "red" | "orange" | "green",
-      previousMood: "red" | "orange" | "green" | null
-    ) => {
-      if (!isPeriodAlertEnabled()) return;
-
-      let message = "";
-
-      if (mood === "red") {
-        message = "Oh no! Auntie Red has arrived 🩸";
-      } else if (mood === "green") {
-        message =
-          "Whoop whoop, the store is open - go get her some flowers man! 💐";
-      } else if (mood === "orange") {
-        if (previousMood === "red") {
-          message =
-            "Oh, we're half way there\nOh-oh, livin' on a prayer\nTake my hand, we'll make it, I swear\nOh-oh, livin' on a prayer 🎸";
-        } else {
-          message = "Back off man, just back the fuck off, not in the mood 😤";
-        }
-      }
-
-      setPeriodAlert({ show: true, mood, message });
-    },
-    [isPeriodAlertEnabled]
-  );
 
   // Handle lock toggle
   const handleLockToggle = async () => {
@@ -243,8 +171,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
       if (
         type?.valueType === "boolean" ||
         type?.valueType === "checkmark" ||
-        type?.valueType === "mood" ||
-        type?.valueType === "period-mood"
+        type?.valueType === "mood"
       ) {
         const existingValues = savedValues[typeId] || [];
         for (const existing of existingValues) {
@@ -300,20 +227,6 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         }),
       });
 
-      // Check if this is a period-mood change and send alert
-      if (
-        type.valueType === "period-mood" &&
-        (value === "red" || value === "orange" || value === "green")
-      ) {
-        const previousMood = getPreviousPeriodMood(typeId);
-        const currentDayEntry = savedValues[typeId]?.[0]?.value;
-
-        // Only send alert if mood actually changed (from previous day or from today's entry)
-        if (currentDayEntry !== value || previousMood !== value) {
-          sendPeriodAlert(value, previousMood);
-        }
-      }
-
       setExpandedTypeId(null);
       setCustomValue("");
       setNumberValue("");
@@ -351,11 +264,6 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
       if (value === "happy") return "☺";
       if (value === "neutral") return "—";
       if (value === "sad") return "☹";
-    }
-    if (type?.valueType === "period-mood") {
-      if (value === "red") return "🔴";
-      if (value === "orange") return "🟠";
-      if (value === "green") return "🟢";
     }
     if (typeof value === "boolean") return value ? "Yes" : "No";
     return String(value);
@@ -603,42 +511,6 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
           </div>
         );
 
-      case "period-mood":
-        return (
-          <div className='pt-3 flex gap-3'>
-            <button
-              onClick={() => handleSaveValue(type.id, "red")}
-              className={cn(
-                "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
-                "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
-                savedValues[type.id]?.[0]?.value === "red" &&
-                  "ring-2 ring-red-500 bg-red-500/10 dark:bg-red-500/20"
-              )}>
-              <div className='w-8 h-8 rounded-full bg-red-500' />
-            </button>
-            <button
-              onClick={() => handleSaveValue(type.id, "orange")}
-              className={cn(
-                "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
-                "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
-                savedValues[type.id]?.[0]?.value === "orange" &&
-                  "ring-2 ring-orange-500 bg-orange-500/10 dark:bg-orange-500/20"
-              )}>
-              <div className='w-8 h-8 rounded-full bg-orange-500' />
-            </button>
-            <button
-              onClick={() => handleSaveValue(type.id, "green")}
-              className={cn(
-                "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
-                "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
-                savedValues[type.id]?.[0]?.value === "green" &&
-                  "ring-2 ring-green-500 bg-green-500/10 dark:bg-green-500/20"
-              )}>
-              <div className='w-8 h-8 rounded-full bg-green-500' />
-            </button>
-          </div>
-        );
-
       case "boolean":
         return (
           <div className='pt-3 flex gap-3'>
@@ -694,32 +566,6 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
 
   return (
     <>
-      {/* Period Alert Popup */}
-      {periodAlert?.show && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fade-in'>
-          <div
-            className={cn(
-              "max-w-sm w-full rounded-2xl p-6 shadow-2xl transform animate-scale-in",
-              periodAlert.mood === "red" && "bg-red-500",
-              periodAlert.mood === "orange" && "bg-orange-500",
-              periodAlert.mood === "green" && "bg-green-500"
-            )}
-            onClick={() => setPeriodAlert(null)}>
-            <div className='text-center'>
-              <div className='text-5xl mb-4'>
-                {periodAlert.mood === "red" && "🩸"}
-                {periodAlert.mood === "orange" && "⚠️"}
-                {periodAlert.mood === "green" && "💐"}
-              </div>
-              <p className='text-white text-lg font-medium whitespace-pre-line'>
-                {periodAlert.message}
-              </p>
-              <p className='text-white/70 text-sm mt-4'>Tap to dismiss</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible'>
         {activityTypes.map((type, index) => {
           const typeSavedValues = savedValues[type.id] || [];
@@ -729,7 +575,6 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
           const isCheckmark = type.valueType === "checkmark";
           const isCounter = type.valueType === "counter";
           const isMood = type.valueType === "mood";
-          const isPeriodMood = type.valueType === "period-mood";
 
           // Get current counter value
           const currentCounterValue =
@@ -866,7 +711,6 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                   {/* Right-aligned value type controls (except text) */}
                   {(isCheckmark ||
                     isMood ||
-                    isPeriodMood ||
                     isCounter ||
                     type.valueType === "boolean") && (
                     <div className='flex items-center gap-2 ml-auto shrink-0'>
@@ -988,20 +832,6 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                           )}
                         </span>
                       )}
-                      {/* Period mood icon display */}
-                      {isPeriodMood && hasSavedValues && (
-                        <span className='shrink-0'>
-                          {typeSavedValues[0].value === "red" && (
-                            <div className='w-5 h-5 rounded-full bg-red-500' />
-                          )}
-                          {typeSavedValues[0].value === "orange" && (
-                            <div className='w-5 h-5 rounded-full bg-orange-500' />
-                          )}
-                          {typeSavedValues[0].value === "green" && (
-                            <div className='w-5 h-5 rounded-full bg-green-500' />
-                          )}
-                        </span>
-                      )}
                       {/* Counter controls */}
                       {isCounter && (
                         <div
@@ -1069,8 +899,8 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                     !isLast &&
                       "border-b border-gray-200/80 dark:border-gray-700/80"
                   )}>
-                  {/* Saved values with delete option - not for mood or period-mood type */}
-                  {hasSavedValues && !isMood && !isPeriodMood && (
+                  {/* Saved values with delete option - not for mood type */}
+                  {hasSavedValues && !isMood && (
                     <div className='flex flex-wrap gap-2 pb-3'>
                       {typeSavedValues.map((saved) => (
                         <span

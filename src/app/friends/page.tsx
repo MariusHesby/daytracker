@@ -64,6 +64,9 @@ export default function FriendsPage() {
   const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>(
     []
   );
+  const [periodAlertActivityId, setPeriodAlertActivityId] = useState<
+    string | null
+  >(null);
   const [requestEmail, setRequestEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -252,10 +255,26 @@ export default function FriendsPage() {
     if (error) {
       setMessage(error.message);
     } else {
+      // Save period alert setting if a Period activity was selected with alert enabled
+      if (
+        periodAlertActivityId &&
+        selectedActivityTypes.includes(periodAlertActivityId)
+      ) {
+        const existingAlerts = JSON.parse(
+          localStorage.getItem("periodAlertFriends") || "{}"
+        );
+        existingAlerts[selectedRequest.fromUserId] = periodAlertActivityId;
+        localStorage.setItem(
+          "periodAlertFriends",
+          JSON.stringify(existingAlerts)
+        );
+      }
+
       setMessage(t("friends.requestAccepted"));
       setShowAcceptModal(false);
       setSelectedRequest(null);
       setSelectedActivityTypes([]);
+      setPeriodAlertActivityId(null);
       loadData();
     }
   };
@@ -814,30 +833,53 @@ export default function FriendsPage() {
           </p>
           <div className='space-y-2 max-h-60 overflow-y-auto'>
             {activityTypes.map((type) => (
-              <label
-                key={type.id}
-                className='flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-pointer'>
-                <input
-                  type='checkbox'
-                  checked={selectedActivityTypes.includes(type.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedActivityTypes([
-                        ...selectedActivityTypes,
-                        type.id,
-                      ]);
-                    } else {
-                      setSelectedActivityTypes(
-                        selectedActivityTypes.filter((id) => id !== type.id)
-                      );
-                    }
-                  }}
-                  className='w-5 h-5 rounded text-ios-blue'
-                />
-                <span className='text-gray-900 dark:text-white'>
-                  {type.icon} {type.name}
-                </span>
-              </label>
+              <div key={type.id} className='space-y-1'>
+                <label className='flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-pointer'>
+                  <input
+                    type='checkbox'
+                    checked={selectedActivityTypes.includes(type.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedActivityTypes([
+                          ...selectedActivityTypes,
+                          type.id,
+                        ]);
+                      } else {
+                        setSelectedActivityTypes(
+                          selectedActivityTypes.filter((id) => id !== type.id)
+                        );
+                        // Clear period alert if Period is unchecked
+                        if (type.name.toLowerCase() === "period") {
+                          setPeriodAlertActivityId(null);
+                        }
+                      }
+                    }}
+                    className='w-5 h-5 rounded text-ios-blue'
+                  />
+                  <span className='text-gray-900 dark:text-white'>
+                    {type.icon} {type.name}
+                  </span>
+                </label>
+                {/* Period alert toggle */}
+                {type.name.toLowerCase() === "period" &&
+                  selectedActivityTypes.includes(type.id) && (
+                    <label className='flex items-center gap-2 ml-8 p-2 text-sm cursor-pointer'>
+                      <input
+                        type='checkbox'
+                        checked={periodAlertActivityId === type.id}
+                        onChange={(e) => {
+                          setPeriodAlertActivityId(
+                            e.target.checked ? type.id : null
+                          );
+                        }}
+                        className='w-4 h-4 rounded text-ios-blue'
+                      />
+                      <span className='text-gray-600 dark:text-gray-400'>
+                        🔔 {t("friends.alertLovedOne")}
+                      </span>
+                    </label>
+                  )}
+              </div>
             ))}
           </div>
           <button

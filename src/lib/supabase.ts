@@ -36,7 +36,7 @@ export interface DbActivityType {
   user_id: string;
   name: string;
   icon: string | null;
-  value_type: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood' | 'period-mood';
+  value_type: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood';
   unit: string | null;
   sort_order: number | null;
   is_default: boolean;

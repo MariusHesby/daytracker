@@ -4,7 +4,7 @@ export interface ActivityType {
   id: string;
   name: string;
   icon?: string;
-  valueType: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood' | 'period-mood';
+  valueType: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood';
   unit?: string; // e.g., "km", "minutes", "glasses"
   order?: number; // For custom ordering
   isDefault?: boolean; // True for built-in activity types that can't be deleted
@@ -57,6 +57,6 @@ export const DEFAULT_ACTIVITY_TYPES: Omit<ActivityType, 'id' | 'createdAt'>[] = 
   { name: 'Workout', icon: 'workout', valueType: 'checkmark', isDefault: true },
   { name: 'Alcohol', icon: 'alcohol', valueType: 'checkmark', isDefault: true },
   { name: 'Event', icon: 'event', valueType: 'text', isDefault: true },
-  { name: 'Period', icon: 'period', valueType: 'period-mood', isDefault: true },
+  { name: 'Period', icon: 'period', valueType: 'mood', isDefault: true },
   { name: 'Sleep', icon: 'sleep', valueType: 'mood', isDefault: true },
 ];

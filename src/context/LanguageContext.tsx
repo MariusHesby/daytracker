@@ -134,6 +134,13 @@ const translations = {
   "settings.syncFailed": "Sync failed. Please try again.",
   "settings.cloudSyncDesc":
     "Sign in to keep your data safe in the cloud and sync across devices.",
+  "settings.deleteAccount": "Delete Account",
+  "settings.deleteAccountConfirm":
+    "Are you sure you want to delete your account? This will permanently delete all your data and cannot be undone.",
+  "settings.deleteAccountWarning":
+    "This action is irreversible. All your activities, entries, shares, and profile will be permanently deleted.",
+  "settings.deleting": "Deleting...",
+  "settings.typeToConfirm": "Type DELETE to confirm",
 
   // Friends/Sharing
   "tab.friends": "Friends",
@@ -173,6 +180,7 @@ const translations = {
   "friends.selectActivities": "Select Activities to Share",
   "friends.selectActivitiesDesc": "Choose which activities to share with",
   "friends.acceptAndShare": "Accept & Share",
+  "friends.alertLovedOne": "Alert your loved one when mood changes",
   "friends.editPermissions": "Edit Permissions",
   "friends.editPermissionsDesc": "Choose which activities to share with",
   "friends.saveChanges": "Save Changes",

@@ -24,6 +24,7 @@ export default function SettingsPage() {
     signUpWithEmail,
     resetPassword,
     signOut,
+    deleteAccount,
     isLoading: authLoading,
   } = useAuth();
   const activityManagerRef = useRef<ActivityTypeManagerRef>(null);
@@ -42,21 +43,9 @@ export default function SettingsPage() {
   const [isSyncingData, setIsSyncingData] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-  const [periodAlertEnabled, setPeriodAlertEnabled] = useState(false);
-
-  // Load period alert setting from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const enabled = localStorage.getItem("periodAlertEnabled") === "true";
-      setPeriodAlertEnabled(enabled);
-    }
-  }, []);
-
-  const togglePeriodAlert = () => {
-    const newValue = !periodAlertEnabled;
-    setPeriodAlertEnabled(newValue);
-    localStorage.setItem("periodAlertEnabled", String(newValue));
-  };
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Detect if app is running as standalone PWA and platform
   useEffect(() => {
@@ -223,8 +212,14 @@ export default function SettingsPage() {
                     handleSignOut();
                   }}
                   disabled={authLoading}
-                  className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 cursor-pointer'>
+                  className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 cursor-pointer border-b border-gray-200/80 dark:border-gray-700/80'>
                   {t("settings.signOut")}
+                </button>
+                <button
+                  onClick={() => setShowDeleteAccountModal(true)}
+                  disabled={authLoading}
+                  className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 cursor-pointer'>
+                  {t("settings.deleteAccount")}
                 </button>
               </>
             ) : (
@@ -406,41 +401,6 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Period Alert Section */}
-        <section>
-          <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
-            Period Tracker
-          </h2>
-          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
-            <button
-              onClick={togglePeriodAlert}
-              className='w-full px-4 py-3 flex items-center justify-between min-h-[44px] text-left active:bg-gray-100 dark:active:bg-gray-700'>
-              <div className='flex-1'>
-                <span className='text-[17px] text-gray-900 dark:text-white'>
-                  Alert your loved one
-                </span>
-                <p className='text-[13px] text-gray-500 dark:text-gray-400 mt-0.5'>
-                  Show fun messages when period status changes
-                </p>
-              </div>
-              <div
-                className={cn(
-                  "w-[51px] h-[31px] rounded-full p-[2px] transition-colors duration-200",
-                  periodAlertEnabled
-                    ? "bg-ios-green"
-                    : "bg-gray-300 dark:bg-gray-600"
-                )}>
-                <div
-                  className={cn(
-                    "w-[27px] h-[27px] rounded-full bg-white shadow transition-transform duration-200",
-                    periodAlertEnabled ? "translate-x-[20px]" : "translate-x-0"
-                  )}
-                />
-              </div>
-            </button>
-          </div>
-        </section>
-
         {/* Add to Home Screen Section - only show if not already standalone */}
         {!isStandalone && (
           <section>
@@ -596,6 +556,76 @@ export default function SettingsPage() {
         isOpen={isEditingProfile}
         onClose={() => setIsEditingProfile(false)}
       />
+
+      {/* Delete Account Modal */}
+      {showDeleteAccountModal && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center'>
+          <div
+            className='absolute inset-0 bg-black/50'
+            onClick={() => {
+              if (!isDeleting) {
+                setShowDeleteAccountModal(false);
+                setDeleteConfirmText("");
+              }
+            }}
+          />
+          <div className='relative bg-white dark:bg-gray-800 rounded-2xl p-6 mx-4 max-w-sm w-full shadow-xl'>
+            <h3 className='text-xl font-bold text-gray-900 dark:text-white mb-2'>
+              {t("settings.deleteAccount")}
+            </h3>
+            <p className='text-[15px] text-gray-600 dark:text-gray-400 mb-4'>
+              {t("settings.deleteAccountConfirm")}
+            </p>
+            <p className='text-[13px] text-ios-red mb-4'>
+              ⚠️ {t("settings.deleteAccountWarning")}
+            </p>
+            <div className='mb-4'>
+              <label className='text-[13px] text-gray-500 dark:text-gray-400 mb-1 block'>
+                {t("settings.typeToConfirm")}
+              </label>
+              <input
+                type='text'
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder='DELETE'
+                className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-[17px] text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-ios-red'
+                disabled={isDeleting}
+              />
+            </div>
+            <div className='flex gap-3'>
+              <button
+                onClick={() => {
+                  setShowDeleteAccountModal(false);
+                  setDeleteConfirmText("");
+                }}
+                disabled={isDeleting}
+                className='flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-[17px] font-medium disabled:opacity-50'>
+                {t("settings.cancel")}
+              </button>
+              <button
+                onClick={async () => {
+                  if (deleteConfirmText !== "DELETE") return;
+                  setIsDeleting(true);
+                  const { error } = await deleteAccount();
+                  if (error) {
+                    setAuthMessage(error.message);
+                    setAuthMessageType("error");
+                    setIsDeleting(false);
+                  } else {
+                    // Redirect to home after successful deletion
+                    window.location.href = "/";
+                  }
+                }}
+                disabled={isDeleting || deleteConfirmText !== "DELETE"}
+                className='flex-1 px-4 py-3 bg-ios-red text-white rounded-lg text-[17px] font-medium disabled:opacity-50'>
+                {isDeleting
+                  ? t("settings.deleting")
+                  : t("settings.deleteAccount")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
