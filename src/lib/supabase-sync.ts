@@ -223,6 +223,12 @@ export async function getSuggestionsFromSupabase(
   activityTypeId: string
 ): Promise<Suggestion[]> {
   try {
+    // Skip if activityTypeId is not a valid UUID (local-only ID)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(activityTypeId)) {
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('suggestions')
       .select('*')
@@ -247,6 +253,12 @@ export async function addOrUpdateSuggestionInSupabase(
   activityTypeId: string,
   value: string
 ): Promise<void> {
+  // Skip if activityTypeId is not a valid UUID (local-only ID)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(activityTypeId)) {
+    return;
+  }
+
   // Try to update existing suggestion
   const { data: existing } = await supabase
     .from('suggestions')
