@@ -941,7 +941,10 @@ export default function MoviesPage() {
             <p className='text-sm text-gray-500 dark:text-gray-400 mb-2'>
               Minimum rating from favorites:
             </p>
-            <MinRatingFilter value={minStarRating} onChange={setMinStarRating} />
+            <MinRatingFilter
+              value={minStarRating}
+              onChange={setMinStarRating}
+            />
             {favoriteFriends.length === 0 && (
               <p className='text-xs text-gray-400 mt-2'>
                 No favorites yet. Add favorites from the Friends tab.

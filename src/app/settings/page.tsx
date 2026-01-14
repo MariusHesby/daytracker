@@ -208,11 +208,6 @@ export default function SettingsPage() {
                   </div>
                 </button>
                 <button
-                  onClick={triggerTestAlert}
-                  className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-blue text-center active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer border-b border-gray-200/80 dark:border-gray-700/80'>
-                  🧪 Test Period Alert
-                </button>
-                <button
                   onClick={handleSignOut}
                   onTouchEnd={(e) => {
                     e.preventDefault();
