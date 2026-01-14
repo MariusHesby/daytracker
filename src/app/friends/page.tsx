@@ -479,8 +479,26 @@ export default function FriendsPage() {
                     <div
                       key={sharedUser.id}
                       onClick={() => handleViewUserData(sharedUser)}
-                      className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl cursor-pointer active:bg-gray-50 dark:active:bg-gray-700/50 transition-colors'>
-                      <div className='flex items-center gap-3'>
+                      className='relative p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl cursor-pointer active:bg-gray-50 dark:active:bg-gray-700/50 transition-colors'>
+                      {/* Remove button - top right corner */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUserToRemove(sharedUser);
+                          setShowRemoveConfirm(true);
+                        }}
+                        className='absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors'>
+                        <svg
+                          viewBox='0 0 24 24'
+                          className='w-4 h-4'
+                          fill='none'
+                          stroke='currentColor'
+                          strokeWidth='2'>
+                          <path d='M6 18L18 6M6 6l12 12' />
+                        </svg>
+                      </button>
+
+                      <div className='flex items-center gap-3 pr-6'>
                         <Avatar
                           avatar={sharedUser.profile?.avatar || null}
                           size='md'
@@ -494,16 +512,40 @@ export default function FriendsPage() {
                             {sharedUser.email}
                           </p>
                         </div>
-                        {/* Heart button */}
+                      </div>
+
+                      {/* Activity icons - left side */}
+                      {sharedActivities.length > 0 && (
+                        <div className='flex flex-wrap gap-3 mt-3'>
+                          {sharedActivities.map((activity) => (
+                            <div
+                              key={activity.id}
+                              className={`w-4 h-4 ${
+                                hasNewActivity(activity.id)
+                                  ? "text-green-500"
+                                  : "text-gray-400 dark:text-gray-500"
+                              }`}
+                              title={activity.name}>
+                              <Icon
+                                name={activity.icon as IconName}
+                                className='w-4 h-4'
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Heart and Bell buttons - bottom right corner */}
+                      <div className='absolute bottom-2 right-2 flex items-center gap-1'>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             toggleFavorite(sharedUser.id);
                           }}
-                          className='p-2 shrink-0'>
+                          className='p-1.5'>
                           <svg
                             viewBox='0 0 24 24'
-                            className={`w-6 h-6 transition-colors ${
+                            className={`w-5 h-5 transition-colors ${
                               favoriteFriends.includes(sharedUser.id)
                                 ? "text-red-500 fill-red-500"
                                 : "text-gray-300 dark:text-gray-600 hover:text-red-400 hover:fill-red-400"
@@ -518,17 +560,16 @@ export default function FriendsPage() {
                             <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
                           </svg>
                         </button>
-                        {/* Bell button for period alerts */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             togglePeriodAlert(sharedUser.id);
                           }}
-                          className='p-2 shrink-0'
+                          className='p-1.5'
                           title={t("friends.alertLovedOne")}>
                           <svg
                             viewBox='0 0 24 24'
-                            className={`w-5 h-5 transition-colors ${
+                            className={`w-4 h-4 transition-colors ${
                               periodAlertFriends.includes(sharedUser.id)
                                 ? "text-yellow-500 fill-yellow-500"
                                 : "text-gray-300 dark:text-gray-600 hover:text-yellow-400"
@@ -544,44 +585,7 @@ export default function FriendsPage() {
                             <path d='M13.73 21a2 2 0 0 1-3.46 0' />
                           </svg>
                         </button>
-                        {/* Remove button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setUserToRemove(sharedUser);
-                            setShowRemoveConfirm(true);
-                          }}
-                          className='p-2 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors shrink-0'>
-                          <svg
-                            viewBox='0 0 24 24'
-                            className='w-5 h-5'
-                            fill='none'
-                            stroke='currentColor'
-                            strokeWidth='2'>
-                            <path d='M6 18L18 6M6 6l12 12' />
-                          </svg>
-                        </button>
                       </div>
-                      {/* Activity icons on new line */}
-                      {sharedActivities.length > 0 && (
-                        <div className='flex flex-wrap gap-4 mt-3 ml-13'>
-                          {sharedActivities.map((activity) => (
-                            <div
-                              key={activity.id}
-                              className={`w-3 h-3 ${
-                                hasNewActivity(activity.id)
-                                  ? "text-green-500"
-                                  : "text-gray-300 dark:text-gray-600"
-                              }`}
-                              title={activity.name}>
-                              <Icon
-                                name={activity.icon as IconName}
-                                className='w-3 h-3'
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -894,8 +898,14 @@ export default function FriendsPage() {
                   }}
                   className='w-5 h-5 rounded text-ios-blue'
                 />
+                {type.icon && (
+                  <Icon
+                    name={type.icon as IconName}
+                    className='w-5 h-5 text-gray-600 dark:text-gray-300'
+                  />
+                )}
                 <span className='text-gray-900 dark:text-white'>
-                  {type.icon} {type.name}
+                  {type.name}
                 </span>
               </label>
             ))}
@@ -940,8 +950,14 @@ export default function FriendsPage() {
                   }}
                   className='w-5 h-5 rounded text-ios-blue'
                 />
+                {type.icon && (
+                  <Icon
+                    name={type.icon as IconName}
+                    className='w-5 h-5 text-gray-600 dark:text-gray-300'
+                  />
+                )}
                 <span className='text-gray-900 dark:text-white'>
-                  {type.icon} {type.name}
+                  {type.name}
                 </span>
               </label>
             ))}

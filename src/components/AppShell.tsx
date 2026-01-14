@@ -319,6 +319,12 @@ export function AppShell({ children }: AppShellProps) {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      // Check if touch is on an element that should prevent swipe
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-no-swipe]")) {
+        return;
+      }
+
       // Handle pull-to-refresh
       if (isPulling.current && pullStartY.current !== null && !isRefreshing) {
         const currentY = e.touches[0].clientY;
@@ -342,6 +348,17 @@ export function AppShell({ children }: AppShellProps) {
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
+      // Check if touch started on an element that should prevent swipe
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-no-swipe]")) {
+        touchStartX.current = null;
+        touchStartY.current = null;
+        touchStartTime.current = null;
+        isPulling.current = false;
+        pullStartY.current = null;
+        return;
+      }
+
       if (
         touchStartX.current === null ||
         touchStartY.current === null ||
