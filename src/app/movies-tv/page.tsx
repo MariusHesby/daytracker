@@ -172,53 +172,61 @@ function StarRating({
     return Math.max(1, Math.min(10, star));
   }, []);
 
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
+  // Use native event listeners for better touch control
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onTouchStart = (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
       setIsDragging(true);
       const rating = getRatingFromPosition(e.touches[0].clientX);
       if (rating) setHovered(rating);
-    },
-    [getRatingFromPosition]
-  );
+    };
 
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
+    const onTouchMove = (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      if (!isDragging) return;
       const rating = getRatingFromPosition(e.touches[0].clientX);
       if (rating) setHovered(rating);
-    },
-    [isDragging, getRatingFromPosition]
-  );
+    };
 
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent) => {
+    const onTouchEnd = (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      if (hovered && onRate) {
-        onRate(hovered);
-      }
       setIsDragging(false);
+    };
+
+    container.addEventListener("touchstart", onTouchStart, { passive: false });
+    container.addEventListener("touchmove", onTouchMove, { passive: false });
+    container.addEventListener("touchend", onTouchEnd, { passive: false });
+
+    return () => {
+      container.removeEventListener("touchstart", onTouchStart);
+      container.removeEventListener("touchmove", onTouchMove);
+      container.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [getRatingFromPosition]);
+
+  // Save rating when dragging ends with a hovered value
+  useEffect(() => {
+    if (!isDragging && hovered !== null && onRate) {
+      onRate(hovered);
       setHovered(null);
-    },
-    [hovered, onRate]
-  );
+    }
+  }, [isDragging, hovered, onRate]);
 
   return (
     <div
       ref={containerRef}
       data-no-swipe
       className='flex gap-1 touch-none select-none'
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       style={{ touchAction: "none" }}>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
         <button
           key={star}
+          data-no-swipe
           onClick={() => onRate?.(star)}
           onMouseEnter={() => setHovered(star)}
           onMouseLeave={() => setHovered(null)}

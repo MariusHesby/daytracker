@@ -278,6 +278,7 @@ export function AppShell({ children }: AppShellProps) {
   const touchStartY = useRef<number | null>(null);
   const touchStartTime = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const swipeDisabled = useRef(false); // Track if swipe should be disabled for this touch
 
   const handleSwipe = useCallback(
     (direction: "left" | "right") => {
@@ -301,12 +302,14 @@ export function AppShell({ children }: AppShellProps) {
       // Check if touch started on an element that should prevent swipe
       const target = e.target as HTMLElement;
       if (target.closest("[data-no-swipe]")) {
+        swipeDisabled.current = true;
         touchStartX.current = null;
         touchStartY.current = null;
         touchStartTime.current = null;
         return;
       }
 
+      swipeDisabled.current = false;
       touchStartX.current = e.touches[0].clientX;
       touchStartY.current = e.touches[0].clientY;
       touchStartTime.current = Date.now();
@@ -319,9 +322,8 @@ export function AppShell({ children }: AppShellProps) {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      // Check if touch is on an element that should prevent swipe
-      const target = e.target as HTMLElement;
-      if (target.closest("[data-no-swipe]")) {
+      // Skip if swipe is disabled for this touch sequence
+      if (swipeDisabled.current) {
         return;
       }
 
@@ -348,14 +350,14 @@ export function AppShell({ children }: AppShellProps) {
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      // Check if touch started on an element that should prevent swipe
-      const target = e.target as HTMLElement;
-      if (target.closest("[data-no-swipe]")) {
+      // Skip if swipe is disabled for this touch sequence
+      if (swipeDisabled.current) {
         touchStartX.current = null;
         touchStartY.current = null;
         touchStartTime.current = null;
         isPulling.current = false;
         pullStartY.current = null;
+        swipeDisabled.current = false;
         return;
       }
 
