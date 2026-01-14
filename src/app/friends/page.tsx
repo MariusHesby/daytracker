@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
+import { usePeriodAlert } from "@/context/PeriodAlertContext";
 import { cn } from "@/lib/utils";
 import {
   sendShareRequest,
@@ -33,6 +34,7 @@ export default function FriendsPage() {
   const { user } = useAuth();
   const { activityTypes, setViewingUser } = useApp();
   const { t } = useLanguage();
+  const { checkNow } = usePeriodAlert();
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<
@@ -127,10 +129,20 @@ export default function FriendsPage() {
 
   const togglePeriodAlert = (userId: string) => {
     setPeriodAlertFriends((prev) => {
-      const newAlerts = prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId];
+      const isEnabling = !prev.includes(userId);
+      const newAlerts = isEnabling
+        ? [...prev, userId]
+        : prev.filter((id) => id !== userId);
       localStorage.setItem("periodAlertFriendsList", JSON.stringify(newAlerts));
+
+      // If enabling, trigger immediate check with force alert
+      if (isEnabling) {
+        // Small delay to ensure localStorage is updated
+        setTimeout(() => {
+          checkNow(userId);
+        }, 100);
+      }
+
       return newAlerts;
     });
   };

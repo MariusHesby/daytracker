@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "@/lib/supabase";
+import { getSharedEntries } from "@/lib/sharing";
 
 interface PeriodAlert {
   friendId: string;
@@ -22,6 +23,8 @@ interface PeriodAlert {
 interface PeriodAlertContextType {
   currentAlert: PeriodAlert | null;
   dismissAlert: () => void;
+  triggerTestAlert: () => void;
+  checkNow: (forceAlertFriendId?: string) => Promise<void>;
 }
 
 const PeriodAlertContext = createContext<PeriodAlertContextType | undefined>(
@@ -36,18 +39,41 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
     setCurrentAlert(null);
   }, []);
 
-  // Poll for period mood changes every 30 seconds
-  useEffect(() => {
-    if (!user) return;
+  // Test function to trigger a sample alert
+  const triggerTestAlert = useCallback(() => {
+    console.log("[PeriodAlert] Triggering test alert");
+    setCurrentAlert({
+      friendId: "test-123",
+      friendEmail: "test@example.com",
+      friendName: "Test Friend",
+      currentMood: "sad",
+      previousMood: "happy",
+    });
+  }, []);
 
-    const checkPeriodMoods = async () => {
+  // Function to check period moods - extracted so it can be called manually
+  const checkPeriodMoods = useCallback(
+    async (forceAlert?: string) => {
+      if (!user) {
+        console.log("[PeriodAlert] No user, skipping check");
+        return;
+      }
+
       try {
         // Get list of friends with period alerts enabled
         const periodAlertFriendsList = JSON.parse(
           localStorage.getItem("periodAlertFriendsList") || "[]"
         );
 
-        if (periodAlertFriendsList.length === 0) return;
+        console.log(
+          "[PeriodAlert] Checking moods for friends:",
+          periodAlertFriendsList
+        );
+
+        if (periodAlertFriendsList.length === 0) {
+          console.log("[PeriodAlert] No friends with alerts enabled");
+          return;
+        }
 
         // Get shares where I'm the viewer
         const { data: shares } = await supabase
@@ -55,9 +81,14 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
           .select("owner_id, activity_type_ids")
           .eq("viewer_id", user.id);
 
-        if (!shares || shares.length === 0) return;
+        if (!shares || shares.length === 0) {
+          console.log("[PeriodAlert] No shares found");
+          return;
+        }
 
+        console.log("[PeriodAlert] Found", shares.length, "share connections");
         const today = new Date().toISOString().split("T")[0];
+        console.log("[PeriodAlert] Checking date:", today);
 
         for (const share of shares) {
           const friendId = share.owner_id;
@@ -80,103 +111,182 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
               at.name.toLowerCase() === "period" && at.value_type === "mood"
           );
 
-          if (!periodActivity) continue;
-
-          // Get today's Period entry for this friend
-          const { data: periodEntry } = await supabase
-            .from("log_entries")
-            .select("value, updated_at")
-            .eq("user_id", friendId)
-            .eq("activity_type_id", periodActivity.id)
-            .eq("date", today)
-            .order("updated_at", { ascending: false })
-            .limit(1)
-            .single();
-
-          if (!periodEntry) continue;
-
-          const currentMood = String(periodEntry.value);
-          const lastSeenKey = `periodMoodSeen_${friendId}`;
-          const lastSeenData = localStorage.getItem(lastSeenKey);
-
-          let lastSeenMood: string | null = null;
-          let lastSeenTime: string | null = null;
-
-          if (lastSeenData) {
-            try {
-              const parsed = JSON.parse(lastSeenData);
-              lastSeenMood = parsed.mood;
-              lastSeenTime = parsed.time;
-            } catch {
-              // Old format, just mood string
-              lastSeenMood = lastSeenData;
-            }
+          if (!periodActivity) {
+            console.log(
+              "[PeriodAlert] No Period activity found for friend:",
+              friendId
+            );
+            continue;
           }
 
-          // Check if this is a new update (mood changed OR entry was updated after last check)
-          const entryUpdatedAt = new Date(periodEntry.updated_at).getTime();
-          const lastCheckTime = lastSeenTime
-            ? new Date(lastSeenTime).getTime()
-            : 0;
+          console.log(
+            "[PeriodAlert] Found Period activity for friend:",
+            friendId,
+            periodActivity
+          );
 
-          const isNewUpdate =
-            currentMood !== lastSeenMood || entryUpdatedAt > lastCheckTime;
-
-          if (isNewUpdate && lastSeenMood !== null) {
-            // Get friend's profile for their name
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("full_name, email")
-              .eq("user_id", friendId)
-              .single();
-
-            // Save new state
-            localStorage.setItem(
-              lastSeenKey,
-              JSON.stringify({
-                mood: currentMood,
-                time: new Date().toISOString(),
-              })
+          // Get today's Period entry for this friend using the sharing function
+          try {
+            const entries = await getSharedEntries(
+              friendId,
+              [periodActivity.id],
+              today,
+              today
             );
 
-            // Show alert
-            setCurrentAlert({
+            const periodEntry = entries.find(
+              (e) => e.activityTypeId === periodActivity.id && e.date === today
+            );
+
+            if (!periodEntry) {
+              console.log(
+                "[PeriodAlert] No Period entry today for friend:",
+                friendId
+              );
+              continue;
+            }
+
+            console.log("[PeriodAlert] Found Period entry:", periodEntry);
+            const currentMood = String(periodEntry.value);
+            const lastSeenKey = `periodMoodSeen_${friendId}`;
+            const lastSeenData = localStorage.getItem(lastSeenKey);
+
+            let lastSeenMood: string | null = null;
+            let lastSeenTime: string | null = null;
+
+            if (lastSeenData) {
+              try {
+                const parsed = JSON.parse(lastSeenData);
+                lastSeenMood = parsed.mood;
+                lastSeenTime = parsed.time;
+              } catch {
+                // Old format, just mood string
+                lastSeenMood = lastSeenData;
+              }
+            }
+
+            // Check if this is a new update (mood changed OR entry was updated after last check)
+            const entryUpdatedAt = periodEntry.updatedAt
+              ? new Date(periodEntry.updatedAt).getTime()
+              : 0;
+            const lastCheckTime = lastSeenTime
+              ? new Date(lastSeenTime).getTime()
+              : 0;
+
+            const isNewUpdate =
+              currentMood !== lastSeenMood || entryUpdatedAt > lastCheckTime;
+
+            console.log("[PeriodAlert] Mood check:", {
               friendId,
-              friendEmail: profile?.email || "Friend",
-              friendName: profile?.full_name || profile?.email || "Friend",
               currentMood,
-              previousMood: lastSeenMood,
+              lastSeenMood,
+              isNewUpdate,
+              forceAlert,
             });
 
-            // Only show one alert at a time
-            return;
-          } else if (lastSeenMood === null) {
-            // First time seeing this friend's mood, just save without alerting
-            localStorage.setItem(
-              lastSeenKey,
-              JSON.stringify({
-                mood: currentMood,
-                time: new Date().toISOString(),
-              })
+            // Force alert when first enabling (forceAlert = friendId)
+            const shouldForceAlert = forceAlert === friendId;
+
+            if ((isNewUpdate && lastSeenMood !== null) || shouldForceAlert) {
+              // Get friend's profile for their name
+              const { data: profile } = await supabase
+                .from("profiles")
+                .select("full_name, email")
+                .eq("user_id", friendId)
+                .single();
+
+              // Save new state
+              localStorage.setItem(
+                lastSeenKey,
+                JSON.stringify({
+                  mood: currentMood,
+                  time: new Date().toISOString(),
+                })
+              );
+
+              console.log(
+                "[PeriodAlert] 🔔 TRIGGERING ALERT for",
+                friendId,
+                "mood:",
+                currentMood
+              );
+
+              // Show alert
+              setCurrentAlert({
+                friendId,
+                friendEmail: profile?.email || "Friend",
+                friendName: profile?.full_name || profile?.email || "Friend",
+                currentMood,
+                previousMood: lastSeenMood,
+              });
+
+              // Only show one alert at a time
+              return;
+            } else if (lastSeenMood === null) {
+              // First time seeing this friend's mood, just save without alerting
+              console.log(
+                "[PeriodAlert] First time seeing mood for",
+                friendId,
+                "- saving without alert"
+              );
+              localStorage.setItem(
+                lastSeenKey,
+                JSON.stringify({
+                  mood: currentMood,
+                  time: new Date().toISOString(),
+                })
+              );
+            }
+          } catch (entryError) {
+            console.log(
+              "[PeriodAlert] Could not get entries for friend:",
+              friendId,
+              entryError
             );
           }
         }
       } catch (error) {
-        console.error("Error checking period moods:", error);
+        console.error("[PeriodAlert] Error checking period moods:", error);
       }
-    };
+    },
+    [user]
+  );
+
+  // Expose checkNow for manual triggering (with optional forceAlert for friend)
+  const checkNow = useCallback(
+    async (forceAlertFriendId?: string) => {
+      console.log(
+        "[PeriodAlert] Manual check triggered",
+        forceAlertFriendId ? `for friend: ${forceAlertFriendId}` : ""
+      );
+      await checkPeriodMoods(forceAlertFriendId);
+    },
+    [checkPeriodMoods]
+  );
+
+  // Poll for period mood changes every 10 seconds
+  useEffect(() => {
+    if (!user) return;
 
     // Check immediately on mount
+    console.log("[PeriodAlert] Starting polling...");
     checkPeriodMoods();
 
-    // Then poll every 30 seconds
-    const interval = setInterval(checkPeriodMoods, 30000);
+    // Then poll every 10 seconds
+    const interval = setInterval(() => {
+      console.log("[PeriodAlert] Polling check...");
+      checkPeriodMoods();
+    }, 10000);
 
-    return () => clearInterval(interval);
-  }, [user]);
+    return () => {
+      console.log("[PeriodAlert] Stopping polling");
+      clearInterval(interval);
+    };
+  }, [user, checkPeriodMoods]);
 
   return (
-    <PeriodAlertContext.Provider value={{ currentAlert, dismissAlert }}>
+    <PeriodAlertContext.Provider
+      value={{ currentAlert, dismissAlert, triggerTestAlert, checkNow }}>
       {children}
     </PeriodAlertContext.Provider>
   );
