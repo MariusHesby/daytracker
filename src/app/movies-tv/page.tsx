@@ -838,12 +838,22 @@ export default function MoviesPage() {
             <p className='text-sm text-gray-500 dark:text-gray-400 mb-2'>
               Minimum rating from favorites:
             </p>
-            <div className='flex items-center gap-1'>
+            <div 
+              data-no-swipe
+              className='flex items-center gap-1 touch-none select-none'
+              style={{ touchAction: "none" }}>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
                 <button
                   key={star}
+                  data-no-swipe
                   onClick={() => setMinStarRating(star)}
-                  className='transition-transform hover:scale-110'>
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setMinStarRating(star);
+                  }}
+                  className='transition-transform hover:scale-110 touch-none'
+                  style={{ touchAction: "none" }}>
                   <svg
                     className={cn(
                       "w-6 h-6",
