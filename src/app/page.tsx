@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { EntryForm, DateNavigator, SearchEntries, QuickAdd } from "@/components";
+import { EntryForm, DateNavigator, SearchEntries } from "@/components";
 import { addDays } from "@/lib/utils";
 
 export default function HomePage() {
@@ -66,13 +66,6 @@ export default function HomePage() {
       <div className='px-4 pt-1 pb-3'>
         <DateNavigator date={selectedDate} onChange={setSelectedDate} />
       </div>
-
-      {/* Quick Add Widgets */}
-      {!isViewingOther && (
-        <div className='px-4 pb-3'>
-          <QuickAdd date={selectedDate} />
-        </div>
-      )}
 
       {/* Main Content */}
       <main className='px-4 pb-4'>

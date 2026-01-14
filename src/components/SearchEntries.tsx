@@ -55,9 +55,7 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
             (t) => t.id === entry.activityTypeId
           ),
         }))
-        .sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        )
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 20);
 
       setResults(filtered);
@@ -140,7 +138,9 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
   }
 
   return (
-    <div className='fixed inset-0 z-50 bg-black/50' onClick={() => setIsOpen(false)}>
+    <div
+      className='fixed inset-0 z-50 bg-black/50'
+      onClick={() => setIsOpen(false)}>
       <div
         className='bg-white dark:bg-gray-900 w-full max-h-[80vh] overflow-hidden flex flex-col'
         onClick={(e) => e.stopPropagation()}>
