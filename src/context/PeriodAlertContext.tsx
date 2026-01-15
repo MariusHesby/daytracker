@@ -41,7 +41,6 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
 
   // Test function to trigger a sample alert
   const triggerTestAlert = useCallback(() => {
-    console.log("[PeriodAlert] Triggering test alert");
     setCurrentAlert({
       friendId: "test-123",
       friendEmail: "test@example.com",
@@ -54,10 +53,7 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
   // Function to check period moods - extracted so it can be called manually
   const checkPeriodMoods = useCallback(
     async (forceAlert?: string) => {
-      if (!user) {
-        console.log("[PeriodAlert] No user, skipping check");
-        return;
-      }
+      if (!user) return;
 
       try {
         // Get list of friends with period alerts enabled
@@ -65,15 +61,7 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
           localStorage.getItem("periodAlertFriendsList") || "[]"
         );
 
-        console.log(
-          "[PeriodAlert] Checking moods for friends:",
-          periodAlertFriendsList
-        );
-
-        if (periodAlertFriendsList.length === 0) {
-          console.log("[PeriodAlert] No friends with alerts enabled");
-          return;
-        }
+        if (periodAlertFriendsList.length === 0) return;
 
         // Get shares where I'm the viewer
         const { data: shares } = await supabase
@@ -81,14 +69,9 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
           .select("owner_id, activity_type_ids")
           .eq("viewer_id", user.id);
 
-        if (!shares || shares.length === 0) {
-          console.log("[PeriodAlert] No shares found");
-          return;
-        }
+        if (!shares || shares.length === 0) return;
 
-        console.log("[PeriodAlert] Found", shares.length, "share connections");
         const today = new Date().toISOString().split("T")[0];
-        console.log("[PeriodAlert] Checking date:", today);
 
         for (const share of shares) {
           const friendId = share.owner_id;
@@ -111,19 +94,7 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
               at.name.toLowerCase() === "period" && at.value_type === "mood"
           );
 
-          if (!periodActivity) {
-            console.log(
-              "[PeriodAlert] No Period activity found for friend:",
-              friendId
-            );
-            continue;
-          }
-
-          console.log(
-            "[PeriodAlert] Found Period activity for friend:",
-            friendId,
-            periodActivity
-          );
+          if (!periodActivity) continue;
 
           // Get today's Period entry for this friend using the sharing function
           try {
@@ -138,15 +109,8 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
               (e) => e.activityTypeId === periodActivity.id && e.date === today
             );
 
-            if (!periodEntry) {
-              console.log(
-                "[PeriodAlert] No Period entry today for friend:",
-                friendId
-              );
-              continue;
-            }
+            if (!periodEntry) continue;
 
-            console.log("[PeriodAlert] Found Period entry:", periodEntry);
             const currentMood = String(periodEntry.value);
             const lastSeenKey = `periodMoodSeen_${friendId}`;
             const lastSeenData = localStorage.getItem(lastSeenKey);
@@ -176,14 +140,6 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
             const isNewUpdate =
               currentMood !== lastSeenMood || entryUpdatedAt > lastCheckTime;
 
-            console.log("[PeriodAlert] Mood check:", {
-              friendId,
-              currentMood,
-              lastSeenMood,
-              isNewUpdate,
-              forceAlert,
-            });
-
             // Force alert when first enabling (forceAlert = friendId)
             const shouldForceAlert = forceAlert === friendId;
 
@@ -204,13 +160,6 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
                 })
               );
 
-              console.log(
-                "[PeriodAlert] 🔔 TRIGGERING ALERT for",
-                friendId,
-                "mood:",
-                currentMood
-              );
-
               // Show alert
               setCurrentAlert({
                 friendId,
@@ -224,11 +173,6 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
               return;
             } else if (lastSeenMood === null) {
               // First time seeing this friend's mood, just save without alerting
-              console.log(
-                "[PeriodAlert] First time seeing mood for",
-                friendId,
-                "- saving without alert"
-              );
               localStorage.setItem(
                 lastSeenKey,
                 JSON.stringify({
@@ -237,12 +181,8 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
                 })
               );
             }
-          } catch (entryError) {
-            console.log(
-              "[PeriodAlert] Could not get entries for friend:",
-              friendId,
-              entryError
-            );
+          } catch {
+            // Could not get entries for friend
           }
         }
       } catch (error) {
@@ -255,10 +195,6 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
   // Expose checkNow for manual triggering (with optional forceAlert for friend)
   const checkNow = useCallback(
     async (forceAlertFriendId?: string) => {
-      console.log(
-        "[PeriodAlert] Manual check triggered",
-        forceAlertFriendId ? `for friend: ${forceAlertFriendId}` : ""
-      );
       await checkPeriodMoods(forceAlertFriendId);
     },
     [checkPeriodMoods]
@@ -269,17 +205,14 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     // Check immediately on mount
-    console.log("[PeriodAlert] Starting polling...");
     checkPeriodMoods();
 
     // Then poll every 10 seconds
     const interval = setInterval(() => {
-      console.log("[PeriodAlert] Polling check...");
       checkPeriodMoods();
     }, 10000);
 
     return () => {
-      console.log("[PeriodAlert] Stopping polling");
       clearInterval(interval);
     };
   }, [user, checkPeriodMoods]);

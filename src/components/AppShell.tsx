@@ -157,41 +157,29 @@ const TodayIcon = ({ filled = false }: { filled?: boolean }) => (
   </svg>
 );
 
-const MoviesIcon = ({ filled = false }: { filled?: boolean }) => (
+const MoviesIcon = () => (
   <svg
     viewBox='0 0 24 24'
-    fill={filled ? "currentColor" : "none"}
+    fill='none'
     stroke='currentColor'
-    strokeWidth={filled ? 0 : 1.5}
+    strokeWidth={1.5}
     className='w-full h-full'>
-    {filled ? (
-      <path d='M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z' />
-    ) : (
-      <>
-        <rect x='2' y='4' width='20' height='16' rx='2' />
-        <path d='M7 4v16M17 4v16M2 9h5M17 9h5M2 15h5M17 15h5' />
-      </>
-    )}
+    <rect x='2' y='4' width='20' height='16' rx='2' />
+    <path d='M7 4v16M17 4v16M2 9h5M17 9h5M2 15h5M17 15h5' />
   </svg>
 );
 
-const StatsIcon = ({ filled = false }: { filled?: boolean }) => (
+const StatsIcon = () => (
   <svg
     viewBox='0 0 24 24'
-    fill={filled ? "currentColor" : "none"}
+    fill='none'
     stroke='currentColor'
-    strokeWidth={filled ? 0 : 1.5}
+    strokeWidth={1.5}
     className='w-full h-full'>
-    {filled ? (
-      <path d='M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z' />
-    ) : (
-      <>
-        <path d='M4 20h16' strokeLinecap='round' />
-        <rect x='4' y='10' width='4' height='10' rx='1' />
-        <rect x='10' y='6' width='4' height='14' rx='1' />
-        <rect x='16' y='13' width='4' height='7' rx='1' />
-      </>
-    )}
+    <path d='M4 20h16' strokeLinecap='round' />
+    <rect x='4' y='10' width='4' height='10' rx='1' />
+    <rect x='10' y='6' width='4' height='14' rx='1' />
+    <rect x='16' y='13' width='4' height='7' rx='1' />
   </svg>
 );
 
@@ -210,26 +198,17 @@ const SettingsIcon = ({ filled = false }: { filled?: boolean }) => (
   </svg>
 );
 
-const FriendsIcon = ({ filled = false }: { filled?: boolean }) => (
+const FriendsIcon = () => (
   <svg
     viewBox='0 0 24 24'
-    fill={filled ? "currentColor" : "none"}
+    fill='none'
     stroke='currentColor'
-    strokeWidth={filled ? 0 : 1.5}
+    strokeWidth={1.5}
     className='w-full h-full'>
-    {filled ? (
-      <path d='M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z' />
-    ) : (
-      <>
-        <circle cx='9' cy='7' r='3' />
-        <circle cx='17' cy='7' r='2.5' />
-        <path
-          d='M3 18v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1'
-          strokeLinecap='round'
-        />
-        <path d='M15 13.9c1.5.2 4 1 4 2.6V18' strokeLinecap='round' />
-      </>
-    )}
+    <circle cx='9' cy='7' r='3' />
+    <circle cx='17' cy='7' r='2.5' />
+    <path d='M3 18v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1' strokeLinecap='round' />
+    <path d='M15 13.9c1.5.2 4 1 4 2.6V18' strokeLinecap='round' />
   </svg>
 );
 
@@ -466,19 +445,16 @@ export function AppShell({ children }: AppShellProps) {
       href: "/movies-tv",
       label: t("tab.moviesTv"),
       icon: <MoviesIcon />,
-      activeIcon: <MoviesIcon filled />,
     },
     {
       href: "/stats",
       label: t("tab.statistics"),
       icon: <StatsIcon />,
-      activeIcon: <StatsIcon filled />,
     },
     {
       href: "/friends",
       label: t("tab.friends"),
       icon: <FriendsIcon />,
-      activeIcon: <FriendsIcon filled />,
     },
     {
       href: "/settings",

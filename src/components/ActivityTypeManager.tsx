@@ -2,11 +2,24 @@
 
 import { useState, useRef, useImperativeHandle, forwardRef } from "react";
 import { useApp } from "@/context/AppContext";
-import { ActivityType } from "@/types";
+import {
+  ActivityType,
+  NutritionGoal,
+  CustomExercise,
+  ExerciseCategory,
+  COMMON_EXERCISES,
+} from "@/types";
 import { cn } from "@/lib/utils";
 import { Icon, IconPicker, icons, IconName } from "./Icons";
 
-type ValueType = "text" | "boolean" | "checkmark" | "counter" | "mood";
+type ValueType =
+  | "text"
+  | "boolean"
+  | "checkmark"
+  | "counter"
+  | "mood"
+  | "nutrition"
+  | "workout";
 
 const VALUE_TYPE_OPTIONS: {
   value: ValueType;
@@ -21,6 +34,16 @@ const VALUE_TYPE_OPTIONS: {
     description: "Tap once for ✓ or double tap for ✗",
   },
   { value: "mood", label: "Mood", description: "Happy, neutral, or sad" },
+  {
+    value: "nutrition",
+    label: "Nutrition",
+    description: "Track food with calorie/protein goals",
+  },
+  {
+    value: "workout",
+    label: "Workout",
+    description: "Track exercises with sets, reps, weight, distance",
+  },
 ];
 
 export interface ActivityTypeManagerRef {
@@ -54,6 +77,22 @@ export const ActivityTypeManager = forwardRef<
   const [showValueTypePicker, setShowValueTypePicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Nutrition goal state
+  const [nutritionGoal, setNutritionGoal] = useState<NutritionGoal>({});
+
+  // Custom exercises state for workout type
+  const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
+  const [newExerciseName, setNewExerciseName] = useState("");
+  const [newExerciseCategory, setNewExerciseCategory] =
+    useState<ExerciseCategory>("strength");
+  const [newExerciseTrackWeight, setNewExerciseTrackWeight] = useState(true);
+  const [newExerciseTrackReps, setNewExerciseTrackReps] = useState(true);
+  const [newExerciseTrackDistance, setNewExerciseTrackDistance] =
+    useState(false);
+  const [newExerciseTrackDuration, setNewExerciseTrackDuration] =
+    useState(false);
+  const [showAddExercise, setShowAddExercise] = useState(false);
+
   const setIsAdding = (value: boolean) => {
     setIsAddingState(value);
     onAddingChange?.(value);
@@ -78,6 +117,59 @@ export const ActivityTypeManager = forwardRef<
     setEditingId(null);
     setShowIconPicker(false);
     setError(null);
+    setNutritionGoal({});
+    setCustomExercises([]);
+    setNewExerciseName("");
+    setNewExerciseCategory("strength");
+    setNewExerciseTrackWeight(true);
+    setNewExerciseTrackReps(true);
+    setNewExerciseTrackDistance(false);
+    setNewExerciseTrackDuration(false);
+    setShowAddExercise(false);
+  };
+
+  const handleAddExercise = () => {
+    if (!newExerciseName.trim()) return;
+
+    // Check if exercise already exists
+    const exists =
+      customExercises.some(
+        (e) => e.name.toLowerCase() === newExerciseName.trim().toLowerCase()
+      ) ||
+      COMMON_EXERCISES.some(
+        (e) => e.name.toLowerCase() === newExerciseName.trim().toLowerCase()
+      );
+
+    if (exists) {
+      setError("An exercise with this name already exists.");
+      return;
+    }
+
+    setCustomExercises([
+      ...customExercises,
+      {
+        name: newExerciseName.trim(),
+        category: newExerciseCategory,
+        trackWeight: newExerciseTrackWeight,
+        trackReps: newExerciseTrackReps,
+        trackDistance: newExerciseTrackDistance,
+        trackDuration: newExerciseTrackDuration,
+      },
+    ]);
+
+    // Reset new exercise form
+    setNewExerciseName("");
+    setNewExerciseCategory("strength");
+    setNewExerciseTrackWeight(true);
+    setNewExerciseTrackReps(true);
+    setNewExerciseTrackDistance(false);
+    setNewExerciseTrackDuration(false);
+    setShowAddExercise(false);
+    setError(null);
+  };
+
+  const handleRemoveExercise = (exerciseName: string) => {
+    setCustomExercises(customExercises.filter((e) => e.name !== exerciseName));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,6 +197,11 @@ export const ActivityTypeManager = forwardRef<
           name: name.trim(),
           icon: icon || undefined,
           valueType,
+          nutritionGoal: valueType === "nutrition" ? nutritionGoal : undefined,
+          customExercises:
+            valueType === "workout" && customExercises.length > 0
+              ? customExercises
+              : undefined,
         });
       }
     } else {
@@ -112,6 +209,11 @@ export const ActivityTypeManager = forwardRef<
         name: name.trim(),
         icon: icon || undefined,
         valueType,
+        nutritionGoal: valueType === "nutrition" ? nutritionGoal : undefined,
+        customExercises:
+          valueType === "workout" && customExercises.length > 0
+            ? customExercises
+            : undefined,
       });
     }
 
@@ -124,6 +226,8 @@ export const ActivityTypeManager = forwardRef<
     setIcon(type.icon || "other");
     setValueType(type.valueType as ValueType);
     setUnit(type.unit || "");
+    setNutritionGoal(type.nutritionGoal || {});
+    setCustomExercises(type.customExercises || []);
     setIsAdding(true);
   };
 
@@ -345,6 +449,297 @@ export const ActivityTypeManager = forwardRef<
             )}
           </div>
 
+          {/* Nutrition Goals */}
+          {valueType === "nutrition" && (
+            <div className='space-y-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
+              <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300'>
+                Daily Goals (optional)
+              </p>
+              <div className='grid grid-cols-2 gap-3'>
+                <div>
+                  <label className='text-[13px] text-gray-500 mb-1 block'>
+                    Calories (kcal)
+                  </label>
+                  <input
+                    type='number'
+                    value={nutritionGoal.calories || ""}
+                    onChange={(e) =>
+                      setNutritionGoal({
+                        ...nutritionGoal,
+                        calories: e.target.value
+                          ? parseInt(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder='e.g. 2000'
+                    className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                  />
+                </div>
+                <div>
+                  <label className='text-[13px] text-gray-500 mb-1 block'>
+                    Protein (g)
+                  </label>
+                  <input
+                    type='number'
+                    value={nutritionGoal.protein || ""}
+                    onChange={(e) =>
+                      setNutritionGoal({
+                        ...nutritionGoal,
+                        protein: e.target.value
+                          ? parseInt(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder='e.g. 130'
+                    className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                  />
+                </div>
+                <div>
+                  <label className='text-[13px] text-gray-500 mb-1 block'>
+                    Carbs (g)
+                  </label>
+                  <input
+                    type='number'
+                    value={nutritionGoal.carbs || ""}
+                    onChange={(e) =>
+                      setNutritionGoal({
+                        ...nutritionGoal,
+                        carbs: e.target.value
+                          ? parseInt(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder='e.g. 250'
+                    className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                  />
+                </div>
+                <div>
+                  <label className='text-[13px] text-gray-500 mb-1 block'>
+                    Fat (g)
+                  </label>
+                  <input
+                    type='number'
+                    value={nutritionGoal.fat || ""}
+                    onChange={(e) =>
+                      setNutritionGoal({
+                        ...nutritionGoal,
+                        fat: e.target.value
+                          ? parseInt(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder='e.g. 65'
+                    className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Custom Exercises for Workout type */}
+          {valueType === "workout" && (
+            <div className='space-y-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
+              <div className='flex items-center justify-between'>
+                <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300'>
+                  Custom Exercises
+                </p>
+                <button
+                  type='button'
+                  onClick={() => setShowAddExercise(!showAddExercise)}
+                  className='text-[13px] font-medium text-ios-blue'>
+                  + Add Exercise
+                </button>
+              </div>
+
+              <p className='text-[13px] text-gray-500'>
+                Add your own exercises in addition to the{" "}
+                {COMMON_EXERCISES.length} built-in exercises.
+              </p>
+
+              {/* Add Exercise Form */}
+              {showAddExercise && (
+                <div className='space-y-3 p-3 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600'>
+                  <input
+                    type='text'
+                    value={newExerciseName}
+                    onChange={(e) => setNewExerciseName(e.target.value)}
+                    placeholder='Exercise name'
+                    className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                  />
+
+                  {/* Category selector */}
+                  <div>
+                    <label className='text-[12px] text-gray-500 mb-1 block'>
+                      Category
+                    </label>
+                    <div className='flex gap-1'>
+                      {(
+                        [
+                          "strength",
+                          "cardio",
+                          "flexibility",
+                          "other",
+                        ] as ExerciseCategory[]
+                      ).map((cat) => (
+                        <button
+                          key={cat}
+                          type='button'
+                          onClick={() => setNewExerciseCategory(cat)}
+                          className={cn(
+                            "flex-1 py-1.5 rounded-lg text-[12px] capitalize",
+                            newExerciseCategory === cat
+                              ? "bg-ios-blue text-white"
+                              : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                          )}>
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tracking options */}
+                  <div>
+                    <label className='text-[12px] text-gray-500 mb-1 block'>
+                      Track
+                    </label>
+                    <div className='flex flex-wrap gap-2'>
+                      <button
+                        type='button'
+                        onClick={() =>
+                          setNewExerciseTrackWeight(!newExerciseTrackWeight)
+                        }
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-[13px]",
+                          newExerciseTrackWeight
+                            ? "bg-ios-blue text-white"
+                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                        )}>
+                        Weight (kg)
+                      </button>
+                      <button
+                        type='button'
+                        onClick={() =>
+                          setNewExerciseTrackReps(!newExerciseTrackReps)
+                        }
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-[13px]",
+                          newExerciseTrackReps
+                            ? "bg-ios-blue text-white"
+                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                        )}>
+                        Sets/Reps
+                      </button>
+                      <button
+                        type='button'
+                        onClick={() =>
+                          setNewExerciseTrackDistance(!newExerciseTrackDistance)
+                        }
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-[13px]",
+                          newExerciseTrackDistance
+                            ? "bg-ios-blue text-white"
+                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                        )}>
+                        Distance (km)
+                      </button>
+                      <button
+                        type='button'
+                        onClick={() =>
+                          setNewExerciseTrackDuration(!newExerciseTrackDuration)
+                        }
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-[13px]",
+                          newExerciseTrackDuration
+                            ? "bg-ios-blue text-white"
+                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                        )}>
+                        Duration (min)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className='flex gap-2'>
+                    <button
+                      type='button'
+                      onClick={handleAddExercise}
+                      disabled={!newExerciseName.trim()}
+                      className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-ios-blue text-white disabled:opacity-50'>
+                      Add
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setShowAddExercise(false)}
+                      className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Exercises List */}
+              {customExercises.length > 0 && (
+                <div className='space-y-1'>
+                  <p className='text-[12px] text-gray-500 mb-2'>
+                    Your custom exercises:
+                  </p>
+                  {customExercises.map((exercise) => (
+                    <div
+                      key={exercise.name}
+                      className='flex items-center justify-between p-2 rounded-lg bg-white dark:bg-gray-700'>
+                      <div>
+                        <span className='text-[15px] text-gray-900 dark:text-white'>
+                          {exercise.name}
+                        </span>
+                        <div className='flex gap-1 mt-0.5'>
+                          <span className='text-[11px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-600 text-gray-500 capitalize'>
+                            {exercise.category}
+                          </span>
+                          {exercise.trackWeight && (
+                            <span className='text-[11px] px-1.5 py-0.5 rounded bg-ios-blue/10 text-ios-blue'>
+                              kg
+                            </span>
+                          )}
+                          {exercise.trackReps && (
+                            <span className='text-[11px] px-1.5 py-0.5 rounded bg-ios-green/10 text-ios-green'>
+                              reps
+                            </span>
+                          )}
+                          {exercise.trackDistance && (
+                            <span className='text-[11px] px-1.5 py-0.5 rounded bg-ios-orange/10 text-ios-orange'>
+                              km
+                            </span>
+                          )}
+                          {exercise.trackDuration && (
+                            <span className='text-[11px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-500'>
+                              min
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type='button'
+                        onClick={() => handleRemoveExercise(exercise.name)}
+                        className='text-ios-red p-1'>
+                        <svg
+                          className='w-4 h-4'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'
+                          strokeWidth={2}>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            d='M6 18L18 6M6 6l12 12'
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className='flex gap-2 pt-2'>
             <button
               type='submit'
@@ -441,49 +836,50 @@ export const ActivityTypeManager = forwardRef<
                       />
                     </svg>
                   </button>
-                  {type.isDefault ? (
-                    <button
-                      onClick={() => toggleActivityTypeHidden(type.id)}
-                      className={cn(
-                        "p-2 rounded-lg",
-                        type.hidden ? "text-gray-400" : "text-ios-red"
-                      )}
-                      title={type.hidden ? "Show" : "Hide"}>
-                      {type.hidden ? (
-                        <svg
-                          className='w-5 h-5'
-                          fill='none'
-                          stroke='currentColor'
-                          viewBox='0 0 24 24'>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            strokeWidth={2}
-                            d='M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21'
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className='w-5 h-5'
-                          fill='none'
-                          stroke='currentColor'
-                          viewBox='0 0 24 24'>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            strokeWidth={2}
-                            d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'
-                          />
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            strokeWidth={2}
-                            d='M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  ) : (
+                  {/* Hide/Show button for all activity types */}
+                  <button
+                    onClick={() => toggleActivityTypeHidden(type.id)}
+                    className={cn(
+                      "p-2 rounded-lg",
+                      type.hidden ? "text-gray-400" : "text-ios-orange"
+                    )}
+                    title={type.hidden ? "Show" : "Hide"}>
+                    {type.hidden ? (
+                      <svg
+                        className='w-5 h-5'
+                        fill='none'
+                        stroke='currentColor'
+                        viewBox='0 0 24 24'>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          strokeWidth={2}
+                          d='M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21'
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        className='w-5 h-5'
+                        fill='none'
+                        stroke='currentColor'
+                        viewBox='0 0 24 24'>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          strokeWidth={2}
+                          d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'
+                        />
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          strokeWidth={2}
+                          d='M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
+                        />
+                      </svg>
+                    )}
+                  </button>
+                  {/* Delete button only for non-default types */}
+                  {!type.isDefault && (
                     <button
                       onClick={() => handleDelete(type.id)}
                       className='p-2 text-ios-red rounded-lg'

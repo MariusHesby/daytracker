@@ -86,11 +86,13 @@ export interface DbActivityType {
   user_id: string;
   name: string;
   icon: string | null;
-  value_type: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood';
+  value_type: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood' | 'nutrition' | 'workout';
   unit: string | null;
   sort_order: number | null;
   is_default: boolean;
   hidden: boolean;
+  nutrition_goal: Record<string, number> | null;
+  custom_exercises: Record<string, unknown>[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -107,6 +109,8 @@ export interface DbLogEntry {
   imdb_rating: string | null;
   year: string | null;
   user_rating: number | null;
+  nutrition_data: Record<string, unknown> | null;
+  workout_data: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }

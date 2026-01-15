@@ -214,14 +214,8 @@ export default function SettingsPage() {
                     handleSignOut();
                   }}
                   disabled={authLoading}
-                  className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 cursor-pointer border-b border-gray-200/80 dark:border-gray-700/80'>
-                  {t("settings.signOut")}
-                </button>
-                <button
-                  onClick={() => setShowDeleteAccountModal(true)}
-                  disabled={authLoading}
                   className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 cursor-pointer'>
-                  {t("settings.deleteAccount")}
+                  {t("settings.signOut")}
                 </button>
               </>
             ) : (
@@ -543,9 +537,17 @@ export default function SettingsPage() {
                   window.location.reload();
                 }
               }}
-              className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700'>
+              className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 border-b border-gray-200/80 dark:border-gray-700/80'>
               {t("settings.deleteAllData")}
             </button>
+            {user && (
+              <button
+                onClick={() => setShowDeleteAccountModal(true)}
+                disabled={authLoading}
+                className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 cursor-pointer'>
+                {t("settings.deleteAccount")}
+              </button>
+            )}
           </div>
           <p className='text-[13px] text-gray-500 dark:text-gray-400 px-4 mt-2'>
             {t("settings.deleteAllDesc")}

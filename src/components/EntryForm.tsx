@@ -1,8 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
-import { ActivityType, Suggestion } from "@/types";
+import {
+  ActivityType,
+  Suggestion,
+  NutritionData,
+  LogEntry,
+  WorkoutExercise,
+  WorkoutData,
+  CustomExercise,
+} from "@/types";
 import { cn } from "@/lib/utils";
 import { Icon, icons, IconName } from "./Icons";
 import { MediaSearch } from "./MediaSearch";
@@ -15,6 +23,7 @@ interface EntryFormProps {
 type SavedValue = {
   value: string | number | boolean;
   id: string;
+  nutritionData?: NutritionData;
 };
 
 // Confetti particle for celebration
@@ -57,6 +66,32 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   const [isLocking, setIsLocking] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
+
+  // Nutrition entry state
+  const [nutritionInput, setNutritionInput] = useState<NutritionData>({
+    foodName: "",
+  });
+  // Track if we've already shown goal celebration for this date
+  const [goalCelebratedTypes, setGoalCelebratedTypes] = useState<Set<string>>(
+    new Set()
+  );
+
+  // Workout entry state - tracks data for all exercises
+  const [workoutData, setWorkoutData] = useState<
+    Record<
+      string,
+      Array<{
+        reps?: number;
+        weight?: number;
+        distance?: number;
+        duration?: number;
+      }>
+    >
+  >({});
+  const [expandedExercises, setExpandedExercises] = useState<Set<string>>(
+    new Set()
+  );
+  const [isEditingWorkout, setIsEditingWorkout] = useState(false);
 
   const isLocked = isDayLocked(date);
 
@@ -120,6 +155,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   useEffect(() => {
     loadEntriesForDateRange(date, date);
     setExpandedTypeId(null);
+    setGoalCelebratedTypes(new Set()); // Reset celebrations for new date
   }, [date, loadEntriesForDateRange]);
 
   useEffect(() => {
@@ -132,6 +168,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
       newSavedValues[entry.activityTypeId].push({
         value: entry.value,
         id: entry.id,
+        nutritionData: entry.nutritionData,
       });
     });
     setSavedValues(newSavedValues);
@@ -150,6 +187,212 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     }
     loadAllSuggestions();
   }, [activityTypes, getSuggestions]);
+
+  // Calculate nutrition totals for a type
+  const getNutritionTotals = useCallback(
+    (typeId: string) => {
+      const typeEntries = savedValues[typeId] || [];
+      return typeEntries.reduce(
+        (acc, entry) => {
+          if (entry.nutritionData) {
+            acc.calories += entry.nutritionData.calories || 0;
+            acc.protein += entry.nutritionData.protein || 0;
+            acc.carbs += entry.nutritionData.carbs || 0;
+            acc.fat += entry.nutritionData.fat || 0;
+          }
+          return acc;
+        },
+        { calories: 0, protein: 0, carbs: 0, fat: 0 }
+      );
+    },
+    [savedValues]
+  );
+
+  // Check if nutrition goal is reached
+  const checkNutritionGoalReached = useCallback(
+    (
+      type: ActivityType,
+      totals: { calories: number; protein: number; carbs: number; fat: number }
+    ) => {
+      if (!type.nutritionGoal) return false;
+      const goal = type.nutritionGoal;
+
+      // Check if any goal is set and reached
+      if (goal.protein && totals.protein >= goal.protein) return true;
+      if (goal.calories && totals.calories >= goal.calories) return true;
+      if (goal.carbs && totals.carbs >= goal.carbs) return true;
+      if (goal.fat && totals.fat >= goal.fat) return true;
+
+      return false;
+    },
+    []
+  );
+
+  // Handle saving nutrition entry
+  const handleSaveNutrition = async (typeId: string) => {
+    if (isViewingOther) return;
+    if (!nutritionInput.foodName.trim()) return;
+
+    const type = activityTypes.find((t) => t.id === typeId);
+    if (!type) return;
+
+    try {
+      // Get current totals before adding
+      const currentTotals = getNutritionTotals(typeId);
+      const wasGoalReached = checkNutritionGoalReached(type, currentTotals);
+
+      await addEntry({
+        date,
+        activityTypeId: typeId,
+        value: nutritionInput.foodName.trim(),
+        nutritionData: {
+          foodName: nutritionInput.foodName.trim(),
+          calories: nutritionInput.calories,
+          protein: nutritionInput.protein,
+          carbs: nutritionInput.carbs,
+          fat: nutritionInput.fat,
+        },
+      });
+
+      // Calculate new totals
+      const newTotals = {
+        calories: currentTotals.calories + (nutritionInput.calories || 0),
+        protein: currentTotals.protein + (nutritionInput.protein || 0),
+        carbs: currentTotals.carbs + (nutritionInput.carbs || 0),
+        fat: currentTotals.fat + (nutritionInput.fat || 0),
+      };
+
+      // Check if goal just got reached (wasn't before, is now)
+      const isGoalReached = checkNutritionGoalReached(type, newTotals);
+      if (
+        isGoalReached &&
+        !wasGoalReached &&
+        !goalCelebratedTypes.has(typeId)
+      ) {
+        setGoalCelebratedTypes((prev) => new Set([...prev, typeId]));
+        setShowCelebration(true);
+      }
+
+      // Reset nutrition input
+      setNutritionInput({ foodName: "" });
+      setExpandedTypeId(null);
+
+      onSuccess?.();
+    } catch (error) {
+      console.error("Failed to add nutrition entry:", error);
+    }
+  };
+
+  // Handle saving all workout exercises at once
+  const handleSaveAllWorkouts = async (
+    typeId: string,
+    customExercises: CustomExercise[]
+  ) => {
+    if (isViewingOther) return;
+
+    try {
+      // Find existing workout entry for today
+      const existingEntries = savedValues[typeId] || [];
+      const existingWorkoutEntry = existingEntries.find((e) => {
+        const entry = entries.find((ent) => ent.id === e.id);
+        return entry?.workoutData;
+      });
+
+      // Build all exercises from workoutData state
+      const allExercises: WorkoutExercise[] = [];
+
+      for (const exerciseName of Object.keys(workoutData)) {
+        const sets = workoutData[exerciseName];
+        const exerciseConfig = customExercises.find(
+          (e) => e.name === exerciseName
+        );
+        if (!exerciseConfig) continue;
+
+        // Filter sets that have data
+        const validSets = sets.filter(
+          (set) => set.reps || set.weight || set.distance || set.duration
+        );
+        if (validSets.length === 0) continue;
+
+        // Store each set's data individually
+        const combinedExercise: WorkoutExercise = {
+          id: `${Date.now()}-${exerciseName}`,
+          name: exerciseName,
+          category: exerciseConfig.category,
+          sets: validSets.length,
+          reps: validSets[0].reps,
+          weight: validSets.some((e) => e.weight)
+            ? Math.max(
+                ...validSets.filter((e) => e.weight).map((e) => e.weight!)
+              )
+            : undefined,
+          distance: validSets.some((e) => e.distance)
+            ? validSets.reduce((sum, e) => sum + (e.distance || 0), 0)
+            : undefined,
+          duration: validSets.some((e) => e.duration)
+            ? validSets.reduce((sum, e) => sum + (e.duration || 0), 0)
+            : undefined,
+          setsData: validSets, // Store individual set data
+        };
+
+        allExercises.push(combinedExercise);
+      }
+
+      if (allExercises.length === 0) return;
+
+      if (existingWorkoutEntry) {
+        // Update existing entry
+        const existingEntry = entries.find(
+          (e) => e.id === existingWorkoutEntry.id
+        );
+        if (existingEntry) {
+          await updateEntry({
+            ...existingEntry,
+            value: `${allExercises.length} exercise${
+              allExercises.length !== 1 ? "s" : ""
+            }`,
+            workoutData: {
+              exercises: allExercises,
+            },
+          });
+        }
+      } else {
+        // Create new workout entry
+        await addEntry({
+          date,
+          activityTypeId: typeId,
+          value: `${allExercises.length} exercise${
+            allExercises.length !== 1 ? "s" : ""
+          }`,
+          workoutData: {
+            exercises: allExercises,
+          },
+        });
+      }
+
+      // Reset state
+      setWorkoutData({});
+      setExpandedExercises(new Set());
+      setIsEditingWorkout(false);
+
+      onSuccess?.();
+    } catch (error) {
+      console.error("Failed to save workout:", error);
+    }
+  };
+
+  // Delete entire workout
+  const handleDeleteWorkout = async (typeId: string) => {
+    if (isViewingOther) return;
+
+    const existingEntries = savedValues[typeId] || [];
+    for (const entry of existingEntries) {
+      await deleteEntry(entry.id);
+    }
+    setWorkoutData({});
+    setExpandedExercises(new Set());
+    setIsEditingWorkout(false);
+  };
 
   const handleSaveValue = async (
     typeId: string,
@@ -561,6 +804,770 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
             </button>
           </div>
         );
+
+      case "nutrition": {
+        const totals = getNutritionTotals(type.id);
+        const goal = type.nutritionGoal || {};
+        const typeEntries = savedValues[type.id] || [];
+
+        return (
+          <div className='pt-3 space-y-4'>
+            {/* Progress bars */}
+            {(goal.protein || goal.calories || goal.carbs || goal.fat) && (
+              <div className='space-y-2 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
+                <p className='text-[13px] font-medium text-gray-500 mb-2'>
+                  Daily Progress
+                </p>
+                {goal.protein && (
+                  <div>
+                    <div className='flex justify-between text-[13px] mb-1'>
+                      <span className='text-gray-600 dark:text-gray-400'>
+                        Protein
+                      </span>
+                      <span
+                        className={cn(
+                          "font-medium",
+                          totals.protein >= goal.protein
+                            ? "text-ios-green"
+                            : "text-gray-600 dark:text-gray-400"
+                        )}>
+                        {totals.protein}g / {goal.protein}g
+                        {totals.protein >= goal.protein && " ✓"}
+                      </span>
+                    </div>
+                    <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          totals.protein >= goal.protein
+                            ? "bg-ios-green"
+                            : "bg-ios-blue"
+                        )}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (totals.protein / goal.protein) * 100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {goal.calories && (
+                  <div>
+                    <div className='flex justify-between text-[13px] mb-1'>
+                      <span className='text-gray-600 dark:text-gray-400'>
+                        Calories
+                      </span>
+                      <span
+                        className={cn(
+                          "font-medium",
+                          totals.calories >= goal.calories
+                            ? "text-ios-green"
+                            : "text-gray-600 dark:text-gray-400"
+                        )}>
+                        {totals.calories} / {goal.calories} kcal
+                        {totals.calories >= goal.calories && " ✓"}
+                      </span>
+                    </div>
+                    <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          totals.calories >= goal.calories
+                            ? "bg-ios-green"
+                            : "bg-ios-orange"
+                        )}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (totals.calories / goal.calories) * 100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {goal.carbs && (
+                  <div>
+                    <div className='flex justify-between text-[13px] mb-1'>
+                      <span className='text-gray-600 dark:text-gray-400'>
+                        Carbs
+                      </span>
+                      <span
+                        className={cn(
+                          "font-medium",
+                          totals.carbs >= goal.carbs
+                            ? "text-ios-green"
+                            : "text-gray-600 dark:text-gray-400"
+                        )}>
+                        {totals.carbs}g / {goal.carbs}g
+                        {totals.carbs >= goal.carbs && " ✓"}
+                      </span>
+                    </div>
+                    <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          totals.carbs >= goal.carbs
+                            ? "bg-ios-green"
+                            : "bg-amber-500"
+                        )}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (totals.carbs / goal.carbs) * 100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {goal.fat && (
+                  <div>
+                    <div className='flex justify-between text-[13px] mb-1'>
+                      <span className='text-gray-600 dark:text-gray-400'>
+                        Fat
+                      </span>
+                      <span
+                        className={cn(
+                          "font-medium",
+                          totals.fat >= goal.fat
+                            ? "text-ios-green"
+                            : "text-gray-600 dark:text-gray-400"
+                        )}>
+                        {totals.fat}g / {goal.fat}g
+                        {totals.fat >= goal.fat && " ✓"}
+                      </span>
+                    </div>
+                    <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all",
+                          totals.fat >= goal.fat
+                            ? "bg-ios-green"
+                            : "bg-purple-500"
+                        )}
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            (totals.fat / goal.fat) * 100
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Today's entries */}
+            {typeEntries.length > 0 && (
+              <div className='space-y-1'>
+                <p className='text-[13px] font-medium text-gray-500'>
+                  Today&apos;s entries
+                </p>
+                {typeEntries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className='flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-gray-700/50'>
+                    <span className='text-[15px] text-gray-900 dark:text-white'>
+                      {entry.nutritionData?.foodName || entry.value}
+                    </span>
+                    <div className='flex items-center gap-3 text-[13px] text-gray-500'>
+                      {entry.nutritionData?.protein && (
+                        <span>{entry.nutritionData.protein}g P</span>
+                      )}
+                      {entry.nutritionData?.calories && (
+                        <span>{entry.nutritionData.calories} kcal</span>
+                      )}
+                      <button
+                        onClick={() => deleteEntry(entry.id)}
+                        className='text-ios-red p-1'>
+                        <svg
+                          className='w-4 h-4'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'
+                          strokeWidth={2}>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            d='M6 18L18 6M6 6l12 12'
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add new entry form */}
+            <div className='space-y-3'>
+              <input
+                type='text'
+                value={nutritionInput.foodName}
+                onChange={(e) =>
+                  setNutritionInput({
+                    ...nutritionInput,
+                    foodName: e.target.value,
+                  })
+                }
+                placeholder='What did you eat?'
+                className='w-full px-3 py-2 rounded-lg text-[17px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                autoFocus
+              />
+              <div className='grid grid-cols-2 gap-2'>
+                <div>
+                  <label className='text-[12px] text-gray-500 mb-1 block'>
+                    Calories
+                  </label>
+                  <input
+                    type='number'
+                    value={nutritionInput.calories || ""}
+                    onChange={(e) =>
+                      setNutritionInput({
+                        ...nutritionInput,
+                        calories: e.target.value
+                          ? parseInt(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder='kcal'
+                    className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                  />
+                </div>
+                <div>
+                  <label className='text-[12px] text-gray-500 mb-1 block'>
+                    Protein (g)
+                  </label>
+                  <input
+                    type='number'
+                    value={nutritionInput.protein || ""}
+                    onChange={(e) =>
+                      setNutritionInput({
+                        ...nutritionInput,
+                        protein: e.target.value
+                          ? parseInt(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder='g'
+                    className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                  />
+                </div>
+                <div>
+                  <label className='text-[12px] text-gray-500 mb-1 block'>
+                    Carbs (g)
+                  </label>
+                  <input
+                    type='number'
+                    value={nutritionInput.carbs || ""}
+                    onChange={(e) =>
+                      setNutritionInput({
+                        ...nutritionInput,
+                        carbs: e.target.value
+                          ? parseInt(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder='g'
+                    className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                  />
+                </div>
+                <div>
+                  <label className='text-[12px] text-gray-500 mb-1 block'>
+                    Fat (g)
+                  </label>
+                  <input
+                    type='number'
+                    value={nutritionInput.fat || ""}
+                    onChange={(e) =>
+                      setNutritionInput({
+                        ...nutritionInput,
+                        fat: e.target.value
+                          ? parseInt(e.target.value)
+                          : undefined,
+                      })
+                    }
+                    placeholder='g'
+                    className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                  />
+                </div>
+              </div>
+              <button
+                onClick={() => handleSaveNutrition(type.id)}
+                disabled={!nutritionInput.foodName.trim()}
+                className='w-full py-2.5 rounded-lg text-[17px] font-medium bg-ios-blue text-white disabled:opacity-50 disabled:cursor-not-allowed'>
+                Add Food
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      case "workout": {
+        const typeEntries = savedValues[type.id] || [];
+        // Get all saved exercises from workout entries for today
+        const savedExercises: WorkoutExercise[] = [];
+        typeEntries.forEach((saved) => {
+          const entry = entries.find((e) => e.id === saved.id);
+          if (entry?.workoutData?.exercises) {
+            savedExercises.push(...entry.workoutData.exercises);
+          }
+        });
+
+        const hasSavedWorkout = savedExercises.length > 0;
+
+        // Use only custom exercises from activity type settings
+        const customExercises = type.customExercises || [];
+
+        // Find last used values for an exercise from history
+        const getLastUsedValues = (exerciseName: string) => {
+          for (const entry of entries) {
+            if (
+              entry.activityTypeId === type.id &&
+              entry.workoutData?.exercises
+            ) {
+              const found = entry.workoutData.exercises.find(
+                (ex) => ex.name.toLowerCase() === exerciseName.toLowerCase()
+              );
+              if (found) {
+                return {
+                  sets: found.sets || 1,
+                  reps: found.reps,
+                  weight: found.weight,
+                  distance: found.distance,
+                  duration: found.duration,
+                };
+              }
+            }
+          }
+          return { sets: 1 };
+        };
+
+        // Toggle exercise expansion
+        const toggleExercise = (exerciseName: string) => {
+          const newExpanded = new Set(expandedExercises);
+          if (newExpanded.has(exerciseName)) {
+            newExpanded.delete(exerciseName);
+          } else {
+            newExpanded.add(exerciseName);
+            // Initialize with last used values if not already set
+            if (!workoutData[exerciseName]) {
+              const lastUsed = getLastUsedValues(exerciseName);
+              const numSets = lastUsed.sets || 1;
+              const initialSets = Array.from({ length: numSets }, () => ({
+                reps: lastUsed.reps,
+                weight: lastUsed.weight,
+                distance: lastUsed.distance,
+                duration: lastUsed.duration,
+              }));
+              setWorkoutData((prev) => ({
+                ...prev,
+                [exerciseName]: initialSets,
+              }));
+            }
+          }
+          setExpandedExercises(newExpanded);
+        };
+
+        // Update a specific set's data for an exercise
+        const updateExerciseSet = (
+          exerciseName: string,
+          index: number,
+          field: string,
+          value: number | undefined
+        ) => {
+          const sets = [...(workoutData[exerciseName] || [{}])];
+          sets[index] = { ...sets[index], [field]: value };
+          setWorkoutData((prev) => ({ ...prev, [exerciseName]: sets }));
+        };
+
+        // Add a new set to an exercise
+        const addExerciseSet = (exerciseName: string) => {
+          const sets = workoutData[exerciseName] || [{}];
+          const lastSet = sets[sets.length - 1] || {};
+          setWorkoutData((prev) => ({
+            ...prev,
+            [exerciseName]: [...sets, { ...lastSet }],
+          }));
+        };
+
+        // Remove a set from an exercise
+        const removeExerciseSet = (exerciseName: string, index: number) => {
+          const sets = workoutData[exerciseName] || [];
+          if (sets.length > 1) {
+            setWorkoutData((prev) => ({
+              ...prev,
+              [exerciseName]: sets.filter((_, i) => i !== index),
+            }));
+          }
+        };
+
+        // Check if exercise has data entered
+        const exerciseHasData = (exerciseName: string) => {
+          const sets = workoutData[exerciseName] || [];
+          return sets.some(
+            (set) => set.reps || set.weight || set.distance || set.duration
+          );
+        };
+
+        // Get saved data for an exercise
+        const getSavedExercise = (exerciseName: string) => {
+          return savedExercises.find((ex) => ex.name === exerciseName);
+        };
+
+        // Start editing - load saved data into state
+        const startEditing = () => {
+          const newWorkoutData: typeof workoutData = {};
+          savedExercises.forEach((ex) => {
+            // Use stored setsData if available, otherwise recreate from aggregated values
+            if (ex.setsData && ex.setsData.length > 0) {
+              newWorkoutData[ex.name] = ex.setsData;
+            } else {
+              const numSets = ex.sets || 1;
+              newWorkoutData[ex.name] = Array.from({ length: numSets }, () => ({
+                reps: ex.reps,
+                weight: ex.weight,
+                distance: ex.distance,
+                duration: ex.duration,
+              }));
+            }
+          });
+          setWorkoutData(newWorkoutData);
+          setExpandedExercises(new Set(savedExercises.map((ex) => ex.name)));
+          setIsEditingWorkout(true);
+        };
+
+        // Check if any exercise has data
+        const hasAnyData = Object.keys(workoutData).some((name) =>
+          exerciseHasData(name)
+        );
+
+        // Show saved view or editing view
+        if (hasSavedWorkout && !isEditingWorkout) {
+          return (
+            <div className='pt-3 space-y-3'>
+              <div className='flex items-center justify-between mb-2'>
+                <p className='text-[13px] font-medium text-gray-500'>
+                  Today&apos;s workout ({savedExercises.length} exercise
+                  {savedExercises.length !== 1 ? "s" : ""})
+                </p>
+                <button
+                  onClick={startEditing}
+                  className='text-[15px] text-ios-blue font-medium'>
+                  Edit
+                </button>
+              </div>
+
+              {/* iOS-style grouped list */}
+              <div className='rounded-xl overflow-hidden bg-white dark:bg-gray-800'>
+                {savedExercises.map((exercise, exIndex) => {
+                  const config = customExercises.find(
+                    (e) => e.name === exercise.name
+                  );
+                  const setsToShow = exercise.setsData || (exercise.sets ? Array.from({ length: exercise.sets }, () => ({
+                    reps: exercise.reps,
+                    weight: exercise.weight,
+                    distance: exercise.distance,
+                    duration: exercise.duration,
+                  })) : [{ reps: exercise.reps, weight: exercise.weight, distance: exercise.distance, duration: exercise.duration }]);
+                  
+                  return (
+                    <div key={exercise.id}>
+                      {/* Exercise name header */}
+                      <div className={cn(
+                        'px-4 py-2.5 bg-gray-100 dark:bg-gray-700',
+                        exIndex > 0 && 'border-t border-gray-200 dark:border-gray-600'
+                      )}>
+                        <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                          {exercise.name}
+                        </span>
+                      </div>
+                      
+                      {/* Individual sets */}
+                      <div className='divide-y divide-gray-100 dark:divide-gray-700'>
+                        {setsToShow.map((set, setIndex) => (
+                          <div key={setIndex} className='px-4 py-2.5 flex items-center justify-between'>
+                            <span className='text-[14px] text-gray-500 w-16'>
+                              Set {setIndex + 1}
+                            </span>
+                            <div className='flex items-center gap-4'>
+                              {set.reps && (
+                                <div className='flex items-center gap-1'>
+                                  <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                                    {set.reps}
+                                  </span>
+                                  <span className='text-[13px] text-gray-500'>reps</span>
+                                </div>
+                              )}
+                              {set.weight && (
+                                <div className='flex items-center gap-1'>
+                                  <span className='text-[15px] font-medium text-ios-blue'>
+                                    {set.weight}
+                                  </span>
+                                  <span className='text-[13px] text-gray-500'>kg</span>
+                                </div>
+                              )}
+                              {set.distance && (
+                                <div className='flex items-center gap-1'>
+                                  <span className='text-[15px] font-medium text-ios-orange'>
+                                    {set.distance}
+                                  </span>
+                                  <span className='text-[13px] text-gray-500'>km</span>
+                                </div>
+                              )}
+                              {set.duration && (
+                                <div className='flex items-center gap-1'>
+                                  <span className='text-[15px] font-medium text-purple-500'>
+                                    {set.duration}
+                                  </span>
+                                  <span className='text-[13px] text-gray-500'>min</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
+
+        // Editing/Adding view - show all exercises
+        return (
+          <div className='pt-3 space-y-2'>
+            {customExercises.length === 0 ? (
+              <div className='py-4 text-center text-gray-500'>
+                <p className='text-[14px]'>No exercises configured</p>
+                <p className='text-[12px] mt-1'>Add exercises in Settings</p>
+              </div>
+            ) : (
+              <>
+                {/* List all exercises with expandable sections */}
+                {customExercises.map((ex) => {
+                  const isExpanded = expandedExercises.has(ex.name);
+                  const sets = workoutData[ex.name] || [{}];
+                  const hasData = exerciseHasData(ex.name);
+                  const savedEx = getSavedExercise(ex.name);
+
+                  return (
+                    <div
+                      key={ex.name}
+                      className='rounded-xl overflow-hidden bg-white dark:bg-gray-800'>
+                      {/* Exercise header - tap to expand */}
+                      <button
+                        onClick={() => toggleExercise(ex.name)}
+                        className='w-full px-3 py-3 flex items-center justify-between'>
+                        <div className='flex items-center gap-2'>
+                          <span
+                            className={cn(
+                              "text-[15px] font-medium",
+                              hasData || savedEx
+                                ? "text-ios-blue"
+                                : "text-gray-900 dark:text-white"
+                            )}>
+                            {ex.name}
+                          </span>
+                          {(hasData || savedEx) && (
+                            <svg
+                              className='w-4 h-4 text-ios-green'
+                              fill='currentColor'
+                              viewBox='0 0 20 20'>
+                              <path
+                                fillRule='evenodd'
+                                d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z'
+                                clipRule='evenodd'
+                              />
+                            </svg>
+                          )}
+                        </div>
+                        <svg
+                          className={cn(
+                            "w-5 h-5 text-gray-400 transition-transform",
+                            isExpanded && "rotate-180"
+                          )}
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            strokeWidth={2}
+                            d='M19 9l-7 7-7-7'
+                          />
+                        </svg>
+                      </button>
+
+                      {/* Expanded content - sets input */}
+                      {isExpanded && (
+                        <div className='px-4 pb-3 space-y-2 border-t border-gray-100 dark:border-gray-700'>
+                          <div className='flex items-center justify-between pt-2'>
+                            <span className='text-[13px] text-gray-500'>
+                              Sets ({sets.length})
+                            </span>
+                            <button
+                              onClick={() => addExerciseSet(ex.name)}
+                              className='text-[14px] text-ios-blue font-medium'>
+                              + Add Set
+                            </button>
+                          </div>
+
+                          {sets.map((set, index) => (
+                            <div
+                              key={index}
+                              className='rounded-xl bg-gray-50 dark:bg-gray-700/50 overflow-hidden'>
+                              <div className='flex items-center justify-between px-3 py-2 bg-gray-100 dark:bg-gray-700'>
+                                <span className='text-[14px] font-medium text-gray-700 dark:text-gray-300'>
+                                  Set {index + 1}
+                                </span>
+                                {sets.length > 1 && (
+                                  <button
+                                    onClick={() =>
+                                      removeExerciseSet(ex.name, index)
+                                    }
+                                    className='p-1 -m-1'>
+                                    <svg className='w-5 h-5 text-ios-red' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+                                      <path strokeLinecap='round' strokeLinejoin='round' d='M6 18L18 6M6 6l12 12' />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                              <div className='p-3 grid grid-cols-2 gap-3'>
+                                {ex.trackReps && (
+                                  <div className='flex items-center gap-2 bg-white dark:bg-gray-600 rounded-xl px-3 py-2'>
+                                    <input
+                                      type='number'
+                                      value={set.reps || ""}
+                                      onChange={(e) =>
+                                        updateExerciseSet(
+                                          ex.name,
+                                          index,
+                                          "reps",
+                                          e.target.value
+                                            ? parseInt(e.target.value)
+                                            : undefined
+                                        )
+                                      }
+                                      placeholder='0'
+                                      className='w-full text-[17px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-300 focus:outline-none text-right'
+                                    />
+                                    <span className='text-[15px] text-gray-500 whitespace-nowrap'>reps</span>
+                                  </div>
+                                )}
+                                {ex.trackWeight && (
+                                  <div className='flex items-center gap-2 bg-white dark:bg-gray-600 rounded-xl px-3 py-2'>
+                                    <input
+                                      type='number'
+                                      value={set.weight || ""}
+                                      onChange={(e) =>
+                                        updateExerciseSet(
+                                          ex.name,
+                                          index,
+                                          "weight",
+                                          e.target.value
+                                            ? parseFloat(e.target.value)
+                                            : undefined
+                                        )
+                                      }
+                                      placeholder='0'
+                                      step='0.5'
+                                      className='w-full text-[17px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-300 focus:outline-none text-right'
+                                    />
+                                    <span className='text-[15px] text-gray-500 whitespace-nowrap'>kg</span>
+                                  </div>
+                                )}
+                                {ex.trackDistance && (
+                                  <div className='flex items-center gap-2 bg-white dark:bg-gray-600 rounded-xl px-3 py-2'>
+                                    <input
+                                      type='number'
+                                      value={set.distance || ""}
+                                      onChange={(e) =>
+                                        updateExerciseSet(
+                                          ex.name,
+                                          index,
+                                          "distance",
+                                          e.target.value
+                                            ? parseFloat(e.target.value)
+                                            : undefined
+                                        )
+                                      }
+                                      placeholder='0'
+                                      step='0.1'
+                                      className='w-full text-[17px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-300 focus:outline-none text-right'
+                                    />
+                                    <span className='text-[15px] text-gray-500 whitespace-nowrap'>km</span>
+                                  </div>
+                                )}
+                                {ex.trackDuration && (
+                                  <div className='flex items-center gap-2 bg-white dark:bg-gray-600 rounded-xl px-3 py-2'>
+                                    <input
+                                      type='number'
+                                      value={set.duration || ""}
+                                      onChange={(e) =>
+                                        updateExerciseSet(
+                                          ex.name,
+                                          index,
+                                          "duration",
+                                          e.target.value
+                                            ? parseInt(e.target.value)
+                                            : undefined
+                                        )
+                                      }
+                                      placeholder='0'
+                                      className='w-full text-[17px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-300 focus:outline-none text-right'
+                                    />
+                                    <span className='text-[15px] text-gray-500 whitespace-nowrap'>min</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Save/Cancel buttons */}
+                <div className='pt-2 space-y-2'>
+                  <button
+                    onClick={() =>
+                      handleSaveAllWorkouts(type.id, customExercises)
+                    }
+                    disabled={!hasAnyData}
+                    className='w-full py-2.5 rounded-lg text-[17px] font-medium bg-ios-blue text-white disabled:opacity-50 disabled:cursor-not-allowed'>
+                    {isEditingWorkout ? "Save Changes" : "Save Workout"}
+                  </button>
+                  {isEditingWorkout && (
+                    <div className='flex gap-2'>
+                      <button
+                        onClick={() => {
+                          setWorkoutData({});
+                          setExpandedExercises(new Set());
+                          setIsEditingWorkout(false);
+                        }}
+                        className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'>
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleDeleteWorkout(type.id)}
+                        className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-ios-red/10 text-ios-red'>
+                        Delete Workout
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      }
     }
   };
 
@@ -575,6 +1582,8 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
           const isCheckmark = type.valueType === "checkmark";
           const isCounter = type.valueType === "counter";
           const isMood = type.valueType === "mood";
+          const isNutrition = type.valueType === "nutrition";
+          const isWorkout = type.valueType === "workout";
 
           // Get current counter value
           const currentCounterValue =
@@ -712,8 +1721,90 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                   {(isCheckmark ||
                     isMood ||
                     isCounter ||
+                    isNutrition ||
+                    isWorkout ||
                     type.valueType === "boolean") && (
                     <div className='flex items-center gap-2 ml-auto shrink-0'>
+                      {/* Workout summary */}
+                      {isWorkout &&
+                        hasSavedValues &&
+                        (() => {
+                          // Count total exercises for today
+                          let totalExercises = 0;
+                          typeSavedValues.forEach((saved) => {
+                            const entry = entries.find(
+                              (e) => e.id === saved.id
+                            );
+                            if (entry?.workoutData?.exercises) {
+                              totalExercises +=
+                                entry.workoutData.exercises.length;
+                            }
+                          });
+                          return (
+                            <span className='text-[15px] font-medium text-ios-green'>
+                              {totalExercises} exercise
+                              {totalExercises !== 1 ? "s" : ""} ✓
+                            </span>
+                          );
+                        })()}
+                      {/* Nutrition progress summary */}
+                      {isNutrition &&
+                        (() => {
+                          const totals = getNutritionTotals(type.id);
+                          const goal = type.nutritionGoal || {};
+                          const hasGoal =
+                            goal.protein ||
+                            goal.calories ||
+                            goal.carbs ||
+                            goal.fat;
+                          const hasEntries = hasSavedValues;
+
+                          if (!hasGoal && !hasEntries) return null;
+
+                          // Show primary goal progress (protein first, then calories)
+                          const primaryGoal = goal.protein
+                            ? "protein"
+                            : goal.calories
+                            ? "calories"
+                            : null;
+                          const totalValue =
+                            primaryGoal === "protein"
+                              ? totals.protein
+                              : totals.calories;
+                          const goalValue =
+                            primaryGoal === "protein"
+                              ? goal.protein
+                              : goal.calories;
+                          const isGoalReached =
+                            goalValue && totalValue >= goalValue;
+
+                          return (
+                            <span
+                              className={cn(
+                                "text-[15px] font-medium",
+                                isGoalReached
+                                  ? "text-ios-green"
+                                  : "text-gray-500 dark:text-gray-400"
+                              )}>
+                              {primaryGoal === "protein" && goalValue ? (
+                                <>
+                                  {totals.protein}g / {goal.protein}g{" "}
+                                  {isGoalReached && "✓"}
+                                </>
+                              ) : primaryGoal === "calories" && goalValue ? (
+                                <>
+                                  {totals.calories} / {goal.calories} kcal{" "}
+                                  {isGoalReached && "✓"}
+                                </>
+                              ) : hasEntries ? (
+                                <>
+                                  {typeSavedValues.length} item
+                                  {typeSavedValues.length !== 1 ? "s" : ""}
+                                </>
+                              ) : null}
+                            </span>
+                          );
+                        })()}
                       {/* Checkmark icon */}
                       {isCheckmark && hasSavedValues && (
                         <>

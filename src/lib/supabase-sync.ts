@@ -18,6 +18,8 @@ function dbToActivityType(db: DbActivityType): ActivityType {
     order: db.sort_order || undefined,
     isDefault: db.is_default,
     hidden: db.hidden,
+    nutritionGoal: db.nutrition_goal || undefined,
+    customExercises: db.custom_exercises ? (db.custom_exercises as unknown as ActivityType['customExercises']) : undefined,
     createdAt: new Date(db.created_at),
   };
 }
@@ -34,6 +36,8 @@ function dbToLogEntry(db: DbLogEntry): LogEntry {
     imdbRating: db.imdb_rating || undefined,
     year: db.year || undefined,
     userRating: db.user_rating || undefined,
+    nutritionData: db.nutrition_data ? (db.nutrition_data as unknown as LogEntry['nutritionData']) : undefined,
+    workoutData: db.workout_data ? (db.workout_data as unknown as LogEntry['workoutData']) : undefined,
     createdAt: new Date(db.created_at),
     updatedAt: new Date(db.updated_at),
   };
@@ -91,6 +95,8 @@ export async function addActivityTypeToSupabase(
       sort_order: type.order || null,
       is_default: type.isDefault || false,
       hidden: type.hidden || false,
+      nutrition_goal: type.nutritionGoal || null,
+      custom_exercises: type.customExercises || null,
     })
     .select()
     .single();
@@ -110,6 +116,8 @@ export async function updateActivityTypeInSupabase(type: ActivityType): Promise<
       sort_order: type.order || null,
       is_default: type.isDefault || false,
       hidden: type.hidden || false,
+      nutrition_goal: type.nutritionGoal || null,
+      custom_exercises: type.customExercises || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', type.id);
@@ -177,6 +185,8 @@ export async function addEntryToSupabase(
       imdb_rating: entry.imdbRating || null,
       year: entry.year || null,
       user_rating: entry.userRating || null,
+      nutrition_data: entry.nutritionData || null,
+      workout_data: entry.workoutData || null,
     })
     .select()
     .single();
@@ -198,6 +208,8 @@ export async function updateEntryInSupabase(entry: LogEntry): Promise<LogEntry> 
       imdb_rating: entry.imdbRating || null,
       year: entry.year || null,
       user_rating: entry.userRating || null,
+      nutrition_data: entry.nutritionData || null,
+      workout_data: entry.workoutData || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', entry.id)

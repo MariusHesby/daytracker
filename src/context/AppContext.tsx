@@ -97,9 +97,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
           // If cloud is empty, create default activity types for the new user
           if (types.length === 0) {
-            console.log(
-              "New user detected, creating default activity types..."
-            );
             types = await cloudDb.initializeDefaultActivityTypes(user.id);
           }
 
@@ -296,20 +293,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!user) return;
 
       if (viewingUser) {
-        console.log("Loading data for viewingUser:", viewingUser);
         // Load the other user's activity types (filtered by shared IDs)
         try {
           const allTypes = await cloudDb.getActivityTypesFromSupabase(
             viewingUser.id
           );
-          console.log("All types from other user:", allTypes);
-          console.log("Shared activityTypeIds:", viewingUser.activityTypeIds);
 
           // Only include activity types that were shared with us
           const sharedTypes = allTypes.filter((t) =>
             viewingUser.activityTypeIds.includes(t.id)
           );
-          console.log("Filtered shared types:", sharedTypes);
 
           const sortedTypes = sharedTypes.sort((a, b) => {
             const orderA = a.order ?? Infinity;
@@ -328,12 +321,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
               currentDateRange.start,
               currentDateRange.end
             );
-            console.log("Loaded entries for other user:", loadedEntries);
             // Filter to only shared activity types
             const filteredEntries = loadedEntries.filter((e) =>
               viewingUser.activityTypeIds.includes(e.activityTypeId)
             );
-            console.log("Filtered entries:", filteredEntries);
             setEntries(filteredEntries);
           }
         } catch (error) {

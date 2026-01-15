@@ -3,7 +3,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import { Icon, icons, IconName } from "@/components";
-import { TimeRange, StatisticsSummary, LogEntry } from "@/types";
+import {
+  TimeRange,
+  StatisticsSummary,
+  LogEntry,
+  WorkoutExercise,
+} from "@/types";
 import { calculateStatistics, cn } from "@/lib/utils";
 import { IOSSegmentedControl } from "@/components/ios";
 
@@ -412,6 +417,262 @@ export default function StatsPage() {
     const selectedType = getActivityType(selectedStat.activityTypeId);
     return selectedType?.valueType === "mood";
   }, [selectedStat, activityTypes]);
+
+  // Check if selected activity is nutrition type
+  const isNutritionType = useMemo(() => {
+    if (!selectedStat) return false;
+    const selectedType = getActivityType(selectedStat.activityTypeId);
+    return selectedType?.valueType === "nutrition";
+  }, [selectedStat, activityTypes]);
+
+  // Calculate nutrition stats for the period
+  const nutritionStats = useMemo(() => {
+    if (!selectedStat || !isNutritionType) return null;
+
+    const selectedType = getActivityType(selectedStat.activityTypeId);
+    const goal = selectedType?.nutritionGoal || {};
+
+    // Group entries by date to get daily totals
+    const dailyTotals: Map<
+      string,
+      {
+        protein: number;
+        calories: number;
+        carbs: number;
+        fat: number;
+        items: number;
+      }
+    > = new Map();
+
+    selectedStat.entries.forEach((entry) => {
+      const existing = dailyTotals.get(entry.date) || {
+        protein: 0,
+        calories: 0,
+        carbs: 0,
+        fat: 0,
+        items: 0,
+      };
+      const nutritionData = entry.nutritionData;
+      if (nutritionData) {
+        existing.protein += nutritionData.protein || 0;
+        existing.calories += nutritionData.calories || 0;
+        existing.carbs += nutritionData.carbs || 0;
+        existing.fat += nutritionData.fat || 0;
+        existing.items += 1;
+      }
+      dailyTotals.set(entry.date, existing);
+    });
+
+    // Calculate averages and goal achievement
+    const days = Array.from(dailyTotals.values());
+    const totalDays = days.length;
+
+    if (totalDays === 0) {
+      return {
+        goal,
+        avgProtein: 0,
+        avgCalories: 0,
+        avgCarbs: 0,
+        avgFat: 0,
+        totalItems: 0,
+        daysTracked: 0,
+        daysProteinGoalMet: 0,
+        daysCaloriesGoalMet: 0,
+        proteinGoalRate: 0,
+        caloriesGoalRate: 0,
+        dailyTotals,
+      };
+    }
+
+    const avgProtein = Math.round(
+      days.reduce((sum, d) => sum + d.protein, 0) / totalDays
+    );
+    const avgCalories = Math.round(
+      days.reduce((sum, d) => sum + d.calories, 0) / totalDays
+    );
+    const avgCarbs = Math.round(
+      days.reduce((sum, d) => sum + d.carbs, 0) / totalDays
+    );
+    const avgFat = Math.round(
+      days.reduce((sum, d) => sum + d.fat, 0) / totalDays
+    );
+    const totalItems = days.reduce((sum, d) => sum + d.items, 0);
+
+    const daysProteinGoalMet = goal.protein
+      ? days.filter((d) => d.protein >= (goal.protein || 0)).length
+      : 0;
+    const daysCaloriesGoalMet = goal.calories
+      ? days.filter((d) => d.calories >= (goal.calories || 0)).length
+      : 0;
+
+    return {
+      goal,
+      avgProtein,
+      avgCalories,
+      avgCarbs,
+      avgFat,
+      totalItems,
+      daysTracked: totalDays,
+      daysProteinGoalMet,
+      daysCaloriesGoalMet,
+      proteinGoalRate: goal.protein
+        ? Math.round((daysProteinGoalMet / totalDays) * 100)
+        : 0,
+      caloriesGoalRate: goal.calories
+        ? Math.round((daysCaloriesGoalMet / totalDays) * 100)
+        : 0,
+      dailyTotals,
+    };
+  }, [selectedStat, isNutritionType, activityTypes]);
+
+  // Check if selected activity is workout type
+  const isWorkoutType = useMemo(() => {
+    if (!selectedStat) return false;
+    const selectedType = getActivityType(selectedStat.activityTypeId);
+    return selectedType?.valueType === "workout";
+  }, [selectedStat, activityTypes]);
+
+  // Calculate workout stats for the period
+  const workoutStats = useMemo(() => {
+    if (!selectedStat || !isWorkoutType) return null;
+
+    // Collect all exercises from all entries
+    const allExercises: { date: string; exercise: WorkoutExercise }[] = [];
+
+    selectedStat.entries.forEach((entry) => {
+      if (entry.workoutData?.exercises) {
+        entry.workoutData.exercises.forEach((ex) => {
+          allExercises.push({ date: entry.date, exercise: ex });
+        });
+      }
+    });
+
+    // Group by exercise name for frequency stats
+    const exerciseCounts: Map<
+      string,
+      {
+        count: number;
+        category: string;
+        totalWeight: number;
+        totalReps: number;
+        totalDistance: number;
+        totalDuration: number;
+      }
+    > = new Map();
+
+    // Track progress over time for each exercise (max weight/distance per day)
+    const exerciseProgress: Map<
+      string,
+      { date: string; weight?: number; distance?: number; duration?: number }[]
+    > = new Map();
+
+    allExercises.forEach(({ date, exercise }) => {
+      const existing = exerciseCounts.get(exercise.name) || {
+        count: 0,
+        category: exercise.category,
+        totalWeight: 0,
+        totalReps: 0,
+        totalDistance: 0,
+        totalDuration: 0,
+      };
+      existing.count += 1;
+      existing.totalWeight += (exercise.weight || 0) * (exercise.sets || 1);
+      existing.totalReps += (exercise.reps || 0) * (exercise.sets || 1);
+      existing.totalDistance += exercise.distance || 0;
+      existing.totalDuration += exercise.duration || 0;
+      exerciseCounts.set(exercise.name, existing);
+
+      // Track progress data points
+      const progress = exerciseProgress.get(exercise.name) || [];
+      progress.push({
+        date,
+        weight: exercise.weight,
+        distance: exercise.distance,
+        duration: exercise.duration,
+      });
+      exerciseProgress.set(exercise.name, progress);
+    });
+
+    // Get unique workout days
+    const workoutDays = new Set(selectedStat.entries.map((e) => e.date));
+
+    // Category breakdown
+    const categoryBreakdown: Map<string, number> = new Map();
+    allExercises.forEach(({ exercise }) => {
+      const cat = exercise.category || "other";
+      categoryBreakdown.set(cat, (categoryBreakdown.get(cat) || 0) + 1);
+    });
+
+    // Top exercises by frequency
+    const topExercises = Array.from(exerciseCounts.entries())
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5);
+
+    // Calculate totals
+    const totalWeight = allExercises.reduce(
+      (sum, { exercise }) =>
+        sum + (exercise.weight || 0) * (exercise.sets || 1),
+      0
+    );
+    const totalReps = allExercises.reduce(
+      (sum, { exercise }) => sum + (exercise.reps || 0) * (exercise.sets || 1),
+      0
+    );
+    const totalDistance = allExercises.reduce(
+      (sum, { exercise }) => sum + (exercise.distance || 0),
+      0
+    );
+    const totalDuration = allExercises.reduce(
+      (sum, { exercise }) => sum + (exercise.duration || 0),
+      0
+    );
+
+    // Find exercises with weight progress (for chart)
+    const exercisesWithWeightProgress = Array.from(exerciseProgress.entries())
+      .filter(([, data]) => data.some((d) => d.weight))
+      .map(([name, data]) => ({
+        name,
+        data: data
+          .filter((d) => d.weight)
+          .sort((a, b) => a.date.localeCompare(b.date)),
+        maxWeight: Math.max(...data.map((d) => d.weight || 0)),
+        latestWeight:
+          data
+            .filter((d) => d.weight)
+            .sort((a, b) => b.date.localeCompare(a.date))[0]?.weight || 0,
+      }))
+      .sort((a, b) => b.data.length - a.data.length)
+      .slice(0, 3);
+
+    // Find exercises with distance progress (for chart)
+    const exercisesWithDistanceProgress = Array.from(exerciseProgress.entries())
+      .filter(([, data]) => data.some((d) => d.distance))
+      .map(([name, data]) => ({
+        name,
+        data: data
+          .filter((d) => d.distance)
+          .sort((a, b) => a.date.localeCompare(b.date)),
+        maxDistance: Math.max(...data.map((d) => d.distance || 0)),
+        totalDistance: data.reduce((sum, d) => sum + (d.distance || 0), 0),
+      }))
+      .sort((a, b) => b.data.length - a.data.length)
+      .slice(0, 3);
+
+    return {
+      totalExercises: allExercises.length,
+      workoutDays: workoutDays.size,
+      uniqueExercises: exerciseCounts.size,
+      topExercises,
+      categoryBreakdown: Array.from(categoryBreakdown.entries()),
+      totalWeight: Math.round(totalWeight),
+      totalReps,
+      totalDistance: Math.round(totalDistance * 10) / 10,
+      totalDuration,
+      exerciseCounts,
+      exercisesWithWeightProgress,
+      exercisesWithDistanceProgress,
+    };
+  }, [selectedStat, isWorkoutType]);
 
   // Get dates for selected value as a Set for quick lookup
   const datesForSelectedValue = useMemo(() => {
@@ -957,308 +1218,747 @@ export default function StatsPage() {
               </div>
             )}
 
-            {/* Value List with Bars */}
-            <div className='p-4'>
-              <h4 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 mb-3'>
-                Tap to see dates
-              </h4>
-              <div className='space-y-3'>
-                {valueCounts.map(({ value, count }, index) => {
-                  const isSelected = selectedValue === value;
-                  const moodBarColor = isMoodType
-                    ? getMoodBarColor(value)
-                    : barColors[index % barColors.length];
-                  const moodTextColor = isMoodType
-                    ? getMoodTextColor(value)
-                    : "text-ios-blue";
-                  const moodBgColorClass = isMoodType
-                    ? getMoodBgColor(value)
-                    : "bg-ios-blue/5 dark:bg-ios-blue/10";
-                  return (
-                    <div key={value}>
-                      <button
-                        onClick={() =>
-                          setSelectedValue(isSelected ? null : value)
-                        }
-                        className={cn(
-                          "w-full text-left space-y-1 p-2 -m-2 rounded-lg transition-all",
-                          isSelected
-                            ? moodBgColorClass
-                            : "active:bg-gray-100 dark:active:bg-gray-800"
-                        )}>
-                        <div className='flex items-center justify-between text-[15px]'>
-                          <span
-                            className={cn(
-                              "capitalize truncate mr-2",
-                              isSelected
-                                ? cn(moodTextColor, "font-medium")
-                                : "text-gray-700 dark:text-gray-300"
-                            )}>
-                            {formatDisplayValue(value)}
-                          </span>
-                          <div className='flex items-center gap-2'>
-                            <span className='text-[13px] text-gray-600 dark:text-gray-400 font-medium shrink-0 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full'>
-                              {count}
-                            </span>
-                            <span
-                              className={cn(
-                                "text-[13px] text-gray-400 transition-transform",
-                                isSelected ? "rotate-180" : ""
-                              )}>
-                              ▼
-                            </span>
-                          </div>
-                        </div>
-                        <div className='h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden'>
-                          <div
-                            className={cn(
-                              "h-full rounded-full transition-all",
-                              moodBarColor
-                            )}
-                            style={{ width: `${(count / maxCount) * 100}%` }}
-                          />
-                        </div>
-                      </button>
+            {/* Nutrition Stats View */}
+            {isNutritionType && nutritionStats && (
+              <div className='p-4'>
+                {/* Summary Cards */}
+                <div className='grid grid-cols-2 gap-3 mb-4'>
+                  {/* Protein Card */}
+                  {nutritionStats.goal.protein && (
+                    <div className='p-3 rounded-xl bg-ios-blue/10'>
+                      <div className='text-[13px] text-ios-blue font-medium mb-1'>
+                        Protein Goal
+                      </div>
+                      <div className='text-[28px] font-bold text-ios-blue'>
+                        {nutritionStats.proteinGoalRate}%
+                      </div>
+                      <div className='text-[12px] text-gray-500'>
+                        {nutritionStats.daysProteinGoalMet}/
+                        {nutritionStats.daysTracked} days hit{" "}
+                        {nutritionStats.goal.protein}g
+                      </div>
+                    </div>
+                  )}
+                  {/* Calories Card */}
+                  {nutritionStats.goal.calories && (
+                    <div className='p-3 rounded-xl bg-ios-orange/10'>
+                      <div className='text-[13px] text-ios-orange font-medium mb-1'>
+                        Calorie Goal
+                      </div>
+                      <div className='text-[28px] font-bold text-ios-orange'>
+                        {nutritionStats.caloriesGoalRate}%
+                      </div>
+                      <div className='text-[12px] text-gray-500'>
+                        {nutritionStats.daysCaloriesGoalMet}/
+                        {nutritionStats.daysTracked} days hit{" "}
+                        {nutritionStats.goal.calories}
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-                      {/* Calendar view when selected */}
-                      {isSelected && calendarData && (
-                        <div
-                          className='mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl'
-                          onClick={(e) => e.stopPropagation()}>
-                          {calendarData.type === "week" && (
-                            <div>
-                              <CalendarNavHeader
-                                label={calendarData.weekRange}
-                                onPrev={() => setOffset(offset - 1)}
-                                onNext={() => setOffset(offset + 1)}
-                                canGoPrev={canGoBack}
-                                canGoNext={canGoForward}
-                                onToday={() => setOffset(0)}
-                                showToday={offset !== 0}
-                              />
-                              <div className='flex justify-between gap-1'>
-                                {calendarData.days.map((day) => (
+                {/* Daily Averages */}
+                <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800 mb-4'>
+                  <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
+                    Daily Averages
+                  </h4>
+                  <div className='space-y-2'>
+                    {nutritionStats.goal.protein && (
+                      <div className='flex items-center justify-between'>
+                        <span className='text-[15px] text-gray-700 dark:text-gray-300'>
+                          Protein
+                        </span>
+                        <div className='flex items-center gap-2'>
+                          <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                            {nutritionStats.avgProtein}g
+                          </span>
+                          <span className='text-[13px] text-gray-400'>
+                            / {nutritionStats.goal.protein}g
+                          </span>
+                          {nutritionStats.avgProtein >=
+                            (nutritionStats.goal.protein || 0) && (
+                            <span className='text-ios-green'>✓</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {nutritionStats.goal.calories && (
+                      <div className='flex items-center justify-between'>
+                        <span className='text-[15px] text-gray-700 dark:text-gray-300'>
+                          Calories
+                        </span>
+                        <div className='flex items-center gap-2'>
+                          <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                            {nutritionStats.avgCalories}
+                          </span>
+                          <span className='text-[13px] text-gray-400'>
+                            / {nutritionStats.goal.calories}
+                          </span>
+                          {nutritionStats.avgCalories >=
+                            (nutritionStats.goal.calories || 0) && (
+                            <span className='text-ios-green'>✓</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {(nutritionStats.avgCarbs > 0 ||
+                      nutritionStats.goal.carbs) && (
+                      <div className='flex items-center justify-between'>
+                        <span className='text-[15px] text-gray-700 dark:text-gray-300'>
+                          Carbs
+                        </span>
+                        <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                          {nutritionStats.avgCarbs}g
+                        </span>
+                      </div>
+                    )}
+                    {(nutritionStats.avgFat > 0 || nutritionStats.goal.fat) && (
+                      <div className='flex items-center justify-between'>
+                        <span className='text-[15px] text-gray-700 dark:text-gray-300'>
+                          Fat
+                        </span>
+                        <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                          {nutritionStats.avgFat}g
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tracking Summary */}
+                <div className='flex items-center justify-between text-[13px] text-gray-500'>
+                  <span>{nutritionStats.totalItems} food items logged</span>
+                  <span>{nutritionStats.daysTracked} days tracked</span>
+                </div>
+
+                {/* Daily Progress Chart */}
+                {nutritionStats.daysTracked > 0 &&
+                  nutritionStats.goal.protein && (
+                    <div className='mt-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
+                      <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
+                        Protein by Day
+                      </h4>
+                      <div className='flex items-end gap-1 h-24'>
+                        {Array.from(nutritionStats.dailyTotals.entries())
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .slice(-14) // Show last 14 days max
+                          .map(([date, data]) => {
+                            const goalPercent = nutritionStats.goal.protein
+                              ? Math.min(
+                                  100,
+                                  (data.protein / nutritionStats.goal.protein) *
+                                    100
+                                )
+                              : 0;
+                            const metGoal =
+                              data.protein >=
+                              (nutritionStats.goal.protein || 0);
+                            return (
+                              <div
+                                key={date}
+                                className='flex-1 flex flex-col items-center'
+                                title={`${date}: ${data.protein}g protein`}>
+                                <div
+                                  className='w-full relative'
+                                  style={{ height: "80px" }}>
                                   <div
-                                    key={day.date}
                                     className={cn(
-                                      "flex-1 text-center py-2 px-1 rounded-lg",
-                                      day.isMarked
-                                        ? isMoodType
-                                          ? getMoodColorClasses(value, true)
-                                          : "bg-ios-blue text-white"
-                                        : day.isToday
-                                        ? isMoodType
-                                          ? getMoodColorClasses(value, false)
-                                          : "bg-ios-blue/10 text-ios-blue"
-                                        : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400"
-                                    )}>
-                                    <div className='text-[10px] uppercase font-medium'>
-                                      {day.dayName}
-                                    </div>
-                                    <div
-                                      className={cn(
-                                        "text-lg font-bold",
-                                        day.isMarked && "text-white"
-                                      )}>
-                                      {day.dayNum}
-                                    </div>
-                                    <div className='text-[9px] opacity-70'>
-                                      {day.month}
-                                    </div>
-                                    {day.isMarked && (
-                                      <div className='text-[10px]'>
-                                        {isMoodType ? getMoodEmoji(value) : "✓"}
-                                      </div>
+                                      "absolute bottom-0 left-0 right-0 rounded-t transition-all",
+                                      metGoal ? "bg-ios-green" : "bg-ios-blue"
                                     )}
-                                  </div>
-                                ))}
+                                    style={{ height: `${goalPercent}%` }}
+                                  />
+                                </div>
+                                <div className='text-[9px] text-gray-400 mt-1'>
+                                  {new Date(date).getDate()}
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                      {/* Goal line indicator */}
+                      <div className='flex items-center gap-2 mt-2 text-[11px] text-gray-500'>
+                        <div className='flex items-center gap-1'>
+                          <div className='w-3 h-3 rounded bg-ios-green' />
+                          <span>Goal met</span>
+                        </div>
+                        <div className='flex items-center gap-1'>
+                          <div className='w-3 h-3 rounded bg-ios-blue' />
+                          <span>Below goal</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+              </div>
+            )}
+
+            {/* Workout Stats View */}
+            {isWorkoutType && workoutStats && (
+              <div className='p-4'>
+                {/* Summary Cards */}
+                <div className='grid grid-cols-2 gap-3 mb-4'>
+                  {/* Workouts Card */}
+                  <div className='p-3 rounded-xl bg-ios-blue/10'>
+                    <div className='text-[13px] text-ios-blue font-medium mb-1'>
+                      Workout Days
+                    </div>
+                    <div className='text-[28px] font-bold text-ios-blue'>
+                      {workoutStats.workoutDays}
+                    </div>
+                    <div className='text-[12px] text-gray-500'>
+                      {workoutStats.totalExercises} total exercises
+                    </div>
+                  </div>
+                  {/* Unique Exercises Card */}
+                  <div className='p-3 rounded-xl bg-ios-green/10'>
+                    <div className='text-[13px] text-ios-green font-medium mb-1'>
+                      Exercise Variety
+                    </div>
+                    <div className='text-[28px] font-bold text-ios-green'>
+                      {workoutStats.uniqueExercises}
+                    </div>
+                    <div className='text-[12px] text-gray-500'>
+                      unique exercises
+                    </div>
+                  </div>
+                </div>
+
+                {/* Category Breakdown */}
+                {workoutStats.categoryBreakdown.length > 0 && (
+                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800 mb-4'>
+                    <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
+                      Exercise Categories
+                    </h4>
+                    <div className='space-y-2'>
+                      {workoutStats.categoryBreakdown
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([category, count]) => {
+                          const total = workoutStats.totalExercises;
+                          const percent = Math.round((count / total) * 100);
+                          const categoryColors: Record<
+                            string,
+                            { bg: string; bar: string }
+                          > = {
+                            strength: {
+                              bg: "bg-ios-blue/10",
+                              bar: "bg-ios-blue",
+                            },
+                            cardio: {
+                              bg: "bg-ios-orange/10",
+                              bar: "bg-ios-orange",
+                            },
+                            flexibility: {
+                              bg: "bg-ios-purple/10",
+                              bar: "bg-purple-500",
+                            },
+                            other: {
+                              bg: "bg-gray-100 dark:bg-gray-700",
+                              bar: "bg-gray-400",
+                            },
+                          };
+                          const colors =
+                            categoryColors[category] || categoryColors.other;
+                          return (
+                            <div key={category}>
+                              <div className='flex items-center justify-between text-[14px] mb-1'>
+                                <span className='capitalize text-gray-700 dark:text-gray-300'>
+                                  {category}
+                                </span>
+                                <span className='text-gray-500'>
+                                  {count} ({percent}%)
+                                </span>
+                              </div>
+                              <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                                <div
+                                  className={cn(
+                                    "h-full rounded-full transition-all",
+                                    colors.bar
+                                  )}
+                                  style={{ width: `${percent}%` }}
+                                />
                               </div>
                             </div>
-                          )}
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
 
-                          {calendarData.type === "month" && (
-                            <div>
-                              <CalendarNavHeader
-                                label={calendarData.monthName}
-                                onPrev={() => setOffset(offset - 1)}
-                                onNext={() => setOffset(offset + 1)}
-                                canGoPrev={canGoBack}
-                                canGoNext={canGoForward}
-                                onToday={() => setOffset(0)}
-                                showToday={offset !== 0}
-                              />
-                              <div className='grid grid-cols-7 gap-1 text-center text-[10px] text-gray-500 mb-1'>
-                                <div>Mo</div>
-                                <div>Tu</div>
-                                <div>We</div>
-                                <div>Th</div>
-                                <div>Fr</div>
-                                <div>Sa</div>
-                                <div>Su</div>
+                {/* Top Exercises */}
+                {workoutStats.topExercises.length > 0 && (
+                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800 mb-4'>
+                    <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
+                      Most Frequent Exercises
+                    </h4>
+                    <div className='space-y-2'>
+                      {workoutStats.topExercises.map(([name, data], index) => (
+                        <div
+                          key={name}
+                          className='flex items-center justify-between py-1'>
+                          <div className='flex items-center gap-2'>
+                            <span className='text-[13px] text-gray-400 w-5'>
+                              #{index + 1}
+                            </span>
+                            <span className='text-[15px] text-gray-900 dark:text-white'>
+                              {name}
+                            </span>
+                          </div>
+                          <div className='flex items-center gap-2 text-[13px] text-gray-500'>
+                            <span>{data.count}×</span>
+                            {data.totalWeight > 0 && (
+                              <span className='text-ios-blue'>
+                                {data.totalWeight}kg
+                              </span>
+                            )}
+                            {data.totalDistance > 0 && (
+                              <span className='text-ios-orange'>
+                                {data.totalDistance}km
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Weight Progress Charts */}
+                {workoutStats.exercisesWithWeightProgress.length > 0 && (
+                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800 mb-4'>
+                    <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
+                      💪 Weight Progress
+                    </h4>
+                    <div className='space-y-4'>
+                      {workoutStats.exercisesWithWeightProgress.map(
+                        ({ name, data, maxWeight, latestWeight }) => (
+                          <div key={name}>
+                            <div className='flex items-center justify-between mb-2'>
+                              <span className='text-[14px] font-medium text-gray-900 dark:text-white'>
+                                {name}
+                              </span>
+                              <div className='flex items-center gap-2'>
+                                <span className='text-[13px] text-gray-500'>
+                                  Max:
+                                </span>
+                                <span className='text-[15px] font-bold text-ios-blue'>
+                                  {maxWeight}kg
+                                </span>
                               </div>
-                              {calendarData.weeks.map((week, weekIdx) => (
-                                <div
-                                  key={weekIdx}
-                                  className='grid grid-cols-7 gap-1'>
-                                  {week.map((day) => (
+                            </div>
+                            {/* Progress bar chart */}
+                            <div className='flex items-end gap-1 h-16'>
+                              {data.slice(-10).map((d, i) => {
+                                const heightPercent =
+                                  maxWeight > 0
+                                    ? ((d.weight || 0) / maxWeight) * 100
+                                    : 0;
+                                return (
+                                  <div
+                                    key={`${d.date}-${i}`}
+                                    className='flex-1 flex flex-col items-center'
+                                    title={`${d.date}: ${d.weight}kg`}>
+                                    <div
+                                      className='w-full relative'
+                                      style={{ height: "48px" }}>
+                                      <div
+                                        className={cn(
+                                          "absolute bottom-0 left-0 right-0 rounded-t transition-all",
+                                          d.weight === maxWeight
+                                            ? "bg-ios-green"
+                                            : "bg-ios-blue"
+                                        )}
+                                        style={{ height: `${heightPercent}%` }}
+                                      />
+                                    </div>
+                                    <div className='text-[8px] text-gray-400 mt-1'>
+                                      {new Date(d.date).getDate()}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Distance Progress Charts */}
+                {workoutStats.exercisesWithDistanceProgress.length > 0 && (
+                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
+                    <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
+                      🏃 Distance Progress
+                    </h4>
+                    <div className='space-y-4'>
+                      {workoutStats.exercisesWithDistanceProgress.map(
+                        ({ name, data, maxDistance, totalDistance }) => (
+                          <div key={name}>
+                            <div className='flex items-center justify-between mb-2'>
+                              <span className='text-[14px] font-medium text-gray-900 dark:text-white'>
+                                {name}
+                              </span>
+                              <div className='flex items-center gap-3'>
+                                <span className='text-[13px] text-gray-500'>
+                                  Total:{" "}
+                                  <span className='font-semibold text-ios-orange'>
+                                    {totalDistance.toFixed(1)}km
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+                            {/* Progress bar chart */}
+                            <div className='flex items-end gap-1 h-16'>
+                              {data.slice(-10).map((d, i) => {
+                                const heightPercent =
+                                  maxDistance > 0
+                                    ? ((d.distance || 0) / maxDistance) * 100
+                                    : 0;
+                                return (
+                                  <div
+                                    key={`${d.date}-${i}`}
+                                    className='flex-1 flex flex-col items-center'
+                                    title={`${d.date}: ${d.distance}km`}>
+                                    <div
+                                      className='w-full relative'
+                                      style={{ height: "48px" }}>
+                                      <div
+                                        className={cn(
+                                          "absolute bottom-0 left-0 right-0 rounded-t transition-all",
+                                          d.distance === maxDistance
+                                            ? "bg-ios-green"
+                                            : "bg-ios-orange"
+                                        )}
+                                        style={{ height: `${heightPercent}%` }}
+                                      />
+                                    </div>
+                                    <div className='text-[8px] text-gray-400 mt-1'>
+                                      {new Date(d.date).getDate()}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Value List with Bars - Only show for non-nutrition and non-workout types */}
+            {!isNutritionType && !isWorkoutType && (
+              <div className='p-4'>
+                <h4 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 mb-3'>
+                  Tap to see dates
+                </h4>
+                <div className='space-y-3'>
+                  {valueCounts.map(({ value, count }, index) => {
+                    const isSelected = selectedValue === value;
+                    const moodBarColor = isMoodType
+                      ? getMoodBarColor(value)
+                      : barColors[index % barColors.length];
+                    const moodTextColor = isMoodType
+                      ? getMoodTextColor(value)
+                      : "text-ios-blue";
+                    const moodBgColorClass = isMoodType
+                      ? getMoodBgColor(value)
+                      : "bg-ios-blue/5 dark:bg-ios-blue/10";
+                    return (
+                      <div key={value}>
+                        <button
+                          onClick={() =>
+                            setSelectedValue(isSelected ? null : value)
+                          }
+                          className={cn(
+                            "w-full text-left space-y-1 p-2 -m-2 rounded-lg transition-all",
+                            isSelected
+                              ? moodBgColorClass
+                              : "active:bg-gray-100 dark:active:bg-gray-800"
+                          )}>
+                          <div className='flex items-center justify-between text-[15px]'>
+                            <span
+                              className={cn(
+                                "capitalize truncate mr-2",
+                                isSelected
+                                  ? cn(moodTextColor, "font-medium")
+                                  : "text-gray-700 dark:text-gray-300"
+                              )}>
+                              {formatDisplayValue(value)}
+                            </span>
+                            <div className='flex items-center gap-2'>
+                              <span className='text-[13px] text-gray-600 dark:text-gray-400 font-medium shrink-0 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full'>
+                                {count}
+                              </span>
+                              <span
+                                className={cn(
+                                  "text-[13px] text-gray-400 transition-transform",
+                                  isSelected ? "rotate-180" : ""
+                                )}>
+                                ▼
+                              </span>
+                            </div>
+                          </div>
+                          <div className='h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden'>
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                moodBarColor
+                              )}
+                              style={{ width: `${(count / maxCount) * 100}%` }}
+                            />
+                          </div>
+                        </button>
+
+                        {/* Calendar view when selected */}
+                        {isSelected && calendarData && (
+                          <div
+                            className='mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl'
+                            onClick={(e) => e.stopPropagation()}>
+                            {calendarData.type === "week" && (
+                              <div>
+                                <CalendarNavHeader
+                                  label={calendarData.weekRange}
+                                  onPrev={() => setOffset(offset - 1)}
+                                  onNext={() => setOffset(offset + 1)}
+                                  canGoPrev={canGoBack}
+                                  canGoNext={canGoForward}
+                                  onToday={() => setOffset(0)}
+                                  showToday={offset !== 0}
+                                />
+                                <div className='flex justify-between gap-1'>
+                                  {calendarData.days.map((day) => (
                                     <div
                                       key={day.date}
                                       className={cn(
-                                        "aspect-square flex items-center justify-center text-[13px] rounded-lg",
-                                        !day.isCurrentMonth && "opacity-30",
+                                        "flex-1 text-center py-2 px-1 rounded-lg",
                                         day.isMarked
                                           ? isMoodType
-                                            ? getMoodColorClasses(value, true) +
-                                              " font-bold"
-                                            : "bg-ios-blue text-white font-bold"
+                                            ? getMoodColorClasses(value, true)
+                                            : "bg-ios-blue text-white"
                                           : day.isToday
                                           ? isMoodType
-                                            ? getMoodColorClasses(
-                                                value,
-                                                false
-                                              ) + " font-medium"
-                                            : "bg-ios-blue/10 text-ios-blue font-medium"
-                                          : "text-gray-600 dark:text-gray-400"
+                                            ? getMoodColorClasses(value, false)
+                                            : "bg-ios-blue/10 text-ios-blue"
+                                          : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400"
                                       )}>
-                                      {day.dayNum}
+                                      <div className='text-[10px] uppercase font-medium'>
+                                        {day.dayName}
+                                      </div>
+                                      <div
+                                        className={cn(
+                                          "text-lg font-bold",
+                                          day.isMarked && "text-white"
+                                        )}>
+                                        {day.dayNum}
+                                      </div>
+                                      <div className='text-[9px] opacity-70'>
+                                        {day.month}
+                                      </div>
+                                      {day.isMarked && (
+                                        <div className='text-[10px]'>
+                                          {isMoodType
+                                            ? getMoodEmoji(value)
+                                            : "✓"}
+                                        </div>
+                                      )}
                                     </div>
                                   ))}
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                              </div>
+                            )}
 
-                          {calendarData.type === "year" && (
-                            <div className='space-y-2'>
-                              {/* Year header with navigation */}
-                              <CalendarNavHeader
-                                label={String(calendarData.year)}
-                                onPrev={() => setOffset(offset - 1)}
-                                onNext={() => setOffset(offset + 1)}
-                                canGoPrev={canGoBack}
-                                canGoNext={canGoForward}
-                                onToday={() => setOffset(0)}
-                                showToday={offset !== 0}
-                              />
-
-                              {/* Mini calendar grid - 2 columns of months (6 rows) */}
-                              <div className='grid grid-cols-2 gap-4'>
-                                {calendarData.months.map((month, idx) => (
-                                  <div key={idx} className='text-center'>
-                                    <div className='text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1.5'>
-                                      {month.name}
-                                    </div>
-                                    <div className='grid grid-cols-7 gap-0.5 text-[8px] text-gray-400 mb-0.5'>
-                                      <div>M</div>
-                                      <div>T</div>
-                                      <div>W</div>
-                                      <div>T</div>
-                                      <div>F</div>
-                                      <div>S</div>
-                                      <div>S</div>
-                                    </div>
-                                    <div className='grid grid-cols-7 gap-0.5'>
-                                      {/* Add empty cells for first week alignment */}
-                                      {(() => {
-                                        const firstDay = new Date(
-                                          month.year,
-                                          idx,
-                                          1
-                                        );
-                                        const startDay =
-                                          (firstDay.getDay() + 6) % 7; // Monday = 0
-                                        const emptyCells = [];
-                                        for (let i = 0; i < startDay; i++) {
-                                          emptyCells.push(
-                                            <div
-                                              key={`empty-${i}`}
-                                              className='w-4 h-4'
-                                            />
-                                          );
-                                        }
-                                        return emptyCells;
-                                      })()}
-                                      {month.days.map((day) => (
-                                        <div
-                                          key={day.date}
-                                          className={cn(
-                                            "w-4 h-4 rounded-sm flex items-center justify-center text-[9px]",
-                                            day.isFuture
-                                              ? "bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600"
-                                              : day.isMarked
-                                              ? isMoodType
-                                                ? getMoodColorClasses(
-                                                    value,
-                                                    true
-                                                  ) + " font-bold"
-                                                : "bg-ios-blue text-white font-bold"
-                                              : day.isToday
-                                              ? isMoodType
-                                                ? getMoodColorClasses(
-                                                    value,
-                                                    false
-                                                  ) + " font-medium"
-                                                : "bg-ios-blue/30 text-ios-blue font-medium"
-                                              : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
-                                          )}
-                                          title={`${day.dayNum}. ${month.name}${
-                                            day.isMarked
-                                              ? isMoodType
-                                                ? ` ${getMoodEmoji(value)}`
-                                                : " ✓"
-                                              : ""
-                                          }`}>
-                                          {day.dayNum}
-                                        </div>
-                                      ))}
-                                    </div>
-                                    {/* Month summary */}
-                                    <div className='mt-1 text-[10px] text-gray-500 dark:text-gray-400'>
-                                      {month.days.filter((d) => d.isMarked)
-                                        .length > 0 && (
-                                        <span
-                                          className={cn(
-                                            "font-medium",
-                                            isMoodType
-                                              ? getMoodTextColor(value)
-                                              : "text-ios-blue"
-                                          )}>
-                                          {
-                                            month.days.filter((d) => d.isMarked)
-                                              .length
-                                          }{" "}
-                                          days
-                                        </span>
-                                      )}
-                                    </div>
+                            {calendarData.type === "month" && (
+                              <div>
+                                <CalendarNavHeader
+                                  label={calendarData.monthName}
+                                  onPrev={() => setOffset(offset - 1)}
+                                  onNext={() => setOffset(offset + 1)}
+                                  canGoPrev={canGoBack}
+                                  canGoNext={canGoForward}
+                                  onToday={() => setOffset(0)}
+                                  showToday={offset !== 0}
+                                />
+                                <div className='grid grid-cols-7 gap-1 text-center text-[10px] text-gray-500 mb-1'>
+                                  <div>Mo</div>
+                                  <div>Tu</div>
+                                  <div>We</div>
+                                  <div>Th</div>
+                                  <div>Fr</div>
+                                  <div>Sa</div>
+                                  <div>Su</div>
+                                </div>
+                                {calendarData.weeks.map((week, weekIdx) => (
+                                  <div
+                                    key={weekIdx}
+                                    className='grid grid-cols-7 gap-1'>
+                                    {week.map((day) => (
+                                      <div
+                                        key={day.date}
+                                        className={cn(
+                                          "aspect-square flex items-center justify-center text-[13px] rounded-lg",
+                                          !day.isCurrentMonth && "opacity-30",
+                                          day.isMarked
+                                            ? isMoodType
+                                              ? getMoodColorClasses(
+                                                  value,
+                                                  true
+                                                ) + " font-bold"
+                                              : "bg-ios-blue text-white font-bold"
+                                            : day.isToday
+                                            ? isMoodType
+                                              ? getMoodColorClasses(
+                                                  value,
+                                                  false
+                                                ) + " font-medium"
+                                              : "bg-ios-blue/10 text-ios-blue font-medium"
+                                            : "text-gray-600 dark:text-gray-400"
+                                        )}>
+                                        {day.dayNum}
+                                      </div>
+                                    ))}
                                   </div>
                                 ))}
                               </div>
+                            )}
 
-                              {/* Legend */}
-                              <div className='flex items-center justify-center gap-2 mt-3 text-[10px] text-gray-500'>
-                                <span>Less</span>
-                                <div className='flex gap-1'>
-                                  <div className='w-2 h-2 rounded-sm bg-gray-200 dark:bg-gray-700' />
-                                  <div className='w-2 h-2 rounded-sm bg-ios-blue/30' />
-                                  <div className='w-2 h-2 rounded-sm bg-ios-blue' />
+                            {calendarData.type === "year" && (
+                              <div className='space-y-2'>
+                                {/* Year header with navigation */}
+                                <CalendarNavHeader
+                                  label={String(calendarData.year)}
+                                  onPrev={() => setOffset(offset - 1)}
+                                  onNext={() => setOffset(offset + 1)}
+                                  canGoPrev={canGoBack}
+                                  canGoNext={canGoForward}
+                                  onToday={() => setOffset(0)}
+                                  showToday={offset !== 0}
+                                />
+
+                                {/* Mini calendar grid - 2 columns of months (6 rows) */}
+                                <div className='grid grid-cols-2 gap-4'>
+                                  {calendarData.months.map((month, idx) => (
+                                    <div key={idx} className='text-center'>
+                                      <div className='text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1.5'>
+                                        {month.name}
+                                      </div>
+                                      <div className='grid grid-cols-7 gap-0.5 text-[8px] text-gray-400 mb-0.5'>
+                                        <div>M</div>
+                                        <div>T</div>
+                                        <div>W</div>
+                                        <div>T</div>
+                                        <div>F</div>
+                                        <div>S</div>
+                                        <div>S</div>
+                                      </div>
+                                      <div className='grid grid-cols-7 gap-0.5'>
+                                        {/* Add empty cells for first week alignment */}
+                                        {(() => {
+                                          const firstDay = new Date(
+                                            month.year,
+                                            idx,
+                                            1
+                                          );
+                                          const startDay =
+                                            (firstDay.getDay() + 6) % 7; // Monday = 0
+                                          const emptyCells = [];
+                                          for (let i = 0; i < startDay; i++) {
+                                            emptyCells.push(
+                                              <div
+                                                key={`empty-${i}`}
+                                                className='w-4 h-4'
+                                              />
+                                            );
+                                          }
+                                          return emptyCells;
+                                        })()}
+                                        {month.days.map((day) => (
+                                          <div
+                                            key={day.date}
+                                            className={cn(
+                                              "w-4 h-4 rounded-sm flex items-center justify-center text-[9px]",
+                                              day.isFuture
+                                                ? "bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600"
+                                                : day.isMarked
+                                                ? isMoodType
+                                                  ? getMoodColorClasses(
+                                                      value,
+                                                      true
+                                                    ) + " font-bold"
+                                                  : "bg-ios-blue text-white font-bold"
+                                                : day.isToday
+                                                ? isMoodType
+                                                  ? getMoodColorClasses(
+                                                      value,
+                                                      false
+                                                    ) + " font-medium"
+                                                  : "bg-ios-blue/30 text-ios-blue font-medium"
+                                                : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                                            )}
+                                            title={`${day.dayNum}. ${
+                                              month.name
+                                            }${
+                                              day.isMarked
+                                                ? isMoodType
+                                                  ? ` ${getMoodEmoji(value)}`
+                                                  : " ✓"
+                                                : ""
+                                            }`}>
+                                            {day.dayNum}
+                                          </div>
+                                        ))}
+                                      </div>
+                                      {/* Month summary */}
+                                      <div className='mt-1 text-[10px] text-gray-500 dark:text-gray-400'>
+                                        {month.days.filter((d) => d.isMarked)
+                                          .length > 0 && (
+                                          <span
+                                            className={cn(
+                                              "font-medium",
+                                              isMoodType
+                                                ? getMoodTextColor(value)
+                                                : "text-ios-blue"
+                                            )}>
+                                            {
+                                              month.days.filter(
+                                                (d) => d.isMarked
+                                              ).length
+                                            }{" "}
+                                            days
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
-                                <span>More</span>
-                              </div>
-                            </div>
-                          )}
 
-                          {/* Summary */}
-                          <div className='mt-3 pt-2 border-t border-gray-200/80 dark:border-gray-700/80 text-center text-[13px] text-gray-500'>
-                            {datesForSelectedValue.size} days with this value
+                                {/* Legend */}
+                                <div className='flex items-center justify-center gap-2 mt-3 text-[10px] text-gray-500'>
+                                  <span>Less</span>
+                                  <div className='flex gap-1'>
+                                    <div className='w-2 h-2 rounded-sm bg-gray-200 dark:bg-gray-700' />
+                                    <div className='w-2 h-2 rounded-sm bg-ios-blue/30' />
+                                    <div className='w-2 h-2 rounded-sm bg-ios-blue' />
+                                  </div>
+                                  <span>More</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Summary */}
+                            <div className='mt-3 pt-2 border-t border-gray-200/80 dark:border-gray-700/80 text-center text-[13px] text-gray-500'>
+                              {datesForSelectedValue.size} days with this value
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         ) : (
           <div className='text-center py-12'>
