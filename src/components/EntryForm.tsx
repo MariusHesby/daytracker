@@ -382,10 +382,11 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         });
       }
 
-      // Reset state
-      setWorkoutData({});
-      setExpandedExercises(new Set());
-      setIsEditingWorkout(false);
+      // Only reset if no exercises are expanded (user is done)
+      if (expandedExercises.size === 0) {
+        setWorkoutData({});
+        setIsEditingWorkout(false);
+      }
 
       onSuccess?.();
     } catch (error) {
@@ -1159,11 +1160,18 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
           return { sets: 1 };
         };
 
-        // Toggle exercise expansion
-        const toggleExercise = (exerciseName: string) => {
+        // Toggle exercise expansion - auto-saves when collapsing
+        const toggleExercise = async (exerciseName: string) => {
           const newExpanded = new Set(expandedExercises);
           if (newExpanded.has(exerciseName)) {
+            // Collapsing - trigger auto-save if there's data
             newExpanded.delete(exerciseName);
+            setExpandedExercises(newExpanded);
+            
+            // Auto-save after a short delay to let state update
+            setTimeout(() => {
+              handleSaveAllWorkouts(type.id, customExercises);
+            }, 100);
           } else {
             newExpanded.add(exerciseName);
             // Initialize with last used values if not already set
@@ -1181,8 +1189,8 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                 [exerciseName]: initialSets,
               }));
             }
+            setExpandedExercises(newExpanded);
           }
-          setExpandedExercises(newExpanded);
         };
 
         // Update a specific set's data for an exercise
@@ -1827,35 +1835,25 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                   );
                 })}
 
-                {/* Save/Cancel buttons */}
-                <div className='pt-2 space-y-2'>
-                  <button
-                    onClick={() =>
-                      handleSaveAllWorkouts(type.id, customExercises)
-                    }
-                    disabled={!hasAnyData}
-                    className='w-full py-2.5 rounded-lg text-[17px] font-medium bg-ios-blue text-white disabled:opacity-50 disabled:cursor-not-allowed'>
-                    {isEditingWorkout ? "Save Changes" : "Save Workout"}
-                  </button>
-                  {isEditingWorkout && (
-                    <div className='flex gap-2'>
-                      <button
-                        onClick={() => {
-                          setWorkoutData({});
-                          setExpandedExercises(new Set());
-                          setIsEditingWorkout(false);
-                        }}
-                        className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'>
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => handleDeleteWorkout(type.id)}
-                        className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-ios-red/10 text-ios-red'>
-                        Delete Workout
-                      </button>
-                    </div>
-                  )}
-                </div>
+                {/* Edit mode controls */}
+                {isEditingWorkout && (
+                  <div className='pt-2 flex gap-2'>
+                    <button
+                      onClick={() => {
+                        setWorkoutData({});
+                        setExpandedExercises(new Set());
+                        setIsEditingWorkout(false);
+                      }}
+                      className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'>
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleDeleteWorkout(type.id)}
+                      className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-ios-red/10 text-ios-red'>
+                      Delete Workout
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
