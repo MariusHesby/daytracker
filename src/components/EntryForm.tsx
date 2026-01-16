@@ -1137,8 +1137,14 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         const customExercises = type.customExercises || [];
 
         // Find last used values for an exercise from history
+        // Find last used values for an exercise from history (previous days only)
         const getLastUsedValues = (exerciseName: string) => {
-          for (const entry of entries) {
+          // Sort entries by date descending (newest first), excluding today
+          const sortedEntries = [...entries]
+            .filter(e => e.date < date) // Only look at previous days
+            .sort((a, b) => b.date.localeCompare(a.date));
+          
+          for (const entry of sortedEntries) {
             if (
               entry.activityTypeId === type.id &&
               entry.workoutData?.exercises
@@ -1153,6 +1159,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                   weight: found.weight,
                   distance: found.distance,
                   duration: found.duration,
+                  setsData: found.setsData,
                 };
               }
             }
@@ -1177,13 +1184,24 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
             // Initialize with last used values if not already set
             if (!workoutData[exerciseName]) {
               const lastUsed = getLastUsedValues(exerciseName);
-              const numSets = lastUsed.sets || 1;
-              const initialSets = Array.from({ length: numSets }, () => ({
-                reps: lastUsed.reps,
-                weight: lastUsed.weight,
-                distance: lastUsed.distance,
-                duration: lastUsed.duration,
-              }));
+              // Use setsData if available (preserves individual set values)
+              let initialSets;
+              if (lastUsed.setsData && lastUsed.setsData.length > 0) {
+                initialSets = lastUsed.setsData.map(set => ({
+                  reps: set.reps,
+                  weight: set.weight,
+                  distance: set.distance,
+                  duration: set.duration,
+                }));
+              } else {
+                const numSets = lastUsed.sets || 1;
+                initialSets = Array.from({ length: numSets }, () => ({
+                  reps: lastUsed.reps,
+                  weight: lastUsed.weight,
+                  distance: lastUsed.distance,
+                  duration: lastUsed.duration,
+                }));
+              }
               setWorkoutData((prev) => ({
                 ...prev,
                 [exerciseName]: initialSets,
