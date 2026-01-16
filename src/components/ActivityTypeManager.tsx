@@ -92,6 +92,8 @@ export const ActivityTypeManager = forwardRef<
   const [newExerciseTrackDuration, setNewExerciseTrackDuration] =
     useState(false);
   const [showAddExercise, setShowAddExercise] = useState(false);
+  const [showExerciseDropdown, setShowExerciseDropdown] = useState(false);
+  const exerciseInputRef = useRef<HTMLInputElement>(null);
 
   const setIsAdding = (value: boolean) => {
     setIsAddingState(value);
@@ -559,13 +561,61 @@ export const ActivityTypeManager = forwardRef<
               {/* Add Exercise Form */}
               {showAddExercise && (
                 <div className='space-y-3 p-3 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600'>
-                  <input
-                    type='text'
-                    value={newExerciseName}
-                    onChange={(e) => setNewExerciseName(e.target.value)}
-                    placeholder='Exercise name'
-                    className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                  />
+                  <div className='relative'>
+                    <input
+                      ref={exerciseInputRef}
+                      type='text'
+                      value={newExerciseName}
+                      onChange={(e) => {
+                        setNewExerciseName(e.target.value);
+                        setShowExerciseDropdown(true);
+                      }}
+                      onFocus={() => setShowExerciseDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowExerciseDropdown(false), 200)}
+                      placeholder='Exercise name'
+                      className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                    />
+                    {showExerciseDropdown && (
+                      <div className='absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-auto'>
+                        {COMMON_EXERCISES
+                          .filter(ex => 
+                            !customExercises.some(ce => ce.name.toLowerCase() === ex.name.toLowerCase()) &&
+                            (newExerciseName === '' || ex.name.toLowerCase().includes(newExerciseName.toLowerCase()))
+                          )
+                          .map((exercise) => (
+                            <button
+                              key={exercise.name}
+                              type='button'
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setNewExerciseName(exercise.name);
+                                setNewExerciseCategory(exercise.category);
+                                setNewExerciseTrackWeight(exercise.trackWeight || false);
+                                setNewExerciseTrackReps(exercise.trackReps || false);
+                                setNewExerciseTrackDistance(exercise.trackDistance || false);
+                                setNewExerciseTrackDuration(exercise.trackDuration || false);
+                                setShowExerciseDropdown(false);
+                              }}
+                              className='w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors'>
+                              <span className='text-[15px] text-gray-900 dark:text-white'>
+                                {exercise.name}
+                              </span>
+                              <span className='text-[12px] text-gray-500 ml-2 capitalize'>
+                                {exercise.category}
+                              </span>
+                            </button>
+                          ))}
+                        {COMMON_EXERCISES.filter(ex => 
+                          !customExercises.some(ce => ce.name.toLowerCase() === ex.name.toLowerCase()) &&
+                          (newExerciseName === '' || ex.name.toLowerCase().includes(newExerciseName.toLowerCase()))
+                        ).length === 0 && newExerciseName.trim() && (
+                          <div className='px-3 py-2 text-[13px] text-gray-500'>
+                            Create custom: "{newExerciseName}"
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Category selector */}
                   <div>
