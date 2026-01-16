@@ -96,7 +96,20 @@ export interface WorkoutRoutine {
   id: string;
   name: string; // e.g., "Push Day", "Leg Day", "Cardio"
   exerciseNames: string[]; // Names of exercises in this routine
+  color?: string; // Color for the routine badge
 }
+
+// Preset colors for workout routines
+export const ROUTINE_COLORS = [
+  '#007AFF', // iOS Blue
+  '#34C759', // iOS Green
+  '#FF9500', // iOS Orange
+  '#AF52DE', // iOS Purple
+  '#FF2D55', // iOS Pink
+  '#5AC8FA', // iOS Light Blue
+  '#FFCC00', // iOS Yellow
+  '#FF3B30', // iOS Red
+];
 
 export interface ActivityType {
   id: string;

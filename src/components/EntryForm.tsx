@@ -10,6 +10,9 @@ import {
   WorkoutExercise,
   WorkoutData,
   CustomExercise,
+  WorkoutRoutine,
+  ROUTINE_COLORS,
+  COMMON_EXERCISES,
 } from "@/types";
 import { cn } from "@/lib/utils";
 import { Icon, icons, IconName } from "./Icons";
@@ -47,6 +50,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     loadEntriesForDateRange,
     deleteEntry,
     updateEntry,
+    updateActivityType,
     isViewingOther,
     isDayLocked,
     toggleDayLock,
@@ -92,7 +96,14 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     new Set()
   );
   const [isEditingWorkout, setIsEditingWorkout] = useState(false);
-  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
+  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(
+    null
+  );
+  // Routine management state
+  const [showAddRoutine, setShowAddRoutine] = useState(false);
+  const [newRoutineName, setNewRoutineName] = useState("");
+  const [newRoutineExercises, setNewRoutineExercises] = useState<string[]>([]);
+  const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
 
   const isLocked = isDayLocked(date);
 
@@ -1366,45 +1377,211 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         // Editing/Adding view - show all exercises
         // Get available routines
         const routines = type.workoutRoutines || [];
-        
+
         // Filter exercises based on selected routine
         const exercisesToShow = selectedRoutineId
-          ? customExercises.filter(ex => {
-              const routine = routines.find(r => r.id === selectedRoutineId);
+          ? customExercises.filter((ex) => {
+              const routine = routines.find((r) => r.id === selectedRoutineId);
               return routine?.exerciseNames.includes(ex.name);
             })
           : customExercises;
 
+        // Get all available exercises (custom + built-in) for routine creation
+        const getAllExercisesForRoutine = () => {
+          const allExercises = [...COMMON_EXERCISES];
+          customExercises.forEach((ce) => {
+            if (!allExercises.find((e) => e.name.toLowerCase() === ce.name.toLowerCase())) {
+              allExercises.push(ce);
+            }
+          });
+          return allExercises;
+        };
+
+        // Toggle exercise in new routine
+        const toggleExerciseInNewRoutine = (exerciseName: string) => {
+          if (newRoutineExercises.includes(exerciseName)) {
+            setNewRoutineExercises(newRoutineExercises.filter((n) => n !== exerciseName));
+          } else {
+            setNewRoutineExercises([...newRoutineExercises, exerciseName]);
+          }
+        };
+
+        // Handle adding/updating routine
+        const handleSaveRoutine = async () => {
+          if (!newRoutineName.trim() || newRoutineExercises.length === 0) return;
+
+          const colorIndex = (routines.length) % ROUTINE_COLORS.length;
+          const newRoutine: WorkoutRoutine = {
+            id: editingRoutineId || Date.now().toString(),
+            name: newRoutineName.trim(),
+            exerciseNames: newRoutineExercises,
+            color: editingRoutineId 
+              ? routines.find(r => r.id === editingRoutineId)?.color || ROUTINE_COLORS[colorIndex]
+              : ROUTINE_COLORS[colorIndex],
+          };
+
+          let updatedRoutines: WorkoutRoutine[];
+          if (editingRoutineId) {
+            updatedRoutines = routines.map((r) => (r.id === editingRoutineId ? newRoutine : r));
+          } else {
+            updatedRoutines = [...routines, newRoutine];
+          }
+
+          await updateActivityType({
+            ...type,
+            workoutRoutines: updatedRoutines,
+          });
+
+          setNewRoutineName("");
+          setNewRoutineExercises([]);
+          setShowAddRoutine(false);
+          setEditingRoutineId(null);
+        };
+
+        // Handle editing routine
+        const startEditRoutine = (routine: WorkoutRoutine) => {
+          setEditingRoutineId(routine.id);
+          setNewRoutineName(routine.name);
+          setNewRoutineExercises([...routine.exerciseNames]);
+          setShowAddRoutine(true);
+        };
+
+        // Handle deleting routine
+        const handleDeleteRoutine = async (routineId: string) => {
+          const updatedRoutines = routines.filter((r) => r.id !== routineId);
+          await updateActivityType({
+            ...type,
+            workoutRoutines: updatedRoutines,
+          });
+          if (selectedRoutineId === routineId) {
+            setSelectedRoutineId(null);
+          }
+        };
+
         return (
           <div className='pt-3 space-y-2'>
             {/* Routine selector */}
-            {routines.length > 0 && (
-              <div className='mb-3'>
-                <p className='text-[12px] text-gray-500 mb-2'>Select routine:</p>
-                <div className='flex flex-wrap gap-2'>
+            <div className='mb-3'>
+              <p className='text-[12px] text-gray-500 mb-2'>Select routine:</p>
+              <div className='flex flex-wrap gap-2'>
+                <button
+                  onClick={() => setSelectedRoutineId(null)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors",
+                    selectedRoutineId === null
+                      ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                  )}>
+                  All
+                </button>
+                {routines.map((routine) => (
                   <button
-                    onClick={() => setSelectedRoutineId(null)}
+                    key={routine.id}
+                    onClick={() => setSelectedRoutineId(routine.id)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      startEditRoutine(routine);
+                    }}
                     className={cn(
-                      "px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors",
-                      selectedRoutineId === null
-                        ? "bg-ios-blue text-white"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                    )}>
-                    All
+                      "px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors flex items-center gap-1.5",
+                      selectedRoutineId === routine.id
+                        ? "text-white"
+                        : "bg-gray-100 dark:bg-gray-700"
+                    )}
+                    style={{
+                      backgroundColor: selectedRoutineId === routine.id ? routine.color : undefined,
+                      color: selectedRoutineId === routine.id ? 'white' : routine.color,
+                    }}>
+                    <span
+                      className='w-2 h-2 rounded-full'
+                      style={{ backgroundColor: routine.color }}
+                    />
+                    {routine.name}
                   </button>
-                  {routines.map(routine => (
+                ))}
+                <button
+                  onClick={() => {
+                    setShowAddRoutine(!showAddRoutine);
+                    setEditingRoutineId(null);
+                    setNewRoutineName("");
+                    setNewRoutineExercises([]);
+                  }}
+                  className='px-3 py-1.5 rounded-full text-[14px] font-medium text-ios-blue bg-ios-blue/10 transition-colors'>
+                  + Add Routine
+                </button>
+              </div>
+            </div>
+
+            {/* Add/Edit Routine Modal */}
+            {showAddRoutine && (
+              <div className='p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-3'>
+                <div className='flex items-center justify-between'>
+                  <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                    {editingRoutineId ? "Edit Routine" : "New Routine"}
+                  </span>
+                  {editingRoutineId && (
                     <button
-                      key={routine.id}
-                      onClick={() => setSelectedRoutineId(routine.id)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors",
-                        selectedRoutineId === routine.id
-                          ? "bg-ios-blue text-white"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                      )}>
-                      {routine.name}
+                      onClick={() => handleDeleteRoutine(editingRoutineId)}
+                      className='text-[13px] text-ios-red font-medium'>
+                      Delete
                     </button>
-                  ))}
+                  )}
+                </div>
+                <input
+                  type='text'
+                  value={newRoutineName}
+                  onChange={(e) => setNewRoutineName(e.target.value)}
+                  placeholder='Routine name (e.g., Push Day)'
+                  className='w-full px-3 py-2.5 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                />
+                <div>
+                  <label className='text-[13px] text-gray-500 mb-2 block'>
+                    Select exercises:
+                  </label>
+                  <div className='max-h-48 overflow-auto space-y-1 rounded-lg bg-gray-50 dark:bg-gray-700/50 p-2'>
+                    {getAllExercisesForRoutine().map((exercise) => (
+                      <button
+                        key={exercise.name}
+                        type='button'
+                        onClick={() => toggleExerciseInNewRoutine(exercise.name)}
+                        className={cn(
+                          "w-full px-3 py-2 rounded-lg text-left text-[14px] flex items-center justify-between transition-colors",
+                          newRoutineExercises.includes(exercise.name)
+                            ? "bg-ios-blue/10 text-ios-blue"
+                            : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                        )}>
+                        <span>{exercise.name}</span>
+                        {newRoutineExercises.includes(exercise.name) && (
+                          <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+                            <path strokeLinecap='round' strokeLinejoin='round' d='M5 13l4 4L19 7' />
+                          </svg>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  {newRoutineExercises.length > 0 && (
+                    <p className='text-[12px] text-ios-blue mt-2'>
+                      {newRoutineExercises.length} exercise{newRoutineExercises.length !== 1 ? "s" : ""} selected
+                    </p>
+                  )}
+                </div>
+                <div className='flex gap-2'>
+                  <button
+                    onClick={handleSaveRoutine}
+                    disabled={!newRoutineName.trim() || newRoutineExercises.length === 0}
+                    className='flex-1 py-2.5 rounded-lg text-[15px] font-medium bg-ios-blue text-white disabled:opacity-50'>
+                    {editingRoutineId ? "Update" : "Add"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAddRoutine(false);
+                      setEditingRoutineId(null);
+                      setNewRoutineName("");
+                      setNewRoutineExercises([]);
+                    }}
+                    className='flex-1 py-2.5 rounded-lg text-[15px] font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'>
+                    Cancel
+                  </button>
                 </div>
               </div>
             )}
@@ -1417,7 +1594,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
             ) : exercisesToShow.length === 0 ? (
               <div className='py-4 text-center text-gray-500'>
                 <p className='text-[14px]'>No exercises in this routine</p>
-                <p className='text-[12px] mt-1'>Select a different routine or edit in Settings</p>
+                <p className='text-[12px] mt-1'>
+                  Select a different routine or edit in Settings
+                </p>
               </div>
             ) : (
               <>
