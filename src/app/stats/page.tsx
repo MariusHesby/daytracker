@@ -323,9 +323,31 @@ export default function StatsPage() {
   }, [timeRange, offset]);
 
   // Load entries based on time range - load a wider range to enable navigation
+  // Re-fetch when page becomes visible to get fresh data
   useEffect(() => {
-    // Load all entries to enable proper navigation bounds
-    loadEntriesForDateRange("2000-01-01", toDateStr(new Date()));
+    const loadData = () => {
+      loadEntriesForDateRange("2000-01-01", toDateStr(new Date()));
+    };
+    
+    // Load on mount
+    loadData();
+    
+    // Reload when page becomes visible (user returns to stats page)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also reload on focus (for desktop tab switching)
+    window.addEventListener('focus', loadData);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', loadData);
+    };
   }, [loadEntriesForDateRange]);
 
   // Reset offset when time range changes
