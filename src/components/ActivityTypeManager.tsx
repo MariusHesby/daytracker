@@ -133,17 +133,14 @@ export const ActivityTypeManager = forwardRef<
   const handleAddExercise = () => {
     if (!newExerciseName.trim()) return;
 
-    // Check if exercise already exists
-    const exists =
-      customExercises.some(
-        (e) => e.name.toLowerCase() === newExerciseName.trim().toLowerCase()
-      ) ||
-      COMMON_EXERCISES.some(
-        (e) => e.name.toLowerCase() === newExerciseName.trim().toLowerCase()
-      );
+    // Check if exercise already exists in custom exercises only
+    // (Built-in exercises are already available, so selecting one from dropdown is just for customizing tracking options)
+    const existsInCustom = customExercises.some(
+      (e) => e.name.toLowerCase() === newExerciseName.trim().toLowerCase()
+    );
 
-    if (exists) {
-      setError("An exercise with this name already exists.");
+    if (existsInCustom) {
+      setError("You already have a custom exercise with this name.");
       return;
     }
 
@@ -571,48 +568,71 @@ export const ActivityTypeManager = forwardRef<
                         setShowExerciseDropdown(true);
                       }}
                       onFocus={() => setShowExerciseDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowExerciseDropdown(false), 200)}
+                      onBlur={() =>
+                        setTimeout(() => setShowExerciseDropdown(false), 200)
+                      }
                       placeholder='Exercise name'
                       className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                     />
                     {showExerciseDropdown && (
                       <div className='absolute z-20 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-auto'>
-                        {COMMON_EXERCISES
-                          .filter(ex => 
-                            !customExercises.some(ce => ce.name.toLowerCase() === ex.name.toLowerCase()) &&
-                            (newExerciseName === '' || ex.name.toLowerCase().includes(newExerciseName.toLowerCase()))
-                          )
-                          .map((exercise) => (
-                            <button
-                              key={exercise.name}
-                              type='button'
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => {
-                                setNewExerciseName(exercise.name);
-                                setNewExerciseCategory(exercise.category);
-                                setNewExerciseTrackWeight(exercise.trackWeight || false);
-                                setNewExerciseTrackReps(exercise.trackReps || false);
-                                setNewExerciseTrackDistance(exercise.trackDistance || false);
-                                setNewExerciseTrackDuration(exercise.trackDuration || false);
-                                setShowExerciseDropdown(false);
-                              }}
-                              className='w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors'>
-                              <span className='text-[15px] text-gray-900 dark:text-white'>
-                                {exercise.name}
-                              </span>
-                              <span className='text-[12px] text-gray-500 ml-2 capitalize'>
-                                {exercise.category}
-                              </span>
-                            </button>
-                          ))}
-                        {COMMON_EXERCISES.filter(ex => 
-                          !customExercises.some(ce => ce.name.toLowerCase() === ex.name.toLowerCase()) &&
-                          (newExerciseName === '' || ex.name.toLowerCase().includes(newExerciseName.toLowerCase()))
-                        ).length === 0 && newExerciseName.trim() && (
-                          <div className='px-3 py-2 text-[13px] text-gray-500'>
-                            Create custom: "{newExerciseName}"
-                          </div>
-                        )}
+                        {COMMON_EXERCISES.filter(
+                          (ex) =>
+                            !customExercises.some(
+                              (ce) =>
+                                ce.name.toLowerCase() === ex.name.toLowerCase()
+                            ) &&
+                            (newExerciseName === "" ||
+                              ex.name
+                                .toLowerCase()
+                                .includes(newExerciseName.toLowerCase()))
+                        ).map((exercise) => (
+                          <button
+                            key={exercise.name}
+                            type='button'
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setNewExerciseName(exercise.name);
+                              setNewExerciseCategory(exercise.category);
+                              setNewExerciseTrackWeight(
+                                exercise.trackWeight || false
+                              );
+                              setNewExerciseTrackReps(
+                                exercise.trackReps || false
+                              );
+                              setNewExerciseTrackDistance(
+                                exercise.trackDistance || false
+                              );
+                              setNewExerciseTrackDuration(
+                                exercise.trackDuration || false
+                              );
+                              setShowExerciseDropdown(false);
+                            }}
+                            className='w-full px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors'>
+                            <span className='text-[15px] text-gray-900 dark:text-white'>
+                              {exercise.name}
+                            </span>
+                            <span className='text-[12px] text-gray-500 ml-2 capitalize'>
+                              {exercise.category}
+                            </span>
+                          </button>
+                        ))}
+                        {COMMON_EXERCISES.filter(
+                          (ex) =>
+                            !customExercises.some(
+                              (ce) =>
+                                ce.name.toLowerCase() === ex.name.toLowerCase()
+                            ) &&
+                            (newExerciseName === "" ||
+                              ex.name
+                                .toLowerCase()
+                                .includes(newExerciseName.toLowerCase()))
+                        ).length === 0 &&
+                          newExerciseName.trim() && (
+                            <div className='px-3 py-2 text-[13px] text-gray-500'>
+                              Create custom: "{newExerciseName}"
+                            </div>
+                          )}
                       </div>
                     )}
                   </div>
