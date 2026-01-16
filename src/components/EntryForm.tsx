@@ -1167,7 +1167,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
             // Collapsing - trigger auto-save if there's data
             newExpanded.delete(exerciseName);
             setExpandedExercises(newExpanded);
-            
+
             // Auto-save after a short delay to let state update
             setTimeout(() => {
               handleSaveAllWorkouts(type.id, customExercises);
@@ -2281,8 +2281,8 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                     !isLast &&
                       "border-b border-gray-200/80 dark:border-gray-700/80"
                   )}>
-                  {/* Saved values with delete option - not for mood type */}
-                  {hasSavedValues && !isMood && (
+                  {/* Saved values with delete option - not for mood or workout type */}
+                  {hasSavedValues && !isMood && !isWorkout && (
                     <div className='flex flex-wrap gap-2 pb-3'>
                       {typeSavedValues.map((saved) => (
                         <span
