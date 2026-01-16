@@ -92,6 +92,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     new Set()
   );
   const [isEditingWorkout, setIsEditingWorkout] = useState(false);
+  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
 
   const isLocked = isDayLocked(date);
 
@@ -1363,17 +1364,65 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         }
 
         // Editing/Adding view - show all exercises
+        // Get available routines
+        const routines = type.workoutRoutines || [];
+        
+        // Filter exercises based on selected routine
+        const exercisesToShow = selectedRoutineId
+          ? customExercises.filter(ex => {
+              const routine = routines.find(r => r.id === selectedRoutineId);
+              return routine?.exerciseNames.includes(ex.name);
+            })
+          : customExercises;
+
         return (
           <div className='pt-3 space-y-2'>
+            {/* Routine selector */}
+            {routines.length > 0 && (
+              <div className='mb-3'>
+                <p className='text-[12px] text-gray-500 mb-2'>Select routine:</p>
+                <div className='flex flex-wrap gap-2'>
+                  <button
+                    onClick={() => setSelectedRoutineId(null)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors",
+                      selectedRoutineId === null
+                        ? "bg-ios-blue text-white"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                    )}>
+                    All
+                  </button>
+                  {routines.map(routine => (
+                    <button
+                      key={routine.id}
+                      onClick={() => setSelectedRoutineId(routine.id)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors",
+                        selectedRoutineId === routine.id
+                          ? "bg-ios-blue text-white"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      )}>
+                      {routine.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {customExercises.length === 0 ? (
               <div className='py-4 text-center text-gray-500'>
                 <p className='text-[14px]'>No exercises configured</p>
                 <p className='text-[12px] mt-1'>Add exercises in Settings</p>
               </div>
+            ) : exercisesToShow.length === 0 ? (
+              <div className='py-4 text-center text-gray-500'>
+                <p className='text-[14px]'>No exercises in this routine</p>
+                <p className='text-[12px] mt-1'>Select a different routine or edit in Settings</p>
+              </div>
             ) : (
               <>
                 {/* List all exercises with expandable sections */}
-                {customExercises.map((ex) => {
+                {exercisesToShow.map((ex) => {
                   const isExpanded = expandedExercises.has(ex.name);
                   const sets = workoutData[ex.name] || [{}];
                   const hasData = exerciseHasData(ex.name);

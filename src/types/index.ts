@@ -91,6 +91,13 @@ export interface CustomExercise {
   trackDuration?: boolean;
 }
 
+// Workout routine/group for organizing exercises
+export interface WorkoutRoutine {
+  id: string;
+  name: string; // e.g., "Push Day", "Leg Day", "Cardio"
+  exerciseNames: string[]; // Names of exercises in this routine
+}
+
 export interface ActivityType {
   id: string;
   name: string;
@@ -102,6 +109,7 @@ export interface ActivityType {
   hidden?: boolean; // True if the activity type is hidden from the main UI
   nutritionGoal?: NutritionGoal; // Goal for nutrition type
   customExercises?: CustomExercise[]; // Custom exercises for workout type
+  workoutRoutines?: WorkoutRoutine[]; // Workout routines/groups for organizing exercises
   createdAt: Date;
 }
 

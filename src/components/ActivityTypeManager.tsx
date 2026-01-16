@@ -8,6 +8,7 @@ import {
   CustomExercise,
   ExerciseCategory,
   COMMON_EXERCISES,
+  WorkoutRoutine,
 } from "@/types";
 import { cn } from "@/lib/utils";
 import { Icon, IconPicker, icons, IconName } from "./Icons";
@@ -95,6 +96,13 @@ export const ActivityTypeManager = forwardRef<
   const [showExerciseDropdown, setShowExerciseDropdown] = useState(false);
   const exerciseInputRef = useRef<HTMLInputElement>(null);
 
+  // Workout routines state
+  const [workoutRoutines, setWorkoutRoutines] = useState<WorkoutRoutine[]>([]);
+  const [showAddRoutine, setShowAddRoutine] = useState(false);
+  const [newRoutineName, setNewRoutineName] = useState("");
+  const [newRoutineExercises, setNewRoutineExercises] = useState<string[]>([]);
+  const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
+
   const setIsAdding = (value: boolean) => {
     setIsAddingState(value);
     onAddingChange?.(value);
@@ -128,6 +136,11 @@ export const ActivityTypeManager = forwardRef<
     setNewExerciseTrackDistance(false);
     setNewExerciseTrackDuration(false);
     setShowAddExercise(false);
+    setWorkoutRoutines([]);
+    setShowAddRoutine(false);
+    setNewRoutineName("");
+    setNewRoutineExercises([]);
+    setEditingRoutineId(null);
   };
 
   const handleAddExercise = () => {
@@ -169,6 +182,67 @@ export const ActivityTypeManager = forwardRef<
 
   const handleRemoveExercise = (exerciseName: string) => {
     setCustomExercises(customExercises.filter((e) => e.name !== exerciseName));
+    // Also remove from any routines
+    setWorkoutRoutines(routines => 
+      routines.map(r => ({
+        ...r,
+        exerciseNames: r.exerciseNames.filter(name => name !== exerciseName)
+      }))
+    );
+  };
+
+  // Routine management functions
+  const handleAddRoutine = () => {
+    if (!newRoutineName.trim()) return;
+    
+    const newRoutine: WorkoutRoutine = {
+      id: Date.now().toString(),
+      name: newRoutineName.trim(),
+      exerciseNames: newRoutineExercises,
+    };
+    
+    if (editingRoutineId) {
+      setWorkoutRoutines(routines => 
+        routines.map(r => r.id === editingRoutineId ? newRoutine : r)
+      );
+    } else {
+      setWorkoutRoutines([...workoutRoutines, newRoutine]);
+    }
+    
+    setNewRoutineName("");
+    setNewRoutineExercises([]);
+    setShowAddRoutine(false);
+    setEditingRoutineId(null);
+  };
+
+  const handleEditRoutine = (routine: WorkoutRoutine) => {
+    setEditingRoutineId(routine.id);
+    setNewRoutineName(routine.name);
+    setNewRoutineExercises([...routine.exerciseNames]);
+    setShowAddRoutine(true);
+  };
+
+  const handleRemoveRoutine = (routineId: string) => {
+    setWorkoutRoutines(routines => routines.filter(r => r.id !== routineId));
+  };
+
+  const toggleExerciseInRoutine = (exerciseName: string) => {
+    if (newRoutineExercises.includes(exerciseName)) {
+      setNewRoutineExercises(newRoutineExercises.filter(n => n !== exerciseName));
+    } else {
+      setNewRoutineExercises([...newRoutineExercises, exerciseName]);
+    }
+  };
+
+  // Get all available exercises (custom + built-in)
+  const getAllExercises = () => {
+    const allExercises = [...COMMON_EXERCISES];
+    customExercises.forEach(ce => {
+      if (!allExercises.find(e => e.name.toLowerCase() === ce.name.toLowerCase())) {
+        allExercises.push(ce);
+      }
+    });
+    return allExercises;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -201,6 +275,10 @@ export const ActivityTypeManager = forwardRef<
             valueType === "workout" && customExercises.length > 0
               ? customExercises
               : undefined,
+          workoutRoutines:
+            valueType === "workout" && workoutRoutines.length > 0
+              ? workoutRoutines
+              : undefined,
         });
       }
     } else {
@@ -212,6 +290,10 @@ export const ActivityTypeManager = forwardRef<
         customExercises:
           valueType === "workout" && customExercises.length > 0
             ? customExercises
+            : undefined,
+        workoutRoutines:
+          valueType === "workout" && workoutRoutines.length > 0
+            ? workoutRoutines
             : undefined,
       });
     }
@@ -227,6 +309,7 @@ export const ActivityTypeManager = forwardRef<
     setUnit(type.unit || "");
     setNutritionGoal(type.nutritionGoal || {});
     setCustomExercises(type.customExercises || []);
+    setWorkoutRoutines(type.workoutRoutines || []);
     setIsAdding(true);
   };
 
@@ -807,6 +890,135 @@ export const ActivityTypeManager = forwardRef<
                   ))}
                 </div>
               )}
+
+              {/* Workout Routines Section */}
+              <div className='space-y-3 p-3 rounded-xl bg-gray-100 dark:bg-gray-700/50 mt-4'>
+                <div className='flex items-center justify-between'>
+                  <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300'>
+                    Workout Routines
+                  </p>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      setShowAddRoutine(!showAddRoutine);
+                      setEditingRoutineId(null);
+                      setNewRoutineName("");
+                      setNewRoutineExercises([]);
+                    }}
+                    className='text-[13px] font-medium text-ios-blue'>
+                    + Add Routine
+                  </button>
+                </div>
+
+                <p className='text-[13px] text-gray-500'>
+                  Create routines to group exercises for different workout days (e.g., Push Day, Leg Day).
+                </p>
+
+                {/* Add/Edit Routine Form */}
+                {showAddRoutine && (
+                  <div className='space-y-3 p-3 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600'>
+                    <input
+                      type='text'
+                      value={newRoutineName}
+                      onChange={(e) => setNewRoutineName(e.target.value)}
+                      placeholder='Routine name (e.g., Push Day)'
+                      className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                    />
+
+                    {/* Exercise selector */}
+                    <div>
+                      <label className='text-[12px] text-gray-500 mb-2 block'>
+                        Select exercises for this routine:
+                      </label>
+                      <div className='max-h-48 overflow-auto space-y-1'>
+                        {getAllExercises().map((exercise) => (
+                          <button
+                            key={exercise.name}
+                            type='button'
+                            onClick={() => toggleExerciseInRoutine(exercise.name)}
+                            className={cn(
+                              "w-full px-3 py-2 rounded-lg text-left text-[14px] flex items-center justify-between",
+                              newRoutineExercises.includes(exercise.name)
+                                ? "bg-ios-blue/10 text-ios-blue"
+                                : "bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
+                            )}>
+                            <span>{exercise.name}</span>
+                            {newRoutineExercises.includes(exercise.name) && (
+                              <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+                                <path strokeLinecap='round' strokeLinejoin='round' d='M5 13l4 4L19 7' />
+                              </svg>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      {newRoutineExercises.length > 0 && (
+                        <p className='text-[12px] text-ios-blue mt-2'>
+                          {newRoutineExercises.length} exercise{newRoutineExercises.length !== 1 ? 's' : ''} selected
+                        </p>
+                      )}
+                    </div>
+
+                    <div className='flex gap-2'>
+                      <button
+                        type='button'
+                        onClick={handleAddRoutine}
+                        disabled={!newRoutineName.trim() || newRoutineExercises.length === 0}
+                        className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-ios-blue text-white disabled:opacity-50'>
+                        {editingRoutineId ? 'Update' : 'Add'}
+                      </button>
+                      <button
+                        type='button'
+                        onClick={() => {
+                          setShowAddRoutine(false);
+                          setEditingRoutineId(null);
+                          setNewRoutineName("");
+                          setNewRoutineExercises([]);
+                        }}
+                        className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Routines List */}
+                {workoutRoutines.length > 0 && (
+                  <div className='space-y-2'>
+                    {workoutRoutines.map((routine) => (
+                      <div
+                        key={routine.id}
+                        className='p-3 rounded-lg bg-white dark:bg-gray-700'>
+                        <div className='flex items-center justify-between mb-1'>
+                          <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                            {routine.name}
+                          </span>
+                          <div className='flex items-center gap-2'>
+                            <button
+                              type='button'
+                              onClick={() => handleEditRoutine(routine)}
+                              className='text-ios-blue p-1'>
+                              <svg className='w-4 h-4' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+                                <path strokeLinecap='round' strokeLinejoin='round' d='M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z' />
+                              </svg>
+                            </button>
+                            <button
+                              type='button'
+                              onClick={() => handleRemoveRoutine(routine.id)}
+                              className='text-ios-red p-1'>
+                              <svg className='w-4 h-4' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+                                <path strokeLinecap='round' strokeLinejoin='round' d='M6 18L18 6M6 6l12 12' />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <p className='text-[13px] text-gray-500'>
+                          {routine.exerciseNames.length} exercise{routine.exerciseNames.length !== 1 ? 's' : ''}: {routine.exerciseNames.slice(0, 3).join(', ')}{routine.exerciseNames.length > 3 ? '...' : ''}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
