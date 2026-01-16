@@ -1141,9 +1141,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         const getLastUsedValues = (exerciseName: string) => {
           // Sort entries by date descending (newest first), excluding today
           const sortedEntries = [...entries]
-            .filter(e => e.date < date) // Only look at previous days
+            .filter((e) => e.date < date) // Only look at previous days
             .sort((a, b) => b.date.localeCompare(a.date));
-          
+
           for (const entry of sortedEntries) {
             if (
               entry.activityTypeId === type.id &&
@@ -1187,7 +1187,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
               // Use setsData if available (preserves individual set values)
               let initialSets;
               if (lastUsed.setsData && lastUsed.setsData.length > 0) {
-                initialSets = lastUsed.setsData.map(set => ({
+                initialSets = lastUsed.setsData.map((set) => ({
                   reps: set.reps,
                   weight: set.weight,
                   distance: set.distance,

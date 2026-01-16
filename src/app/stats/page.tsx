@@ -1395,34 +1395,6 @@ export default function StatsPage() {
             {/* Workout Stats View */}
             {isWorkoutType && workoutStats && (
               <div className='p-4'>
-                {/* Summary Cards */}
-                <div className='grid grid-cols-2 gap-3 mb-4'>
-                  {/* Workouts Card */}
-                  <div className='p-3 rounded-xl bg-ios-blue/10'>
-                    <div className='text-[13px] text-ios-blue font-medium mb-1'>
-                      Workout Days
-                    </div>
-                    <div className='text-[28px] font-bold text-ios-blue'>
-                      {workoutStats.workoutDays}
-                    </div>
-                    <div className='text-[12px] text-gray-500'>
-                      {workoutStats.totalExercises} total exercises
-                    </div>
-                  </div>
-                  {/* Unique Exercises Card */}
-                  <div className='p-3 rounded-xl bg-ios-green/10'>
-                    <div className='text-[13px] text-ios-green font-medium mb-1'>
-                      Exercise Variety
-                    </div>
-                    <div className='text-[28px] font-bold text-ios-green'>
-                      {workoutStats.uniqueExercises}
-                    </div>
-                    <div className='text-[12px] text-gray-500'>
-                      unique exercises
-                    </div>
-                  </div>
-                </div>
-
                 {/* Category Breakdown */}
                 {workoutStats.categoryBreakdown.length > 0 && (
                   <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800 mb-4'>
