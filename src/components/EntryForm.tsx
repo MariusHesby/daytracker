@@ -1268,29 +1268,44 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                   const config = customExercises.find(
                     (e) => e.name === exercise.name
                   );
-                  const setsToShow = exercise.setsData || (exercise.sets ? Array.from({ length: exercise.sets }, () => ({
-                    reps: exercise.reps,
-                    weight: exercise.weight,
-                    distance: exercise.distance,
-                    duration: exercise.duration,
-                  })) : [{ reps: exercise.reps, weight: exercise.weight, distance: exercise.distance, duration: exercise.duration }]);
-                  
+                  const setsToShow =
+                    exercise.setsData ||
+                    (exercise.sets
+                      ? Array.from({ length: exercise.sets }, () => ({
+                          reps: exercise.reps,
+                          weight: exercise.weight,
+                          distance: exercise.distance,
+                          duration: exercise.duration,
+                        }))
+                      : [
+                          {
+                            reps: exercise.reps,
+                            weight: exercise.weight,
+                            distance: exercise.distance,
+                            duration: exercise.duration,
+                          },
+                        ]);
+
                   return (
                     <div key={exercise.id}>
                       {/* Exercise name header */}
-                      <div className={cn(
-                        'px-4 py-2.5 bg-gray-100 dark:bg-gray-700',
-                        exIndex > 0 && 'border-t border-gray-200 dark:border-gray-600'
-                      )}>
+                      <div
+                        className={cn(
+                          "px-4 py-2.5 bg-gray-100 dark:bg-gray-700",
+                          exIndex > 0 &&
+                            "border-t border-gray-200 dark:border-gray-600"
+                        )}>
                         <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
                           {exercise.name}
                         </span>
                       </div>
-                      
+
                       {/* Individual sets */}
                       <div className='divide-y divide-gray-100 dark:divide-gray-700'>
                         {setsToShow.map((set, setIndex) => (
-                          <div key={setIndex} className='px-4 py-2.5 flex items-center justify-between'>
+                          <div
+                            key={setIndex}
+                            className='px-4 py-2.5 flex items-center justify-between'>
                             <span className='text-[14px] text-gray-500 w-16'>
                               Set {setIndex + 1}
                             </span>
@@ -1300,7 +1315,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                   <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
                                     {set.reps}
                                   </span>
-                                  <span className='text-[13px] text-gray-500'>reps</span>
+                                  <span className='text-[13px] text-gray-500'>
+                                    reps
+                                  </span>
                                 </div>
                               )}
                               {set.weight && (
@@ -1308,7 +1325,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                   <span className='text-[15px] font-medium text-ios-blue'>
                                     {set.weight}
                                   </span>
-                                  <span className='text-[13px] text-gray-500'>kg</span>
+                                  <span className='text-[13px] text-gray-500'>
+                                    kg
+                                  </span>
                                 </div>
                               )}
                               {set.distance && (
@@ -1316,7 +1335,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                   <span className='text-[15px] font-medium text-ios-orange'>
                                     {set.distance}
                                   </span>
-                                  <span className='text-[13px] text-gray-500'>km</span>
+                                  <span className='text-[13px] text-gray-500'>
+                                    km
+                                  </span>
                                 </div>
                               )}
                               {set.duration && (
@@ -1324,7 +1345,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                   <span className='text-[15px] font-medium text-purple-500'>
                                     {set.duration}
                                   </span>
-                                  <span className='text-[13px] text-gray-500'>min</span>
+                                  <span className='text-[13px] text-gray-500'>
+                                    min
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -1421,26 +1444,16 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                           {sets.map((set, index) => (
                             <div
                               key={index}
-                              className='rounded-xl bg-gray-50 dark:bg-gray-700/50 overflow-hidden'>
-                              <div className='flex items-center justify-between px-3 py-2 bg-gray-100 dark:bg-gray-700'>
-                                <span className='text-[14px] font-medium text-gray-700 dark:text-gray-300'>
-                                  Set {index + 1}
-                                </span>
-                                {sets.length > 1 && (
-                                  <button
-                                    onClick={() =>
-                                      removeExerciseSet(ex.name, index)
-                                    }
-                                    className='p-1 -m-1'>
-                                    <svg className='w-5 h-5 text-ios-red' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
-                                      <path strokeLinecap='round' strokeLinejoin='round' d='M6 18L18 6M6 6l12 12' />
-                                    </svg>
-                                  </button>
-                                )}
-                              </div>
-                              <div className='p-3 grid grid-cols-2 gap-3'>
+                              className='flex items-center gap-2 py-2'>
+                              {/* Set number */}
+                              <span className='text-[15px] font-semibold text-gray-500 w-6 text-center'>
+                                {index + 1}
+                              </span>
+                              
+                              {/* Input fields */}
+                              <div className='flex-1 flex items-center gap-2'>
                                 {ex.trackReps && (
-                                  <div className='flex items-center gap-2 bg-white dark:bg-gray-600 rounded-xl px-3 py-2'>
+                                  <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
                                     <input
                                       type='number'
                                       value={set.reps || ""}
@@ -1455,13 +1468,13 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                         )
                                       }
                                       placeholder='0'
-                                      className='w-full text-[17px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-300 focus:outline-none text-right'
+                                      className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
                                     />
-                                    <span className='text-[15px] text-gray-500 whitespace-nowrap'>reps</span>
+                                    <span className='text-[13px] text-gray-500'>reps</span>
                                   </div>
                                 )}
                                 {ex.trackWeight && (
-                                  <div className='flex items-center gap-2 bg-white dark:bg-gray-600 rounded-xl px-3 py-2'>
+                                  <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
                                     <input
                                       type='number'
                                       value={set.weight || ""}
@@ -1477,13 +1490,13 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                       }
                                       placeholder='0'
                                       step='0.5'
-                                      className='w-full text-[17px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-300 focus:outline-none text-right'
+                                      className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
                                     />
-                                    <span className='text-[15px] text-gray-500 whitespace-nowrap'>kg</span>
+                                    <span className='text-[13px] text-gray-500'>kg</span>
                                   </div>
                                 )}
                                 {ex.trackDistance && (
-                                  <div className='flex items-center gap-2 bg-white dark:bg-gray-600 rounded-xl px-3 py-2'>
+                                  <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
                                     <input
                                       type='number'
                                       value={set.distance || ""}
@@ -1499,13 +1512,13 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                       }
                                       placeholder='0'
                                       step='0.1'
-                                      className='w-full text-[17px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-300 focus:outline-none text-right'
+                                      className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
                                     />
-                                    <span className='text-[15px] text-gray-500 whitespace-nowrap'>km</span>
+                                    <span className='text-[13px] text-gray-500'>km</span>
                                   </div>
                                 )}
                                 {ex.trackDuration && (
-                                  <div className='flex items-center gap-2 bg-white dark:bg-gray-600 rounded-xl px-3 py-2'>
+                                  <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
                                     <input
                                       type='number'
                                       value={set.duration || ""}
@@ -1520,12 +1533,25 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                         )
                                       }
                                       placeholder='0'
-                                      className='w-full text-[17px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-300 focus:outline-none text-right'
+                                      className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
                                     />
-                                    <span className='text-[15px] text-gray-500 whitespace-nowrap'>min</span>
+                                    <span className='text-[13px] text-gray-500'>min</span>
                                   </div>
                                 )}
                               </div>
+                              
+                              {/* Delete button */}
+                              {sets.length > 1 ? (
+                                <button
+                                  onClick={() => removeExerciseSet(ex.name, index)}
+                                  className='p-1'>
+                                  <svg className='w-5 h-5 text-ios-red' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+                                    <path strokeLinecap='round' strokeLinejoin='round' d='M6 18L18 6M6 6l12 12' />
+                                  </svg>
+                                </button>
+                              ) : (
+                                <div className='w-7' /> 
+                              )}
                             </div>
                           ))}
                         </div>
