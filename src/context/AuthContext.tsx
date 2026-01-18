@@ -252,14 +252,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Save auth-related keys
         const authKeys: Record<string, string | null> = {};
         Object.keys(localStorage).forEach((key) => {
-          if (key.startsWith("sb-") || key.includes("supabase") || key === "daytracker-auth") {
+          if (
+            key.startsWith("sb-") ||
+            key.includes("supabase") ||
+            key === "daytracker-auth"
+          ) {
             authKeys[key] = localStorage.getItem(key);
           }
         });
-        
+
         // Clear all localStorage
         localStorage.clear();
-        
+
         // Restore auth keys
         Object.entries(authKeys).forEach(([key, value]) => {
           if (value) localStorage.setItem(key, value);

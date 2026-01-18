@@ -1497,19 +1497,9 @@ export default function StatsPage() {
                               {name}
                             </span>
                           </div>
-                          <div className='flex items-center gap-2 text-[13px] text-gray-500'>
-                            <span>{data.count}×</span>
-                            {data.totalWeight > 0 && (
-                              <span className='text-ios-blue'>
-                                {data.totalWeight}kg
-                              </span>
-                            )}
-                            {data.totalDistance > 0 && (
-                              <span className='text-ios-orange'>
-                                {data.totalDistance}km
-                              </span>
-                            )}
-                          </div>
+                          <span className='text-[13px] text-gray-500'>
+                            {data.count}×
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -1520,7 +1510,7 @@ export default function StatsPage() {
                 {workoutStats.exercisesWithWeightProgress.length > 0 && (
                   <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800 mb-4'>
                     <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
-                      💪 Weight Progress
+                      Weight Progress
                     </h4>
                     <div className='space-y-4'>
                       {workoutStats.exercisesWithWeightProgress.map(
@@ -1540,7 +1530,7 @@ export default function StatsPage() {
                               </div>
                             </div>
                             {/* Progress bar chart */}
-                            <div className='flex items-end gap-1 h-16'>
+                            <div className='flex items-end gap-1 h-10'>
                               {data.slice(-10).map((d, i) => {
                                 const heightPercent =
                                   maxWeight > 0
@@ -1553,7 +1543,7 @@ export default function StatsPage() {
                                     title={`${d.date}: ${d.weight}kg`}>
                                     <div
                                       className='w-full relative'
-                                      style={{ height: "48px" }}>
+                                      style={{ height: "32px" }}>
                                       <div
                                         className={cn(
                                           "absolute bottom-0 left-0 right-0 rounded-t transition-all",
