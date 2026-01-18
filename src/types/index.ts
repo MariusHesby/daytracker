@@ -166,6 +166,10 @@ export interface StatisticsSummary {
 
 export type TimeRange = 'week' | 'month' | 'year' | 'all';
 
+// Version number for default activity types - increment this when defaults change
+// This will reset local IndexedDB to new defaults for non-logged-in users
+export const DEFAULT_ACTIVITY_TYPES_VERSION = 2;
+
 // Default activity types to start with (using icon names from Icons.tsx)
 export const DEFAULT_ACTIVITY_TYPES: Omit<ActivityType, 'id' | 'createdAt'>[] = [
   { name: 'Movie', icon: 'movie', valueType: 'text', isDefault: true },

@@ -250,12 +250,33 @@ export async function addOrUpdateSuggestion(activityTypeId: string, value: strin
   });
 }
 
-// Initialize with default activity types if empty
+// Initialize with default activity types if empty or version changed
 export async function initializeDefaultData(): Promise<void> {
+  const { DEFAULT_ACTIVITY_TYPES_VERSION } = await import('@/types');
+  
+  const storedVersion = localStorage.getItem('defaultActivityTypesVersion');
+  const currentVersion = String(DEFAULT_ACTIVITY_TYPES_VERSION);
+  
   const existingTypes = await getActivityTypes();
-  if (existingTypes.length === 0) {
+  
+  // Reset to defaults if version changed or no data exists
+  if (existingTypes.length === 0 || storedVersion !== currentVersion) {
+    // Clear existing activity types
+    const database = await initDB();
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction('activityTypes', 'readwrite');
+      const store = transaction.objectStore('activityTypes');
+      const request = store.clear();
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+    
+    // Add new defaults
     for (const type of DEFAULT_ACTIVITY_TYPES) {
       await addActivityType(type);
     }
+    
+    // Store the new version
+    localStorage.setItem('defaultActivityTypesVersion', currentVersion);
   }
 }
