@@ -177,5 +177,5 @@ export const DEFAULT_ACTIVITY_TYPES: Omit<ActivityType, 'id' | 'createdAt'>[] = 
   { name: 'Event', icon: 'event', valueType: 'text', isDefault: true },
   { name: 'Period', icon: 'period', valueType: 'mood', isDefault: true },
   { name: 'Sleep', icon: 'sleep', valueType: 'mood', isDefault: true },
-  { name: 'Nutrition', icon: 'scale', valueType: 'nutrition', isDefault: true, nutritionGoal: { protein: 130, calories: 2000 } },
+  { name: 'Nutrition', icon: 'scale', valueType: 'nutrition', isDefault: true },
 ];
