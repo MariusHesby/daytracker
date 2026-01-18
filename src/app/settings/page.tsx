@@ -27,6 +27,7 @@ export default function SettingsPage() {
     resetPassword,
     signOut,
     deleteAccount,
+    deleteAllData,
     isLoading: authLoading,
   } = useAuth();
   const activityManagerRef = useRef<ActivityTypeManagerRef>(null);
@@ -531,12 +532,16 @@ export default function SettingsPage() {
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (confirm(t("settings.deleteAllConfirm"))) {
-                  // Clear IndexedDB
-                  indexedDB.deleteDatabase("daytracker-db");
-                  // Clear all localStorage (includes workout data, locked days, etc.)
-                  localStorage.clear();
+                  if (user) {
+                    // Delete from Supabase if logged in
+                    await deleteAllData();
+                  } else {
+                    // Just clear local data if not logged in
+                    indexedDB.deleteDatabase("daytracker-db");
+                    localStorage.clear();
+                  }
                   window.location.reload();
                 }
               }}

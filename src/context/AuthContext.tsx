@@ -40,6 +40,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<{ error: Error | null }>;
+  deleteAllData: () => Promise<{ error: Error | null }>;
   createProfile: (
     fullName: string,
     avatar: string | null
@@ -218,6 +219,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }, []);
 
+  // Delete all user data but keep the account
+  const deleteAllData = useCallback(async () => {
+    if (!user) return { error: new Error("Not logged in") };
+
+    try {
+      const userId = user.id;
+
+      // Delete all user data from Supabase tables in order
+      // 1. Delete shares (both as owner and viewer)
+      await supabase.from("shares").delete().eq("owner_id", userId);
+      await supabase.from("shares").delete().eq("viewer_id", userId);
+
+      // 2. Delete share requests (both sent and received)
+      await supabase.from("share_requests").delete().eq("from_user_id", userId);
+      await supabase.from("share_requests").delete().eq("to_user_id", userId);
+
+      // 3. Delete locked days
+      await supabase.from("locked_days").delete().eq("user_id", userId);
+
+      // 4. Delete suggestions
+      await supabase.from("suggestions").delete().eq("user_id", userId);
+
+      // 5. Delete log entries
+      await supabase.from("log_entries").delete().eq("user_id", userId);
+
+      // 6. Delete activity types
+      await supabase.from("activity_types").delete().eq("user_id", userId);
+
+      // Clear local storage (but preserve auth tokens)
+      if (typeof window !== "undefined") {
+        // Save auth-related keys
+        const authKeys: Record<string, string | null> = {};
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith("sb-") || key.includes("supabase") || key === "daytracker-auth") {
+            authKeys[key] = localStorage.getItem(key);
+          }
+        });
+        
+        // Clear all localStorage
+        localStorage.clear();
+        
+        // Restore auth keys
+        Object.entries(authKeys).forEach(([key, value]) => {
+          if (value) localStorage.setItem(key, value);
+        });
+
+        // Clear IndexedDB
+        indexedDB.deleteDatabase("daytracker-db");
+      }
+
+      return { error: null };
+    } catch (e) {
+      console.error("Delete all data error:", e);
+      return { error: e as Error };
+    }
+  }, [user]);
+
   const deleteAccount = useCallback(async () => {
     if (!user) return { error: new Error("Not logged in") };
 
@@ -373,6 +431,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetPassword,
         signOut,
         deleteAccount,
+        deleteAllData,
         createProfile,
         updateProfile,
         getProfileByUserId,
