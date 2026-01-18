@@ -8,6 +8,7 @@ import {
   isTMDbConfigured,
 } from "@/lib/tmdb";
 import { cn } from "@/lib/utils";
+import { Suggestion } from "@/types";
 
 interface MediaSearchProps {
   type: "movie" | "series";
@@ -18,20 +19,25 @@ interface MediaSearchProps {
     poster: string,
     rating?: string
   ) => void;
+  onSelectPrevious?: (value: string) => void;
   placeholder?: string;
   initialValue?: string;
+  suggestions?: Suggestion[];
 }
 
 export function MediaSearch({
   type,
   onSelect,
+  onSelectPrevious,
   placeholder,
   initialValue = "",
+  suggestions = [],
 }: MediaSearchProps) {
   const [query, setQuery] = useState(initialValue);
   const [results, setResults] = useState<TMDbMediaResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [isConfigured, setIsConfigured] = useState(true);
 
   useEffect(() => {
@@ -103,8 +109,16 @@ export function MediaSearch({
           onChange={(e) => {
             setQuery(e.target.value);
             setShowResults(true);
+            setShowSuggestions(true);
           }}
-          onFocus={() => results.length > 0 && setShowResults(true)}
+          onFocus={() => {
+            if (results.length > 0) setShowResults(true);
+            if (!query.trim() && suggestions.length > 0) setShowSuggestions(true);
+          }}
+          onBlur={() => setTimeout(() => {
+            setShowResults(false);
+            setShowSuggestions(false);
+          }, 200)}
           placeholder={
             placeholder ||
             `Search for ${type === "movie" ? "movie" : "TV series"}...`
@@ -122,6 +136,75 @@ export function MediaSearch({
           </div>
         )}
       </div>
+
+      {/* Previously watched dropdown - show when focused and not searching */}
+      {showSuggestions && !query.trim() && suggestions.length > 0 && (
+        <div
+          className={cn(
+            "absolute z-50 mt-1 w-full max-h-64 overflow-auto",
+            "bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
+          )}>
+          <div className='px-3 py-2 text-[13px] text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700'>
+            Previously watched
+          </div>
+          {suggestions.slice(0, 10).map((sugg) => (
+            <button
+              key={sugg.value}
+              onClick={() => {
+                if (onSelectPrevious) {
+                  onSelectPrevious(sugg.value);
+                }
+                setQuery("");
+                setShowSuggestions(false);
+              }}
+              className={cn(
+                "w-full px-3 py-2.5 text-left text-[15px]",
+                "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors",
+                "border-b border-gray-100 dark:border-gray-700 last:border-b-0",
+                "flex items-center justify-between"
+              )}>
+              <span className='text-gray-900 dark:text-gray-100 truncate'>{sugg.value}</span>
+              <span className='text-[13px] text-gray-400 dark:text-gray-500 ml-2 shrink-0'>({sugg.count}×)</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Filtered suggestions when typing - show matches from previously watched */}
+      {showSuggestions && query.trim() && suggestions.length > 0 && results.length === 0 && !isLoading && (() => {
+        const filtered = suggestions.filter(s => 
+          s.value.toLowerCase().includes(query.toLowerCase())
+        ).slice(0, 5);
+        if (filtered.length === 0) return null;
+        return (
+          <div
+            className={cn(
+              "absolute z-50 mt-1 w-full max-h-64 overflow-auto",
+              "bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
+            )}>
+            {filtered.map((sugg) => (
+              <button
+                key={sugg.value}
+                onClick={() => {
+                  if (onSelectPrevious) {
+                    onSelectPrevious(sugg.value);
+                  }
+                  setQuery("");
+                  setShowSuggestions(false);
+                }}
+                className={cn(
+                  "w-full px-3 py-2.5 text-left text-[15px]",
+                  "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors",
+                  "border-b border-gray-100 dark:border-gray-700 last:border-b-0",
+                  "flex items-center justify-between"
+                )}>
+                <span className='text-gray-900 dark:text-gray-100 truncate'>{sugg.value}</span>
+                <span className='text-[13px] text-gray-400 dark:text-gray-500 ml-2 shrink-0'>({sugg.count}×)</span>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Search Results Dropdown */}
       {showResults && results.length > 0 && (
@@ -163,14 +246,6 @@ export function MediaSearch({
               </button>
             ))}
         </div>
-      )}
-
-      {/* Click outside to close */}
-      {showResults && (
-        <div
-          className='fixed inset-0 z-40'
-          onClick={() => setShowResults(false)}
-        />
       )}
     </div>
   );

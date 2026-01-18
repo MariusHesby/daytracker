@@ -758,29 +758,14 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
             onSelect={(title, imdbId, year, poster, rating) =>
               handleMediaSelect(type.id, title, imdbId, year, poster, rating)
             }
+            onSelectPrevious={(value) => handleSaveValue(type.id, value)}
             placeholder={
               mediaType === "movie"
                 ? "Search for movie..."
                 : "Search for TV series..."
             }
+            suggestions={suggestions[type.id] || []}
           />
-          {(suggestions[type.id] || []).length > 0 && (
-            <div>
-              <p className='text-[13px] text-gray-500 mb-2'>
-                Previously watched:
-              </p>
-              <div className='flex flex-wrap gap-2'>
-                {(suggestions[type.id] || []).slice(0, 2).map((sugg) => (
-                  <button
-                    key={sugg.value}
-                    onClick={() => handleSaveValue(type.id, sugg.value)}
-                    className='px-3 py-1.5 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-600'>
-                    {sugg.value}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       );
     }
@@ -816,8 +801,10 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                     setShowTextDropdown(true);
                   }}
                   onFocus={() => setShowTextDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowTextDropdown(false), 200)}
-                  placeholder="Enter value..."
+                  onBlur={() =>
+                    setTimeout(() => setShowTextDropdown(false), 200)
+                  }
+                  placeholder='Enter value...'
                   className='flex-1 px-3 py-2 rounded-lg text-[17px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                   autoFocus
                   onKeyDown={(e) => {
@@ -854,7 +841,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                       }}
                       className='w-full px-3 py-2.5 text-left text-[17px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center justify-between'>
                       <span>{sugg.value}</span>
-                      <span className='text-[13px] text-gray-400 dark:text-gray-500'>({sugg.count}×)</span>
+                      <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                        ({sugg.count}×)
+                      </span>
                     </button>
                   ))}
                 </div>
