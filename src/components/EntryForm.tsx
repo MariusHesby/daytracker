@@ -2558,13 +2558,13 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
               {isExpanded && !isCheckmark && !isCounter && (
                 <div
                   className={cn(
-                    "px-4 pb-4 bg-gray-50 dark:bg-gray-800/50",
+                    "px-4 pb-4 pt-2 bg-gray-50 dark:bg-gray-800/50",
                     !isLast &&
                       "border-b border-gray-200/80 dark:border-gray-700/80"
                   )}>
                   {/* Saved values with delete option - not for mood or workout type */}
                   {hasSavedValues && !isMood && !isWorkout && (
-                    <div className='flex flex-wrap gap-2 pb-3'>
+                    <div className='flex flex-wrap gap-2 pt-1 pb-3'>
                       {typeSavedValues.map((saved) => (
                         <span
                           key={saved.id}
