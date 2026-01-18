@@ -30,19 +30,24 @@ interface AppStats {
 }
 
 export default function AdminPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const [users, setUsers] = useState<UserStats[]>([]);
   const [appStats, setAppStats] = useState<AppStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<"created" | "lastActive" | "entries">("lastActive");
+  const [sortBy, setSortBy] = useState<"created" | "lastActive" | "entries">(
+    "lastActive"
+  );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Check if current user is admin
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+
     if (!user) {
       router.push("/settings");
       return;
@@ -54,7 +59,7 @@ export default function AdminPage() {
     }
 
     loadAdminData();
-  }, [user, isAdmin, router]);
+  }, [user, isAdmin, router, authLoading]);
 
   const loadAdminData = async () => {
     setIsLoading(true);
@@ -153,22 +158,35 @@ export default function AdminPage() {
 
       // Calculate app stats
       const now = new Date();
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
 
       const stats: AppStats = {
         totalUsers: usersList.length,
         totalEntries: usersList.reduce((sum, u) => sum + u.totalEntries, 0),
-        totalActivityTypes: usersList.reduce((sum, u) => sum + u.totalActivityTypes, 0),
-        activeUsersLast7Days: usersList.filter(u => u.lastActiveDate && u.lastActiveDate >= sevenDaysAgo).length,
-        activeUsersLast30Days: usersList.filter(u => u.lastActiveDate && u.lastActiveDate >= thirtyDaysAgo).length,
+        totalActivityTypes: usersList.reduce(
+          (sum, u) => sum + u.totalActivityTypes,
+          0
+        ),
+        activeUsersLast7Days: usersList.filter(
+          (u) => u.lastActiveDate && u.lastActiveDate >= sevenDaysAgo
+        ).length,
+        activeUsersLast30Days: usersList.filter(
+          (u) => u.lastActiveDate && u.lastActiveDate >= thirtyDaysAgo
+        ).length,
       };
 
       setAppStats(stats);
       setUsers(usersList);
     } catch (err) {
       console.error("Admin data error:", err);
-      setError(err instanceof Error ? err.message : "Failed to load admin data");
+      setError(
+        err instanceof Error ? err.message : "Failed to load admin data"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -178,11 +196,16 @@ export default function AdminPage() {
     let comparison = 0;
     switch (sortBy) {
       case "created":
-        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        comparison =
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         break;
       case "lastActive":
-        const aDate = a.lastActiveDate ? new Date(a.lastActiveDate).getTime() : 0;
-        const bDate = b.lastActiveDate ? new Date(b.lastActiveDate).getTime() : 0;
+        const aDate = a.lastActiveDate
+          ? new Date(a.lastActiveDate).getTime()
+          : 0;
+        const bDate = b.lastActiveDate
+          ? new Date(b.lastActiveDate).getTime()
+          : 0;
         comparison = aDate - bDate;
         break;
       case "entries":
@@ -205,8 +228,10 @@ export default function AdminPage() {
     if (!dateStr) return "Never";
     const date = new Date(dateStr);
     const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const diffDays = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
     if (diffDays === 0) return "Today";
     if (diffDays === 1) return "Yesterday";
     if (diffDays < 7) return `${diffDays} days ago`;
@@ -214,68 +239,88 @@ export default function AdminPage() {
     return formatDate(dateStr);
   };
 
-  if (!user || !isAdmin) {
+  // Show loading while auth is loading or user is not verified yet
+  if (authLoading || !user || !isAdmin) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-ios-blue border-t-transparent rounded-full animate-spin" />
+      <div className='min-h-screen flex items-center justify-center'>
+        <div className='w-6 h-6 border-2 border-ios-blue border-t-transparent rounded-full animate-spin' />
       </div>
     );
   }
 
   return (
-    <div className="pb-16">
-      <main className="max-w-4xl mx-auto px-4 pt-6 pb-4 space-y-6">
+    <div className='pb-16'>
+      <main className='max-w-4xl mx-auto px-4 pt-6 pb-4 space-y-6'>
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className='flex items-center justify-between'>
+          <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
             Admin Dashboard
           </h1>
           <button
             onClick={() => router.push("/settings")}
-            className="text-ios-blue text-[17px]"
-          >
+            className='text-ios-blue text-[17px]'>
             Back
           </button>
         </div>
 
         {error && (
-          <div className="bg-ios-red/10 text-ios-red rounded-xl p-4 text-[15px]">
+          <div className='bg-ios-red/10 text-ios-red rounded-xl p-4 text-[15px]'>
             {error}
           </div>
         )}
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-6 h-6 border-2 border-ios-blue border-t-transparent rounded-full animate-spin" />
+          <div className='flex items-center justify-center py-12'>
+            <div className='w-6 h-6 border-2 border-ios-blue border-t-transparent rounded-full animate-spin' />
           </div>
         ) : (
           <>
             {/* App Stats */}
             <section>
-              <h2 className="text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2">
+              <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
                 App Statistics
               </h2>
-              <div className="bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-gray-200 dark:bg-gray-700">
-                  <div className="bg-white dark:bg-ios-card-dark p-4">
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">Total Users</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{appStats?.totalUsers || 0}</p>
+              <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+                <div className='grid grid-cols-2 sm:grid-cols-3 gap-px bg-gray-200 dark:bg-gray-700'>
+                  <div className='bg-white dark:bg-ios-card-dark p-4'>
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      Total Users
+                    </p>
+                    <p className='text-2xl font-bold text-gray-900 dark:text-white'>
+                      {appStats?.totalUsers || 0}
+                    </p>
                   </div>
-                  <div className="bg-white dark:bg-ios-card-dark p-4">
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">Total Entries</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{appStats?.totalEntries || 0}</p>
+                  <div className='bg-white dark:bg-ios-card-dark p-4'>
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      Total Entries
+                    </p>
+                    <p className='text-2xl font-bold text-gray-900 dark:text-white'>
+                      {appStats?.totalEntries || 0}
+                    </p>
                   </div>
-                  <div className="bg-white dark:bg-ios-card-dark p-4">
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">Activity Types</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-white">{appStats?.totalActivityTypes || 0}</p>
+                  <div className='bg-white dark:bg-ios-card-dark p-4'>
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      Activity Types
+                    </p>
+                    <p className='text-2xl font-bold text-gray-900 dark:text-white'>
+                      {appStats?.totalActivityTypes || 0}
+                    </p>
                   </div>
-                  <div className="bg-white dark:bg-ios-card-dark p-4">
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">Active (7d)</p>
-                    <p className="text-2xl font-bold text-ios-green">{appStats?.activeUsersLast7Days || 0}</p>
+                  <div className='bg-white dark:bg-ios-card-dark p-4'>
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      Active (7d)
+                    </p>
+                    <p className='text-2xl font-bold text-ios-green'>
+                      {appStats?.activeUsersLast7Days || 0}
+                    </p>
                   </div>
-                  <div className="bg-white dark:bg-ios-card-dark p-4">
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">Active (30d)</p>
-                    <p className="text-2xl font-bold text-ios-blue">{appStats?.activeUsersLast30Days || 0}</p>
+                  <div className='bg-white dark:bg-ios-card-dark p-4'>
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      Active (30d)
+                    </p>
+                    <p className='text-2xl font-bold text-ios-blue'>
+                      {appStats?.activeUsersLast30Days || 0}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -283,74 +328,83 @@ export default function AdminPage() {
 
             {/* Users List */}
             <section>
-              <div className="flex items-center justify-between px-4 mb-2">
-                <h2 className="text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+              <div className='flex items-center justify-between px-4 mb-2'>
+                <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
                   Users ({users.length})
                 </h2>
-                <div className="flex items-center gap-2">
+                <div className='flex items-center gap-2'>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                    className="text-[13px] bg-transparent text-ios-blue border-none outline-none"
-                  >
-                    <option value="lastActive">Last Active</option>
-                    <option value="created">Sign Up</option>
-                    <option value="entries">Entries</option>
+                    className='text-[13px] bg-transparent text-ios-blue border-none outline-none'>
+                    <option value='lastActive'>Last Active</option>
+                    <option value='created'>Sign Up</option>
+                    <option value='entries'>Entries</option>
                   </select>
                   <button
-                    onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                    className="text-ios-blue"
-                  >
+                    onClick={() =>
+                      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
+                    }
+                    className='text-ios-blue'>
                     {sortOrder === "desc" ? "↓" : "↑"}
                   </button>
                 </div>
               </div>
-              <div className="bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden">
+              <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
                 {sortedUsers.map((userStats, index) => (
                   <div
                     key={userStats.userId}
                     className={cn(
                       "px-4 py-3",
-                      index < sortedUsers.length - 1 && "border-b border-gray-200/80 dark:border-gray-700/80"
-                    )}
-                  >
-                    <div className="flex items-start gap-3">
+                      index < sortedUsers.length - 1 &&
+                        "border-b border-gray-200/80 dark:border-gray-700/80"
+                    )}>
+                    <div className='flex items-start gap-3'>
                       {/* Avatar */}
-                      <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden shrink-0">
+                      <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden shrink-0'>
                         {userStats.avatar ? (
-                          <span className="text-xl">{userStats.avatar}</span>
+                          <span className='text-xl'>{userStats.avatar}</span>
                         ) : (
-                          <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          <svg
+                            className='w-5 h-5 text-gray-400'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              strokeWidth={2}
+                              d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
+                            />
                           </svg>
                         )}
                       </div>
-                      
+
                       {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[17px] font-medium text-gray-900 dark:text-white truncate">
+                      <div className='flex-1 min-w-0'>
+                        <p className='text-[17px] font-medium text-gray-900 dark:text-white truncate'>
                           {userStats.fullName}
                         </p>
-                        <p className="text-[14px] text-gray-500 dark:text-gray-400 truncate">
+                        <p className='text-[14px] text-gray-500 dark:text-gray-400 truncate'>
                           {userStats.email}
                         </p>
-                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                          <span className="text-[12px] text-gray-400">
+                        <div className='flex flex-wrap gap-x-3 gap-y-1 mt-1'>
+                          <span className='text-[12px] text-gray-400'>
                             Joined: {formatDate(userStats.createdAt)}
                           </span>
-                          <span className="text-[12px] text-gray-400">
+                          <span className='text-[12px] text-gray-400'>
                             Last: {formatDateShort(userStats.lastActiveDate)}
                           </span>
                         </div>
                       </div>
 
                       {/* Stats */}
-                      <div className="text-right shrink-0">
-                        <p className="text-[17px] font-medium text-gray-900 dark:text-white">
+                      <div className='text-right shrink-0'>
+                        <p className='text-[17px] font-medium text-gray-900 dark:text-white'>
                           {userStats.totalEntries}
                         </p>
-                        <p className="text-[12px] text-gray-400">entries</p>
-                        <p className="text-[12px] text-gray-400 mt-1">
+                        <p className='text-[12px] text-gray-400'>entries</p>
+                        <p className='text-[12px] text-gray-400 mt-1'>
                           {userStats.daysActive} days
                         </p>
                       </div>
@@ -363,8 +417,7 @@ export default function AdminPage() {
             {/* Refresh button */}
             <button
               onClick={loadAdminData}
-              className="w-full py-3 bg-ios-blue text-white rounded-xl text-[17px] font-medium active:opacity-80"
-            >
+              className='w-full py-3 bg-ios-blue text-white rounded-xl text-[17px] font-medium active:opacity-80'>
               Refresh Data
             </button>
           </>
