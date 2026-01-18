@@ -561,6 +561,36 @@ export default function SettingsPage() {
             {t("settings.deleteAllDesc")}
           </p>
         </section>
+
+        {/* Admin Section - only visible to admin */}
+        {user?.email === "marius.r.hesby@gmail.com" && (
+          <section>
+            <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
+              Admin
+            </h2>
+            <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+              <a
+                href='/admin'
+                className='w-full px-4 py-3 min-h-[44px] flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
+                <span className='text-[17px] text-gray-900 dark:text-white'>
+                  Admin Dashboard
+                </span>
+                <svg
+                  className='w-5 h-5 text-gray-400'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  strokeWidth={2}
+                  stroke='currentColor'>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M8.25 4.5l7.5 7.5-7.5 7.5'
+                  />
+                </svg>
+              </a>
+            </div>
+          </section>
+        )}
       </main>
 
       {/* Edit Profile Modal */}
