@@ -156,8 +156,10 @@ export default function FriendsPage() {
           const data = JSON.parse(cached);
           // Only use cache if it's less than 5 minutes old
           if (data.timestamp && Date.now() - data.timestamp < 5 * 60 * 1000) {
-            if (data.incomingRequests) setIncomingRequests(data.incomingRequests);
-            if (data.outgoingRequests) setOutgoingRequests(data.outgoingRequests);
+            if (data.incomingRequests)
+              setIncomingRequests(data.incomingRequests);
+            if (data.outgoingRequests)
+              setOutgoingRequests(data.outgoingRequests);
             if (data.sharedWithMe) setSharedWithMe(data.sharedWithMe);
             if (data.myShares) setMyShares(data.myShares);
             setIsLoading(false); // Show cached data immediately
@@ -173,8 +175,11 @@ export default function FriendsPage() {
     if (!user?.email) return;
 
     // Only show loading if we don't have any cached data
-    const hasCachedData = incomingRequests.length > 0 || outgoingRequests.length > 0 || 
-                          sharedWithMe.length > 0 || myShares.length > 0;
+    const hasCachedData =
+      incomingRequests.length > 0 ||
+      outgoingRequests.length > 0 ||
+      sharedWithMe.length > 0 ||
+      myShares.length > 0;
     if (!hasCachedData) {
       setIsLoading(true);
     }
@@ -183,23 +188,51 @@ export default function FriendsPage() {
       // Load all data in parallel for faster loading
       const [incoming, outgoing, shared, shares] = await Promise.all([
         getIncomingRequests(user.email, user.id).catch((e: unknown) => {
-          const err = e as { message?: string; code?: string; details?: string };
-          console.error("Failed to load incoming requests:", err?.message || err?.code || JSON.stringify(e));
+          const err = e as {
+            message?: string;
+            code?: string;
+            details?: string;
+          };
+          console.error(
+            "Failed to load incoming requests:",
+            err?.message || err?.code || JSON.stringify(e)
+          );
           return [] as ShareRequest[];
         }),
         getOutgoingRequests(user.id).catch((e: unknown) => {
-          const err = e as { message?: string; code?: string; details?: string };
-          console.error("Failed to load outgoing requests:", err?.message || err?.code || JSON.stringify(e));
+          const err = e as {
+            message?: string;
+            code?: string;
+            details?: string;
+          };
+          console.error(
+            "Failed to load outgoing requests:",
+            err?.message || err?.code || JSON.stringify(e)
+          );
           return [] as ShareRequest[];
         }),
         getSharedWithMe(user.id).catch((e: unknown) => {
-          const err = e as { message?: string; code?: string; details?: string };
-          console.error("Failed to load shared with me:", err?.message || err?.code || JSON.stringify(e));
+          const err = e as {
+            message?: string;
+            code?: string;
+            details?: string;
+          };
+          console.error(
+            "Failed to load shared with me:",
+            err?.message || err?.code || JSON.stringify(e)
+          );
           return [] as SharedUser[];
         }),
         getMyShares(user.id).catch((e: unknown) => {
-          const err = e as { message?: string; code?: string; details?: string };
-          console.error("Failed to load my shares:", err?.message || err?.code || JSON.stringify(e));
+          const err = e as {
+            message?: string;
+            code?: string;
+            details?: string;
+          };
+          console.error(
+            "Failed to load my shares:",
+            err?.message || err?.code || JSON.stringify(e)
+          );
           return [] as { share: Share; viewerEmail: string }[];
         }),
       ]);
@@ -211,20 +244,29 @@ export default function FriendsPage() {
 
       // Cache the data for instant loading next time
       if (typeof window !== "undefined") {
-        localStorage.setItem(`friends-cache-${user.id}`, JSON.stringify({
-          timestamp: Date.now(),
-          incomingRequests: incoming,
-          outgoingRequests: outgoing,
-          sharedWithMe: shared,
-          myShares: shares,
-        }));
+        localStorage.setItem(
+          `friends-cache-${user.id}`,
+          JSON.stringify({
+            timestamp: Date.now(),
+            incomingRequests: incoming,
+            outgoingRequests: outgoing,
+            sharedWithMe: shared,
+            myShares: shares,
+          })
+        );
       }
     } catch (error) {
       console.error("Failed to load sharing data:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [user, incomingRequests.length, outgoingRequests.length, sharedWithMe.length, myShares.length]);
+  }, [
+    user,
+    incomingRequests.length,
+    outgoingRequests.length,
+    sharedWithMe.length,
+    myShares.length,
+  ]);
 
   useEffect(() => {
     loadData();
