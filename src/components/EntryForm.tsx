@@ -81,6 +81,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   );
 
   // Workout entry state - tracks data for all exercises
+  // Initialize from localStorage to persist across app reloads (phone sleep/wake)
   const [workoutData, setWorkoutData] = useState<
     Record<
       string,
@@ -91,13 +92,47 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         duration?: number;
       }>
     >
-  >({});
+  >(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`workout-data-${date}`);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return {};
+        }
+      }
+    }
+    return {};
+  });
   const [expandedExercises, setExpandedExercises] = useState<Set<string>>(
-    new Set()
+    () => {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem(`workout-expanded-${date}`);
+        if (saved) {
+          try {
+            return new Set(JSON.parse(saved));
+          } catch {
+            return new Set();
+          }
+        }
+      }
+      return new Set();
+    }
   );
-  const [isEditingWorkout, setIsEditingWorkout] = useState(false);
+  const [isEditingWorkout, setIsEditingWorkout] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(`workout-editing-${date}`) === 'true';
+    }
+    return false;
+  });
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(
-    null
+    () => {
+      if (typeof window !== 'undefined') {
+        return localStorage.getItem(`workout-routine-${date}`);
+      }
+      return null;
+    }
   );
   // Routine management state
   const [showAddRoutine, setShowAddRoutine] = useState(false);
@@ -106,6 +141,47 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
 
   const isLocked = isDayLocked(date);
+
+  // Persist workout state to localStorage (survives phone sleep/wake)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (Object.keys(workoutData).length > 0) {
+        localStorage.setItem(`workout-data-${date}`, JSON.stringify(workoutData));
+      } else {
+        localStorage.removeItem(`workout-data-${date}`);
+      }
+    }
+  }, [workoutData, date]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (expandedExercises.size > 0) {
+        localStorage.setItem(`workout-expanded-${date}`, JSON.stringify([...expandedExercises]));
+      } else {
+        localStorage.removeItem(`workout-expanded-${date}`);
+      }
+    }
+  }, [expandedExercises, date]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (isEditingWorkout) {
+        localStorage.setItem(`workout-editing-${date}`, 'true');
+      } else {
+        localStorage.removeItem(`workout-editing-${date}`);
+      }
+    }
+  }, [isEditingWorkout, date]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (selectedRoutineId) {
+        localStorage.setItem(`workout-routine-${date}`, selectedRoutineId);
+      } else {
+        localStorage.removeItem(`workout-routine-${date}`);
+      }
+    }
+  }, [selectedRoutineId, date]);
 
   // Generate confetti particles for celebration
   const createParticles = useCallback(() => {
@@ -151,18 +227,47 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     return () => clearTimeout(timer);
   }, [showCelebration, createParticles]);
 
-  // Handle lock toggle
+  // Handle lock toggle - also saves workout data
   const handleLockToggle = async () => {
     if (isViewingOther) return;
 
     setIsLocking(true);
+    
+    // Save any pending workout data before locking
+    const workoutType = activityTypes.find(t => t.valueType === 'workout');
+    if (workoutType && Object.keys(workoutData).length > 0) {
+      const customExercises = workoutType.customExercises || [];
+      await handleSaveAllWorkouts(workoutType.id, customExercises);
+    }
+    
     const newLockedState = await toggleDayLock(date);
     setIsLocking(false);
 
     if (newLockedState) {
+      // Clear workout localStorage since day is now locked
+      localStorage.removeItem(`workout-data-${date}`);
+      localStorage.removeItem(`workout-expanded-${date}`);
+      localStorage.removeItem(`workout-editing-${date}`);
+      localStorage.removeItem(`workout-routine-${date}`);
       setShowCelebration(true);
     }
   };
+
+  // Reload workout state when date changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Load workout data for new date
+      const savedData = localStorage.getItem(`workout-data-${date}`);
+      const savedExpanded = localStorage.getItem(`workout-expanded-${date}`);
+      const savedEditing = localStorage.getItem(`workout-editing-${date}`);
+      const savedRoutine = localStorage.getItem(`workout-routine-${date}`);
+      
+      setWorkoutData(savedData ? JSON.parse(savedData) : {});
+      setExpandedExercises(savedExpanded ? new Set(JSON.parse(savedExpanded)) : new Set());
+      setIsEditingWorkout(savedEditing === 'true');
+      setSelectedRoutineId(savedRoutine);
+    }
+  }, [date]);
 
   useEffect(() => {
     loadEntriesForDateRange(date, date);
@@ -1167,18 +1272,13 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
           return { sets: 1 };
         };
 
-        // Toggle exercise expansion - auto-saves when collapsing
+        // Toggle exercise expansion - no auto-save, only saves when day is locked
         const toggleExercise = async (exerciseName: string) => {
           const newExpanded = new Set(expandedExercises);
           if (newExpanded.has(exerciseName)) {
-            // Collapsing - trigger auto-save if there's data
+            // Just collapse, don't save - save happens when locking day
             newExpanded.delete(exerciseName);
             setExpandedExercises(newExpanded);
-
-            // Auto-save after a short delay to let state update
-            setTimeout(() => {
-              handleSaveAllWorkouts(type.id, customExercises);
-            }, 100);
           } else {
             newExpanded.add(exerciseName);
             // Initialize with last used values if not already set
@@ -1741,6 +1841,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                             : undefined
                                         )
                                       }
+                                      onFocus={(e) => e.target.select()}
                                       placeholder='0'
                                       className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
                                     />
@@ -1764,6 +1865,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                             : undefined
                                         )
                                       }
+                                      onFocus={(e) => e.target.select()}
                                       placeholder='0'
                                       step='0.5'
                                       className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
@@ -1788,6 +1890,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                             : undefined
                                         )
                                       }
+                                      onFocus={(e) => e.target.select()}
                                       placeholder='0'
                                       step='0.1'
                                       className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
@@ -1812,6 +1915,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                             : undefined
                                         )
                                       }
+                                      onFocus={(e) => e.target.select()}
                                       placeholder='0'
                                       className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
                                     />

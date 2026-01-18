@@ -328,25 +328,25 @@ export default function StatsPage() {
     const loadData = () => {
       loadEntriesForDateRange("2000-01-01", toDateStr(new Date()));
     };
-    
+
     // Load on mount
     loadData();
-    
+
     // Reload when page becomes visible (user returns to stats page)
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === "visible") {
         loadData();
       }
     };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     // Also reload on focus (for desktop tab switching)
-    window.addEventListener('focus', loadData);
-    
+    window.addEventListener("focus", loadData);
+
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', loadData);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", loadData);
     };
   }, [loadEntriesForDateRange]);
 
