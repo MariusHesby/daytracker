@@ -113,12 +113,15 @@ export function MediaSearch({
           }}
           onFocus={() => {
             if (results.length > 0) setShowResults(true);
-            if (!query.trim() && suggestions.length > 0) setShowSuggestions(true);
+            if (!query.trim() && suggestions.length > 0)
+              setShowSuggestions(true);
           }}
-          onBlur={() => setTimeout(() => {
-            setShowResults(false);
-            setShowSuggestions(false);
-          }, 200)}
+          onBlur={() =>
+            setTimeout(() => {
+              setShowResults(false);
+              setShowSuggestions(false);
+            }, 200)
+          }
           placeholder={
             placeholder ||
             `Search for ${type === "movie" ? "movie" : "TV series"}...`
@@ -163,48 +166,61 @@ export function MediaSearch({
                 "border-b border-gray-100 dark:border-gray-700 last:border-b-0",
                 "flex items-center justify-between"
               )}>
-              <span className='text-gray-900 dark:text-gray-100 truncate'>{sugg.value}</span>
-              <span className='text-[13px] text-gray-400 dark:text-gray-500 ml-2 shrink-0'>({sugg.count}×)</span>
+              <span className='text-gray-900 dark:text-gray-100 truncate'>
+                {sugg.value}
+              </span>
+              <span className='text-[13px] text-gray-400 dark:text-gray-500 ml-2 shrink-0'>
+                ({sugg.count}×)
+              </span>
             </button>
           ))}
         </div>
       )}
 
       {/* Filtered suggestions when typing - show matches from previously watched */}
-      {showSuggestions && query.trim() && suggestions.length > 0 && results.length === 0 && !isLoading && (() => {
-        const filtered = suggestions.filter(s => 
-          s.value.toLowerCase().includes(query.toLowerCase())
-        ).slice(0, 5);
-        if (filtered.length === 0) return null;
-        return (
-          <div
-            className={cn(
-              "absolute z-50 mt-1 w-full max-h-64 overflow-auto",
-              "bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
-            )}>
-            {filtered.map((sugg) => (
-              <button
-                key={sugg.value}
-                onClick={() => {
-                  if (onSelectPrevious) {
-                    onSelectPrevious(sugg.value);
-                  }
-                  setQuery("");
-                  setShowSuggestions(false);
-                }}
-                className={cn(
-                  "w-full px-3 py-2.5 text-left text-[15px]",
-                  "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors",
-                  "border-b border-gray-100 dark:border-gray-700 last:border-b-0",
-                  "flex items-center justify-between"
-                )}>
-                <span className='text-gray-900 dark:text-gray-100 truncate'>{sugg.value}</span>
-                <span className='text-[13px] text-gray-400 dark:text-gray-500 ml-2 shrink-0'>({sugg.count}×)</span>
-              </button>
-            ))}
-          </div>
-        );
-      })()}
+      {showSuggestions &&
+        query.trim() &&
+        suggestions.length > 0 &&
+        results.length === 0 &&
+        !isLoading &&
+        (() => {
+          const filtered = suggestions
+            .filter((s) => s.value.toLowerCase().includes(query.toLowerCase()))
+            .slice(0, 5);
+          if (filtered.length === 0) return null;
+          return (
+            <div
+              className={cn(
+                "absolute z-50 mt-1 w-full max-h-64 overflow-auto",
+                "bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
+              )}>
+              {filtered.map((sugg) => (
+                <button
+                  key={sugg.value}
+                  onClick={() => {
+                    if (onSelectPrevious) {
+                      onSelectPrevious(sugg.value);
+                    }
+                    setQuery("");
+                    setShowSuggestions(false);
+                  }}
+                  className={cn(
+                    "w-full px-3 py-2.5 text-left text-[15px]",
+                    "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors",
+                    "border-b border-gray-100 dark:border-gray-700 last:border-b-0",
+                    "flex items-center justify-between"
+                  )}>
+                  <span className='text-gray-900 dark:text-gray-100 truncate'>
+                    {sugg.value}
+                  </span>
+                  <span className='text-[13px] text-gray-400 dark:text-gray-500 ml-2 shrink-0'>
+                    ({sugg.count}×)
+                  </span>
+                </button>
+              ))}
+            </div>
+          );
+        })()}
 
       {/* Search Results Dropdown */}
       {showResults && results.length > 0 && (

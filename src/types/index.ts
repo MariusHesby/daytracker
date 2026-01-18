@@ -172,10 +172,10 @@ export const DEFAULT_ACTIVITY_TYPES: Omit<ActivityType, 'id' | 'createdAt'>[] = 
   { name: 'TV Series', icon: 'tv', valueType: 'text', isDefault: true },
   { name: 'Lunch', icon: 'meal', valueType: 'text', isDefault: true },
   { name: 'Dinner', icon: 'meal', valueType: 'text', isDefault: true },
-  { name: 'Workout', icon: 'workout', valueType: 'workout', isDefault: true },
   { name: 'Alcohol', icon: 'alcohol', valueType: 'checkmark', isDefault: true },
+  { name: 'Workout', icon: 'workout', valueType: 'workout', isDefault: true },
   { name: 'Event', icon: 'event', valueType: 'text', isDefault: true },
   { name: 'Period', icon: 'period', valueType: 'mood', isDefault: true },
   { name: 'Sleep', icon: 'sleep', valueType: 'mood', isDefault: true },
-  { name: 'Nutrition Goals', icon: 'scale', valueType: 'nutrition', isDefault: true, nutritionGoal: { protein: 130, calories: 2000 } },
+  { name: 'Nutrition', icon: 'scale', valueType: 'nutrition', isDefault: true, nutritionGoal: { protein: 130, calories: 2000 } },
 ];
