@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useApp } from "@/context/AppContext";
 import {
   ActivityType,
@@ -46,6 +46,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     activityTypes,
     addEntry,
     getSuggestions,
+    getWorkoutHistory,
     entries,
     loadEntriesForDateRange,
     deleteEntry,
@@ -55,7 +56,14 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     isDayLocked,
     toggleDayLock,
   } = useApp();
-  const [expandedTypeId, setExpandedTypeId] = useState<string | null>(null);
+  const [expandedTypeId, setExpandedTypeIdState] = useState<string | null>(
+    () => {
+      if (typeof window !== "undefined") {
+        return localStorage.getItem(`expanded-activity-${date}`);
+      }
+      return null;
+    }
+  );
   const [savedValues, setSavedValues] = useState<Record<string, SavedValue[]>>(
     {}
   );
@@ -81,7 +89,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   );
 
   // Workout entry state - tracks data for all exercises
-  // Initialize from localStorage to persist across app reloads (phone sleep/wake)
+  // Uses localStorage to persist across navigation, keyed by date
   const [workoutData, setWorkoutData] = useState<
     Record<
       string,
@@ -92,48 +100,23 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         duration?: number;
       }>
     >
-  >(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(`workout-data-${date}`);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return {};
-        }
-      }
-    }
-    return {};
-  });
+  >({});
   const [expandedExercises, setExpandedExercises] = useState<Set<string>>(
-    () => {
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(`workout-expanded-${date}`);
-        if (saved) {
-          try {
-            return new Set(JSON.parse(saved));
-          } catch {
-            return new Set();
-          }
-        }
-      }
-      return new Set();
-    }
+    new Set()
   );
-  const [isEditingWorkout, setIsEditingWorkout] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(`workout-editing-${date}`) === "true";
-    }
-    return false;
-  });
+  const [isEditingWorkout, setIsEditingWorkout] = useState(false);
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(
-    () => {
-      if (typeof window !== "undefined") {
-        return localStorage.getItem(`workout-routine-${date}`);
-      }
-      return null;
-    }
+    null
   );
+
+  // Track which date we've loaded data for to prevent race conditions
+  const loadedDateRef = useRef<string | null>(null);
+
+  // Workout history for placeholders (from previous days)
+  const [workoutHistoryEntries, setWorkoutHistoryEntries] = useState<
+    LogEntry[]
+  >([]);
+
   // Routine management state
   const [showAddRoutine, setShowAddRoutine] = useState(false);
   const [newRoutineName, setNewRoutineName] = useState("");
@@ -142,18 +125,93 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
 
   const isLocked = isDayLocked(date);
 
-  // Persist workout state to localStorage (survives phone sleep/wake)
-  // Only save if there's actual data entered (not just empty sets)
+  // Wrapper to persist expandedTypeId to localStorage
+  const setExpandedTypeId = useCallback(
+    (typeId: string | null) => {
+      setExpandedTypeIdState(typeId);
+      if (typeof window !== "undefined") {
+        if (typeId) {
+          localStorage.setItem(`expanded-activity-${date}`, typeId);
+        } else {
+          localStorage.removeItem(`expanded-activity-${date}`);
+        }
+      }
+    },
+    [date]
+  );
+
+  // Load expanded activity from localStorage on mount and visibility change
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Check if any exercise has actual data
+      const savedExpanded = localStorage.getItem(`expanded-activity-${date}`);
+      if (savedExpanded) {
+        setExpandedTypeIdState(savedExpanded);
+      }
+
+      // Restore state when page becomes visible (phone wake)
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === "visible") {
+          const savedExpanded = localStorage.getItem(
+            `expanded-activity-${date}`
+          );
+          if (savedExpanded) {
+            setExpandedTypeIdState(savedExpanded);
+          }
+        }
+      };
+
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      return () => {
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange
+        );
+      };
+    }
+  }, [date]);
+
+  // Load workout state from localStorage when date changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedData = localStorage.getItem(`workout-data-${date}`);
+      const savedExpanded = localStorage.getItem(`workout-expanded-${date}`);
+      const savedEditing = localStorage.getItem(`workout-editing-${date}`);
+      const savedRoutine = localStorage.getItem(`workout-routine-${date}`);
+
+      setWorkoutData(savedData ? JSON.parse(savedData) : {});
+      setExpandedExercises(
+        savedExpanded ? new Set(JSON.parse(savedExpanded)) : new Set()
+      );
+      setIsEditingWorkout(savedEditing === "true");
+      setSelectedRoutineId(savedRoutine || null);
+
+      // Mark this date as loaded - only after state is set
+      loadedDateRef.current = date;
+    }
+  }, [date]);
+
+  // Load workout history for placeholders (from previous days)
+  useEffect(() => {
+    const loadHistory = async () => {
+      const workoutType = activityTypes.find((t) => t.valueType === "workout");
+      if (workoutType) {
+        const history = await getWorkoutHistory(workoutType.id, date);
+        setWorkoutHistoryEntries(history);
+      }
+    };
+    loadHistory();
+  }, [date, activityTypes, getWorkoutHistory]);
+
+  // Save workout data to localStorage - only if we've loaded for this date
+  useEffect(() => {
+    if (typeof window !== "undefined" && loadedDateRef.current === date) {
       const hasActualData = Object.keys(workoutData).some((exerciseName) => {
         const sets = workoutData[exerciseName] || [];
         return sets.some(
           (set) => set.reps || set.weight || set.distance || set.duration
         );
       });
-      
+
       if (hasActualData) {
         localStorage.setItem(
           `workout-data-${date}`,
@@ -165,18 +223,10 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     }
   }, [workoutData, date]);
 
-  // Only save expanded exercises if there's actual data
+  // Save expanded exercises to localStorage
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      // Check if any exercise has actual data
-      const hasActualData = Object.keys(workoutData).some((exerciseName) => {
-        const sets = workoutData[exerciseName] || [];
-        return sets.some(
-          (set) => set.reps || set.weight || set.distance || set.duration
-        );
-      });
-      
-      if (hasActualData && expandedExercises.size > 0) {
+    if (typeof window !== "undefined" && loadedDateRef.current === date) {
+      if (expandedExercises.size > 0) {
         localStorage.setItem(
           `workout-expanded-${date}`,
           JSON.stringify([...expandedExercises])
@@ -185,10 +235,11 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         localStorage.removeItem(`workout-expanded-${date}`);
       }
     }
-  }, [expandedExercises, workoutData, date]);
+  }, [expandedExercises, date]);
 
+  // Save editing state to localStorage
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && loadedDateRef.current === date) {
       if (isEditingWorkout) {
         localStorage.setItem(`workout-editing-${date}`, "true");
       } else {
@@ -197,8 +248,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     }
   }, [isEditingWorkout, date]);
 
+  // Save selected routine to localStorage
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && loadedDateRef.current === date) {
       if (selectedRoutineId) {
         localStorage.setItem(`workout-routine-${date}`, selectedRoutineId);
       } else {
@@ -273,32 +325,24 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
       localStorage.removeItem(`workout-expanded-${date}`);
       localStorage.removeItem(`workout-editing-${date}`);
       localStorage.removeItem(`workout-routine-${date}`);
+      localStorage.removeItem(`expanded-activity-${date}`);
+      // Clear state
+      setWorkoutData({});
+      setExpandedExercises(new Set());
+      setIsEditingWorkout(false);
+      setSelectedRoutineId(null);
+      setExpandedTypeIdState(null);
       setShowCelebration(true);
     }
   };
 
-  // Reload workout state when date changes - reset to empty if no saved data for this date
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      // Load workout data for new date (or reset to empty)
-      const savedData = localStorage.getItem(`workout-data-${date}`);
-      const savedExpanded = localStorage.getItem(`workout-expanded-${date}`);
-      const savedEditing = localStorage.getItem(`workout-editing-${date}`);
-      const savedRoutine = localStorage.getItem(`workout-routine-${date}`);
-
-      // Always reset to empty object first, then load if there's saved data
-      setWorkoutData(savedData ? JSON.parse(savedData) : {});
-      setExpandedExercises(
-        savedExpanded ? new Set(JSON.parse(savedExpanded)) : new Set()
-      );
-      setIsEditingWorkout(savedEditing === "true");
-      setSelectedRoutineId(savedRoutine || null);
-    }
-  }, [date]);
-
   useEffect(() => {
     loadEntriesForDateRange(date, date);
-    setExpandedTypeId(null);
+    // Load expanded activity from localStorage instead of resetting
+    if (typeof window !== "undefined") {
+      const savedExpanded = localStorage.getItem(`expanded-activity-${date}`);
+      setExpandedTypeIdState(savedExpanded || null);
+    }
     setGoalCelebratedTypes(new Set()); // Reset celebrations for new date
   }, [date, loadEntriesForDateRange]);
 
@@ -1268,19 +1312,62 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         // Use only custom exercises from activity type settings
         const customExercises = type.customExercises || [];
 
-        // Find last used values for an exercise from history
-        // Find last used values for an exercise from history (previous days only)
+        // Find last used values for an exercise from history (previous days)
+        // Checks both saved database entries AND localStorage from recent days
         const getLastUsedValues = (exerciseName: string) => {
-          // Sort entries by date descending (newest first), excluding today
-          const sortedEntries = [...entries]
-            .filter((e) => e.date < date) // Only look at previous days
-            .sort((a, b) => b.date.localeCompare(a.date));
+          // First check localStorage from previous days (for unsaved/unlocked data)
+          if (typeof window !== "undefined") {
+            // Check last 30 days of localStorage
+            for (let i = 1; i <= 30; i++) {
+              const prevDate = new Date(date);
+              prevDate.setDate(prevDate.getDate() - i);
+              const prevDateStr = prevDate.toISOString().split("T")[0];
+              const savedData = localStorage.getItem(
+                `workout-data-${prevDateStr}`
+              );
+              if (savedData) {
+                try {
+                  const workoutData = JSON.parse(savedData) as Record<
+                    string,
+                    Array<{
+                      reps?: number;
+                      weight?: number;
+                      distance?: number;
+                      duration?: number;
+                    }>
+                  >;
+                  const exerciseData = workoutData[exerciseName];
+                  if (exerciseData && exerciseData.length > 0) {
+                    // Check if any set has actual data
+                    const validSets = exerciseData.filter(
+                      (set) =>
+                        set.reps || set.weight || set.distance || set.duration
+                    );
+                    if (validSets.length > 0) {
+                      return {
+                        sets: validSets.length,
+                        reps: validSets[0].reps,
+                        weight: validSets[0].weight,
+                        distance: validSets[0].distance,
+                        duration: validSets[0].duration,
+                        setsData: validSets,
+                      };
+                    }
+                  }
+                } catch (e) {
+                  // Invalid JSON, skip
+                }
+              }
+            }
+          }
+
+          // Fall back to saved database entries
+          const sortedEntries = [...workoutHistoryEntries].sort((a, b) =>
+            b.date.localeCompare(a.date)
+          );
 
           for (const entry of sortedEntries) {
-            if (
-              entry.activityTypeId === type.id &&
-              entry.workoutData?.exercises
-            ) {
+            if (entry.workoutData?.exercises) {
               const found = entry.workoutData.exercises.find(
                 (ex) => ex.name.toLowerCase() === exerciseName.toLowerCase()
               );
@@ -1785,17 +1872,25 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                   return (
                     <div
                       key={ex.name}
-                      className='rounded-xl overflow-hidden bg-white dark:bg-gray-800'>
+                      className={cn(
+                        "rounded-xl overflow-hidden",
+                        isExpanded
+                          ? "bg-gray-50 dark:bg-gray-800"
+                          : "bg-white dark:bg-gray-800"
+                      )}>
                       {/* Exercise header - tap to expand */}
                       <button
                         onClick={() => toggleExercise(ex.name)}
-                        className='w-full px-3 py-3 flex items-center justify-between'>
+                        className={cn(
+                          "w-full px-4 py-3 flex items-center justify-between",
+                          isExpanded && "bg-gray-100 dark:bg-gray-700"
+                        )}>
                         <div className='flex items-center gap-2'>
                           <span
                             className={cn(
                               "text-[15px] font-medium",
                               hasData || savedEx
-                                ? "text-ios-blue"
+                                ? "text-ios-green"
                                 : "text-gray-900 dark:text-white"
                             )}>
                             {ex.name}
@@ -2137,7 +2232,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
               <div
                 className={cn(
                   "flex items-center min-h-[40px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
-                  isExpanded && "bg-gray-50 dark:bg-gray-800/50",
+                  isExpanded && "bg-gray-50 dark:bg-gray-800",
                   isLocked && "pointer-events-none opacity-75"
                 )}
                 onClick={handleRowClick}>

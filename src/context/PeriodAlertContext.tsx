@@ -71,6 +71,10 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
 
         if (!shares || shares.length === 0) return;
 
+        // Get entries from last 30 days to find most recent mood
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const startDate = thirtyDaysAgo.toISOString().split("T")[0];
         const today = new Date().toISOString().split("T")[0];
 
         for (const share of shares) {
@@ -96,54 +100,52 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
 
           if (!periodActivity) continue;
 
-          // Get today's Period entry for this friend using the sharing function
+          // Get Period entries for this friend from last 30 days
           try {
             const entries = await getSharedEntries(
               friendId,
               [periodActivity.id],
-              today,
+              startDate,
               today
             );
 
-            const periodEntry = entries.find(
-              (e) => e.activityTypeId === periodActivity.id && e.date === today
-            );
+            // Filter to only period entries and sort by date descending
+            const periodEntries = entries
+              .filter((e) => e.activityTypeId === periodActivity.id)
+              .sort((a, b) => b.date.localeCompare(a.date));
 
-            if (!periodEntry) continue;
+            if (periodEntries.length === 0) continue;
 
-            const currentMood = String(periodEntry.value);
+            // Get the most recent entry
+            const latestEntry = periodEntries[0];
+            const currentMood = String(latestEntry.value);
+            const latestDate = latestEntry.date;
+
             const lastSeenKey = `periodMoodSeen_${friendId}`;
             const lastSeenData = localStorage.getItem(lastSeenKey);
 
             let lastSeenMood: string | null = null;
-            let lastSeenTime: string | null = null;
+            let lastSeenDate: string | null = null;
 
             if (lastSeenData) {
               try {
                 const parsed = JSON.parse(lastSeenData);
                 lastSeenMood = parsed.mood;
-                lastSeenTime = parsed.time;
+                lastSeenDate = parsed.date;
               } catch {
                 // Old format, just mood string
                 lastSeenMood = lastSeenData;
               }
             }
 
-            // Check if this is a new update (mood changed OR entry was updated after last check)
-            const entryUpdatedAt = periodEntry.updatedAt
-              ? new Date(periodEntry.updatedAt).getTime()
-              : 0;
-            const lastCheckTime = lastSeenTime
-              ? new Date(lastSeenTime).getTime()
-              : 0;
-
-            const isNewUpdate =
-              currentMood !== lastSeenMood || entryUpdatedAt > lastCheckTime;
+            // Check if mood has changed from what we last saw
+            // Alert when: mood is different OR it's a new entry on a new date with different mood
+            const moodChanged = currentMood !== lastSeenMood;
 
             // Force alert when first enabling (forceAlert = friendId)
             const shouldForceAlert = forceAlert === friendId;
 
-            if ((isNewUpdate && lastSeenMood !== null) || shouldForceAlert) {
+            if ((moodChanged && lastSeenMood !== null) || shouldForceAlert) {
               // Get friend's profile for their name
               const { data: profile } = await supabase
                 .from("profiles")
@@ -151,12 +153,12 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
                 .eq("user_id", friendId)
                 .single();
 
-              // Save new state
+              // Save new state with date instead of time
               localStorage.setItem(
                 lastSeenKey,
                 JSON.stringify({
                   mood: currentMood,
-                  time: new Date().toISOString(),
+                  date: latestDate,
                 })
               );
 
@@ -171,13 +173,14 @@ export function PeriodAlertProvider({ children }: { children: ReactNode }) {
 
               // Only show one alert at a time
               return;
-            } else if (lastSeenMood === null) {
-              // First time seeing this friend's mood, just save without alerting
+            } else if (lastSeenMood === null || lastSeenDate !== latestDate) {
+              // First time seeing this friend's mood OR new date with same mood
+              // Just save without alerting
               localStorage.setItem(
                 lastSeenKey,
                 JSON.stringify({
                   mood: currentMood,
-                  time: new Date().toISOString(),
+                  date: latestDate,
                 })
               );
             }

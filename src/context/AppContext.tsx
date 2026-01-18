@@ -38,6 +38,12 @@ interface AppContextType {
   // Suggestions
   getSuggestions: (activityTypeId: string) => Promise<Suggestion[]>;
 
+  // Workout history
+  getWorkoutHistory: (
+    activityTypeId: string,
+    beforeDate: string
+  ) => Promise<LogEntry[]>;
+
   // Sync
   syncToCloud: () => Promise<void>;
   isSyncing: boolean;
@@ -429,6 +435,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [user]
   );
 
+  // Get workout history (last 90 days before specified date)
+  const getWorkoutHistory = useCallback(
+    async (activityTypeId: string, beforeDate: string): Promise<LogEntry[]> => {
+      const startDate = new Date(beforeDate);
+      startDate.setDate(startDate.getDate() - 90);
+      const start = startDate.toISOString().split("T")[0];
+      // Get entries up to the day before
+      const endDate = new Date(beforeDate);
+      endDate.setDate(endDate.getDate() - 1);
+      const end = endDate.toISOString().split("T")[0];
+
+      let historyEntries: LogEntry[] = [];
+      if (user) {
+        historyEntries = await cloudDb.getEntriesFromSupabase(
+          user.id,
+          start,
+          end
+        );
+      } else {
+        historyEntries = await db.getEntries(start, end);
+      }
+
+      // Filter for workout entries of this type
+      return historyEntries.filter(
+        (e) => e.activityTypeId === activityTypeId && e.workoutData?.exercises
+      );
+    },
+    [user]
+  );
+
   // Locked days
   const isDayLocked = useCallback(
     (date: string) => {
@@ -479,6 +515,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         deleteEntry,
         loadEntriesForDateRange,
         getSuggestions,
+        getWorkoutHistory,
         syncToCloud,
         isSyncing,
         isLoading,

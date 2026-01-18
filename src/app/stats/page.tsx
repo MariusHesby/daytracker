@@ -302,6 +302,102 @@ export default function StatsPage() {
     null
   );
 
+  // Get localStorage workout data for recent days (not yet locked)
+  const localStorageWorkoutEntries = useMemo(() => {
+    if (typeof window === "undefined") return [];
+
+    const workoutType = activityTypes.find((t) => t.valueType === "workout");
+    if (!workoutType) return [];
+
+    const localEntries: LogEntry[] = [];
+    const today = new Date();
+
+    // Check last 90 days of localStorage
+    for (let i = 0; i < 90; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(checkDate.getDate() - i);
+      const dateStr = toDateStr(checkDate);
+
+      // Skip if we already have a database entry for this date with workout data
+      const hasDbEntry = entries.some(
+        (e) =>
+          e.date === dateStr &&
+          e.activityTypeId === workoutType.id &&
+          e.workoutData?.exercises
+      );
+      if (hasDbEntry) continue;
+
+      const savedData = localStorage.getItem(`workout-data-${dateStr}`);
+      if (savedData) {
+        try {
+          const workoutData = JSON.parse(savedData) as Record<
+            string,
+            Array<{
+              reps?: number;
+              weight?: number;
+              distance?: number;
+              duration?: number;
+            }>
+          >;
+
+          // Convert localStorage format to workout exercises
+          const exercises: WorkoutExercise[] = [];
+          for (const [exerciseName, sets] of Object.entries(workoutData)) {
+            const validSets = sets.filter(
+              (set) => set.reps || set.weight || set.distance || set.duration
+            );
+            if (validSets.length === 0) continue;
+
+            const exerciseConfig = workoutType.customExercises?.find(
+              (e) => e.name === exerciseName
+            );
+
+            exercises.push({
+              id: `local-${dateStr}-${exerciseName}`,
+              name: exerciseName,
+              category: exerciseConfig?.category || "other",
+              sets: validSets.length,
+              reps: validSets[0].reps,
+              weight: validSets.some((s) => s.weight)
+                ? Math.max(
+                    ...validSets.filter((s) => s.weight).map((s) => s.weight!)
+                  )
+                : undefined,
+              distance: validSets.some((s) => s.distance)
+                ? validSets.reduce((sum, s) => sum + (s.distance || 0), 0)
+                : undefined,
+              duration: validSets.some((s) => s.duration)
+                ? validSets.reduce((sum, s) => sum + (s.duration || 0), 0)
+                : undefined,
+              setsData: validSets,
+            });
+          }
+
+          if (exercises.length > 0) {
+            localEntries.push({
+              id: `local-${dateStr}`,
+              activityTypeId: workoutType.id,
+              date: dateStr,
+              value: "Workout",
+              workoutData: { exercises },
+              createdAt: new Date(dateStr),
+              updatedAt: new Date(dateStr),
+            });
+          }
+        } catch (e) {
+          // Invalid JSON, skip
+        }
+      }
+    }
+
+    return localEntries;
+  }, [activityTypes, entries]);
+
+  // Combine database entries with localStorage workout entries
+  const allEntries = useMemo(() => {
+    return [...entries, ...localStorageWorkoutEntries];
+  }, [entries, localStorageWorkoutEntries]);
+
   // Get current date range with offset
   const currentRange = useMemo(() => {
     return getDateRangeWithOffset(timeRange, offset);
@@ -357,11 +453,11 @@ export default function StatsPage() {
 
   // Calculate statistics for current range
   const statistics = useMemo(() => {
-    const filteredEntries = entries.filter(
+    const filteredEntries = allEntries.filter(
       (e) => e.date >= currentRange.start && e.date <= currentRange.end
     );
     return calculateStatistics(filteredEntries, activityTypes);
-  }, [entries, activityTypes, currentRange]);
+  }, [allEntries, activityTypes, currentRange]);
 
   // Get stat for selected activity (always return something if activity is selected)
   const selectedStat = useMemo(() => {
