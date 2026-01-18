@@ -1816,17 +1816,12 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                             <span className='text-[13px] text-gray-500'>
                               Sets ({sets.length})
                             </span>
-                            <button
-                              onClick={() => addExerciseSet(ex.name)}
-                              className='text-[14px] text-ios-blue font-medium'>
-                              + Add Set
-                            </button>
                           </div>
 
                           {sets.map((set, index) => (
                             <div
                               key={index}
-                              className='flex items-center gap-2 py-2'>
+                              className='flex items-center gap-3 py-2'>
                               {/* Set number */}
                               <span className='text-[15px] font-semibold text-gray-500 w-6 text-center'>
                                 {index + 1}
@@ -1940,7 +1935,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                   onClick={() =>
                                     removeExerciseSet(ex.name, index)
                                   }
-                                  className='p-1'>
+                                  className='p-2 ml-2'>
                                   <svg
                                     className='w-5 h-5 text-ios-red'
                                     fill='none'
@@ -1955,10 +1950,17 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                   </svg>
                                 </button>
                               ) : (
-                                <div className='w-7' />
+                                <div className='w-9' />
                               )}
                             </div>
                           ))}
+
+                          {/* Add Set Button */}
+                          <button
+                            onClick={() => addExerciseSet(ex.name)}
+                            className='w-full py-2.5 mt-2 rounded-lg text-[15px] font-medium text-ios-blue bg-ios-blue/10 active:bg-ios-blue/20'>
+                            + Add Set
+                          </button>
                         </div>
                       )}
                     </div>
