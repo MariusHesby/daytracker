@@ -143,9 +143,18 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   const isLocked = isDayLocked(date);
 
   // Persist workout state to localStorage (survives phone sleep/wake)
+  // Only save if there's actual data entered (not just empty sets)
   useEffect(() => {
     if (typeof window !== "undefined") {
-      if (Object.keys(workoutData).length > 0) {
+      // Check if any exercise has actual data
+      const hasActualData = Object.keys(workoutData).some((exerciseName) => {
+        const sets = workoutData[exerciseName] || [];
+        return sets.some(
+          (set) => set.reps || set.weight || set.distance || set.duration
+        );
+      });
+      
+      if (hasActualData) {
         localStorage.setItem(
           `workout-data-${date}`,
           JSON.stringify(workoutData)
@@ -156,9 +165,18 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     }
   }, [workoutData, date]);
 
+  // Only save expanded exercises if there's actual data
   useEffect(() => {
     if (typeof window !== "undefined") {
-      if (expandedExercises.size > 0) {
+      // Check if any exercise has actual data
+      const hasActualData = Object.keys(workoutData).some((exerciseName) => {
+        const sets = workoutData[exerciseName] || [];
+        return sets.some(
+          (set) => set.reps || set.weight || set.distance || set.duration
+        );
+      });
+      
+      if (hasActualData && expandedExercises.size > 0) {
         localStorage.setItem(
           `workout-expanded-${date}`,
           JSON.stringify([...expandedExercises])
@@ -167,7 +185,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         localStorage.removeItem(`workout-expanded-${date}`);
       }
     }
-  }, [expandedExercises, date]);
+  }, [expandedExercises, workoutData, date]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -259,21 +277,22 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     }
   };
 
-  // Reload workout state when date changes
+  // Reload workout state when date changes - reset to empty if no saved data for this date
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Load workout data for new date
+      // Load workout data for new date (or reset to empty)
       const savedData = localStorage.getItem(`workout-data-${date}`);
       const savedExpanded = localStorage.getItem(`workout-expanded-${date}`);
       const savedEditing = localStorage.getItem(`workout-editing-${date}`);
       const savedRoutine = localStorage.getItem(`workout-routine-${date}`);
 
+      // Always reset to empty object first, then load if there's saved data
       setWorkoutData(savedData ? JSON.parse(savedData) : {});
       setExpandedExercises(
         savedExpanded ? new Set(JSON.parse(savedExpanded)) : new Set()
       );
       setIsEditingWorkout(savedEditing === "true");
-      setSelectedRoutineId(savedRoutine);
+      setSelectedRoutineId(savedRoutine || null);
     }
   }, [date]);
 
@@ -1281,7 +1300,10 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         };
 
         // Get placeholder values for an exercise set (from last used data)
-        const getPlaceholderForSet = (exerciseName: string, setIndex: number) => {
+        const getPlaceholderForSet = (
+          exerciseName: string,
+          setIndex: number
+        ) => {
           const lastUsed = getLastUsedValues(exerciseName);
           if (lastUsed.setsData && lastUsed.setsData.length > setIndex) {
             return lastUsed.setsData[setIndex];
@@ -1818,143 +1840,157 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                           </div>
 
                           {sets.map((set, index) => {
-                            const placeholder = getPlaceholderForSet(ex.name, index);
+                            const placeholder = getPlaceholderForSet(
+                              ex.name,
+                              index
+                            );
                             return (
-                            <div
-                              key={index}
-                              className='flex items-center gap-3 py-2'>
-                              {/* Set number */}
-                              <span className='text-[15px] font-semibold text-gray-500 w-6 text-center'>
-                                {index + 1}
-                              </span>
+                              <div
+                                key={index}
+                                className='flex items-center gap-3 py-2'>
+                                {/* Set number */}
+                                <span className='text-[15px] font-semibold text-gray-500 w-6 text-center'>
+                                  {index + 1}
+                                </span>
 
-                              {/* Input fields */}
-                              <div className='flex-1 flex items-center gap-2'>
-                                {ex.trackReps && (
-                                  <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
-                                    <input
-                                      type='number'
-                                      value={set.reps || ""}
-                                      onChange={(e) =>
-                                        updateExerciseSet(
-                                          ex.name,
-                                          index,
-                                          "reps",
-                                          e.target.value
-                                            ? parseInt(e.target.value)
-                                            : undefined
-                                        )
-                                      }
-                                      onFocus={(e) => e.target.select()}
-                                      placeholder={placeholder.reps?.toString() || '0'}
-                                      className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
-                                    />
-                                    <span className='text-[13px] text-gray-500'>
-                                      reps
-                                    </span>
-                                  </div>
-                                )}
-                                {ex.trackWeight && (
-                                  <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
-                                    <input
-                                      type='number'
-                                      value={set.weight || ""}
-                                      onChange={(e) =>
-                                        updateExerciseSet(
-                                          ex.name,
-                                          index,
-                                          "weight",
-                                          e.target.value
-                                            ? parseFloat(e.target.value)
-                                            : undefined
-                                        )
-                                      }
-                                      onFocus={(e) => e.target.select()}
-                                      placeholder={placeholder.weight?.toString() || '0'}
-                                      step='0.5'
-                                      className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
-                                    />
-                                    <span className='text-[13px] text-gray-500'>
-                                      kg
-                                    </span>
-                                  </div>
-                                )}
-                                {ex.trackDistance && (
-                                  <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
-                                    <input
-                                      type='number'
-                                      value={set.distance || ""}
-                                      onChange={(e) =>
-                                        updateExerciseSet(
-                                          ex.name,
-                                          index,
-                                          "distance",
-                                          e.target.value
-                                            ? parseFloat(e.target.value)
-                                            : undefined
-                                        )
-                                      }
-                                      onFocus={(e) => e.target.select()}
-                                      placeholder={placeholder.distance?.toString() || '0'}
-                                      step='0.1'
-                                      className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
-                                    />
-                                    <span className='text-[13px] text-gray-500'>
-                                      km
-                                    </span>
-                                  </div>
-                                )}
-                                {ex.trackDuration && (
-                                  <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
-                                    <input
-                                      type='number'
-                                      value={set.duration || ""}
-                                      onChange={(e) =>
-                                        updateExerciseSet(
-                                          ex.name,
-                                          index,
-                                          "duration",
-                                          e.target.value
-                                            ? parseInt(e.target.value)
-                                            : undefined
-                                        )
-                                      }
-                                      onFocus={(e) => e.target.select()}
-                                      placeholder={placeholder.duration?.toString() || '0'}
-                                      className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
-                                    />
-                                    <span className='text-[13px] text-gray-500'>
-                                      min
-                                    </span>
-                                  </div>
+                                {/* Input fields */}
+                                <div className='flex-1 flex items-center gap-2'>
+                                  {ex.trackReps && (
+                                    <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
+                                      <input
+                                        type='number'
+                                        value={set.reps || ""}
+                                        onChange={(e) =>
+                                          updateExerciseSet(
+                                            ex.name,
+                                            index,
+                                            "reps",
+                                            e.target.value
+                                              ? parseInt(e.target.value)
+                                              : undefined
+                                          )
+                                        }
+                                        onFocus={(e) => e.target.select()}
+                                        placeholder={
+                                          placeholder.reps?.toString() || "0"
+                                        }
+                                        className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
+                                      />
+                                      <span className='text-[13px] text-gray-500'>
+                                        reps
+                                      </span>
+                                    </div>
+                                  )}
+                                  {ex.trackWeight && (
+                                    <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
+                                      <input
+                                        type='number'
+                                        value={set.weight || ""}
+                                        onChange={(e) =>
+                                          updateExerciseSet(
+                                            ex.name,
+                                            index,
+                                            "weight",
+                                            e.target.value
+                                              ? parseFloat(e.target.value)
+                                              : undefined
+                                          )
+                                        }
+                                        onFocus={(e) => e.target.select()}
+                                        placeholder={
+                                          placeholder.weight?.toString() || "0"
+                                        }
+                                        step='0.5'
+                                        className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
+                                      />
+                                      <span className='text-[13px] text-gray-500'>
+                                        kg
+                                      </span>
+                                    </div>
+                                  )}
+                                  {ex.trackDistance && (
+                                    <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
+                                      <input
+                                        type='number'
+                                        value={set.distance || ""}
+                                        onChange={(e) =>
+                                          updateExerciseSet(
+                                            ex.name,
+                                            index,
+                                            "distance",
+                                            e.target.value
+                                              ? parseFloat(e.target.value)
+                                              : undefined
+                                          )
+                                        }
+                                        onFocus={(e) => e.target.select()}
+                                        placeholder={
+                                          placeholder.distance?.toString() ||
+                                          "0"
+                                        }
+                                        step='0.1'
+                                        className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
+                                      />
+                                      <span className='text-[13px] text-gray-500'>
+                                        km
+                                      </span>
+                                    </div>
+                                  )}
+                                  {ex.trackDuration && (
+                                    <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
+                                      <input
+                                        type='number'
+                                        value={set.duration || ""}
+                                        onChange={(e) =>
+                                          updateExerciseSet(
+                                            ex.name,
+                                            index,
+                                            "duration",
+                                            e.target.value
+                                              ? parseInt(e.target.value)
+                                              : undefined
+                                          )
+                                        }
+                                        onFocus={(e) => e.target.select()}
+                                        placeholder={
+                                          placeholder.duration?.toString() ||
+                                          "0"
+                                        }
+                                        className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
+                                      />
+                                      <span className='text-[13px] text-gray-500'>
+                                        min
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Delete button */}
+                                {sets.length > 1 ? (
+                                  <button
+                                    onClick={() =>
+                                      removeExerciseSet(ex.name, index)
+                                    }
+                                    className='p-2 ml-2'>
+                                    <svg
+                                      className='w-5 h-5 text-ios-red'
+                                      fill='none'
+                                      viewBox='0 0 24 24'
+                                      stroke='currentColor'
+                                      strokeWidth={2}>
+                                      <path
+                                        strokeLinecap='round'
+                                        strokeLinejoin='round'
+                                        d='M6 18L18 6M6 6l12 12'
+                                      />
+                                    </svg>
+                                  </button>
+                                ) : (
+                                  <div className='w-9' />
                                 )}
                               </div>
-
-                              {/* Delete button */}
-                              {sets.length > 1 ? (
-                                <button
-                                  onClick={() =>
-                                    removeExerciseSet(ex.name, index)
-                                  }
-                                  className='p-2 ml-2'>
-                                  <svg
-                                    className='w-5 h-5 text-ios-red'
-                                    fill='none'
-                                    viewBox='0 0 24 24'
-                                    stroke='currentColor'
-                                    strokeWidth={2}>
-                                    <path
-                                      strokeLinecap='round'
-                                      strokeLinejoin='round'
-                                      d='M6 18L18 6M6 6l12 12'
-                                    />
-                                  </svg>
-                                </button>
-                              ) : (
-                                <div className='w-9' />
-                              )}
-                            </div>
-                          )})}
+                            );
+                          })}
 
                           {/* Add Set Button */}
                           <button
@@ -2010,18 +2046,23 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
           const isWorkout = type.valueType === "workout";
 
           // Check if workout has any data being entered (not yet saved)
-          const workoutHasEnteredData = isWorkout && Object.keys(workoutData).some(
-            (exerciseName) => {
+          const workoutHasEnteredData =
+            isWorkout &&
+            Object.keys(workoutData).some((exerciseName) => {
               const sets = workoutData[exerciseName] || [];
-              return sets.some((set) => set.reps || set.weight || set.distance || set.duration);
-            }
-          );
-          
+              return sets.some(
+                (set) => set.reps || set.weight || set.distance || set.duration
+              );
+            });
+
           // Count exercises with entered data
-          const workoutEnteredExerciseCount = isWorkout 
+          const workoutEnteredExerciseCount = isWorkout
             ? Object.keys(workoutData).filter((exerciseName) => {
                 const sets = workoutData[exerciseName] || [];
-                return sets.some((set) => set.reps || set.weight || set.distance || set.duration);
+                return sets.some(
+                  (set) =>
+                    set.reps || set.weight || set.distance || set.duration
+                );
               }).length
             : 0;
 
@@ -2181,12 +2222,16 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                             }
                           });
                           // Use entered count if no saved data, or saved count if data is saved
-                          const displayCount = hasSavedValues ? totalSavedExercises : workoutEnteredExerciseCount;
-                          const isSaved = hasSavedValues && totalSavedExercises > 0;
+                          const displayCount = hasSavedValues
+                            ? totalSavedExercises
+                            : workoutEnteredExerciseCount;
+                          const isSaved =
+                            hasSavedValues && totalSavedExercises > 0;
                           return (
                             <span className='text-[15px] font-medium text-ios-green'>
                               {displayCount} exercise
-                              {displayCount !== 1 ? "s" : ""}{isSaved ? " ✓" : ""}
+                              {displayCount !== 1 ? "s" : ""}
+                              {isSaved ? " ✓" : ""}
                             </span>
                           );
                         })()}
