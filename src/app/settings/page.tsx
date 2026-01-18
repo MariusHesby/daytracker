@@ -533,7 +533,10 @@ export default function SettingsPage() {
             <button
               onClick={() => {
                 if (confirm(t("settings.deleteAllConfirm"))) {
+                  // Clear IndexedDB
                   indexedDB.deleteDatabase("daytracker-db");
+                  // Clear all localStorage (includes workout data, locked days, etc.)
+                  localStorage.clear();
                   window.location.reload();
                 }
               }}
