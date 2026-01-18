@@ -83,7 +83,10 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   // View mode: 'list' or 'icons'
   const [viewMode, setViewMode] = useState<"list" | "icons">(() => {
     if (typeof window !== "undefined") {
-      return (localStorage.getItem("entryform-viewmode") as "list" | "icons") || "list";
+      return (
+        (localStorage.getItem("entryform-viewmode") as "list" | "icons") ||
+        "list"
+      );
     }
     return "list";
   });
@@ -2141,15 +2144,32 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
         <button
           onClick={toggleViewMode}
           className='p-2 rounded-lg bg-gray-100 dark:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700'
-          title={viewMode === "list" ? "Switch to icons" : "Switch to list"}
-        >
+          title={viewMode === "list" ? "Switch to icons" : "Switch to list"}>
           {viewMode === "list" ? (
-            <svg className='w-5 h-5 text-gray-600 dark:text-gray-400' fill='none' viewBox='0 0 24 24' strokeWidth={1.5} stroke='currentColor'>
-              <path strokeLinecap='round' strokeLinejoin='round' d='M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' />
+            <svg
+              className='w-5 h-5 text-gray-600 dark:text-gray-400'
+              fill='none'
+              viewBox='0 0 24 24'
+              strokeWidth={1.5}
+              stroke='currentColor'>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'
+              />
             </svg>
           ) : (
-            <svg className='w-5 h-5 text-gray-600 dark:text-gray-400' fill='none' viewBox='0 0 24 24' strokeWidth={1.5} stroke='currentColor'>
-              <path strokeLinecap='round' strokeLinejoin='round' d='M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z' />
+            <svg
+              className='w-5 h-5 text-gray-600 dark:text-gray-400'
+              fill='none'
+              viewBox='0 0 24 24'
+              strokeWidth={1.5}
+              stroke='currentColor'>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'
+              />
             </svg>
           )}
         </button>
@@ -2157,26 +2177,27 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
 
       {/* Icon Grid View */}
       {viewMode === "icons" && (
-        <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl p-3'>
-          <div className='grid grid-cols-5 gap-2'>
+        <div className='grid grid-cols-4 gap-3'>
             {activityTypes.map((type) => {
               const typeSavedValues = savedValues[type.id] || [];
               const hasSavedValues = typeSavedValues.length > 0;
               const isCheckmark = type.valueType === "checkmark";
               const isWorkout = type.valueType === "workout";
-              
+
               // Check if workout has any data being entered
               const workoutHasEnteredData =
                 isWorkout &&
                 Object.keys(workoutData).some((exerciseName) => {
                   const sets = workoutData[exerciseName] || [];
                   return sets.some(
-                    (set) => set.reps || set.weight || set.distance || set.duration
+                    (set) =>
+                      set.reps || set.weight || set.distance || set.duration
                   );
                 });
 
               const hasValue = hasSavedValues || workoutHasEnteredData;
-              const isSkipped = isCheckmark && typeSavedValues[0]?.value === "skipped";
+              const isSkipped =
+                isCheckmark && typeSavedValues[0]?.value === "skipped";
 
               return (
                 <button
@@ -2195,16 +2216,16 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                       : isSkipped
                       ? "bg-ios-red/10 dark:bg-ios-red/20"
                       : "bg-gray-100 dark:bg-gray-800"
-                  )}
-                >
-                  <div className={cn(
-                    "w-8 h-8 flex items-center justify-center",
-                    hasValue && !isSkipped
-                      ? "text-ios-green"
-                      : isSkipped
-                      ? "text-ios-red"
-                      : "text-ios-blue"
                   )}>
+                  <div
+                    className={cn(
+                      "w-8 h-8 flex items-center justify-center",
+                      hasValue && !isSkipped
+                        ? "text-ios-green"
+                        : isSkipped
+                        ? "text-ios-red"
+                        : "text-ios-blue"
+                    )}>
                     {type.icon in icons ? (
                       <Icon name={type.icon as IconName} className='w-7 h-7' />
                     ) : (
@@ -2220,486 +2241,486 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                 </button>
               );
             })}
-          </div>
         </div>
       )}
 
       {/* List View */}
       {viewMode === "list" && (
-      <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible'>
-        {activityTypes.map((type, index) => {
-          const typeSavedValues = savedValues[type.id] || [];
-          const hasSavedValues = typeSavedValues.length > 0;
-          const isExpanded = expandedTypeId === type.id;
-          const isLast = index === activityTypes.length - 1;
-          const isCheckmark = type.valueType === "checkmark";
-          const isCounter = type.valueType === "counter";
-          const isMood = type.valueType === "mood";
-          const isNutrition = type.valueType === "nutrition";
-          const isWorkout = type.valueType === "workout";
+        <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible'>
+          {activityTypes.map((type, index) => {
+            const typeSavedValues = savedValues[type.id] || [];
+            const hasSavedValues = typeSavedValues.length > 0;
+            const isExpanded = expandedTypeId === type.id;
+            const isLast = index === activityTypes.length - 1;
+            const isCheckmark = type.valueType === "checkmark";
+            const isCounter = type.valueType === "counter";
+            const isMood = type.valueType === "mood";
+            const isNutrition = type.valueType === "nutrition";
+            const isWorkout = type.valueType === "workout";
 
-          // Check if workout has any data being entered (not yet saved)
-          const workoutHasEnteredData =
-            isWorkout &&
-            Object.keys(workoutData).some((exerciseName) => {
-              const sets = workoutData[exerciseName] || [];
-              return sets.some(
-                (set) => set.reps || set.weight || set.distance || set.duration
-              );
-            });
-
-          // Count exercises with entered data
-          const workoutEnteredExerciseCount = isWorkout
-            ? Object.keys(workoutData).filter((exerciseName) => {
+            // Check if workout has any data being entered (not yet saved)
+            const workoutHasEnteredData =
+              isWorkout &&
+              Object.keys(workoutData).some((exerciseName) => {
                 const sets = workoutData[exerciseName] || [];
                 return sets.some(
                   (set) =>
                     set.reps || set.weight || set.distance || set.duration
                 );
-              }).length
-            : 0;
+              });
 
-          // Get current counter value
-          const currentCounterValue =
-            isCounter && hasSavedValues
-              ? typeof typeSavedValues[0].value === "number"
-                ? typeSavedValues[0].value
-                : 0
+            // Count exercises with entered data
+            const workoutEnteredExerciseCount = isWorkout
+              ? Object.keys(workoutData).filter((exerciseName) => {
+                  const sets = workoutData[exerciseName] || [];
+                  return sets.some(
+                    (set) =>
+                      set.reps || set.weight || set.distance || set.duration
+                  );
+                }).length
               : 0;
 
-          const handleCounterChange = (delta: number) => {
-            const newValue = Math.max(0, currentCounterValue + delta);
-            if (newValue === 0 && hasSavedValues) {
-              // Remove entry when counter reaches 0
-              deleteEntry(typeSavedValues[0].id);
-            } else if (newValue > 0) {
-              handleSaveValue(type.id, newValue);
-            }
-          };
+            // Get current counter value
+            const currentCounterValue =
+              isCounter && hasSavedValues
+                ? typeof typeSavedValues[0].value === "number"
+                  ? typeSavedValues[0].value
+                  : 0
+                : 0;
 
-          const handleRowClick = () => {
-            if (isCheckmark) {
-              const now = Date.now();
-              const lastClick = lastClickTime[type.id] || 0;
-              const isDoubleClick = now - lastClick < 400; // 400ms for double-click
-              setLastClickTime({ ...lastClickTime, [type.id]: now });
+            const handleCounterChange = (delta: number) => {
+              const newValue = Math.max(0, currentCounterValue + delta);
+              if (newValue === 0 && hasSavedValues) {
+                // Remove entry when counter reaches 0
+                deleteEntry(typeSavedValues[0].id);
+              } else if (newValue > 0) {
+                handleSaveValue(type.id, newValue);
+              }
+            };
 
-              if (isDoubleClick) {
-                // Double-click: set to "skipped" (red X)
-                if (hasSavedValues) {
-                  // Delete existing and add skipped
-                  typeSavedValues.forEach((saved) => {
-                    deleteEntry(saved.id);
-                  });
-                }
-                handleSaveValue(type.id, "skipped");
-              } else {
-                // Single click: toggle between checked and unchecked
-                if (hasSavedValues) {
-                  const currentValue = typeSavedValues[0]?.value;
-                  if (currentValue === "skipped") {
-                    // If skipped, remove it
-                    typeSavedValues.forEach((saved) => {
-                      deleteEntry(saved.id);
-                    });
-                  } else {
-                    // If checked, remove the checkmark
+            const handleRowClick = () => {
+              if (isCheckmark) {
+                const now = Date.now();
+                const lastClick = lastClickTime[type.id] || 0;
+                const isDoubleClick = now - lastClick < 400; // 400ms for double-click
+                setLastClickTime({ ...lastClickTime, [type.id]: now });
+
+                if (isDoubleClick) {
+                  // Double-click: set to "skipped" (red X)
+                  if (hasSavedValues) {
+                    // Delete existing and add skipped
                     typeSavedValues.forEach((saved) => {
                       deleteEntry(saved.id);
                     });
                   }
+                  handleSaveValue(type.id, "skipped");
                 } else {
-                  // Add the checkmark
-                  handleSaveValue(type.id, true);
+                  // Single click: toggle between checked and unchecked
+                  if (hasSavedValues) {
+                    const currentValue = typeSavedValues[0]?.value;
+                    if (currentValue === "skipped") {
+                      // If skipped, remove it
+                      typeSavedValues.forEach((saved) => {
+                        deleteEntry(saved.id);
+                      });
+                    } else {
+                      // If checked, remove the checkmark
+                      typeSavedValues.forEach((saved) => {
+                        deleteEntry(saved.id);
+                      });
+                    }
+                  } else {
+                    // Add the checkmark
+                    handleSaveValue(type.id, true);
+                  }
                 }
+              } else if (isCounter) {
+                // For counter, tapping row resets to 0 if not already 0
+                if (currentCounterValue > 0 && hasSavedValues) {
+                  deleteEntry(typeSavedValues[0].id);
+                }
+                // If already 0, do nothing
+              } else {
+                toggleExpanded(type.id);
               }
-            } else if (isCounter) {
-              // For counter, tapping row resets to 0 if not already 0
-              if (currentCounterValue > 0 && hasSavedValues) {
-                deleteEntry(typeSavedValues[0].id);
-              }
-              // If already 0, do nothing
-            } else {
-              toggleExpanded(type.id);
-            }
-          };
+            };
 
-          return (
-            <div key={type.id}>
-              {/* Activity row */}
-              <div
-                className={cn(
-                  "flex items-center min-h-[40px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
-                  isExpanded && "bg-gray-50 dark:bg-gray-800",
-                  isLocked && "pointer-events-none opacity-75"
-                )}
-                onClick={handleRowClick}>
-                {/* Icon */}
-                {type.icon && (
+            return (
+              <div key={type.id}>
+                {/* Activity row */}
+                <div
+                  className={cn(
+                    "flex items-center min-h-[40px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
+                    isExpanded && "bg-gray-50 dark:bg-gray-800",
+                    isLocked && "pointer-events-none opacity-75"
+                  )}
+                  onClick={handleRowClick}>
+                  {/* Icon */}
+                  {type.icon && (
+                    <div
+                      className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center mr-3 shrink-0",
+                        isLocked
+                          ? "bg-ios-green/10"
+                          : hasSavedValues || workoutHasEnteredData
+                          ? "bg-ios-green/10"
+                          : "bg-ios-blue/10"
+                      )}>
+                      {type.icon in icons ? (
+                        <Icon
+                          name={type.icon as IconName}
+                          className={cn(
+                            "w-5 h-5",
+                            isLocked
+                              ? "text-ios-green"
+                              : hasSavedValues || workoutHasEnteredData
+                              ? "text-ios-green"
+                              : "text-ios-blue"
+                          )}
+                        />
+                      ) : (
+                        <span className='text-lg'>{type.icon}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Content and right-aligned controls */}
                   <div
                     className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center mr-3 shrink-0",
-                      isLocked
-                        ? "bg-ios-green/10"
-                        : hasSavedValues || workoutHasEnteredData
-                        ? "bg-ios-green/10"
-                        : "bg-ios-blue/10"
+                      "flex-1 py-2 flex items-center",
+                      !isLast &&
+                        !isExpanded &&
+                        "border-b border-gray-200/80 dark:border-gray-700/80"
                     )}>
-                    {type.icon in icons ? (
-                      <Icon
-                        name={type.icon as IconName}
-                        className={cn(
-                          "w-5 h-5",
-                          isLocked
-                            ? "text-ios-green"
-                            : hasSavedValues || workoutHasEnteredData
-                            ? "text-ios-green"
-                            : "text-ios-blue"
+                    {/* Main label and inline text value */}
+                    <div className='flex-1 min-w-0 flex items-center gap-2'>
+                      <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
+                        {type.name}
+                      </span>
+                      {/* Only show inline value for text type */}
+                      {hasSavedValues &&
+                        !isExpanded &&
+                        type.valueType === "text" && (
+                          <span className='text-[15px] text-gray-400 dark:text-gray-500 truncate'>
+                            {typeSavedValues.map((saved, i) => (
+                              <span key={saved.id}>
+                                {formatValue(saved.value, type.id)}
+                                {i < typeSavedValues.length - 1 && ", "}
+                              </span>
+                            ))}
+                          </span>
                         )}
-                      />
-                    ) : (
-                      <span className='text-lg'>{type.icon}</span>
-                    )}
-                  </div>
-                )}
+                    </div>
 
-                {/* Content and right-aligned controls */}
-                <div
-                  className={cn(
-                    "flex-1 py-2 flex items-center",
-                    !isLast &&
-                      !isExpanded &&
-                      "border-b border-gray-200/80 dark:border-gray-700/80"
-                  )}>
-                  {/* Main label and inline text value */}
-                  <div className='flex-1 min-w-0 flex items-center gap-2'>
-                    <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
-                      {type.name}
-                    </span>
-                    {/* Only show inline value for text type */}
-                    {hasSavedValues &&
-                      !isExpanded &&
-                      type.valueType === "text" && (
-                        <span className='text-[15px] text-gray-400 dark:text-gray-500 truncate'>
-                          {typeSavedValues.map((saved, i) => (
-                            <span key={saved.id}>
-                              {formatValue(saved.value, type.id)}
-                              {i < typeSavedValues.length - 1 && ", "}
-                            </span>
-                          ))}
-                        </span>
-                      )}
-                  </div>
-
-                  {/* Right-aligned value type controls (except text) */}
-                  {(isCheckmark ||
-                    isMood ||
-                    isCounter ||
-                    isNutrition ||
-                    isWorkout ||
-                    type.valueType === "boolean") && (
-                    <div className='flex items-center gap-2 ml-auto shrink-0'>
-                      {/* Workout summary - show for saved data or entered data */}
-                      {isWorkout &&
-                        (hasSavedValues || workoutHasEnteredData) &&
-                        (() => {
-                          // Count total exercises for today (saved)
-                          let totalSavedExercises = 0;
-                          typeSavedValues.forEach((saved) => {
-                            const entry = entries.find(
-                              (e) => e.id === saved.id
+                    {/* Right-aligned value type controls (except text) */}
+                    {(isCheckmark ||
+                      isMood ||
+                      isCounter ||
+                      isNutrition ||
+                      isWorkout ||
+                      type.valueType === "boolean") && (
+                      <div className='flex items-center gap-2 ml-auto shrink-0'>
+                        {/* Workout summary - show for saved data or entered data */}
+                        {isWorkout &&
+                          (hasSavedValues || workoutHasEnteredData) &&
+                          (() => {
+                            // Count total exercises for today (saved)
+                            let totalSavedExercises = 0;
+                            typeSavedValues.forEach((saved) => {
+                              const entry = entries.find(
+                                (e) => e.id === saved.id
+                              );
+                              if (entry?.workoutData?.exercises) {
+                                totalSavedExercises +=
+                                  entry.workoutData.exercises.length;
+                              }
+                            });
+                            // Use entered count if no saved data, or saved count if data is saved
+                            const displayCount = hasSavedValues
+                              ? totalSavedExercises
+                              : workoutEnteredExerciseCount;
+                            const isSaved =
+                              hasSavedValues && totalSavedExercises > 0;
+                            return (
+                              <span className='text-[15px] font-medium text-ios-green'>
+                                {displayCount} exercise
+                                {displayCount !== 1 ? "s" : ""}
+                                {isSaved ? " ✓" : ""}
+                              </span>
                             );
-                            if (entry?.workoutData?.exercises) {
-                              totalSavedExercises +=
-                                entry.workoutData.exercises.length;
-                            }
-                          });
-                          // Use entered count if no saved data, or saved count if data is saved
-                          const displayCount = hasSavedValues
-                            ? totalSavedExercises
-                            : workoutEnteredExerciseCount;
-                          const isSaved =
-                            hasSavedValues && totalSavedExercises > 0;
-                          return (
-                            <span className='text-[15px] font-medium text-ios-green'>
-                              {displayCount} exercise
-                              {displayCount !== 1 ? "s" : ""}
-                              {isSaved ? " ✓" : ""}
-                            </span>
-                          );
-                        })()}
-                      {/* Nutrition progress summary */}
-                      {isNutrition &&
-                        (() => {
-                          const totals = getNutritionTotals(type.id);
-                          const goal = type.nutritionGoal || {};
-                          const hasGoal =
-                            goal.protein ||
-                            goal.calories ||
-                            goal.carbs ||
-                            goal.fat;
-                          const hasEntries = hasSavedValues;
+                          })()}
+                        {/* Nutrition progress summary */}
+                        {isNutrition &&
+                          (() => {
+                            const totals = getNutritionTotals(type.id);
+                            const goal = type.nutritionGoal || {};
+                            const hasGoal =
+                              goal.protein ||
+                              goal.calories ||
+                              goal.carbs ||
+                              goal.fat;
+                            const hasEntries = hasSavedValues;
 
-                          if (!hasGoal && !hasEntries) return null;
+                            if (!hasGoal && !hasEntries) return null;
 
-                          // Show primary goal progress (protein first, then calories)
-                          const primaryGoal = goal.protein
-                            ? "protein"
-                            : goal.calories
-                            ? "calories"
-                            : null;
-                          const totalValue =
-                            primaryGoal === "protein"
-                              ? totals.protein
-                              : totals.calories;
-                          const goalValue =
-                            primaryGoal === "protein"
-                              ? goal.protein
-                              : goal.calories;
-                          const isGoalReached =
-                            goalValue && totalValue >= goalValue;
+                            // Show primary goal progress (protein first, then calories)
+                            const primaryGoal = goal.protein
+                              ? "protein"
+                              : goal.calories
+                              ? "calories"
+                              : null;
+                            const totalValue =
+                              primaryGoal === "protein"
+                                ? totals.protein
+                                : totals.calories;
+                            const goalValue =
+                              primaryGoal === "protein"
+                                ? goal.protein
+                                : goal.calories;
+                            const isGoalReached =
+                              goalValue && totalValue >= goalValue;
 
-                          return (
+                            return (
+                              <span
+                                className={cn(
+                                  "text-[15px] font-medium",
+                                  isGoalReached
+                                    ? "text-ios-green"
+                                    : "text-gray-500 dark:text-gray-400"
+                                )}>
+                                {primaryGoal === "protein" && goalValue ? (
+                                  <>
+                                    {totals.protein}g / {goal.protein}g{" "}
+                                    {isGoalReached && "✓"}
+                                  </>
+                                ) : primaryGoal === "calories" && goalValue ? (
+                                  <>
+                                    {totals.calories} / {goal.calories} kcal{" "}
+                                    {isGoalReached && "✓"}
+                                  </>
+                                ) : hasEntries ? (
+                                  <>
+                                    {typeSavedValues.length} item
+                                    {typeSavedValues.length !== 1 ? "s" : ""}
+                                  </>
+                                ) : null}
+                              </span>
+                            );
+                          })()}
+                        {/* Checkmark icon */}
+                        {isCheckmark && hasSavedValues && (
+                          <>
+                            {typeSavedValues[0]?.value === "skipped" ? (
+                              <svg
+                                className='w-5 h-5 text-ios-red shrink-0'
+                                fill='none'
+                                stroke='currentColor'
+                                viewBox='0 0 24 24'
+                                strokeWidth={3}>
+                                <path
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'
+                                  d='M6 18L18 6M6 6l12 12'
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                className='w-5 h-5 text-ios-green shrink-0'
+                                fill='none'
+                                stroke='currentColor'
+                                viewBox='0 0 24 24'
+                                strokeWidth={3}>
+                                <path
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'
+                                  d='M5 13l4 4L19 7'
+                                />
+                              </svg>
+                            )}
+                          </>
+                        )}
+                        {/* Mood icon display */}
+                        {isMood && hasSavedValues && (
+                          <span className='shrink-0'>
+                            {typeSavedValues[0].value === "happy" && (
+                              <svg
+                                className='w-5 h-5 text-ios-green'
+                                viewBox='0 0 24 24'
+                                fill='none'
+                                stroke='currentColor'
+                                strokeWidth='2'
+                                strokeLinecap='round'
+                                strokeLinejoin='round'>
+                                <circle cx='12' cy='12' r='10' />
+                                <path d='M8 14s1.5 2 4 2 4-2 4-2' />
+                                <line
+                                  x1='9'
+                                  y1='9'
+                                  x2='9.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                                <line
+                                  x1='15'
+                                  y1='9'
+                                  x2='15.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                              </svg>
+                            )}
+                            {typeSavedValues[0].value === "neutral" && (
+                              <svg
+                                className='w-5 h-5 text-ios-orange'
+                                viewBox='0 0 24 24'
+                                fill='none'
+                                stroke='currentColor'
+                                strokeWidth='2'
+                                strokeLinecap='round'
+                                strokeLinejoin='round'>
+                                <circle cx='12' cy='12' r='10' />
+                                <line x1='8' y1='15' x2='16' y2='15' />
+                                <line
+                                  x1='9'
+                                  y1='9'
+                                  x2='9.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                                <line
+                                  x1='15'
+                                  y1='9'
+                                  x2='15.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                              </svg>
+                            )}
+                            {typeSavedValues[0].value === "sad" && (
+                              <svg
+                                className='w-5 h-5 text-ios-red'
+                                viewBox='0 0 24 24'
+                                fill='none'
+                                stroke='currentColor'
+                                strokeWidth='2'
+                                strokeLinecap='round'
+                                strokeLinejoin='round'>
+                                <circle cx='12' cy='12' r='10' />
+                                <path d='M16 16s-1.5-2-4-2-4 2-4 2' />
+                                <line
+                                  x1='9'
+                                  y1='9'
+                                  x2='9.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                                <line
+                                  x1='15'
+                                  y1='9'
+                                  x2='15.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                              </svg>
+                            )}
+                          </span>
+                        )}
+                        {/* Counter controls */}
+                        {isCounter && (
+                          <div
+                            className='flex items-center gap-x-2'
+                            onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCounterChange(-1);
+                              }}
+                              disabled={currentCounterValue === 0}
+                              className={cn(
+                                "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-gray-200 dark:border-gray-600",
+                                "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 shadow-none",
+                                "active:bg-gray-100 dark:active:bg-gray-700 active:scale-95 transition-transform",
+                                currentCounterValue === 0 && "opacity-30"
+                              )}>
+                              −
+                            </button>
                             <span
                               className={cn(
-                                "text-[15px] font-medium",
-                                isGoalReached
+                                "w-7 text-center text-[17px] font-semibold tabular-nums",
+                                currentCounterValue > 0
                                   ? "text-ios-green"
-                                  : "text-gray-500 dark:text-gray-400"
+                                  : "text-gray-400 dark:text-gray-500"
                               )}>
-                              {primaryGoal === "protein" && goalValue ? (
-                                <>
-                                  {totals.protein}g / {goal.protein}g{" "}
-                                  {isGoalReached && "✓"}
-                                </>
-                              ) : primaryGoal === "calories" && goalValue ? (
-                                <>
-                                  {totals.calories} / {goal.calories} kcal{" "}
-                                  {isGoalReached && "✓"}
-                                </>
-                              ) : hasEntries ? (
-                                <>
-                                  {typeSavedValues.length} item
-                                  {typeSavedValues.length !== 1 ? "s" : ""}
-                                </>
-                              ) : null}
+                              {currentCounterValue}
                             </span>
-                          );
-                        })()}
-                      {/* Checkmark icon */}
-                      {isCheckmark && hasSavedValues && (
-                        <>
-                          {typeSavedValues[0]?.value === "skipped" ? (
-                            <svg
-                              className='w-5 h-5 text-ios-red shrink-0'
-                              fill='none'
-                              stroke='currentColor'
-                              viewBox='0 0 24 24'
-                              strokeWidth={3}>
-                              <path
-                                strokeLinecap='round'
-                                strokeLinejoin='round'
-                                d='M6 18L18 6M6 6l12 12'
-                              />
-                            </svg>
-                          ) : (
-                            <svg
-                              className='w-5 h-5 text-ios-green shrink-0'
-                              fill='none'
-                              stroke='currentColor'
-                              viewBox='0 0 24 24'
-                              strokeWidth={3}>
-                              <path
-                                strokeLinecap='round'
-                                strokeLinejoin='round'
-                                d='M5 13l4 4L19 7'
-                              />
-                            </svg>
-                          )}
-                        </>
-                      )}
-                      {/* Mood icon display */}
-                      {isMood && hasSavedValues && (
-                        <span className='shrink-0'>
-                          {typeSavedValues[0].value === "happy" && (
-                            <svg
-                              className='w-5 h-5 text-ios-green'
-                              viewBox='0 0 24 24'
-                              fill='none'
-                              stroke='currentColor'
-                              strokeWidth='2'
-                              strokeLinecap='round'
-                              strokeLinejoin='round'>
-                              <circle cx='12' cy='12' r='10' />
-                              <path d='M8 14s1.5 2 4 2 4-2 4-2' />
-                              <line
-                                x1='9'
-                                y1='9'
-                                x2='9.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                              <line
-                                x1='15'
-                                y1='9'
-                                x2='15.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                            </svg>
-                          )}
-                          {typeSavedValues[0].value === "neutral" && (
-                            <svg
-                              className='w-5 h-5 text-ios-orange'
-                              viewBox='0 0 24 24'
-                              fill='none'
-                              stroke='currentColor'
-                              strokeWidth='2'
-                              strokeLinecap='round'
-                              strokeLinejoin='round'>
-                              <circle cx='12' cy='12' r='10' />
-                              <line x1='8' y1='15' x2='16' y2='15' />
-                              <line
-                                x1='9'
-                                y1='9'
-                                x2='9.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                              <line
-                                x1='15'
-                                y1='9'
-                                x2='15.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                            </svg>
-                          )}
-                          {typeSavedValues[0].value === "sad" && (
-                            <svg
-                              className='w-5 h-5 text-ios-red'
-                              viewBox='0 0 24 24'
-                              fill='none'
-                              stroke='currentColor'
-                              strokeWidth='2'
-                              strokeLinecap='round'
-                              strokeLinejoin='round'>
-                              <circle cx='12' cy='12' r='10' />
-                              <path d='M16 16s-1.5-2-4-2-4 2-4 2' />
-                              <line
-                                x1='9'
-                                y1='9'
-                                x2='9.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                              <line
-                                x1='15'
-                                y1='9'
-                                x2='15.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                            </svg>
-                          )}
-                        </span>
-                      )}
-                      {/* Counter controls */}
-                      {isCounter && (
-                        <div
-                          className='flex items-center gap-x-2'
-                          onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCounterChange(-1);
-                            }}
-                            disabled={currentCounterValue === 0}
-                            className={cn(
-                              "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-gray-200 dark:border-gray-600",
-                              "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 shadow-none",
-                              "active:bg-gray-100 dark:active:bg-gray-700 active:scale-95 transition-transform",
-                              currentCounterValue === 0 && "opacity-30"
-                            )}>
-                            −
-                          </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCounterChange(1);
+                              }}
+                              className={cn(
+                                "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-ios-blue/20",
+                                "bg-ios-blue/5 text-ios-blue shadow-none",
+                                "active:bg-ios-blue/10 active:scale-95 transition-transform"
+                              )}>
+                              +
+                            </button>
+                          </div>
+                        )}
+                        {/* Boolean value display (show check or x if saved) */}
+                        {type.valueType === "boolean" && hasSavedValues && (
                           <span
                             className={cn(
-                              "w-7 text-center text-[17px] font-semibold tabular-nums",
-                              currentCounterValue > 0
+                              "w-5 h-5 flex items-center justify-center text-[17px] font-bold",
+                              typeSavedValues[0].value
                                 ? "text-ios-green"
-                                : "text-gray-400 dark:text-gray-500"
+                                : "text-ios-red"
                             )}>
-                            {currentCounterValue}
+                            {typeSavedValues[0].value ? "✓" : "✗"}
                           </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCounterChange(1);
-                            }}
-                            className={cn(
-                              "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-ios-blue/20",
-                              "bg-ios-blue/5 text-ios-blue shadow-none",
-                              "active:bg-ios-blue/10 active:scale-95 transition-transform"
-                            )}>
-                            +
-                          </button>
-                        </div>
-                      )}
-                      {/* Boolean value display (show check or x if saved) */}
-                      {type.valueType === "boolean" && hasSavedValues && (
-                        <span
-                          className={cn(
-                            "w-5 h-5 flex items-center justify-center text-[17px] font-bold",
-                            typeSavedValues[0].value
-                              ? "text-ios-green"
-                              : "text-ios-red"
-                          )}>
-                          {typeSavedValues[0].value ? "✓" : "✗"}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Expanded content - not for checkmark or counter types */}
+                {isExpanded && !isCheckmark && !isCounter && (
+                  <div
+                    className={cn(
+                      "px-4 pb-4 pt-2 bg-gray-50 dark:bg-gray-800/50",
+                      !isLast &&
+                        "border-b border-gray-200/80 dark:border-gray-700/80"
+                    )}>
+                    {/* Saved values with delete option - not for mood or workout type */}
+                    {hasSavedValues && !isMood && !isWorkout && (
+                      <div className='flex flex-wrap gap-2 pt-1 pb-3'>
+                        {typeSavedValues.map((saved) => (
+                          <span
+                            key={saved.id}
+                            className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
+                            {formatValue(saved.value, type.id)}
+                            <button
+                              type='button'
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeSavedValue(type.id, saved.id);
+                              }}
+                              className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {renderExpandedInput(type)}
+                  </div>
+                )}
               </div>
-
-              {/* Expanded content - not for checkmark or counter types */}
-              {isExpanded && !isCheckmark && !isCounter && (
-                <div
-                  className={cn(
-                    "px-4 pb-4 pt-2 bg-gray-50 dark:bg-gray-800/50",
-                    !isLast &&
-                      "border-b border-gray-200/80 dark:border-gray-700/80"
-                  )}>
-                  {/* Saved values with delete option - not for mood or workout type */}
-                  {hasSavedValues && !isMood && !isWorkout && (
-                    <div className='flex flex-wrap gap-2 pt-1 pb-3'>
-                      {typeSavedValues.map((saved) => (
-                        <span
-                          key={saved.id}
-                          className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
-                          {formatValue(saved.value, type.id)}
-                          <button
-                            type='button'
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeSavedValue(type.id, saved.id);
-                            }}
-                            className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {renderExpandedInput(type)}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       )}
 
       {/* Lock Day Button - Outside activity list */}
