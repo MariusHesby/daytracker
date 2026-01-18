@@ -1280,6 +1280,23 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
           return { sets: 1 };
         };
 
+        // Get placeholder values for an exercise set (from last used data)
+        const getPlaceholderForSet = (exerciseName: string, setIndex: number) => {
+          const lastUsed = getLastUsedValues(exerciseName);
+          if (lastUsed.setsData && lastUsed.setsData.length > setIndex) {
+            return lastUsed.setsData[setIndex];
+          } else if (lastUsed.setsData && lastUsed.setsData.length > 0) {
+            // Use last set's data for additional sets
+            return lastUsed.setsData[lastUsed.setsData.length - 1];
+          }
+          return {
+            reps: lastUsed.reps,
+            weight: lastUsed.weight,
+            distance: lastUsed.distance,
+            duration: lastUsed.duration,
+          };
+        };
+
         // Toggle exercise expansion - no auto-save, only saves when day is locked
         const toggleExercise = async (exerciseName: string) => {
           const newExpanded = new Set(expandedExercises);
@@ -1289,30 +1306,12 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
             setExpandedExercises(newExpanded);
           } else {
             newExpanded.add(exerciseName);
-            // Initialize with last used values if not already set
+            // Initialize with empty sets if not already set (show placeholders instead of values)
             if (!workoutData[exerciseName]) {
-              const lastUsed = getLastUsedValues(exerciseName);
-              // Use setsData if available (preserves individual set values)
-              let initialSets;
-              if (lastUsed.setsData && lastUsed.setsData.length > 0) {
-                initialSets = lastUsed.setsData.map((set) => ({
-                  reps: set.reps,
-                  weight: set.weight,
-                  distance: set.distance,
-                  duration: set.duration,
-                }));
-              } else {
-                const numSets = lastUsed.sets || 1;
-                initialSets = Array.from({ length: numSets }, () => ({
-                  reps: lastUsed.reps,
-                  weight: lastUsed.weight,
-                  distance: lastUsed.distance,
-                  duration: lastUsed.duration,
-                }));
-              }
+              // Start with one empty set
               setWorkoutData((prev) => ({
                 ...prev,
-                [exerciseName]: initialSets,
+                [exerciseName]: [{}],
               }));
             }
             setExpandedExercises(newExpanded);
@@ -1331,13 +1330,13 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
           setWorkoutData((prev) => ({ ...prev, [exerciseName]: sets }));
         };
 
-        // Add a new set to an exercise
+        // Add a new set to an exercise (empty, with placeholders)
         const addExerciseSet = (exerciseName: string) => {
           const sets = workoutData[exerciseName] || [{}];
-          const lastSet = sets[sets.length - 1] || {};
+          // Add empty set - placeholder will show previous values
           setWorkoutData((prev) => ({
             ...prev,
-            [exerciseName]: [...sets, { ...lastSet }],
+            [exerciseName]: [...sets, {}],
           }));
         };
 
@@ -1818,7 +1817,9 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                             </span>
                           </div>
 
-                          {sets.map((set, index) => (
+                          {sets.map((set, index) => {
+                            const placeholder = getPlaceholderForSet(ex.name, index);
+                            return (
                             <div
                               key={index}
                               className='flex items-center gap-3 py-2'>
@@ -1845,7 +1846,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                         )
                                       }
                                       onFocus={(e) => e.target.select()}
-                                      placeholder='0'
+                                      placeholder={placeholder.reps?.toString() || '0'}
                                       className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
                                     />
                                     <span className='text-[13px] text-gray-500'>
@@ -1869,7 +1870,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                         )
                                       }
                                       onFocus={(e) => e.target.select()}
-                                      placeholder='0'
+                                      placeholder={placeholder.weight?.toString() || '0'}
                                       step='0.5'
                                       className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
                                     />
@@ -1894,7 +1895,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                         )
                                       }
                                       onFocus={(e) => e.target.select()}
-                                      placeholder='0'
+                                      placeholder={placeholder.distance?.toString() || '0'}
                                       step='0.1'
                                       className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
                                     />
@@ -1919,7 +1920,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                         )
                                       }
                                       onFocus={(e) => e.target.select()}
-                                      placeholder='0'
+                                      placeholder={placeholder.duration?.toString() || '0'}
                                       className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
                                     />
                                     <span className='text-[13px] text-gray-500'>
@@ -1953,7 +1954,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                                 <div className='w-9' />
                               )}
                             </div>
-                          ))}
+                          )})}
 
                           {/* Add Set Button */}
                           <button
@@ -2007,6 +2008,22 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
           const isMood = type.valueType === "mood";
           const isNutrition = type.valueType === "nutrition";
           const isWorkout = type.valueType === "workout";
+
+          // Check if workout has any data being entered (not yet saved)
+          const workoutHasEnteredData = isWorkout && Object.keys(workoutData).some(
+            (exerciseName) => {
+              const sets = workoutData[exerciseName] || [];
+              return sets.some((set) => set.reps || set.weight || set.distance || set.duration);
+            }
+          );
+          
+          // Count exercises with entered data
+          const workoutEnteredExerciseCount = isWorkout 
+            ? Object.keys(workoutData).filter((exerciseName) => {
+                const sets = workoutData[exerciseName] || [];
+                return sets.some((set) => set.reps || set.weight || set.distance || set.duration);
+              }).length
+            : 0;
 
           // Get current counter value
           const currentCounterValue =
@@ -2090,7 +2107,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                       "w-8 h-8 rounded-lg flex items-center justify-center mr-3 shrink-0",
                       isLocked
                         ? "bg-ios-green/10"
-                        : hasSavedValues
+                        : hasSavedValues || workoutHasEnteredData
                         ? "bg-ios-green/10"
                         : "bg-ios-blue/10"
                     )}>
@@ -2101,7 +2118,7 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                           "w-5 h-5",
                           isLocked
                             ? "text-ios-green"
-                            : hasSavedValues
+                            : hasSavedValues || workoutHasEnteredData
                             ? "text-ios-green"
                             : "text-ios-blue"
                         )}
@@ -2148,25 +2165,28 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
                     isWorkout ||
                     type.valueType === "boolean") && (
                     <div className='flex items-center gap-2 ml-auto shrink-0'>
-                      {/* Workout summary */}
+                      {/* Workout summary - show for saved data or entered data */}
                       {isWorkout &&
-                        hasSavedValues &&
+                        (hasSavedValues || workoutHasEnteredData) &&
                         (() => {
-                          // Count total exercises for today
-                          let totalExercises = 0;
+                          // Count total exercises for today (saved)
+                          let totalSavedExercises = 0;
                           typeSavedValues.forEach((saved) => {
                             const entry = entries.find(
                               (e) => e.id === saved.id
                             );
                             if (entry?.workoutData?.exercises) {
-                              totalExercises +=
+                              totalSavedExercises +=
                                 entry.workoutData.exercises.length;
                             }
                           });
+                          // Use entered count if no saved data, or saved count if data is saved
+                          const displayCount = hasSavedValues ? totalSavedExercises : workoutEnteredExerciseCount;
+                          const isSaved = hasSavedValues && totalSavedExercises > 0;
                           return (
                             <span className='text-[15px] font-medium text-ios-green'>
-                              {totalExercises} exercise
-                              {totalExercises !== 1 ? "s" : ""} ✓
+                              {displayCount} exercise
+                              {displayCount !== 1 ? "s" : ""}{isSaved ? " ✓" : ""}
                             </span>
                           );
                         })()}
