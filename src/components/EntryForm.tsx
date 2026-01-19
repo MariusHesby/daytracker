@@ -2563,13 +2563,13 @@ export function EntryForm({
                   {/* Content and right-aligned controls */}
                   <div
                     className={cn(
-                      "flex-1 py-2 flex items-center",
+                      "flex-1 py-2 flex items-center min-w-0 overflow-hidden",
                       !isLast &&
                         !isExpanded &&
                         "border-b border-gray-200/80 dark:border-gray-700/80"
                     )}>
                     {/* Main label and inline text value */}
-                    <div className='flex-1 min-w-0 flex items-center gap-2'>
+                    <div className='flex-1 min-w-0 flex items-center gap-2 overflow-hidden'>
                       <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
                         {type.name}
                       </span>
@@ -2577,7 +2577,7 @@ export function EntryForm({
                       {hasSavedValues &&
                         !isExpanded &&
                         type.valueType === "text" && (
-                          <span className='text-[15px] text-gray-400 dark:text-gray-500 truncate'>
+                          <span className='text-[15px] text-gray-400 dark:text-gray-500 truncate min-w-0'>
                             {typeSavedValues.map((saved, i) => (
                               <span key={saved.id}>
                                 {formatValue(saved.value, type.id)}
