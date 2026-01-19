@@ -2659,7 +2659,7 @@ export function EntryForm({
                             return (
                               <span
                                 className={cn(
-                                  "text-[15px] font-medium",
+                                  "text-[15px] font-medium truncate min-w-0",
                                   isGoalReached
                                     ? "text-ios-green"
                                     : "text-gray-500 dark:text-gray-400"
@@ -2675,9 +2675,14 @@ export function EntryForm({
                                     {isGoalReached && "✓"}
                                   </>
                                 ) : hasEntries ? (
+                                  // Show food names instead of "x items"
                                   <>
-                                    {typeSavedValues.length} item
-                                    {typeSavedValues.length !== 1 ? "s" : ""}
+                                    {typeSavedValues
+                                      .map((saved) => {
+                                        const entry = entries.find((e) => e.id === saved.id);
+                                        return entry?.nutritionData?.foodName || String(saved.value);
+                                      })
+                                      .join(", ")}
                                   </>
                                 ) : null}
                               </span>
