@@ -2140,7 +2140,10 @@ export function EntryForm({
   };
 
   // Handler for checkmark toggle in icon grid view
-  const handleCheckmarkToggle = (typeId: string, typeSavedValues: Array<{ id: string; value: unknown }>) => {
+  const handleCheckmarkToggle = (
+    typeId: string,
+    typeSavedValues: Array<{ id: string; value: unknown }>
+  ) => {
     const hasSavedValues = typeSavedValues.length > 0;
     const now = Date.now();
     const lastClick = lastClickTime[typeId] || 0;
@@ -2186,7 +2189,7 @@ export function EntryForm({
           const isCounter = type.valueType === "counter";
 
           return (
-            <div className='mb-4 bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+            <div className='mb-4 bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible relative z-10'>
               {/* Header with close button */}
               <div className='flex items-center justify-between px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
                 <div className='flex items-center gap-3'>
