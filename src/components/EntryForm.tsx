@@ -2269,6 +2269,9 @@ export function EntryForm({
             const hasSavedValues = typeSavedValues.length > 0;
             const isCheckmark = type.valueType === "checkmark";
             const isWorkout = type.valueType === "workout";
+            const isNutrition = type.valueType === "nutrition";
+            const isMood = type.valueType === "mood";
+            const isCounter = type.valueType === "counter";
 
             // Check if workout has any data being entered
             const workoutHasEnteredData =
@@ -2286,6 +2289,59 @@ export function EntryForm({
               isCheckmark && typeSavedValues[0]?.value === "skipped";
             const isChecked = isCheckmark && hasSavedValues && !isSkipped;
 
+            // Get display text for the icon
+            const getIconDisplayText = () => {
+              if (!hasValue || isSkipped) return null;
+              if (isCheckmark) return null; // Just show green icon
+              if (isMood && hasSavedValues) {
+                const val = typeSavedValues[0].value;
+                if (val === "happy") return "☺";
+                if (val === "neutral") return "—";
+                if (val === "sad") return "☹";
+              }
+              if (isCounter && hasSavedValues) {
+                return String(typeSavedValues[0].value);
+              }
+              if (isWorkout) {
+                // Count exercises
+                let count = 0;
+                if (hasSavedValues) {
+                  typeSavedValues.forEach((saved) => {
+                    const entry = entries.find((e) => e.id === saved.id);
+                    if (entry?.workoutData?.exercises) {
+                      count += entry.workoutData.exercises.length;
+                    }
+                  });
+                } else if (workoutHasEnteredData) {
+                  count = Object.keys(workoutData).filter((name) => {
+                    const sets = workoutData[name] || [];
+                    return sets.some((s) => s.reps || s.weight || s.distance || s.duration);
+                  }).length;
+                }
+                return count > 0 ? `${count}` : null;
+              }
+              if (isNutrition && hasSavedValues) {
+                // Show food names
+                const foodNames = typeSavedValues
+                  .map((saved) => {
+                    const entry = entries.find((e) => e.id === saved.id);
+                    return entry?.nutritionData?.foodName || String(saved.value);
+                  })
+                  .join(", ");
+                return foodNames;
+              }
+              // For text types (movies, events, etc.)
+              if (hasSavedValues) {
+                const values = typeSavedValues
+                  .map((saved) => String(saved.value))
+                  .join(", ");
+                return values;
+              }
+              return null;
+            };
+
+            const displayText = getIconDisplayText();
+
             return (
               <button
                 key={type.id}
@@ -2301,7 +2357,7 @@ export function EntryForm({
                   }
                 }}
                 className={cn(
-                  "aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all active:scale-95",
+                  "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 p-1 overflow-hidden",
                   hasValue && !isSkipped
                     ? "bg-ios-green/10 dark:bg-ios-green/20"
                     : isSkipped
@@ -2310,7 +2366,7 @@ export function EntryForm({
                 )}>
                 <div
                   className={cn(
-                    "w-8 h-8 flex items-center justify-center",
+                    "w-8 h-8 flex items-center justify-center shrink-0",
                     hasValue && !isSkipped
                       ? "text-ios-green"
                       : isSkipped
@@ -2323,9 +2379,13 @@ export function EntryForm({
                     <span className='text-2xl'>{type.icon}</span>
                   )}
                 </div>
-                {hasValue && !isSkipped && (
+                {displayText && !isSkipped ? (
+                  <span className='text-[9px] text-gray-600 dark:text-gray-400 text-center w-full px-0.5 line-clamp-2 leading-tight'>
+                    {displayText}
+                  </span>
+                ) : hasValue && !isSkipped && !displayText ? (
                   <div className='w-1.5 h-1.5 rounded-full bg-ios-green' />
-                )}
+                ) : null}
                 {isSkipped && (
                   <div className='w-1.5 h-1.5 rounded-full bg-ios-red' />
                 )}
