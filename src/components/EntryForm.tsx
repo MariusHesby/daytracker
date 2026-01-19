@@ -885,7 +885,14 @@ export function EntryForm({
         return (
           <div className='pt-3 flex gap-3'>
             <button
-              onClick={() => handleSaveValue(type.id, "happy")}
+              onClick={() => {
+                const currentValue = savedValues[type.id]?.[0];
+                if (currentValue?.value === "happy") {
+                  deleteEntry(currentValue.id);
+                } else {
+                  handleSaveValue(type.id, "happy");
+                }
+              }}
               className={cn(
                 "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
                 "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
@@ -908,7 +915,14 @@ export function EntryForm({
               </svg>
             </button>
             <button
-              onClick={() => handleSaveValue(type.id, "neutral")}
+              onClick={() => {
+                const currentValue = savedValues[type.id]?.[0];
+                if (currentValue?.value === "neutral") {
+                  deleteEntry(currentValue.id);
+                } else {
+                  handleSaveValue(type.id, "neutral");
+                }
+              }}
               className={cn(
                 "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
                 "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
@@ -931,7 +945,14 @@ export function EntryForm({
               </svg>
             </button>
             <button
-              onClick={() => handleSaveValue(type.id, "sad")}
+              onClick={() => {
+                const currentValue = savedValues[type.id]?.[0];
+                if (currentValue?.value === "sad") {
+                  deleteEntry(currentValue.id);
+                } else {
+                  handleSaveValue(type.id, "sad");
+                }
+              }}
               className={cn(
                 "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
                 "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
@@ -2315,7 +2336,9 @@ export function EntryForm({
                 } else if (workoutHasEnteredData) {
                   count = Object.keys(workoutData).filter((name) => {
                     const sets = workoutData[name] || [];
-                    return sets.some((s) => s.reps || s.weight || s.distance || s.duration);
+                    return sets.some(
+                      (s) => s.reps || s.weight || s.distance || s.duration
+                    );
                   }).length;
                 }
                 return count > 0 ? `${count}` : null;
@@ -2325,7 +2348,9 @@ export function EntryForm({
                 const foodNames = typeSavedValues
                   .map((saved) => {
                     const entry = entries.find((e) => e.id === saved.id);
-                    return entry?.nutritionData?.foodName || String(saved.value);
+                    return (
+                      entry?.nutritionData?.foodName || String(saved.value)
+                    );
                   })
                   .join(", ");
                 return foodNames;
