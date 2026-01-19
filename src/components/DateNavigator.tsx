@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { formatDisplayDate, isToday, addDays } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -9,11 +10,37 @@ interface DateNavigatorProps {
 }
 
 export function DateNavigator({ date, onChange }: DateNavigatorProps) {
+  const [navigationCount, setNavigationCount] = useState(0);
+  const [showHint, setShowHint] = useState(true);
+
+  // Load navigation count from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedCount = localStorage.getItem("dateNavigatorHintCount");
+      const count = savedCount ? parseInt(savedCount, 10) : 0;
+      setNavigationCount(count);
+      setShowHint(count < 3);
+    }
+  }, []);
+
+  const incrementNavigationCount = () => {
+    if (typeof window !== "undefined") {
+      const newCount = navigationCount + 1;
+      setNavigationCount(newCount);
+      localStorage.setItem("dateNavigatorHintCount", newCount.toString());
+      if (newCount >= 3) {
+        setShowHint(false);
+      }
+    }
+  };
+
   const handlePrevDay = () => {
+    incrementNavigationCount();
     onChange(addDays(date, -1));
   };
 
   const handleNextDay = () => {
+    incrementNavigationCount();
     onChange(addDays(date, 1));
   };
 
@@ -59,7 +86,7 @@ export function DateNavigator({ date, onChange }: DateNavigatorProps) {
           )}>
           {today ? "Today" : formatDisplayDate(date)}
         </span>
-        {!today && (
+        {!today && showHint && (
           <p className='text-[13px] text-gray-500 dark:text-gray-400 mt-0.5'>
             Tap to go to today
           </p>
