@@ -21,6 +21,8 @@ import { MediaSearch } from "./MediaSearch";
 interface EntryFormProps {
   date: string;
   onSuccess?: () => void;
+  viewMode?: "list" | "icons";
+  onViewModeChange?: (mode: "list" | "icons") => void;
 }
 
 type SavedValue = {
@@ -41,7 +43,12 @@ interface Particle {
   velocityY: number;
 }
 
-export function EntryForm({ date, onSuccess }: EntryFormProps) {
+export function EntryForm({ 
+  date, 
+  onSuccess,
+  viewMode: externalViewMode,
+  onViewModeChange,
+}: EntryFormProps) {
   const {
     activityTypes,
     addEntry,
@@ -80,8 +87,8 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
   const [showCelebration, setShowCelebration] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
 
-  // View mode: 'list' or 'icons'
-  const [viewMode, setViewMode] = useState<"list" | "icons">(() => {
+  // View mode: 'list' or 'icons' - use external state if provided
+  const [internalViewMode, setInternalViewMode] = useState<"list" | "icons">(() => {
     if (typeof window !== "undefined") {
       return (
         (localStorage.getItem("entryform-viewmode") as "list" | "icons") ||
@@ -90,6 +97,10 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     }
     return "list";
   });
+  
+  // Use external view mode if provided, otherwise use internal
+  const viewMode = externalViewMode ?? internalViewMode;
+  const setViewMode = onViewModeChange ?? setInternalViewMode;
 
   // Nutrition entry state
   const [nutritionInput, setNutritionInput] = useState<NutritionData>({
@@ -151,17 +162,6 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
     },
     [date]
   );
-
-  // Toggle view mode and persist
-  const toggleViewMode = useCallback(() => {
-    setViewMode((prev) => {
-      const newMode = prev === "list" ? "icons" : "list";
-      if (typeof window !== "undefined") {
-        localStorage.setItem("entryform-viewmode", newMode);
-      }
-      return newMode;
-    });
-  }, []);
 
   // Load expanded activity from localStorage on mount and visibility change
   useEffect(() => {
@@ -2139,110 +2139,140 @@ export function EntryForm({ date, onSuccess }: EntryFormProps) {
 
   return (
     <>
-      {/* View Mode Toggle */}
-      <div className='flex justify-end mb-2'>
-        <button
-          onClick={toggleViewMode}
-          className='p-2 rounded-lg bg-gray-100 dark:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700'
-          title={viewMode === "list" ? "Switch to icons" : "Switch to list"}>
-          {viewMode === "list" ? (
-            <svg
-              className='w-5 h-5 text-gray-600 dark:text-gray-400'
-              fill='none'
-              viewBox='0 0 24 24'
-              strokeWidth={1.5}
-              stroke='currentColor'>
-              <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z'
-              />
-            </svg>
-          ) : (
-            <svg
-              className='w-5 h-5 text-gray-600 dark:text-gray-400'
-              fill='none'
-              viewBox='0 0 24 24'
-              strokeWidth={1.5}
-              stroke='currentColor'>
-              <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'
-              />
-            </svg>
-          )}
-        </button>
-      </div>
-
       {/* Icon Grid View */}
       {viewMode === "icons" && (
         <div className='grid grid-cols-4 gap-3'>
-            {activityTypes.map((type) => {
-              const typeSavedValues = savedValues[type.id] || [];
-              const hasSavedValues = typeSavedValues.length > 0;
-              const isCheckmark = type.valueType === "checkmark";
-              const isWorkout = type.valueType === "workout";
+          {activityTypes.map((type) => {
+            const typeSavedValues = savedValues[type.id] || [];
+            const hasSavedValues = typeSavedValues.length > 0;
+            const isCheckmark = type.valueType === "checkmark";
+            const isWorkout = type.valueType === "workout";
 
-              // Check if workout has any data being entered
-              const workoutHasEnteredData =
-                isWorkout &&
-                Object.keys(workoutData).some((exerciseName) => {
-                  const sets = workoutData[exerciseName] || [];
-                  return sets.some(
-                    (set) =>
-                      set.reps || set.weight || set.distance || set.duration
-                  );
-                });
+            // Check if workout has any data being entered
+            const workoutHasEnteredData =
+              isWorkout &&
+              Object.keys(workoutData).some((exerciseName) => {
+                const sets = workoutData[exerciseName] || [];
+                return sets.some(
+                  (set) =>
+                    set.reps || set.weight || set.distance || set.duration
+                );
+              });
 
-              const hasValue = hasSavedValues || workoutHasEnteredData;
-              const isSkipped =
-                isCheckmark && typeSavedValues[0]?.value === "skipped";
+            const hasValue = hasSavedValues || workoutHasEnteredData;
+            const isSkipped =
+              isCheckmark && typeSavedValues[0]?.value === "skipped";
 
-              return (
-                <button
-                  key={type.id}
-                  onClick={() => {
-                    setViewMode("list");
-                    if (typeof window !== "undefined") {
-                      localStorage.setItem("entryform-viewmode", "list");
-                    }
-                    setExpandedTypeId(type.id);
-                  }}
+            return (
+              <button
+                key={type.id}
+                onClick={() => {
+                  // Toggle expansion - if already expanded, collapse. Otherwise expand this type.
+                  setExpandedTypeId(expandedTypeId === type.id ? null : type.id);
+                }}
+                className={cn(
+                  "aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all active:scale-95",
+                  hasValue && !isSkipped
+                    ? "bg-ios-green/10 dark:bg-ios-green/20"
+                    : isSkipped
+                    ? "bg-ios-red/10 dark:bg-ios-red/20"
+                    : "bg-gray-100 dark:bg-gray-800"
+                )}>
+                <div
                   className={cn(
-                    "aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all active:scale-95",
+                    "w-8 h-8 flex items-center justify-center",
                     hasValue && !isSkipped
-                      ? "bg-ios-green/10 dark:bg-ios-green/20"
+                      ? "text-ios-green"
                       : isSkipped
-                      ? "bg-ios-red/10 dark:bg-ios-red/20"
-                      : "bg-gray-100 dark:bg-gray-800"
+                      ? "text-ios-red"
+                      : "text-ios-blue"
                   )}>
-                  <div
-                    className={cn(
-                      "w-8 h-8 flex items-center justify-center",
-                      hasValue && !isSkipped
-                        ? "text-ios-green"
-                        : isSkipped
-                        ? "text-ios-red"
-                        : "text-ios-blue"
-                    )}>
-                    {type.icon in icons ? (
-                      <Icon name={type.icon as IconName} className='w-7 h-7' />
-                    ) : (
-                      <span className='text-2xl'>{type.icon}</span>
-                    )}
-                  </div>
-                  {hasValue && !isSkipped && (
-                    <div className='w-1.5 h-1.5 rounded-full bg-ios-green' />
+                  {type.icon in icons ? (
+                    <Icon name={type.icon as IconName} className='w-7 h-7' />
+                  ) : (
+                    <span className='text-2xl'>{type.icon}</span>
                   )}
-                  {isSkipped && (
-                    <div className='w-1.5 h-1.5 rounded-full bg-ios-red' />
-                  )}
-                </button>
-              );
-            })}
+                </div>
+                {hasValue && !isSkipped && (
+                  <div className='w-1.5 h-1.5 rounded-full bg-ios-green' />
+                )}
+                {isSkipped && (
+                  <div className='w-1.5 h-1.5 rounded-full bg-ios-red' />
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
+
+      {/* Expanded Content for Icon Grid View */}
+      {viewMode === "icons" && expandedTypeId && (() => {
+        const type = activityTypes.find(t => t.id === expandedTypeId);
+        if (!type) return null;
+        
+        const typeSavedValues = savedValues[type.id] || [];
+        const hasSavedValues = typeSavedValues.length > 0;
+        const isMood = type.valueType === "mood";
+        const isWorkout = type.valueType === "workout";
+        const isCheckmark = type.valueType === "checkmark";
+        const isCounter = type.valueType === "counter";
+        
+        return (
+          <div className='mt-4 bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+            {/* Header with close button */}
+            <div className='flex items-center justify-between px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+              <div className='flex items-center gap-3'>
+                {type.icon && (
+                  <div className='w-8 h-8 rounded-lg flex items-center justify-center bg-ios-blue/10'>
+                    {type.icon in icons ? (
+                      <Icon name={type.icon as IconName} className='w-5 h-5 text-ios-blue' />
+                    ) : (
+                      <span className='text-lg'>{type.icon}</span>
+                    )}
+                  </div>
+                )}
+                <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                  {type.name}
+                </span>
+              </div>
+              <button
+                onClick={() => setExpandedTypeId(null)}
+                className='w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400'>
+                <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+                  <path strokeLinecap='round' strokeLinejoin='round' d='M6 18L18 6M6 6l12 12' />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className='px-4 pb-4 pt-2'>
+              {/* Saved values with delete option - not for mood, workout, checkmark, or counter type */}
+              {hasSavedValues && !isMood && !isWorkout && !isCheckmark && !isCounter && (
+                <div className='flex flex-wrap gap-2 pt-1 pb-3'>
+                  {typeSavedValues.map((saved) => (
+                    <span
+                      key={saved.id}
+                      className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
+                      {formatValue(saved.value, type.id)}
+                      <button
+                        type='button'
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeSavedValue(type.id, saved.id);
+                        }}
+                        className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              
+              {renderExpandedInput(type)}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* List View */}
       {viewMode === "list" && (
