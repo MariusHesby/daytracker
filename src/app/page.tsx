@@ -18,7 +18,7 @@ export default function HomePage() {
   } = useApp();
   const { t } = useLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
-  
+
   // View mode state
   const [viewMode, setViewMode] = useState<"list" | "icons">(() => {
     if (typeof window !== "undefined") {
@@ -27,7 +27,7 @@ export default function HomePage() {
     }
     return "list";
   });
-  
+
   const handleViewModeChange = (mode: "list" | "icons") => {
     setViewMode(mode);
     if (typeof window !== "undefined") {
@@ -78,7 +78,9 @@ export default function HomePage() {
         <div className='flex items-center gap-2'>
           {/* View Mode Toggle */}
           <button
-            onClick={() => handleViewModeChange(viewMode === "list" ? "icons" : "list")}
+            onClick={() =>
+              handleViewModeChange(viewMode === "list" ? "icons" : "list")
+            }
             className='p-2 rounded-lg bg-gray-100 dark:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700'
             title={viewMode === "list" ? "Switch to icons" : "Switch to list"}>
             {viewMode === "list" ? (
@@ -120,8 +122,8 @@ export default function HomePage() {
 
       {/* Main Content */}
       <main className='px-4 pb-4'>
-        <EntryForm 
-          date={selectedDate} 
+        <EntryForm
+          date={selectedDate}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
         />

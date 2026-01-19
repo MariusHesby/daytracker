@@ -43,8 +43,8 @@ interface Particle {
   velocityY: number;
 }
 
-export function EntryForm({ 
-  date, 
+export function EntryForm({
+  date,
   onSuccess,
   viewMode: externalViewMode,
   onViewModeChange,
@@ -88,16 +88,18 @@ export function EntryForm({
   const [particles, setParticles] = useState<Particle[]>([]);
 
   // View mode: 'list' or 'icons' - use external state if provided
-  const [internalViewMode, setInternalViewMode] = useState<"list" | "icons">(() => {
-    if (typeof window !== "undefined") {
-      return (
-        (localStorage.getItem("entryform-viewmode") as "list" | "icons") ||
-        "list"
-      );
+  const [internalViewMode, setInternalViewMode] = useState<"list" | "icons">(
+    () => {
+      if (typeof window !== "undefined") {
+        return (
+          (localStorage.getItem("entryform-viewmode") as "list" | "icons") ||
+          "list"
+        );
+      }
+      return "list";
     }
-    return "list";
-  });
-  
+  );
+
   // Use external view mode if provided, otherwise use internal
   const viewMode = externalViewMode ?? internalViewMode;
   const setViewMode = onViewModeChange ?? setInternalViewMode;
@@ -2137,8 +2139,125 @@ export function EntryForm({
     }
   };
 
+  // Handler for checkmark toggle in icon grid view
+  const handleCheckmarkToggle = (typeId: string, typeSavedValues: Array<{ id: string; value: unknown }>) => {
+    const hasSavedValues = typeSavedValues.length > 0;
+    const now = Date.now();
+    const lastClick = lastClickTime[typeId] || 0;
+    const isDoubleClick = now - lastClick < 400;
+    setLastClickTime({ ...lastClickTime, [typeId]: now });
+
+    if (isDoubleClick) {
+      // Double-click: set to "skipped" (red X)
+      if (hasSavedValues) {
+        typeSavedValues.forEach((saved) => {
+          deleteEntry(saved.id);
+        });
+      }
+      handleSaveValue(typeId, "skipped");
+    } else {
+      // Single click: toggle between checked and unchecked
+      if (hasSavedValues) {
+        // Remove the checkmark or skipped state
+        typeSavedValues.forEach((saved) => {
+          deleteEntry(saved.id);
+        });
+      } else {
+        // Add the checkmark
+        handleSaveValue(typeId, true);
+      }
+    }
+  };
+
   return (
     <>
+      {/* Expanded Content for Icon Grid View - Positioned at top */}
+      {viewMode === "icons" &&
+        expandedTypeId &&
+        (() => {
+          const type = activityTypes.find((t) => t.id === expandedTypeId);
+          if (!type) return null;
+
+          const typeSavedValues = savedValues[type.id] || [];
+          const hasSavedValues = typeSavedValues.length > 0;
+          const isMood = type.valueType === "mood";
+          const isWorkout = type.valueType === "workout";
+          const isCheckmark = type.valueType === "checkmark";
+          const isCounter = type.valueType === "counter";
+
+          return (
+            <div className='mb-4 bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+              {/* Header with close button */}
+              <div className='flex items-center justify-between px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+                <div className='flex items-center gap-3'>
+                  {type.icon && (
+                    <div className='w-8 h-8 rounded-lg flex items-center justify-center bg-ios-blue/10'>
+                      {type.icon in icons ? (
+                        <Icon
+                          name={type.icon as IconName}
+                          className='w-5 h-5 text-ios-blue'
+                        />
+                      ) : (
+                        <span className='text-lg'>{type.icon}</span>
+                      )}
+                    </div>
+                  )}
+                  <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                    {type.name}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setExpandedTypeId(null)}
+                  className='w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400'>
+                  <svg
+                    className='w-5 h-5'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M6 18L18 6M6 6l12 12'
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className='px-4 pb-4 pt-2'>
+                {/* Saved values with delete option - not for mood, workout, checkmark, or counter type */}
+                {hasSavedValues &&
+                  !isMood &&
+                  !isWorkout &&
+                  !isCheckmark &&
+                  !isCounter && (
+                    <div className='flex flex-wrap gap-2 pt-1 pb-3'>
+                      {typeSavedValues.map((saved) => (
+                        <span
+                          key={saved.id}
+                          className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
+                          {formatValue(saved.value, type.id)}
+                          <button
+                            type='button'
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeSavedValue(type.id, saved.id);
+                            }}
+                            className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                {renderExpandedInput(type)}
+              </div>
+            </div>
+          );
+        })()}
+
       {/* Icon Grid View */}
       {viewMode === "icons" && (
         <div className='grid grid-cols-4 gap-3'>
@@ -2162,13 +2281,21 @@ export function EntryForm({
             const hasValue = hasSavedValues || workoutHasEnteredData;
             const isSkipped =
               isCheckmark && typeSavedValues[0]?.value === "skipped";
+            const isChecked = isCheckmark && hasSavedValues && !isSkipped;
 
             return (
               <button
                 key={type.id}
                 onClick={() => {
-                  // Toggle expansion - if already expanded, collapse. Otherwise expand this type.
-                  setExpandedTypeId(expandedTypeId === type.id ? null : type.id);
+                  if (isCheckmark) {
+                    // For checkmark types, toggle directly without expanding
+                    handleCheckmarkToggle(type.id, typeSavedValues);
+                  } else {
+                    // For other types, toggle expansion
+                    setExpandedTypeId(
+                      expandedTypeId === type.id ? null : type.id
+                    );
+                  }
                 }}
                 className={cn(
                   "aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all active:scale-95",
@@ -2204,75 +2331,6 @@ export function EntryForm({
           })}
         </div>
       )}
-
-      {/* Expanded Content for Icon Grid View */}
-      {viewMode === "icons" && expandedTypeId && (() => {
-        const type = activityTypes.find(t => t.id === expandedTypeId);
-        if (!type) return null;
-        
-        const typeSavedValues = savedValues[type.id] || [];
-        const hasSavedValues = typeSavedValues.length > 0;
-        const isMood = type.valueType === "mood";
-        const isWorkout = type.valueType === "workout";
-        const isCheckmark = type.valueType === "checkmark";
-        const isCounter = type.valueType === "counter";
-        
-        return (
-          <div className='mt-4 bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
-            {/* Header with close button */}
-            <div className='flex items-center justify-between px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
-              <div className='flex items-center gap-3'>
-                {type.icon && (
-                  <div className='w-8 h-8 rounded-lg flex items-center justify-center bg-ios-blue/10'>
-                    {type.icon in icons ? (
-                      <Icon name={type.icon as IconName} className='w-5 h-5 text-ios-blue' />
-                    ) : (
-                      <span className='text-lg'>{type.icon}</span>
-                    )}
-                  </div>
-                )}
-                <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                  {type.name}
-                </span>
-              </div>
-              <button
-                onClick={() => setExpandedTypeId(null)}
-                className='w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400'>
-                <svg className='w-5 h-5' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
-                  <path strokeLinecap='round' strokeLinejoin='round' d='M6 18L18 6M6 6l12 12' />
-                </svg>
-              </button>
-            </div>
-            
-            {/* Content */}
-            <div className='px-4 pb-4 pt-2'>
-              {/* Saved values with delete option - not for mood, workout, checkmark, or counter type */}
-              {hasSavedValues && !isMood && !isWorkout && !isCheckmark && !isCounter && (
-                <div className='flex flex-wrap gap-2 pt-1 pb-3'>
-                  {typeSavedValues.map((saved) => (
-                    <span
-                      key={saved.id}
-                      className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
-                      {formatValue(saved.value, type.id)}
-                      <button
-                        type='button'
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeSavedValue(type.id, saved.id);
-                        }}
-                        className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              
-              {renderExpandedInput(type)}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* List View */}
       {viewMode === "list" && (
