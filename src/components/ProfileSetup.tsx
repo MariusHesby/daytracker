@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, ReactNode } from "react";
+import { useState, useRef, ReactNode, useCallback, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import { supabase } from "@/lib/supabase";
@@ -80,6 +80,275 @@ function AvatarIcon({
   );
 }
 
+// Image Cropper Component
+interface ImageCropperProps {
+  imageSrc: string;
+  onCropComplete: (croppedBlob: Blob) => void;
+  onCancel: () => void;
+}
+
+function ImageCropper({
+  imageSrc,
+  onCropComplete,
+  onCancel,
+}: ImageCropperProps) {
+  const { t } = useLanguage();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      imageRef.current = img;
+      setImageSize({ width: img.width, height: img.height });
+      const cropSize = 280;
+      const minDimension = Math.min(img.width, img.height);
+      const initialScale = cropSize / minDimension;
+      setScale(Math.max(initialScale, 0.1));
+      setPosition({ x: 0, y: 0 });
+      setImageLoaded(true);
+    };
+    img.src = imageSrc;
+  }, [imageSrc]);
+
+  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    setDragStart({ x: clientX - position.x, y: clientY - position.y });
+  };
+
+  const handleMouseMove = useCallback(
+    (e: MouseEvent | TouchEvent) => {
+      if (!isDragging) return;
+      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+      setPosition({ x: clientX - dragStart.x, y: clientY - dragStart.y });
+    },
+    [isDragging, dragStart]
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      window.addEventListener("touchmove", handleMouseMove);
+      window.addEventListener("touchend", handleMouseUp);
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+        window.removeEventListener("touchmove", handleMouseMove);
+        window.removeEventListener("touchend", handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  const handleCrop = () => {
+    if (!imageRef.current || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const outputSize = 400;
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+
+    const cropSize = 280;
+    const img = imageRef.current;
+    const scaledWidth = img.width * scale;
+    const scaledHeight = img.height * scale;
+    const cropCenterX = cropSize / 2;
+    const cropCenterY = cropSize / 2;
+    const imageCenterX = cropSize / 2 + position.x;
+    const imageCenterY = cropSize / 2 + position.y;
+
+    ctx.drawImage(
+      img,
+      (cropCenterX - imageCenterX) / scale +
+        img.width / 2 -
+        cropSize / scale / 2,
+      (cropCenterY - imageCenterY) / scale +
+        img.height / 2 -
+        cropSize / scale / 2,
+      cropSize / scale,
+      cropSize / scale,
+      0,
+      0,
+      outputSize,
+      outputSize
+    );
+
+    canvas.toBlob(
+      (blob) => {
+        if (blob) onCropComplete(blob);
+      },
+      "image/jpeg",
+      0.85
+    );
+  };
+
+  return (
+    <div className='fixed inset-0 bg-black z-[60] flex flex-col'>
+      <div className='flex items-center justify-between px-4 py-3 bg-black/80'>
+        <button
+          onClick={onCancel}
+          className='text-white text-[17px] active:opacity-60'>
+          {t("common.cancel")}
+        </button>
+        <span className='text-white text-[17px] font-semibold'>
+          {t("profile.adjustPhoto") || "Adjust Photo"}
+        </span>
+        <button
+          onClick={handleCrop}
+          className='text-ios-blue text-[17px] font-semibold active:opacity-60'>
+          {t("profile.choose") || "Choose"}
+        </button>
+      </div>
+      <div className='flex-1 flex items-center justify-center bg-black overflow-hidden'>
+        <div
+          ref={containerRef}
+          className='relative'
+          style={{ width: 280, height: 280 }}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleMouseDown}>
+          {imageLoaded && imageRef.current && (
+            <div
+              className='absolute cursor-move'
+              style={{
+                width: imageSize.width * scale,
+                height: imageSize.height * scale,
+                left: "50%",
+                top: "50%",
+                transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
+              }}>
+              <img
+                src={imageSrc}
+                alt='Crop preview'
+                className='w-full h-full object-contain pointer-events-none'
+                draggable={false}
+              />
+            </div>
+          )}
+          <div
+            className='absolute inset-0 pointer-events-none'
+            style={{
+              boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.6)",
+              borderRadius: "50%",
+            }}
+          />
+          <div className='absolute inset-0 rounded-full border-2 border-white/50 pointer-events-none' />
+        </div>
+      </div>
+      <div className='px-8 py-6 bg-black/80'>
+        <div className='flex items-center gap-4'>
+          <svg
+            className='w-5 h-5 text-white/60'
+            fill='none'
+            viewBox='0 0 24 24'
+            stroke='currentColor'>
+            <path
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              strokeWidth={2}
+              d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7'
+            />
+          </svg>
+          <input
+            type='range'
+            min='0.1'
+            max='3'
+            step='0.01'
+            value={scale}
+            onChange={(e) => setScale(parseFloat(e.target.value))}
+            className='flex-1 h-1 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg'
+          />
+          <svg
+            className='w-6 h-6 text-white/60'
+            fill='none'
+            viewBox='0 0 24 24'
+            stroke='currentColor'>
+            <path
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              strokeWidth={2}
+              d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7'
+            />
+          </svg>
+        </div>
+      </div>
+      <canvas ref={canvasRef} className='hidden' />
+    </div>
+  );
+}
+
+// Compress image function
+async function compressImage(
+  file: File,
+  maxSizeMB: number = 1.5
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Could not get canvas context"));
+        return;
+      }
+
+      let { width, height } = img;
+      const maxDimension = 1200;
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = (height / width) * maxDimension;
+          width = maxDimension;
+        } else {
+          width = (width / height) * maxDimension;
+          height = maxDimension;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const tryCompress = (quality: number) => {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Failed to compress image"));
+              return;
+            }
+            const sizeMB = blob.size / (1024 * 1024);
+            if (sizeMB <= maxSizeMB || quality <= 0.1) {
+              resolve(blob);
+            } else {
+              tryCompress(quality - 0.1);
+            }
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+      tryCompress(0.9);
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export function ProfileSetup() {
   const { createProfile, user } = useAuth();
   const { t } = useLanguage();
@@ -91,33 +360,55 @@ export function ProfileSetup() {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Cropper state
+  const [showCropper, setShowCropper] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       setError(t("profile.invalidImage"));
       return;
     }
 
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      setError(t("profile.imageTooLarge"));
-      return;
+    setError(null);
+
+    try {
+      let imageBlob: Blob = file;
+      if (file.size > 2 * 1024 * 1024) {
+        imageBlob = await compressImage(file, 1.5);
+      }
+
+      const imageUrl = URL.createObjectURL(imageBlob);
+      setCropImageSrc(imageUrl);
+      setShowCropper(true);
+    } catch (err) {
+      console.error("Image processing error:", err);
+      setError(t("profile.uploadFailed"));
     }
 
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    if (!user) return;
+
+    setShowCropper(false);
+    setCropImageSrc(null);
     setIsUploading(true);
     setError(null);
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const fileName = `${user.id}-${Date.now()}.jpg`;
       const filePath = `avatars/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
-        .upload(filePath, file);
+        .upload(filePath, croppedBlob, { contentType: "image/jpeg" });
 
       if (uploadError)
         throw new Error(uploadError.message || "Failed to upload image");
@@ -127,13 +418,19 @@ export function ProfileSetup() {
       } = supabase.storage.from("avatars").getPublicUrl(filePath);
 
       setCustomImageUrl(publicUrl);
-      setSelectedAvatar(null); // Deselect preset avatars
+      setSelectedAvatar(null);
     } catch (err) {
       console.error("Upload error:", err);
       setError(t("profile.uploadFailed"));
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleCropCancel = () => {
+    setShowCropper(false);
+    if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
+    setCropImageSrc(null);
   };
 
   const handleSubmit = async () => {
@@ -160,127 +457,141 @@ export function ProfileSetup() {
   };
 
   return (
-    <div className='fixed inset-0 bg-ios-bg dark:bg-ios-bg-dark z-50 flex items-center justify-center p-4'>
-      <div className='w-full max-w-md bg-white dark:bg-ios-card-dark rounded-2xl p-6 space-y-6 shadow-xl'>
-        <div className='text-center'>
-          <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
-            {t("profile.setupTitle")}
-          </h1>
-          <p className='text-gray-500 mt-2'>{t("profile.setupDesc")}</p>
-        </div>
+    <>
+      {/* Image Cropper Modal */}
+      {showCropper && cropImageSrc && (
+        <ImageCropper
+          imageSrc={cropImageSrc}
+          onCropComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+        />
+      )}
 
-        {/* Avatar Selection */}
-        <div>
-          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
-            {t("profile.chooseAvatar")}
-          </label>
+      <div className='fixed inset-0 bg-ios-bg dark:bg-ios-bg-dark z-50 flex items-center justify-center p-4'>
+        <div className='w-full max-w-md bg-white dark:bg-ios-card-dark rounded-2xl p-6 space-y-6 shadow-xl'>
+          <div className='text-center'>
+            <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
+              {t("profile.setupTitle")}
+            </h1>
+            <p className='text-gray-500 mt-2'>{t("profile.setupDesc")}</p>
+          </div>
 
-          {/* Custom Image Upload */}
-          <div className='flex justify-center mb-4'>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className={`relative w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center transition-all border-2 border-dashed border-gray-300 dark:border-gray-600 ${
-                customImageUrl
-                  ? "ring-4 ring-ios-blue ring-offset-2 dark:ring-offset-ios-card-dark"
-                  : "hover:border-ios-blue"
-              }`}>
-              {isUploading ? (
-                <div className='w-6 h-6 border-2 border-ios-blue border-t-transparent rounded-full animate-spin' />
-              ) : customImageUrl ? (
-                <img
-                  src={customImageUrl}
-                  alt='Custom avatar'
-                  className='w-full h-full rounded-full object-cover'
-                />
-              ) : (
-                <div className='text-center'>
-                  <svg
-                    className='w-6 h-6 mx-auto text-gray-400'
-                    fill='none'
-                    viewBox='0 0 24 24'
-                    strokeWidth={1.5}
-                    stroke='currentColor'>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      d='M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z'
-                    />
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      d='M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z'
-                    />
-                  </svg>
-                  <span className='text-[10px] text-gray-400 mt-1 block'>
-                    {t("profile.upload")}
-                  </span>
-                </div>
-              )}
-            </button>
+          {/* Avatar Selection */}
+          <div>
+            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
+              {t("profile.chooseAvatar")}
+            </label>
+
+            {/* Custom Image Upload */}
+            <div className='flex justify-center mb-4'>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className={`relative w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center transition-all border-2 border-dashed border-gray-300 dark:border-gray-600 ${
+                  customImageUrl
+                    ? "ring-4 ring-ios-blue ring-offset-2 dark:ring-offset-ios-card-dark"
+                    : "hover:border-ios-blue"
+                }`}>
+                {isUploading ? (
+                  <div className='w-6 h-6 border-2 border-ios-blue border-t-transparent rounded-full animate-spin' />
+                ) : customImageUrl ? (
+                  <img
+                    src={customImageUrl}
+                    alt='Custom avatar'
+                    className='w-full h-full rounded-full object-cover'
+                  />
+                ) : (
+                  <div className='text-center'>
+                    <svg
+                      className='w-6 h-6 mx-auto text-gray-400'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      strokeWidth={1.5}
+                      stroke='currentColor'>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z'
+                      />
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z'
+                      />
+                    </svg>
+                    <span className='text-[10px] text-gray-400 mt-1 block'>
+                      {t("profile.upload")}
+                    </span>
+                  </div>
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type='file'
+                accept='image/*'
+                onChange={handleImageSelect}
+                className='hidden'
+              />
+            </div>
+
+            {/* Preset Avatars */}
+            <div className='flex justify-center gap-2 flex-wrap'>
+              {AVATARS.map((avatar) => (
+                <button
+                  key={avatar.id}
+                  onClick={() => {
+                    setSelectedAvatar(avatar.id);
+                    setCustomImageUrl(null);
+                  }}
+                  className={`w-12 h-12 rounded-full bg-gradient-to-br ${
+                    avatar.gradient
+                  } flex items-center justify-center transition-all shadow-lg ${
+                    selectedAvatar === avatar.id && !customImageUrl
+                      ? "ring-4 ring-ios-blue ring-offset-2 dark:ring-offset-ios-card-dark scale-110"
+                      : "hover:scale-105 active:scale-95"
+                  }`}>
+                  <AvatarIcon
+                    icon={avatar.icon}
+                    className='w-6 h-6 text-white'
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Full Name Input */}
+          <div>
+            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+              {t("profile.fullName")}
+            </label>
             <input
-              ref={fileInputRef}
-              type='file'
-              accept='image/*'
-              onChange={handleImageUpload}
-              className='hidden'
+              type='text'
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder={t("profile.fullNamePlaceholder")}
+              className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl text-[17px] text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue'
+              autoFocus
             />
           </div>
 
-          {/* Preset Avatars */}
-          <div className='flex justify-center gap-2 flex-wrap'>
-            {AVATARS.map((avatar) => (
-              <button
-                key={avatar.id}
-                onClick={() => {
-                  setSelectedAvatar(avatar.id);
-                  setCustomImageUrl(null);
-                }}
-                className={`w-12 h-12 rounded-full bg-gradient-to-br ${
-                  avatar.gradient
-                } flex items-center justify-center transition-all shadow-lg ${
-                  selectedAvatar === avatar.id && !customImageUrl
-                    ? "ring-4 ring-ios-blue ring-offset-2 dark:ring-offset-ios-card-dark scale-110"
-                    : "hover:scale-105 active:scale-95"
-                }`}>
-                <AvatarIcon icon={avatar.icon} className='w-6 h-6 text-white' />
-              </button>
-            ))}
-          </div>
+          {error && <p className='text-sm text-ios-red text-center'>{error}</p>}
+
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting || !fullName.trim()}
+            className='w-full py-3 bg-ios-blue text-white rounded-xl text-[17px] font-medium disabled:opacity-50 transition-opacity active:opacity-80'>
+            {isSubmitting ? (
+              <span className='flex items-center justify-center gap-2'>
+                <div className='w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin' />
+                {t("profile.saving")}
+              </span>
+            ) : (
+              t("profile.continue")
+            )}
+          </button>
         </div>
-
-        {/* Full Name Input */}
-        <div>
-          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-            {t("profile.fullName")}
-          </label>
-          <input
-            type='text'
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            placeholder={t("profile.fullNamePlaceholder")}
-            className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl text-[17px] text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue'
-            autoFocus
-          />
-        </div>
-
-        {error && <p className='text-sm text-ios-red text-center'>{error}</p>}
-
-        <button
-          onClick={handleSubmit}
-          disabled={isSubmitting || !fullName.trim()}
-          className='w-full py-3 bg-ios-blue text-white rounded-xl text-[17px] font-medium disabled:opacity-50 transition-opacity active:opacity-80'>
-          {isSubmitting ? (
-            <span className='flex items-center justify-center gap-2'>
-              <div className='w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin' />
-              {t("profile.saving")}
-            </span>
-          ) : (
-            t("profile.continue")
-          )}
-        </button>
       </div>
-    </div>
+    </>
   );
 }
 

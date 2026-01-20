@@ -138,77 +138,214 @@ function BackgroundLogo() {
   );
 }
 
-// Tab bar icons as SVGs
+// Tab bar icons as SVGs - Apple iOS style (SF Symbols inspired)
 const TodayIcon = ({ filled = false }: { filled?: boolean }) => (
-  <svg
-    viewBox='0 0 24 24'
-    fill={filled ? "currentColor" : "none"}
-    stroke='currentColor'
-    strokeWidth={filled ? 0 : 1.5}
-    className='w-full h-full'>
+  <svg viewBox='0 0 24 24' className='w-full h-full'>
     {filled ? (
-      <path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z' />
+      <>
+        <circle cx='12' cy='12' r='10' fill='currentColor' />
+        <path
+          d='M12 6v6l4 2'
+          stroke='white'
+          strokeWidth='2'
+          strokeLinecap='round'
+          fill='none'
+        />
+      </>
     ) : (
       <>
-        <circle cx='12' cy='12' r='9' />
-        <path d='M12 7v5l3 3' strokeLinecap='round' />
+        <circle
+          cx='12'
+          cy='12'
+          r='9'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+        <path
+          d='M12 7v5l3.5 2'
+          stroke='currentColor'
+          strokeWidth='1.5'
+          strokeLinecap='round'
+          fill='none'
+        />
       </>
     )}
   </svg>
 );
 
-const MoviesIcon = () => (
-  <svg
-    viewBox='0 0 24 24'
-    fill='none'
-    stroke='currentColor'
-    strokeWidth={1.5}
-    className='w-full h-full'>
-    <rect x='2' y='4' width='20' height='16' rx='2' />
-    <path d='M7 4v16M17 4v16M2 9h5M17 9h5M2 15h5M17 15h5' />
-  </svg>
-);
-
-const StatsIcon = () => (
-  <svg
-    viewBox='0 0 24 24'
-    fill='none'
-    stroke='currentColor'
-    strokeWidth={1.5}
-    className='w-full h-full'>
-    <path d='M4 20h16' strokeLinecap='round' />
-    <rect x='4' y='10' width='4' height='10' rx='1' />
-    <rect x='10' y='6' width='4' height='14' rx='1' />
-    <rect x='16' y='13' width='4' height='7' rx='1' />
-  </svg>
-);
-
-const SettingsIcon = ({ filled = false }: { filled?: boolean }) => (
-  <svg
-    viewBox='0 0 24 24'
-    fill={filled ? "currentColor" : "none"}
-    stroke={filled ? "none" : "currentColor"}
-    strokeWidth={filled ? 0 : 1.5}
-    className='w-full h-full'>
+const MoviesIcon = ({ filled = false }: { filled?: boolean }) => (
+  <svg viewBox='0 0 24 24' className='w-full h-full'>
     {filled ? (
-      <path d='M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z' />
+      <>
+        <rect x='3' y='6' width='18' height='14' rx='2' fill='currentColor' />
+        <rect x='3' y='3' width='18' height='4' rx='1' fill='currentColor' />
+        <path d='M7 3v4M12 3v4M17 3v4' stroke='white' strokeWidth='1.5' />
+      </>
     ) : (
-      <path d='M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z' />
+      <>
+        <rect
+          x='3'
+          y='6'
+          width='18'
+          height='14'
+          rx='2'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+        <rect
+          x='3'
+          y='3'
+          width='18'
+          height='4'
+          rx='1'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+        <path
+          d='M7 3v4M12 3v4M17 3v4'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+      </>
     )}
   </svg>
 );
 
-const FriendsIcon = () => (
-  <svg
-    viewBox='0 0 24 24'
-    fill='none'
-    stroke='currentColor'
-    strokeWidth={1.5}
-    className='w-full h-full'>
-    <circle cx='9' cy='7' r='3' />
-    <circle cx='17' cy='7' r='2.5' />
-    <path d='M3 18v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1' strokeLinecap='round' />
-    <path d='M15 13.9c1.5.2 4 1 4 2.6V18' strokeLinecap='round' />
+const StatsIcon = ({ filled = false }: { filled?: boolean }) => (
+  <svg viewBox='0 0 24 24' className='w-full h-full'>
+    {filled ? (
+      <>
+        <rect x='3' y='12' width='5' height='9' rx='1.5' fill='currentColor' />
+        <rect
+          x='9.5'
+          y='6'
+          width='5'
+          height='15'
+          rx='1.5'
+          fill='currentColor'
+        />
+        <rect x='16' y='9' width='5' height='12' rx='1.5' fill='currentColor' />
+      </>
+    ) : (
+      <>
+        <rect
+          x='3'
+          y='12'
+          width='5'
+          height='9'
+          rx='1.5'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+        <rect
+          x='9.5'
+          y='6'
+          width='5'
+          height='15'
+          rx='1.5'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+        <rect
+          x='16'
+          y='9'
+          width='5'
+          height='12'
+          rx='1.5'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+      </>
+    )}
+  </svg>
+);
+
+const SettingsIcon = ({ filled = false }: { filled?: boolean }) => (
+  <svg viewBox='0 0 24 24' className='w-full h-full'>
+    {filled ? (
+      <>
+        <path d='M12 15a3 3 0 100-6 3 3 0 000 6z' fill='white' />
+        <path
+          d='M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z'
+          fill='currentColor'
+        />
+      </>
+    ) : (
+      <>
+        <circle
+          cx='12'
+          cy='12'
+          r='3'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+        <path
+          d='M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+      </>
+    )}
+  </svg>
+);
+
+const FriendsIcon = ({ filled = false }: { filled?: boolean }) => (
+  <svg viewBox='0 0 24 24' className='w-full h-full'>
+    {filled ? (
+      <>
+        <circle cx='9' cy='7' r='4' fill='currentColor' />
+        <circle cx='17' cy='8' r='3' fill='currentColor' />
+        <path d='M2 20c0-3.5 3.5-5 7-5s7 1.5 7 5' fill='currentColor' />
+        <path
+          d='M16 15c2.5 0 6 1 6 4'
+          fill='currentColor'
+          stroke='currentColor'
+          strokeWidth='3'
+          strokeLinecap='round'
+        />
+      </>
+    ) : (
+      <>
+        <circle
+          cx='9'
+          cy='7'
+          r='3.5'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+        <circle
+          cx='17'
+          cy='8'
+          r='2.5'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+        />
+        <path
+          d='M2.5 20c0-3 3-4.5 6.5-4.5s6.5 1.5 6.5 4.5'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+          strokeLinecap='round'
+        />
+        <path
+          d='M16 15.5c2 0 5.5 1 5.5 3.5'
+          fill='none'
+          stroke='currentColor'
+          strokeWidth='1.5'
+          strokeLinecap='round'
+        />
+      </>
+    )}
   </svg>
 );
 
@@ -445,16 +582,19 @@ export function AppShell({ children }: AppShellProps) {
       href: "/movies-tv",
       label: t("tab.moviesTv"),
       icon: <MoviesIcon />,
+      activeIcon: <MoviesIcon filled />,
     },
     {
       href: "/stats",
       label: t("tab.statistics"),
       icon: <StatsIcon />,
+      activeIcon: <StatsIcon filled />,
     },
     {
       href: "/friends",
       label: t("tab.friends"),
       icon: <FriendsIcon />,
+      activeIcon: <FriendsIcon filled />,
     },
     {
       href: "/settings",

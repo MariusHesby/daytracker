@@ -2343,24 +2343,9 @@ export function EntryForm({
                 }
                 return count > 0 ? `${count}` : null;
               }
-              if (isNutrition && hasSavedValues) {
-                // Show food names
-                const foodNames = typeSavedValues
-                  .map((saved) => {
-                    const entry = entries.find((e) => e.id === saved.id);
-                    return (
-                      entry?.nutritionData?.foodName || String(saved.value)
-                    );
-                  })
-                  .join(", ");
-                return foodNames;
-              }
-              // For text types (movies, events, etc.)
+              // For nutrition and text types, show the activity type name
               if (hasSavedValues) {
-                const values = typeSavedValues
-                  .map((saved) => String(saved.value))
-                  .join(", ");
-                return values;
+                return type.name;
               }
               return null;
             };
@@ -2382,13 +2367,33 @@ export function EntryForm({
                   }
                 }}
                 className={cn(
-                  "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 p-1 overflow-hidden",
+                  "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 p-1 overflow-hidden relative",
                   hasValue && !isSkipped
-                    ? "bg-ios-green/10 dark:bg-ios-green/20"
+                    ? "bg-ios-green/15 dark:bg-ios-green/20"
                     : isSkipped
-                    ? "bg-ios-red/10 dark:bg-ios-red/20"
-                    : "bg-gray-100 dark:bg-gray-800"
+                    ? "bg-ios-red/15 dark:bg-ios-red/20"
+                    : "bg-gray-200 dark:bg-gray-800"
                 )}>
+                {/* Checkmark indicator for checkmark activity types only */}
+                {isCheckmark && (
+                  <div className='absolute top-1 right-1'>
+                    <svg
+                      className={cn(
+                        "w-2.5 h-2.5",
+                        hasValue && !isSkipped
+                          ? "text-ios-green"
+                          : "text-gray-300 dark:text-gray-600"
+                      )}
+                      viewBox='0 0 24 24'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='3'
+                      strokeLinecap='round'
+                      strokeLinejoin='round'>
+                      <polyline points='20 6 9 17 4 12' />
+                    </svg>
+                  </div>
+                )}
                 <div
                   className={cn(
                     "w-8 h-8 flex items-center justify-center shrink-0",
@@ -2404,13 +2409,9 @@ export function EntryForm({
                     <span className='text-2xl'>{type.icon}</span>
                   )}
                 </div>
-                {displayText && !isSkipped ? (
-                  <span className='text-[9px] text-gray-600 dark:text-gray-400 text-center w-full px-0.5 line-clamp-2 leading-tight'>
-                    {displayText}
-                  </span>
-                ) : hasValue && !isSkipped && !displayText ? (
-                  <div className='w-1.5 h-1.5 rounded-full bg-ios-green' />
-                ) : null}
+                <span className='text-[9px] text-gray-600 dark:text-gray-400 text-center w-full px-0.5 line-clamp-2 leading-tight'>
+                  {type.name}
+                </span>
                 {isSkipped && (
                   <div className='w-1.5 h-1.5 rounded-full bg-ios-red' />
                 )}
@@ -2679,8 +2680,13 @@ export function EntryForm({
                                   <>
                                     {typeSavedValues
                                       .map((saved) => {
-                                        const entry = entries.find((e) => e.id === saved.id);
-                                        return entry?.nutritionData?.foodName || String(saved.value);
+                                        const entry = entries.find(
+                                          (e) => e.id === saved.id
+                                        );
+                                        return (
+                                          entry?.nutritionData?.foodName ||
+                                          String(saved.value)
+                                        );
                                       })
                                       .join(", ")}
                                   </>

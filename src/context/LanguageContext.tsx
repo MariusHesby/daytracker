@@ -233,6 +233,8 @@ const translations = {
   "profile.invalidImage": "Please select an image file",
   "profile.imageTooLarge": "Image must be under 2MB",
   "profile.uploadFailed": "Failed to upload image",
+  "profile.adjustPhoto": "Adjust Photo",
+  "profile.choose": "Choose",
 } as const;
 
 export type TranslationKey = keyof typeof translations;
