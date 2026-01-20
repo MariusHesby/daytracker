@@ -2409,7 +2409,7 @@ export function EntryForm({
                     <span className='text-2xl'>{type.icon}</span>
                   )}
                 </div>
-                <span className='text-[9px] text-gray-600 dark:text-gray-400 text-center w-full px-0.5 line-clamp-2 leading-tight'>
+                <span className='text-[9px] text-white dark:text-gray-400 text-center w-full px-0.5 line-clamp-2 leading-tight'>
                   {type.name}
                 </span>
                 {isSkipped && (
