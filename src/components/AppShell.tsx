@@ -5,6 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { IOSTabBar } from "./ios";
 import { useLanguage } from "@/context/LanguageContext";
 import { SplashScreen } from "./SplashScreen";
+import {
+  Clock,
+  Clapperboard,
+  ChartBar,
+  Settings,
+  Users,
+} from "lucide-react";
 
 // Pull-to-refresh indicator component
 function PullToRefreshIndicator({
@@ -138,215 +145,25 @@ function BackgroundLogo() {
   );
 }
 
-// Tab bar icons as SVGs - Apple iOS style (SF Symbols inspired)
+// Tab bar icons using Lucide React
 const TodayIcon = ({ filled = false }: { filled?: boolean }) => (
-  <svg viewBox='0 0 24 24' className='w-full h-full'>
-    {filled ? (
-      <>
-        <circle cx='12' cy='12' r='10' fill='currentColor' />
-        <path
-          d='M12 6v6l4 2'
-          stroke='white'
-          strokeWidth='2'
-          strokeLinecap='round'
-          fill='none'
-        />
-      </>
-    ) : (
-      <>
-        <circle
-          cx='12'
-          cy='12'
-          r='9'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-        />
-        <path
-          d='M12 7v5l3.5 2'
-          stroke='currentColor'
-          strokeWidth='1.5'
-          strokeLinecap='round'
-          fill='none'
-        />
-      </>
-    )}
-  </svg>
+  <Clock className='w-full h-full' strokeWidth={filled ? 2.5 : 1.5} />
 );
 
 const MoviesIcon = ({ filled = false }: { filled?: boolean }) => (
-  <svg viewBox='0 0 24 24' className='w-full h-full'>
-    {filled ? (
-      <>
-        <rect x='3' y='6' width='18' height='14' rx='2' fill='currentColor' />
-        <rect x='3' y='3' width='18' height='4' rx='1' fill='currentColor' />
-        <path d='M7 3v4M12 3v4M17 3v4' stroke='white' strokeWidth='1.5' />
-      </>
-    ) : (
-      <>
-        <rect
-          x='3'
-          y='6'
-          width='18'
-          height='14'
-          rx='2'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-        />
-        <rect
-          x='3'
-          y='3'
-          width='18'
-          height='4'
-          rx='1'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-        />
-        <path
-          d='M7 3v4M12 3v4M17 3v4'
-          stroke='currentColor'
-          strokeWidth='1.5'
-        />
-      </>
-    )}
-  </svg>
+  <Clapperboard className='w-full h-full' strokeWidth={filled ? 2.5 : 1.5} />
 );
 
 const StatsIcon = ({ filled = false }: { filled?: boolean }) => (
-  <svg viewBox='0 0 24 24' className='w-full h-full'>
-    {filled ? (
-      <>
-        <rect x='3' y='12' width='5' height='9' rx='1.5' fill='currentColor' />
-        <rect
-          x='9.5'
-          y='6'
-          width='5'
-          height='15'
-          rx='1.5'
-          fill='currentColor'
-        />
-        <rect x='16' y='9' width='5' height='12' rx='1.5' fill='currentColor' />
-      </>
-    ) : (
-      <>
-        <rect
-          x='3'
-          y='12'
-          width='5'
-          height='9'
-          rx='1.5'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-        />
-        <rect
-          x='9.5'
-          y='6'
-          width='5'
-          height='15'
-          rx='1.5'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-        />
-        <rect
-          x='16'
-          y='9'
-          width='5'
-          height='12'
-          rx='1.5'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-        />
-      </>
-    )}
-  </svg>
+  <ChartBar className='w-full h-full' strokeWidth={filled ? 2.5 : 1.5} />
 );
 
 const SettingsIcon = ({ filled = false }: { filled?: boolean }) => (
-  <svg viewBox='0 0 24 24' className='w-full h-full'>
-    {filled ? (
-      <>
-        <path d='M12 15a3 3 0 100-6 3 3 0 000 6z' fill='white' />
-        <path
-          d='M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z'
-          fill='currentColor'
-        />
-      </>
-    ) : (
-      <>
-        <circle
-          cx='12'
-          cy='12'
-          r='3'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-        />
-        <path
-          d='M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-        />
-      </>
-    )}
-  </svg>
+  <Settings className='w-full h-full' strokeWidth={filled ? 2.5 : 1.5} />
 );
 
 const FriendsIcon = ({ filled = false }: { filled?: boolean }) => (
-  <svg viewBox='0 0 24 24' className='w-full h-full'>
-    {filled ? (
-      <>
-        <circle cx='9' cy='7' r='4' fill='currentColor' />
-        <circle cx='17' cy='8' r='3' fill='currentColor' />
-        <path d='M2 20c0-3.5 3.5-5 7-5s7 1.5 7 5' fill='currentColor' />
-        <path
-          d='M16 15c2.5 0 6 1 6 4'
-          fill='currentColor'
-          stroke='currentColor'
-          strokeWidth='3'
-          strokeLinecap='round'
-        />
-      </>
-    ) : (
-      <>
-        <circle
-          cx='9'
-          cy='7'
-          r='3.5'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-        />
-        <circle
-          cx='17'
-          cy='8'
-          r='2.5'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-        />
-        <path
-          d='M2.5 20c0-3 3-4.5 6.5-4.5s6.5 1.5 6.5 4.5'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-          strokeLinecap='round'
-        />
-        <path
-          d='M16 15.5c2 0 5.5 1 5.5 3.5'
-          fill='none'
-          stroke='currentColor'
-          strokeWidth='1.5'
-          strokeLinecap='round'
-        />
-      </>
-    )}
-  </svg>
+  <Users className='w-full h-full' strokeWidth={filled ? 2.5 : 1.5} />
 );
 
 interface AppShellProps {
