@@ -15,7 +15,7 @@ import { IOSSegmentedControl } from "@/components/ios";
 // Helper to render icon
 const renderIcon = (
   iconName: string | undefined,
-  className: string = "w-6 h-6"
+  className: string = "w-6 h-6",
 ) => {
   if (!iconName) return null;
   if (iconName in icons) {
@@ -44,14 +44,14 @@ function getMonday(d: Date): Date {
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
     2,
-    "0"
+    "0",
   )}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // Get date range for a specific offset (0 = current, -1 = previous, etc.)
 function getDateRangeWithOffset(
   range: TimeRange,
-  offset: number
+  offset: number,
 ): { start: string; end: string; label: string } {
   const now = new Date();
   now.setHours(12, 0, 0, 0);
@@ -73,7 +73,7 @@ function getDateRangeWithOffset(
       1,
       12,
       0,
-      0
+      0,
     );
     const monthStart = new Date(
       targetDate.getFullYear(),
@@ -81,7 +81,7 @@ function getDateRangeWithOffset(
       1,
       12,
       0,
-      0
+      0,
     );
     const monthEnd = new Date(
       targetDate.getFullYear(),
@@ -89,7 +89,7 @@ function getDateRangeWithOffset(
       0,
       12,
       0,
-      0
+      0,
     );
 
     const label = monthStart.toLocaleDateString("en-US", {
@@ -124,7 +124,7 @@ function getWeekNumber(d: Date): number {
       ((date.getTime() - week1.getTime()) / 86400000 -
         3 +
         ((week1.getDay() + 6) % 7)) /
-        7
+        7,
     )
   );
 }
@@ -132,7 +132,7 @@ function getWeekNumber(d: Date): number {
 // Get mood color classes
 function getMoodColorClasses(
   mood: string | undefined,
-  isFilled: boolean
+  isFilled: boolean,
 ): string {
   if (!mood) return "";
   switch (mood) {
@@ -236,7 +236,7 @@ function CalendarNavHeader({
           "w-8 h-8 flex items-center justify-center rounded-full transition-all",
           canGoPrev
             ? "text-ios-blue active:bg-ios-blue/10"
-            : "text-gray-300 dark:text-gray-600"
+            : "text-gray-300 dark:text-gray-600",
         )}>
         <svg
           className='w-5 h-5'
@@ -272,7 +272,7 @@ function CalendarNavHeader({
           "w-8 h-8 flex items-center justify-center rounded-full transition-all",
           canGoNext
             ? "text-ios-blue active:bg-ios-blue/10"
-            : "text-gray-300 dark:text-gray-600"
+            : "text-gray-300 dark:text-gray-600",
         )}>
         <svg
           className='w-5 h-5'
@@ -299,7 +299,7 @@ export default function StatsPage() {
   const [timeRange, setTimeRange] = useState<TimeRange>("week");
   const [offset, setOffset] = useState(0); // 0 = current, -1 = previous, etc.
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
-    null
+    null,
   );
 
   // Get localStorage workout data for recent days (not yet locked)
@@ -323,7 +323,7 @@ export default function StatsPage() {
         (e) =>
           e.date === dateStr &&
           e.activityTypeId === workoutType.id &&
-          e.workoutData?.exercises
+          e.workoutData?.exercises,
       );
       if (hasDbEntry) continue;
 
@@ -344,12 +344,12 @@ export default function StatsPage() {
           const exercises: WorkoutExercise[] = [];
           for (const [exerciseName, sets] of Object.entries(workoutData)) {
             const validSets = sets.filter(
-              (set) => set.reps || set.weight || set.distance || set.duration
+              (set) => set.reps || set.weight || set.distance || set.duration,
             );
             if (validSets.length === 0) continue;
 
             const exerciseConfig = workoutType.customExercises?.find(
-              (e) => e.name === exerciseName
+              (e) => e.name === exerciseName,
             );
 
             exercises.push({
@@ -360,7 +360,7 @@ export default function StatsPage() {
               reps: validSets[0].reps,
               weight: validSets.some((s) => s.weight)
                 ? Math.max(
-                    ...validSets.filter((s) => s.weight).map((s) => s.weight!)
+                    ...validSets.filter((s) => s.weight).map((s) => s.weight!),
                   )
                 : undefined,
               distance: validSets.some((s) => s.distance)
@@ -454,7 +454,10 @@ export default function StatsPage() {
   // Calculate statistics for current range
   const statistics = useMemo(() => {
     const filteredEntries = allEntries.filter(
-      (e) => e.date >= currentRange.start && e.date <= currentRange.end
+      (e) =>
+        e.date >= currentRange.start &&
+        e.date <= currentRange.end &&
+        !e.isWatchlist,
     );
     return calculateStatistics(filteredEntries, activityTypes);
   }, [allEntries, activityTypes, currentRange]);
@@ -463,7 +466,7 @@ export default function StatsPage() {
   const selectedStat = useMemo(() => {
     if (!selectedActivityId) return null;
     const stat = statistics.find(
-      (s) => s.activityTypeId === selectedActivityId
+      (s) => s.activityTypeId === selectedActivityId,
     );
     if (stat) return stat;
 
@@ -603,16 +606,16 @@ export default function StatsPage() {
     }
 
     const avgProtein = Math.round(
-      days.reduce((sum, d) => sum + d.protein, 0) / totalDays
+      days.reduce((sum, d) => sum + d.protein, 0) / totalDays,
     );
     const avgCalories = Math.round(
-      days.reduce((sum, d) => sum + d.calories, 0) / totalDays
+      days.reduce((sum, d) => sum + d.calories, 0) / totalDays,
     );
     const avgCarbs = Math.round(
-      days.reduce((sum, d) => sum + d.carbs, 0) / totalDays
+      days.reduce((sum, d) => sum + d.carbs, 0) / totalDays,
     );
     const avgFat = Math.round(
-      days.reduce((sum, d) => sum + d.fat, 0) / totalDays
+      days.reduce((sum, d) => sum + d.fat, 0) / totalDays,
     );
     const totalItems = days.reduce((sum, d) => sum + d.items, 0);
 
@@ -730,19 +733,19 @@ export default function StatsPage() {
     const totalWeight = allExercises.reduce(
       (sum, { exercise }) =>
         sum + (exercise.weight || 0) * (exercise.sets || 1),
-      0
+      0,
     );
     const totalReps = allExercises.reduce(
       (sum, { exercise }) => sum + (exercise.reps || 0) * (exercise.sets || 1),
-      0
+      0,
     );
     const totalDistance = allExercises.reduce(
       (sum, { exercise }) => sum + (exercise.distance || 0),
-      0
+      0,
     );
     const totalDuration = allExercises.reduce(
       (sum, { exercise }) => sum + (exercise.duration || 0),
-      0
+      0,
     );
 
     // Find exercises with weight progress (for chart)
@@ -798,7 +801,7 @@ export default function StatsPage() {
 
     const dates = selectedStat.entries
       .filter(
-        (entry) => String(entry.value).trim().toLowerCase() === selectedValue
+        (entry) => String(entry.value).trim().toLowerCase() === selectedValue,
       )
       .map((entry) => entry.date);
 
@@ -863,7 +866,7 @@ export default function StatsPage() {
         1,
         12,
         0,
-        0
+        0,
       );
       const monthEnd = new Date(
         startDate.getFullYear(),
@@ -871,7 +874,7 @@ export default function StatsPage() {
         0,
         12,
         0,
-        0
+        0,
       );
 
       // Find Monday of the first week
@@ -1054,14 +1057,14 @@ export default function StatsPage() {
                     isSelected
                       ? "bg-ios-blue text-white"
                       : entryCount > 0
-                      ? "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300"
-                      : "bg-gray-200 dark:bg-gray-800 text-gray-400"
+                        ? "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300"
+                        : "bg-gray-200 dark:bg-gray-800 text-gray-400",
                   )}>
                   {type.icon && (
                     <span
                       className={cn(
                         "text-lg",
-                        isSelected ? "opacity-100" : "opacity-70"
+                        isSelected ? "opacity-100" : "opacity-70",
                       )}>
                       {renderIcon(type.icon, "w-5 h-5")}
                     </span>
@@ -1073,7 +1076,7 @@ export default function StatsPage() {
                         "text-[13px] px-2 py-0.5 rounded-full font-medium",
                         isSelected
                           ? "bg-white/20"
-                          : "bg-gray-100 dark:bg-gray-700"
+                          : "bg-gray-100 dark:bg-gray-700",
                       )}>
                       {entryCount}
                     </span>
@@ -1097,7 +1100,7 @@ export default function StatsPage() {
                 "w-full p-4 border-b border-gray-200/80 dark:border-gray-700/80 text-left transition-all",
                 showAllDates
                   ? "bg-ios-blue/10 dark:bg-ios-blue/20"
-                  : "bg-ios-blue/5 dark:bg-ios-blue/10"
+                  : "bg-ios-blue/5 dark:bg-ios-blue/10",
               )}>
               <div className='flex items-center gap-3'>
                 {getActivityType(selectedStat.activityTypeId)?.icon && (
@@ -1105,7 +1108,7 @@ export default function StatsPage() {
                     <span className='text-ios-blue'>
                       {renderIcon(
                         getActivityType(selectedStat.activityTypeId)?.icon,
-                        "w-6 h-6"
+                        "w-6 h-6",
                       )}
                     </span>
                   </div>
@@ -1116,7 +1119,7 @@ export default function StatsPage() {
                       "font-semibold text-[17px]",
                       showAllDates
                         ? "text-ios-blue"
-                        : "text-gray-900 dark:text-white"
+                        : "text-gray-900 dark:text-white",
                     )}>
                     {selectedStat.activityTypeName}
                   </h3>
@@ -1128,7 +1131,7 @@ export default function StatsPage() {
                 <span
                   className={cn(
                     "text-[13px] text-gray-400 transition-transform",
-                    showAllDates ? "rotate-180" : ""
+                    showAllDates ? "rotate-180" : "",
                   )}>
                   ▼
                 </span>
@@ -1165,10 +1168,10 @@ export default function StatsPage() {
                                     ? getMoodColorClasses(mood, true)
                                     : "bg-ios-green text-white"
                                   : day.isToday
-                                  ? isMoodType
-                                    ? "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
-                                    : "bg-ios-green/10 text-ios-green"
-                                  : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                                    ? isMoodType
+                                      ? "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300"
+                                      : "bg-ios-green/10 text-ios-green"
+                                    : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400",
                               )}>
                               <div className='text-[10px] uppercase font-medium'>
                                 {day.dayName}
@@ -1176,7 +1179,7 @@ export default function StatsPage() {
                               <div
                                 className={cn(
                                   "text-lg font-bold",
-                                  day.isMarked && "text-white"
+                                  day.isMarked && "text-white",
                                 )}>
                                 {day.dayNum}
                               </div>
@@ -1231,10 +1234,10 @@ export default function StatsPage() {
                                         " font-bold"
                                       : "bg-ios-green text-white font-bold"
                                     : day.isToday
-                                    ? isMoodType
-                                      ? "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium"
-                                      : "bg-ios-green/10 text-ios-green font-medium"
-                                    : "text-gray-600 dark:text-gray-400"
+                                      ? isMoodType
+                                        ? "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium"
+                                        : "bg-ios-green/10 text-ios-green font-medium"
+                                      : "text-gray-600 dark:text-gray-400",
                                 )}>
                                 {day.dayNum}
                               </div>
@@ -1281,7 +1284,7 @@ export default function StatsPage() {
                                     <div
                                       key={`empty-${i}`}
                                       className='w-4 h-4'
-                                    />
+                                    />,
                                   );
                                 }
                                 return emptyCells;
@@ -1296,15 +1299,15 @@ export default function StatsPage() {
                                       day.isFuture
                                         ? "bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600"
                                         : day.isMarked
-                                        ? isMoodType
-                                          ? getMoodColorClasses(mood, true) +
-                                            " font-bold"
-                                          : "bg-ios-green text-white font-bold"
-                                        : day.isToday
-                                        ? isMoodType
-                                          ? "bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 font-medium"
-                                          : "bg-ios-green/30 text-ios-green font-medium"
-                                        : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                                          ? isMoodType
+                                            ? getMoodColorClasses(mood, true) +
+                                              " font-bold"
+                                            : "bg-ios-green text-white font-bold"
+                                          : day.isToday
+                                            ? isMoodType
+                                              ? "bg-gray-200 dark:bg-gray-600 text-gray-500 dark:text-gray-400 font-medium"
+                                              : "bg-ios-green/30 text-ios-green font-medium"
+                                            : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
                                     )}
                                     title={`${day.dayNum}. ${month.name}${
                                       day.isMarked
@@ -1375,78 +1378,103 @@ export default function StatsPage() {
                   )}
                 </div>
 
-                {/* Daily Averages */}
+                {/* Daily Averages - Always show all 4 macros */}
+                <h4 className='text-[13px] font-medium text-gray-500 mb-2'>
+                  Daily Averages
+                </h4>
                 <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800 mb-4'>
-                  <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
-                    Daily Averages
-                  </h4>
                   <div className='space-y-2'>
-                    {nutritionStats.goal.protein && (
-                      <div className='flex items-center justify-between'>
-                        <span className='text-[15px] text-gray-700 dark:text-gray-300'>
-                          Protein
-                        </span>
-                        <div className='flex items-center gap-2'>
-                          <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
-                            {nutritionStats.avgProtein}g
-                          </span>
-                          <span className='text-[13px] text-gray-400'>
-                            / {nutritionStats.goal.protein}g
-                          </span>
-                          {nutritionStats.avgProtein >=
-                            (nutritionStats.goal.protein || 0) && (
-                            <span className='text-ios-green'>✓</span>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-[15px] text-gray-700 dark:text-gray-300'>
+                        Calories
+                      </span>
+                      <div className='flex items-center gap-2'>
+                        <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                          {nutritionStats.avgCalories}
+                          {nutritionStats.goal.calories && (
+                            <span className='text-gray-400 font-normal'>
+                              {" "}
+                              / {nutritionStats.goal.calories}
+                            </span>
                           )}
-                        </div>
-                      </div>
-                    )}
-                    {nutritionStats.goal.calories && (
-                      <div className='flex items-center justify-between'>
-                        <span className='text-[15px] text-gray-700 dark:text-gray-300'>
-                          Calories
                         </span>
-                        <div className='flex items-center gap-2'>
-                          <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
-                            {nutritionStats.avgCalories}
-                          </span>
-                          <span className='text-[13px] text-gray-400'>
-                            / {nutritionStats.goal.calories}
-                          </span>
-                          {nutritionStats.avgCalories >=
+                        {nutritionStats.goal.calories &&
+                          nutritionStats.avgCalories >=
                             (nutritionStats.goal.calories || 0) && (
                             <span className='text-ios-green'>✓</span>
                           )}
-                        </div>
                       </div>
-                    )}
-                    {(nutritionStats.avgCarbs > 0 ||
-                      nutritionStats.goal.carbs) && (
-                      <div className='flex items-center justify-between'>
-                        <span className='text-[15px] text-gray-700 dark:text-gray-300'>
-                          Carbs
-                        </span>
+                    </div>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-[15px] text-gray-700 dark:text-gray-300'>
+                        Protein
+                      </span>
+                      <div className='flex items-center gap-2'>
                         <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
-                          {nutritionStats.avgCarbs}g
+                          {nutritionStats.avgProtein}
+                          {nutritionStats.goal.protein ? (
+                            <span className='text-gray-400 font-normal'>
+                              {" "}
+                              / {nutritionStats.goal.protein}g
+                            </span>
+                          ) : (
+                            "g"
+                          )}
                         </span>
+                        {nutritionStats.goal.protein &&
+                          nutritionStats.avgProtein >=
+                            (nutritionStats.goal.protein || 0) && (
+                            <span className='text-ios-green'>✓</span>
+                          )}
                       </div>
-                    )}
-                    {(nutritionStats.avgFat > 0 || nutritionStats.goal.fat) && (
-                      <div className='flex items-center justify-between'>
-                        <span className='text-[15px] text-gray-700 dark:text-gray-300'>
-                          Fat
-                        </span>
+                    </div>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-[15px] text-gray-700 dark:text-gray-300'>
+                        Carbs
+                      </span>
+                      <div className='flex items-center gap-2'>
                         <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
-                          {nutritionStats.avgFat}g
+                          {nutritionStats.avgCarbs}
+                          {nutritionStats.goal.carbs ? (
+                            <span className='text-gray-400 font-normal'>
+                              {" "}
+                              / {nutritionStats.goal.carbs}g
+                            </span>
+                          ) : (
+                            "g"
+                          )}
                         </span>
+                        {nutritionStats.goal.carbs &&
+                          nutritionStats.avgCarbs >=
+                            (nutritionStats.goal.carbs || 0) && (
+                            <span className='text-ios-green'>✓</span>
+                          )}
                       </div>
-                    )}
+                    </div>
+                    <div className='flex items-center justify-between'>
+                      <span className='text-[15px] text-gray-700 dark:text-gray-300'>
+                        Fat
+                      </span>
+                      <div className='flex items-center gap-2'>
+                        <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                          {nutritionStats.avgFat}
+                          {nutritionStats.goal.fat ? (
+                            <span className='text-gray-400 font-normal'>
+                              {" "}
+                              / {nutritionStats.goal.fat}g
+                            </span>
+                          ) : (
+                            "g"
+                          )}
+                        </span>
+                        {nutritionStats.goal.fat &&
+                          nutritionStats.avgFat >=
+                            (nutritionStats.goal.fat || 0) && (
+                            <span className='text-ios-green'>✓</span>
+                          )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-
-                {/* Tracking Summary */}
-                <div className='flex items-center justify-between text-[13px] text-gray-500'>
-                  <span>{nutritionStats.totalItems} food items logged</span>
-                  <span>{nutritionStats.daysTracked} days tracked</span>
                 </div>
 
                 {/* Daily Progress Chart */}
@@ -1465,7 +1493,7 @@ export default function StatsPage() {
                               ? Math.min(
                                   100,
                                   (data.protein / nutritionStats.goal.protein) *
-                                    100
+                                    100,
                                 )
                               : 0;
                             const metGoal =
@@ -1482,7 +1510,7 @@ export default function StatsPage() {
                                   <div
                                     className={cn(
                                       "absolute bottom-0 left-0 right-0 rounded-t transition-all",
-                                      metGoal ? "bg-ios-green" : "bg-ios-blue"
+                                      metGoal ? "bg-ios-green" : "bg-ios-blue",
                                     )}
                                     style={{ height: `${goalPercent}%` }}
                                   />
@@ -1562,7 +1590,7 @@ export default function StatsPage() {
                                 <div
                                   className={cn(
                                     "h-full rounded-full transition-all",
-                                    colors.bar
+                                    colors.bar,
                                   )}
                                   style={{ width: `${percent}%` }}
                                 />
@@ -1645,7 +1673,7 @@ export default function StatsPage() {
                                           "absolute bottom-0 left-0 right-0 rounded-t transition-all",
                                           d.weight === maxWeight
                                             ? "bg-ios-green"
-                                            : "bg-ios-blue"
+                                            : "bg-ios-blue",
                                         )}
                                         style={{ height: `${heightPercent}%` }}
                                       />
@@ -1658,7 +1686,7 @@ export default function StatsPage() {
                               })}
                             </div>
                           </div>
-                        )
+                        ),
                       )}
                     </div>
                   </div>
@@ -1707,7 +1735,7 @@ export default function StatsPage() {
                                           "absolute bottom-0 left-0 right-0 rounded-t transition-all",
                                           d.distance === maxDistance
                                             ? "bg-ios-green"
-                                            : "bg-ios-orange"
+                                            : "bg-ios-orange",
                                         )}
                                         style={{ height: `${heightPercent}%` }}
                                       />
@@ -1720,7 +1748,7 @@ export default function StatsPage() {
                               })}
                             </div>
                           </div>
-                        )
+                        ),
                       )}
                     </div>
                   </div>
@@ -1728,8 +1756,8 @@ export default function StatsPage() {
               </div>
             )}
 
-            {/* Value List with Bars - Only show for non-nutrition and non-workout types */}
-            {!isNutritionType && !isWorkoutType && (
+            {/* Value List with Bars - Show for non-workout types (including nutrition) */}
+            {!isWorkoutType && (
               <div className='p-4'>
                 <h4 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 mb-3'>
                   Tap to see dates
@@ -1756,7 +1784,7 @@ export default function StatsPage() {
                             "w-full text-left space-y-1 p-2 -m-2 rounded-lg transition-all",
                             isSelected
                               ? moodBgColorClass
-                              : "active:bg-gray-100 dark:active:bg-gray-800"
+                              : "active:bg-gray-100 dark:active:bg-gray-800",
                           )}>
                           <div className='flex items-center justify-between text-[15px]'>
                             <span
@@ -1764,7 +1792,7 @@ export default function StatsPage() {
                                 "capitalize truncate mr-2",
                                 isSelected
                                   ? cn(moodTextColor, "font-medium")
-                                  : "text-gray-700 dark:text-gray-300"
+                                  : "text-gray-700 dark:text-gray-300",
                               )}>
                               {formatDisplayValue(value)}
                             </span>
@@ -1775,7 +1803,7 @@ export default function StatsPage() {
                               <span
                                 className={cn(
                                   "text-[13px] text-gray-400 transition-transform",
-                                  isSelected ? "rotate-180" : ""
+                                  isSelected ? "rotate-180" : "",
                                 )}>
                                 ▼
                               </span>
@@ -1785,7 +1813,7 @@ export default function StatsPage() {
                             <div
                               className={cn(
                                 "h-full rounded-full transition-all",
-                                moodBarColor
+                                moodBarColor,
                               )}
                               style={{ width: `${(count / maxCount) * 100}%` }}
                             />
@@ -1819,10 +1847,13 @@ export default function StatsPage() {
                                             ? getMoodColorClasses(value, true)
                                             : "bg-ios-blue text-white"
                                           : day.isToday
-                                          ? isMoodType
-                                            ? getMoodColorClasses(value, false)
-                                            : "bg-ios-blue/10 text-ios-blue"
-                                          : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                                            ? isMoodType
+                                              ? getMoodColorClasses(
+                                                  value,
+                                                  false,
+                                                )
+                                              : "bg-ios-blue/10 text-ios-blue"
+                                            : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400",
                                       )}>
                                       <div className='text-[10px] uppercase font-medium'>
                                         {day.dayName}
@@ -1830,7 +1861,7 @@ export default function StatsPage() {
                                       <div
                                         className={cn(
                                           "text-lg font-bold",
-                                          day.isMarked && "text-white"
+                                          day.isMarked && "text-white",
                                         )}>
                                         {day.dayNum}
                                       </div>
@@ -1884,17 +1915,17 @@ export default function StatsPage() {
                                             ? isMoodType
                                               ? getMoodColorClasses(
                                                   value,
-                                                  true
+                                                  true,
                                                 ) + " font-bold"
                                               : "bg-ios-blue text-white font-bold"
                                             : day.isToday
-                                            ? isMoodType
-                                              ? getMoodColorClasses(
-                                                  value,
-                                                  false
-                                                ) + " font-medium"
-                                              : "bg-ios-blue/10 text-ios-blue font-medium"
-                                            : "text-gray-600 dark:text-gray-400"
+                                              ? isMoodType
+                                                ? getMoodColorClasses(
+                                                    value,
+                                                    false,
+                                                  ) + " font-medium"
+                                                : "bg-ios-blue/10 text-ios-blue font-medium"
+                                              : "text-gray-600 dark:text-gray-400",
                                         )}>
                                         {day.dayNum}
                                       </div>
@@ -1939,7 +1970,7 @@ export default function StatsPage() {
                                           const firstDay = new Date(
                                             month.year,
                                             idx,
-                                            1
+                                            1,
                                           );
                                           const startDay =
                                             (firstDay.getDay() + 6) % 7; // Monday = 0
@@ -1949,7 +1980,7 @@ export default function StatsPage() {
                                               <div
                                                 key={`empty-${i}`}
                                                 className='w-4 h-4'
-                                              />
+                                              />,
                                             );
                                           }
                                           return emptyCells;
@@ -1962,20 +1993,20 @@ export default function StatsPage() {
                                               day.isFuture
                                                 ? "bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600"
                                                 : day.isMarked
-                                                ? isMoodType
-                                                  ? getMoodColorClasses(
-                                                      value,
-                                                      true
-                                                    ) + " font-bold"
-                                                  : "bg-ios-blue text-white font-bold"
-                                                : day.isToday
-                                                ? isMoodType
-                                                  ? getMoodColorClasses(
-                                                      value,
-                                                      false
-                                                    ) + " font-medium"
-                                                  : "bg-ios-blue/30 text-ios-blue font-medium"
-                                                : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                                                  ? isMoodType
+                                                    ? getMoodColorClasses(
+                                                        value,
+                                                        true,
+                                                      ) + " font-bold"
+                                                    : "bg-ios-blue text-white font-bold"
+                                                  : day.isToday
+                                                    ? isMoodType
+                                                      ? getMoodColorClasses(
+                                                          value,
+                                                          false,
+                                                        ) + " font-medium"
+                                                      : "bg-ios-blue/30 text-ios-blue font-medium"
+                                                    : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
                                             )}
                                             title={`${day.dayNum}. ${
                                               month.name
@@ -1999,11 +2030,11 @@ export default function StatsPage() {
                                               "font-medium",
                                               isMoodType
                                                 ? getMoodTextColor(value)
-                                                : "text-ios-blue"
+                                                : "text-ios-blue",
                                             )}>
                                             {
                                               month.days.filter(
-                                                (d) => d.isMarked
+                                                (d) => d.isMarked,
                                               ).length
                                             }{" "}
                                             days

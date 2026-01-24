@@ -23,6 +23,22 @@ export interface TMDbMediaResult {
   Type: 'movie' | 'series';
   Poster: string;
   Rating: string;
+  tmdbId?: number; // Store TMDb ID for linking
+}
+
+// Fetch IMDB ID from TMDb external IDs endpoint
+async function getImdbId(tmdbId: number, type: 'movie' | 'tv'): Promise<string | null> {
+  try {
+    const params = new URLSearchParams({
+      api_key: TMDB_API_KEY,
+    });
+    const response = await fetch(`${TMDB_BASE_URL}/${type}/${tmdbId}/external_ids?${params}`);
+    const data = await response.json();
+    return data.imdb_id || null;
+  } catch (error) {
+    console.error('Failed to fetch IMDB ID:', error);
+    return null;
+  }
 }
 
 // Search for movies/TV shows by title
@@ -58,7 +74,7 @@ export async function searchTMDb(
     if (!data.results) return [];
 
     // Transform results to match our expected format
-    return data.results
+    const filteredResults = data.results
       .filter((item: TMDbSearchResult) => {
         // Filter out people and other non-media results
         if (!tmdbType && item.media_type !== 'movie' && item.media_type !== 'tv') {
@@ -66,15 +82,22 @@ export async function searchTMDb(
         }
         return true;
       })
-      .slice(0, 10)
-      .map((item: TMDbSearchResult) => {
+      .slice(0, 10);
+
+    // Fetch IMDB IDs for all results in parallel
+    const resultsWithImdb = await Promise.all(
+      filteredResults.map(async (item: TMDbSearchResult) => {
         const isMovie = item.media_type === 'movie' || item.title !== undefined;
+        const mediaType = isMovie ? 'movie' : 'tv';
         const title = isMovie ? item.title : item.name;
         const date = isMovie ? item.release_date : item.first_air_date;
         const year = date ? date.substring(0, 4) : 'N/A';
         
+        // Fetch the actual IMDB ID
+        const imdbId = await getImdbId(item.id, mediaType);
+        
         return {
-          imdbID: `tmdb-${item.id}`, // We'll use TMDb ID prefixed
+          imdbID: imdbId || `tmdb-${item.id}`, // Fall back to TMDb ID if no IMDB ID
           Title: title || 'Unknown',
           Year: year,
           Type: isMovie ? 'movie' : 'series',
@@ -82,8 +105,12 @@ export async function searchTMDb(
             ? `${TMDB_IMAGE_BASE}/w500${item.poster_path}`
             : 'N/A',
           Rating: item.vote_average ? item.vote_average.toFixed(1) : 'N/A',
+          tmdbId: item.id,
         } as TMDbMediaResult;
-      });
+      })
+    );
+
+    return resultsWithImdb;
   } catch (error) {
     console.error('TMDb search error:', error);
     return [];
@@ -115,8 +142,11 @@ export async function getTMDbDetails(
     const date = isMovie ? data.release_date : data.first_air_date;
     const year = date ? date.substring(0, 4) : 'N/A';
 
+    // Fetch the actual IMDB ID
+    const imdbId = await getImdbId(data.id, type);
+
     return {
-      imdbID: `tmdb-${data.id}`,
+      imdbID: imdbId || `tmdb-${data.id}`,
       Title: title || 'Unknown',
       Year: year,
       Type: isMovie ? 'movie' : 'series',
@@ -124,11 +154,32 @@ export async function getTMDbDetails(
         ? `${TMDB_IMAGE_BASE}/w500${data.poster_path}`
         : 'N/A',
       Rating: data.vote_average ? data.vote_average.toFixed(1) : 'N/A',
+      tmdbId: data.id,
     };
   } catch (error) {
     console.error('TMDb details error:', error);
     return null;
   }
+}
+
+// Helper to get the correct external link URL for a media item
+export function getMediaLink(imdbId: string | undefined): string | null {
+  if (!imdbId) return null;
+  
+  // If it's a real IMDB ID (starts with "tt"), link to IMDB
+  if (imdbId.startsWith('tt')) {
+    return `https://www.imdb.com/title/${imdbId}/`;
+  }
+  
+  // If it's a TMDb ID (starts with "tmdb-"), link to TMDb
+  if (imdbId.startsWith('tmdb-')) {
+    const tmdbId = imdbId.replace('tmdb-', '');
+    // We don't know if it's a movie or TV show from just the ID, 
+    // but TMDb has a universal URL format that works for both
+    return `https://www.themoviedb.org/movie/${tmdbId}`;
+  }
+  
+  return null;
 }
 
 // Check if API key is configured

@@ -26,11 +26,11 @@ interface AuthContextType {
   needsProfileSetup: boolean;
   signInWithEmail: (
     email: string,
-    password: string
+    password: string,
   ) => Promise<{ error: Error | null }>;
   signUpWithEmail: (
     email: string,
-    password: string
+    password: string,
   ) => Promise<{
     error: Error | null;
     needsConfirmation?: boolean;
@@ -43,11 +43,11 @@ interface AuthContextType {
   deleteAllData: () => Promise<{ error: Error | null }>;
   createProfile: (
     fullName: string,
-    avatar: string | null
+    avatar: string | null,
   ) => Promise<{ error: Error | null }>;
   updateProfile: (
     fullName: string,
-    avatar: string | null
+    avatar: string | null,
   ) => Promise<{ error: Error | null }>;
   getProfileByUserId: (userId: string) => Promise<Profile | null>;
 }
@@ -87,19 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
-      // Handle invalid refresh token error
-      if (
-        error?.message?.includes("Refresh Token") ||
-        error?.message?.includes("refresh_token")
-      ) {
-        console.warn("Invalid refresh token, clearing session");
-        supabase.auth.signOut();
-        setSession(null);
-        setUser(null);
-        setProfile(null);
-        setNeedsProfileSetup(false);
-        setIsLoading(false);
-        return;
+      // Only handle critical errors, not token expiry (Supabase will refresh)
+      if (error) {
+        console.warn("Session error:", error.message);
+        // Don't sign out - let Supabase try to refresh the token
       }
 
       setSession(session);
@@ -114,10 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // Handle token refresh errors
-      if (event === "TOKEN_REFRESHED" && !session) {
-        console.warn("Token refresh failed, signing out");
-        supabase.auth.signOut();
+      // Only sign out on explicit SIGNED_OUT event
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+        setNeedsProfileSetup(false);
+        setIsLoading(false);
         return;
       }
 
@@ -125,7 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadProfile(session.user.id);
-      } else {
+      } else if (event !== "TOKEN_REFRESHED") {
+        // Only clear profile if not a token refresh event
         setProfile(null);
         setNeedsProfileSetup(false);
       }
@@ -143,7 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return { error: error as Error | null };
     },
-    []
+    [],
   );
 
   const signUpWithEmail = useCallback(
@@ -167,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: data?.user,
       };
     },
-    []
+    [],
   );
 
   const signInWithMagicLink = useCallback(async (email: string) => {
@@ -375,7 +370,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { error: error as Error | null };
     },
-    [user, loadProfile]
+    [user, loadProfile],
   );
 
   const updateProfile = useCallback(
@@ -397,7 +392,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return { error: error as Error | null };
     },
-    [user, loadProfile]
+    [user, loadProfile],
   );
 
   const getProfileByUserId = useCallback(
@@ -418,7 +413,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         avatar: dbProfile.avatar,
       };
     },
-    []
+    [],
   );
 
   return (

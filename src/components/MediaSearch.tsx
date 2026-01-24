@@ -17,12 +17,13 @@ interface MediaSearchProps {
     imdbId: string,
     year: string,
     poster: string,
-    rating?: string
+    rating?: string,
   ) => void;
   onSelectPrevious?: (value: string) => void;
   placeholder?: string;
   initialValue?: string;
   suggestions?: Suggestion[];
+  clearOnSelect?: boolean;
 }
 
 export function MediaSearch({
@@ -32,6 +33,7 @@ export function MediaSearch({
   placeholder,
   initialValue = "",
   suggestions = [],
+  clearOnSelect = false,
 }: MediaSearchProps) {
   const [query, setQuery] = useState(initialValue);
   const [results, setResults] = useState<TMDbMediaResult[]>([]);
@@ -64,18 +66,22 @@ export function MediaSearch({
 
   const handleSelect = useCallback(
     (result: TMDbMediaResult) => {
-      const titleWithYear = `${result.Title} (${result.Year})`;
-      setQuery(titleWithYear);
+      if (clearOnSelect) {
+        setQuery("");
+      } else {
+        const titleWithYear = `${result.Title} (${result.Year})`;
+        setQuery(titleWithYear);
+      }
       setShowResults(false);
       onSelect(
         result.Title,
         result.imdbID,
         result.Year,
         result.Poster,
-        result.Rating
+        result.Rating,
       );
     },
-    [onSelect]
+    [onSelect, clearOnSelect],
   );
 
   if (!isConfigured) {
@@ -130,7 +136,7 @@ export function MediaSearch({
             "w-full px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-600",
             "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100",
             "focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent",
-            "placeholder:text-gray-400"
+            "placeholder:text-gray-400",
           )}
         />
         {isLoading && (
@@ -144,9 +150,10 @@ export function MediaSearch({
       {showSuggestions && !query.trim() && suggestions.length > 0 && (
         <div
           className={cn(
-            "absolute z-50 mt-1 w-full max-h-64 overflow-auto",
-            "bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
-          )}>
+            "absolute z-50 mt-1 w-full max-h-64 overflow-y-auto scrollbar-none",
+            "bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700",
+          )}
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
           <div className='px-3 py-2 text-[13px] text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700'>
             Previously watched
           </div>
@@ -164,7 +171,7 @@ export function MediaSearch({
                 "w-full px-3 py-2.5 text-left text-[15px]",
                 "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors",
                 "border-b border-gray-100 dark:border-gray-700 last:border-b-0",
-                "flex items-center justify-between"
+                "flex items-center justify-between",
               )}>
               <span className='text-gray-900 dark:text-gray-100 truncate'>
                 {sugg.value}
@@ -191,9 +198,10 @@ export function MediaSearch({
           return (
             <div
               className={cn(
-                "absolute z-50 mt-1 w-full max-h-64 overflow-auto",
-                "bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
-              )}>
+                "absolute z-50 mt-1 w-full max-h-64 overflow-y-auto scrollbar-none",
+                "bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700",
+              )}
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
               {filtered.map((sugg) => (
                 <button
                   key={sugg.value}
@@ -208,7 +216,7 @@ export function MediaSearch({
                     "w-full px-3 py-2.5 text-left text-[15px]",
                     "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors",
                     "border-b border-gray-100 dark:border-gray-700 last:border-b-0",
-                    "flex items-center justify-between"
+                    "flex items-center justify-between",
                   )}>
                   <span className='text-gray-900 dark:text-gray-100 truncate'>
                     {sugg.value}
@@ -226,13 +234,14 @@ export function MediaSearch({
       {showResults && results.length > 0 && (
         <div
           className={cn(
-            "absolute z-50 mt-1 w-full max-h-80 overflow-auto",
-            "bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
-          )}>
+            "absolute z-50 mt-1 w-full max-h-80 overflow-y-auto scrollbar-none",
+            "bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700",
+          )}
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
           {results
             .filter(
               (result, index, self) =>
-                index === self.findIndex((r) => r.imdbID === result.imdbID)
+                index === self.findIndex((r) => r.imdbID === result.imdbID),
             )
             .map((result) => (
               <button
@@ -241,7 +250,7 @@ export function MediaSearch({
                 className={cn(
                   "w-full flex items-center gap-3 p-2 text-left",
                   "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors",
-                  "border-b border-gray-100 dark:border-gray-700 last:border-b-0"
+                  "border-b border-gray-100 dark:border-gray-700 last:border-b-0",
                 )}>
                 {/* Poster thumbnail */}
                 <img

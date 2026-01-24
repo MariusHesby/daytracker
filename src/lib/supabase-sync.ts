@@ -20,6 +20,7 @@ function dbToActivityType(db: DbActivityType): ActivityType {
     hidden: db.hidden,
     nutritionGoal: db.nutrition_goal || undefined,
     customExercises: db.custom_exercises ? (db.custom_exercises as unknown as ActivityType['customExercises']) : undefined,
+    workoutRoutines: db.workout_routines ? (db.workout_routines as unknown as ActivityType['workoutRoutines']) : undefined,
     createdAt: new Date(db.created_at),
   };
 }
@@ -36,6 +37,7 @@ function dbToLogEntry(db: DbLogEntry): LogEntry {
     imdbRating: db.imdb_rating || undefined,
     year: db.year || undefined,
     userRating: db.user_rating || undefined,
+    isWatchlist: db.is_watchlist || undefined,
     nutritionData: db.nutrition_data ? (db.nutrition_data as unknown as LogEntry['nutritionData']) : undefined,
     workoutData: db.workout_data ? (db.workout_data as unknown as LogEntry['workoutData']) : undefined,
     createdAt: new Date(db.created_at),
@@ -97,6 +99,7 @@ export async function addActivityTypeToSupabase(
       hidden: type.hidden || false,
       nutrition_goal: type.nutritionGoal || null,
       custom_exercises: type.customExercises || null,
+      workout_routines: type.workoutRoutines || null,
     })
     .select()
     .single();
@@ -118,6 +121,7 @@ export async function updateActivityTypeInSupabase(type: ActivityType): Promise<
       hidden: type.hidden || false,
       nutrition_goal: type.nutritionGoal || null,
       custom_exercises: type.customExercises || null,
+      workout_routines: type.workoutRoutines || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', type.id);
@@ -185,6 +189,7 @@ export async function addEntryToSupabase(
       imdb_rating: entry.imdbRating || null,
       year: entry.year || null,
       user_rating: entry.userRating || null,
+      is_watchlist: entry.isWatchlist || null,
       nutrition_data: entry.nutritionData || null,
       workout_data: entry.workoutData || null,
     })
@@ -208,6 +213,7 @@ export async function updateEntryInSupabase(entry: LogEntry): Promise<LogEntry> 
       imdb_rating: entry.imdbRating || null,
       year: entry.year || null,
       user_rating: entry.userRating || null,
+      is_watchlist: entry.isWatchlist || null,
       nutrition_data: entry.nutritionData || null,
       workout_data: entry.workoutData || null,
       updated_at: new Date().toISOString(),

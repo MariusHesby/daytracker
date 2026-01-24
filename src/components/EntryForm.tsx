@@ -69,19 +69,20 @@ export function EntryForm({
         return localStorage.getItem(`expanded-activity-${date}`);
       }
       return null;
-    }
+    },
   );
   const [savedValues, setSavedValues] = useState<Record<string, SavedValue[]>>(
-    {}
+    {},
   );
   const [suggestions, setSuggestions] = useState<Record<string, Suggestion[]>>(
-    {}
+    {},
   );
   const [customValue, setCustomValue] = useState("");
   const [showTextDropdown, setShowTextDropdown] = useState(false);
+  const [showNutritionDropdown, setShowNutritionDropdown] = useState(false);
   const [numberValue, setNumberValue] = useState<string>("");
   const [lastClickTime, setLastClickTime] = useState<Record<string, number>>(
-    {}
+    {},
   );
   const [isLocking, setIsLocking] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -97,7 +98,7 @@ export function EntryForm({
         );
       }
       return "list";
-    }
+    },
   );
 
   // Use external view mode if provided, otherwise use internal
@@ -110,7 +111,7 @@ export function EntryForm({
   });
   // Track if we've already shown goal celebration for this date
   const [goalCelebratedTypes, setGoalCelebratedTypes] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
 
   // Workout entry state - tracks data for all exercises
@@ -127,11 +128,11 @@ export function EntryForm({
     >
   >({});
   const [expandedExercises, setExpandedExercises] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [isEditingWorkout, setIsEditingWorkout] = useState(false);
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(
-    null
+    null,
   );
 
   // Track which date we've loaded data for to prevent race conditions
@@ -162,7 +163,7 @@ export function EntryForm({
         }
       }
     },
-    [date]
+    [date],
   );
 
   // Load expanded activity from localStorage on mount and visibility change
@@ -177,7 +178,7 @@ export function EntryForm({
       const handleVisibilityChange = () => {
         if (document.visibilityState === "visible") {
           const savedExpanded = localStorage.getItem(
-            `expanded-activity-${date}`
+            `expanded-activity-${date}`,
           );
           if (savedExpanded) {
             setExpandedTypeIdState(savedExpanded);
@@ -189,7 +190,7 @@ export function EntryForm({
       return () => {
         document.removeEventListener(
           "visibilitychange",
-          handleVisibilityChange
+          handleVisibilityChange,
         );
       };
     }
@@ -205,7 +206,7 @@ export function EntryForm({
 
       setWorkoutData(savedData ? JSON.parse(savedData) : {});
       setExpandedExercises(
-        savedExpanded ? new Set(JSON.parse(savedExpanded)) : new Set()
+        savedExpanded ? new Set(JSON.parse(savedExpanded)) : new Set(),
       );
       setIsEditingWorkout(savedEditing === "true");
       setSelectedRoutineId(savedRoutine || null);
@@ -233,14 +234,14 @@ export function EntryForm({
       const hasActualData = Object.keys(workoutData).some((exerciseName) => {
         const sets = workoutData[exerciseName] || [];
         return sets.some(
-          (set) => set.reps || set.weight || set.distance || set.duration
+          (set) => set.reps || set.weight || set.distance || set.duration,
         );
       });
 
       if (hasActualData) {
         localStorage.setItem(
           `workout-data-${date}`,
-          JSON.stringify(workoutData)
+          JSON.stringify(workoutData),
         );
       } else {
         localStorage.removeItem(`workout-data-${date}`);
@@ -254,7 +255,7 @@ export function EntryForm({
       if (expandedExercises.size > 0) {
         localStorage.setItem(
           `workout-expanded-${date}`,
-          JSON.stringify([...expandedExercises])
+          JSON.stringify([...expandedExercises]),
         );
       } else {
         localStorage.removeItem(`workout-expanded-${date}`);
@@ -372,7 +373,7 @@ export function EntryForm({
   }, [date, loadEntriesForDateRange]);
 
   useEffect(() => {
-    const dateEntries = entries.filter((e) => e.date === date);
+    const dateEntries = entries.filter((e) => e.date === date && !e.isWatchlist);
     const newSavedValues: Record<string, SavedValue[]> = {};
     dateEntries.forEach((entry) => {
       if (!newSavedValues[entry.activityTypeId]) {
@@ -391,7 +392,7 @@ export function EntryForm({
     async function loadAllSuggestions() {
       const newSuggestions: Record<string, Suggestion[]> = {};
       for (const type of activityTypes) {
-        if (type.valueType === "text") {
+        if (type.valueType === "text" || type.valueType === "nutrition") {
           const sugg = await getSuggestions(type.id);
           newSuggestions[type.id] = sugg;
         }
@@ -415,17 +416,17 @@ export function EntryForm({
           }
           return acc;
         },
-        { calories: 0, protein: 0, carbs: 0, fat: 0 }
+        { calories: 0, protein: 0, carbs: 0, fat: 0 },
       );
     },
-    [savedValues]
+    [savedValues],
   );
 
   // Check if nutrition goal is reached
   const checkNutritionGoalReached = useCallback(
     (
       type: ActivityType,
-      totals: { calories: number; protein: number; carbs: number; fat: number }
+      totals: { calories: number; protein: number; carbs: number; fat: number },
     ) => {
       if (!type.nutritionGoal) return false;
       const goal = type.nutritionGoal;
@@ -438,7 +439,7 @@ export function EntryForm({
 
       return false;
     },
-    []
+    [],
   );
 
   // Handle saving nutrition entry
@@ -490,6 +491,10 @@ export function EntryForm({
       setNutritionInput({ foodName: "" });
       setExpandedTypeId(null);
 
+      // Reload suggestions for this type
+      const sugg = await getSuggestions(typeId);
+      setSuggestions((prev) => ({ ...prev, [typeId]: sugg }));
+
       onSuccess?.();
     } catch (error) {
       console.error("Failed to add nutrition entry:", error);
@@ -499,7 +504,7 @@ export function EntryForm({
   // Handle saving all workout exercises at once
   const handleSaveAllWorkouts = async (
     typeId: string,
-    customExercises: CustomExercise[]
+    customExercises: CustomExercise[],
   ) => {
     if (isViewingOther) return;
 
@@ -517,13 +522,13 @@ export function EntryForm({
       for (const exerciseName of Object.keys(workoutData)) {
         const sets = workoutData[exerciseName];
         const exerciseConfig = customExercises.find(
-          (e) => e.name === exerciseName
+          (e) => e.name === exerciseName,
         );
         if (!exerciseConfig) continue;
 
         // Filter sets that have data
         const validSets = sets.filter(
-          (set) => set.reps || set.weight || set.distance || set.duration
+          (set) => set.reps || set.weight || set.distance || set.duration,
         );
         if (validSets.length === 0) continue;
 
@@ -536,7 +541,7 @@ export function EntryForm({
           reps: validSets[0].reps,
           weight: validSets.some((e) => e.weight)
             ? Math.max(
-                ...validSets.filter((e) => e.weight).map((e) => e.weight!)
+                ...validSets.filter((e) => e.weight).map((e) => e.weight!),
               )
             : undefined,
           distance: validSets.some((e) => e.distance)
@@ -556,7 +561,7 @@ export function EntryForm({
       if (existingWorkoutEntry) {
         // Update existing entry
         const existingEntry = entries.find(
-          (e) => e.id === existingWorkoutEntry.id
+          (e) => e.id === existingWorkoutEntry.id,
         );
         if (existingEntry) {
           await updateEntry({
@@ -616,7 +621,7 @@ export function EntryForm({
       poster?: string;
       imdbRating?: string;
       year?: string;
-    }
+    },
   ) => {
     // Don't allow editing when viewing another user's data
     if (isViewingOther) return;
@@ -659,7 +664,7 @@ export function EntryForm({
         const existingEntry = entries.find(
           (e) =>
             e.activityTypeId === typeId &&
-            String(e.value).toLowerCase() === value.toLowerCase()
+            String(e.value).toLowerCase() === value.toLowerCase(),
         );
 
         if (existingEntry) {
@@ -712,7 +717,7 @@ export function EntryForm({
 
   const formatValue = (
     value: string | number | boolean,
-    typeId?: string
+    typeId?: string,
   ): string => {
     const type = typeId ? activityTypes.find((t) => t.id === typeId) : null;
     if (type?.valueType === "checkmark" && value === true) return "✓";
@@ -759,7 +764,7 @@ export function EntryForm({
     imdbId: string,
     year: string,
     poster: string,
-    rating?: string
+    rating?: string,
   ) => {
     // TMDb IDs start with "tmdb-", we use rating from the search result instead of fetching OMDB details
     const displayTitle = `${title} (${year})`;
@@ -800,7 +805,7 @@ export function EntryForm({
         // Filter suggestions based on what the user is typing
         const filteredSuggestions = customValue.trim()
           ? typeSuggestions.filter((sugg) =>
-              sugg.value.toLowerCase().includes(customValue.toLowerCase())
+              sugg.value.toLowerCase().includes(customValue.toLowerCase()),
             )
           : typeSuggestions;
         // Show dropdown when focused and has suggestions (either all or filtered)
@@ -810,7 +815,7 @@ export function EntryForm({
           suggestionsToShow.length > 0 &&
           // Don't show if exact match is typed
           !suggestionsToShow.some(
-            (s) => s.value.toLowerCase() === customValue.toLowerCase().trim()
+            (s) => s.value.toLowerCase() === customValue.toLowerCase().trim(),
           );
 
         return (
@@ -897,7 +902,7 @@ export function EntryForm({
                 "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
                 "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
                 savedValues[type.id]?.[0]?.value === "happy" &&
-                  "ring-2 ring-ios-green bg-ios-green/10 dark:bg-ios-green/20"
+                  "ring-2 ring-ios-green bg-ios-green/10 dark:bg-ios-green/20",
               )}>
               {/* Happy face - smile */}
               <svg
@@ -927,7 +932,7 @@ export function EntryForm({
                 "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
                 "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
                 savedValues[type.id]?.[0]?.value === "neutral" &&
-                  "ring-2 ring-ios-orange bg-ios-orange/10 dark:bg-ios-orange/20"
+                  "ring-2 ring-ios-orange bg-ios-orange/10 dark:bg-ios-orange/20",
               )}>
               {/* Neutral face - straight line */}
               <svg
@@ -957,7 +962,7 @@ export function EntryForm({
                 "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
                 "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
                 savedValues[type.id]?.[0]?.value === "sad" &&
-                  "ring-2 ring-ios-red bg-ios-red/10 dark:bg-ios-red/20"
+                  "ring-2 ring-ios-red bg-ios-red/10 dark:bg-ios-red/20",
               )}>
               {/* Sad face - frown */}
               <svg
@@ -1052,7 +1057,7 @@ export function EntryForm({
                           "font-medium",
                           totals.protein >= goal.protein
                             ? "text-ios-green"
-                            : "text-gray-600 dark:text-gray-400"
+                            : "text-gray-600 dark:text-gray-400",
                         )}>
                         {totals.protein}g / {goal.protein}g
                         {totals.protein >= goal.protein && " ✓"}
@@ -1064,12 +1069,12 @@ export function EntryForm({
                           "h-full rounded-full transition-all",
                           totals.protein >= goal.protein
                             ? "bg-ios-green"
-                            : "bg-ios-blue"
+                            : "bg-ios-blue",
                         )}
                         style={{
                           width: `${Math.min(
                             100,
-                            (totals.protein / goal.protein) * 100
+                            (totals.protein / goal.protein) * 100,
                           )}%`,
                         }}
                       />
@@ -1087,7 +1092,7 @@ export function EntryForm({
                           "font-medium",
                           totals.calories >= goal.calories
                             ? "text-ios-green"
-                            : "text-gray-600 dark:text-gray-400"
+                            : "text-gray-600 dark:text-gray-400",
                         )}>
                         {totals.calories} / {goal.calories} kcal
                         {totals.calories >= goal.calories && " ✓"}
@@ -1099,12 +1104,12 @@ export function EntryForm({
                           "h-full rounded-full transition-all",
                           totals.calories >= goal.calories
                             ? "bg-ios-green"
-                            : "bg-ios-orange"
+                            : "bg-ios-orange",
                         )}
                         style={{
                           width: `${Math.min(
                             100,
-                            (totals.calories / goal.calories) * 100
+                            (totals.calories / goal.calories) * 100,
                           )}%`,
                         }}
                       />
@@ -1122,7 +1127,7 @@ export function EntryForm({
                           "font-medium",
                           totals.carbs >= goal.carbs
                             ? "text-ios-green"
-                            : "text-gray-600 dark:text-gray-400"
+                            : "text-gray-600 dark:text-gray-400",
                         )}>
                         {totals.carbs}g / {goal.carbs}g
                         {totals.carbs >= goal.carbs && " ✓"}
@@ -1134,12 +1139,12 @@ export function EntryForm({
                           "h-full rounded-full transition-all",
                           totals.carbs >= goal.carbs
                             ? "bg-ios-green"
-                            : "bg-amber-500"
+                            : "bg-amber-500",
                         )}
                         style={{
                           width: `${Math.min(
                             100,
-                            (totals.carbs / goal.carbs) * 100
+                            (totals.carbs / goal.carbs) * 100,
                           )}%`,
                         }}
                       />
@@ -1157,7 +1162,7 @@ export function EntryForm({
                           "font-medium",
                           totals.fat >= goal.fat
                             ? "text-ios-green"
-                            : "text-gray-600 dark:text-gray-400"
+                            : "text-gray-600 dark:text-gray-400",
                         )}>
                         {totals.fat}g / {goal.fat}g
                         {totals.fat >= goal.fat && " ✓"}
@@ -1169,12 +1174,12 @@ export function EntryForm({
                           "h-full rounded-full transition-all",
                           totals.fat >= goal.fat
                             ? "bg-ios-green"
-                            : "bg-purple-500"
+                            : "bg-purple-500",
                         )}
                         style={{
                           width: `${Math.min(
                             100,
-                            (totals.fat / goal.fat) * 100
+                            (totals.fat / goal.fat) * 100,
                           )}%`,
                         }}
                       />
@@ -1184,148 +1189,160 @@ export function EntryForm({
               </div>
             )}
 
-            {/* Today's entries */}
-            {typeEntries.length > 0 && (
-              <div className='space-y-1'>
-                <p className='text-[13px] font-medium text-gray-500'>
-                  Today&apos;s entries
-                </p>
-                {typeEntries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className='flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-gray-700/50'>
-                    <span className='text-[15px] text-gray-900 dark:text-white'>
-                      {entry.nutritionData?.foodName || entry.value}
-                    </span>
-                    <div className='flex items-center gap-3 text-[13px] text-gray-500'>
-                      {entry.nutritionData?.protein && (
-                        <span>{entry.nutritionData.protein}g P</span>
-                      )}
-                      {entry.nutritionData?.calories && (
-                        <span>{entry.nutritionData.calories} kcal</span>
-                      )}
-                      <button
-                        onClick={() => deleteEntry(entry.id)}
-                        className='text-ios-red p-1'>
-                        <svg
-                          className='w-4 h-4'
-                          fill='none'
-                          viewBox='0 0 24 24'
-                          stroke='currentColor'
-                          strokeWidth={2}>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            d='M6 18L18 6M6 6l12 12'
-                          />
-                        </svg>
-                      </button>
+            {/* Add new entry form */}
+            {(() => {
+              const typeSuggestions = suggestions[type.id] || [];
+              // Filter suggestions based on what the user is typing
+              const filteredSuggestions = nutritionInput.foodName.trim()
+                ? typeSuggestions.filter((sugg) =>
+                    sugg.value
+                      .toLowerCase()
+                      .includes(nutritionInput.foodName.toLowerCase()),
+                  )
+                : typeSuggestions;
+              // Show dropdown when focused and has suggestions (either all or filtered)
+              const suggestionsToShow = filteredSuggestions.slice(0, 10);
+              const showDropdown =
+                showNutritionDropdown &&
+                suggestionsToShow.length > 0 &&
+                // Don't show if exact match is typed
+                !suggestionsToShow.some(
+                  (s) =>
+                    s.value.toLowerCase() ===
+                    nutritionInput.foodName.toLowerCase().trim(),
+                );
+
+              return (
+                <div className='space-y-3'>
+                  <div className='relative'>
+                    <input
+                      type='text'
+                      value={nutritionInput.foodName}
+                      onChange={(e) => {
+                        setNutritionInput({
+                          ...nutritionInput,
+                          foodName: e.target.value,
+                        });
+                        setShowNutritionDropdown(true);
+                      }}
+                      onFocus={() => setShowNutritionDropdown(true)}
+                      onBlur={() =>
+                        setTimeout(() => setShowNutritionDropdown(false), 200)
+                      }
+                      placeholder='What did you eat?'
+                      className='w-full px-3 py-2 rounded-lg text-[17px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                      autoFocus
+                    />
+                    {/* Autocomplete dropdown - shows recent suggestions */}
+                    {showDropdown && (
+                      <div className='absolute left-0 right-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50 max-h-64 overflow-y-auto'>
+                        {suggestionsToShow.map((sugg) => (
+                          <button
+                            key={sugg.value}
+                            onClick={() => {
+                              setNutritionInput({
+                                ...nutritionInput,
+                                foodName: sugg.value,
+                              });
+                              setShowNutritionDropdown(false);
+                            }}
+                            className='w-full px-3 py-2.5 text-left text-[17px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center justify-between'>
+                            <span>{sugg.value}</span>
+                            <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                              ({sugg.count}×)
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className='grid grid-cols-2 gap-2'>
+                    <div>
+                      <label className='text-[12px] text-gray-500 mb-1 block'>
+                        Calories
+                      </label>
+                      <input
+                        type='number'
+                        value={nutritionInput.calories || ""}
+                        onChange={(e) =>
+                          setNutritionInput({
+                            ...nutritionInput,
+                            calories: e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        placeholder='kcal'
+                        className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                      />
+                    </div>
+                    <div>
+                      <label className='text-[12px] text-gray-500 mb-1 block'>
+                        Protein (g)
+                      </label>
+                      <input
+                        type='number'
+                        value={nutritionInput.protein || ""}
+                        onChange={(e) =>
+                          setNutritionInput({
+                            ...nutritionInput,
+                            protein: e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        placeholder='g'
+                        className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                      />
+                    </div>
+                    <div>
+                      <label className='text-[12px] text-gray-500 mb-1 block'>
+                        Carbs (g)
+                      </label>
+                      <input
+                        type='number'
+                        value={nutritionInput.carbs || ""}
+                        onChange={(e) =>
+                          setNutritionInput({
+                            ...nutritionInput,
+                            carbs: e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        placeholder='g'
+                        className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                      />
+                    </div>
+                    <div>
+                      <label className='text-[12px] text-gray-500 mb-1 block'>
+                        Fat (g)
+                      </label>
+                      <input
+                        type='number'
+                        value={nutritionInput.fat || ""}
+                        onChange={(e) =>
+                          setNutritionInput({
+                            ...nutritionInput,
+                            fat: e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        placeholder='g'
+                        className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                      />
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add new entry form */}
-            <div className='space-y-3'>
-              <input
-                type='text'
-                value={nutritionInput.foodName}
-                onChange={(e) =>
-                  setNutritionInput({
-                    ...nutritionInput,
-                    foodName: e.target.value,
-                  })
-                }
-                placeholder='What did you eat?'
-                className='w-full px-3 py-2 rounded-lg text-[17px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                autoFocus
-              />
-              <div className='grid grid-cols-2 gap-2'>
-                <div>
-                  <label className='text-[12px] text-gray-500 mb-1 block'>
-                    Calories
-                  </label>
-                  <input
-                    type='number'
-                    value={nutritionInput.calories || ""}
-                    onChange={(e) =>
-                      setNutritionInput({
-                        ...nutritionInput,
-                        calories: e.target.value
-                          ? parseInt(e.target.value)
-                          : undefined,
-                      })
-                    }
-                    placeholder='kcal'
-                    className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                  />
+                  <button
+                    onClick={() => handleSaveNutrition(type.id)}
+                    disabled={!nutritionInput.foodName.trim()}
+                    className='w-full py-2.5 rounded-lg text-[17px] font-medium bg-ios-blue text-white disabled:opacity-50 disabled:cursor-not-allowed'>
+                    Add Food
+                  </button>
                 </div>
-                <div>
-                  <label className='text-[12px] text-gray-500 mb-1 block'>
-                    Protein (g)
-                  </label>
-                  <input
-                    type='number'
-                    value={nutritionInput.protein || ""}
-                    onChange={(e) =>
-                      setNutritionInput({
-                        ...nutritionInput,
-                        protein: e.target.value
-                          ? parseInt(e.target.value)
-                          : undefined,
-                      })
-                    }
-                    placeholder='g'
-                    className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                  />
-                </div>
-                <div>
-                  <label className='text-[12px] text-gray-500 mb-1 block'>
-                    Carbs (g)
-                  </label>
-                  <input
-                    type='number'
-                    value={nutritionInput.carbs || ""}
-                    onChange={(e) =>
-                      setNutritionInput({
-                        ...nutritionInput,
-                        carbs: e.target.value
-                          ? parseInt(e.target.value)
-                          : undefined,
-                      })
-                    }
-                    placeholder='g'
-                    className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                  />
-                </div>
-                <div>
-                  <label className='text-[12px] text-gray-500 mb-1 block'>
-                    Fat (g)
-                  </label>
-                  <input
-                    type='number'
-                    value={nutritionInput.fat || ""}
-                    onChange={(e) =>
-                      setNutritionInput({
-                        ...nutritionInput,
-                        fat: e.target.value
-                          ? parseInt(e.target.value)
-                          : undefined,
-                      })
-                    }
-                    placeholder='g'
-                    className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                  />
-                </div>
-              </div>
-              <button
-                onClick={() => handleSaveNutrition(type.id)}
-                disabled={!nutritionInput.foodName.trim()}
-                className='w-full py-2.5 rounded-lg text-[17px] font-medium bg-ios-blue text-white disabled:opacity-50 disabled:cursor-not-allowed'>
-                Add Food
-              </button>
-            </div>
+              );
+            })()}
           </div>
         );
       }
@@ -1357,7 +1374,7 @@ export function EntryForm({
               prevDate.setDate(prevDate.getDate() - i);
               const prevDateStr = prevDate.toISOString().split("T")[0];
               const savedData = localStorage.getItem(
-                `workout-data-${prevDateStr}`
+                `workout-data-${prevDateStr}`,
               );
               if (savedData) {
                 try {
@@ -1375,7 +1392,7 @@ export function EntryForm({
                     // Check if any set has actual data
                     const validSets = exerciseData.filter(
                       (set) =>
-                        set.reps || set.weight || set.distance || set.duration
+                        set.reps || set.weight || set.distance || set.duration,
                     );
                     if (validSets.length > 0) {
                       return {
@@ -1397,13 +1414,13 @@ export function EntryForm({
 
           // Fall back to saved database entries
           const sortedEntries = [...workoutHistoryEntries].sort((a, b) =>
-            b.date.localeCompare(a.date)
+            b.date.localeCompare(a.date),
           );
 
           for (const entry of sortedEntries) {
             if (entry.workoutData?.exercises) {
               const found = entry.workoutData.exercises.find(
-                (ex) => ex.name.toLowerCase() === exerciseName.toLowerCase()
+                (ex) => ex.name.toLowerCase() === exerciseName.toLowerCase(),
               );
               if (found) {
                 return {
@@ -1423,7 +1440,7 @@ export function EntryForm({
         // Get placeholder values for an exercise set (from last used data)
         const getPlaceholderForSet = (
           exerciseName: string,
-          setIndex: number
+          setIndex: number,
         ) => {
           const lastUsed = getLastUsedValues(exerciseName);
           if (lastUsed.setsData && lastUsed.setsData.length > setIndex) {
@@ -1466,7 +1483,7 @@ export function EntryForm({
           exerciseName: string,
           index: number,
           field: string,
-          value: number | undefined
+          value: number | undefined,
         ) => {
           const sets = [...(workoutData[exerciseName] || [{}])];
           sets[index] = { ...sets[index], [field]: value };
@@ -1498,7 +1515,7 @@ export function EntryForm({
         const exerciseHasData = (exerciseName: string) => {
           const sets = workoutData[exerciseName] || [];
           return sets.some(
-            (set) => set.reps || set.weight || set.distance || set.duration
+            (set) => set.reps || set.weight || set.distance || set.duration,
           );
         };
 
@@ -1531,7 +1548,7 @@ export function EntryForm({
 
         // Check if any exercise has data
         const hasAnyData = Object.keys(workoutData).some((name) =>
-          exerciseHasData(name)
+          exerciseHasData(name),
         );
 
         // Show saved view or editing view
@@ -1554,7 +1571,7 @@ export function EntryForm({
               <div className='rounded-xl overflow-hidden bg-white dark:bg-gray-800'>
                 {savedExercises.map((exercise, exIndex) => {
                   const config = customExercises.find(
-                    (e) => e.name === exercise.name
+                    (e) => e.name === exercise.name,
                   );
                   const setsToShow =
                     exercise.setsData ||
@@ -1581,7 +1598,7 @@ export function EntryForm({
                         className={cn(
                           "px-4 py-2.5 bg-gray-100 dark:bg-gray-700",
                           exIndex > 0 &&
-                            "border-t border-gray-200 dark:border-gray-600"
+                            "border-t border-gray-200 dark:border-gray-600",
                         )}>
                         <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
                           {exercise.name}
@@ -1671,7 +1688,7 @@ export function EntryForm({
         const toggleExerciseInNewRoutine = (exerciseName: string) => {
           if (newRoutineExercises.includes(exerciseName)) {
             setNewRoutineExercises(
-              newRoutineExercises.filter((n) => n !== exerciseName)
+              newRoutineExercises.filter((n) => n !== exerciseName),
             );
           } else {
             setNewRoutineExercises([...newRoutineExercises, exerciseName]);
@@ -1697,7 +1714,7 @@ export function EntryForm({
           let updatedRoutines: WorkoutRoutine[];
           if (editingRoutineId) {
             updatedRoutines = routines.map((r) =>
-              r.id === editingRoutineId ? newRoutine : r
+              r.id === editingRoutineId ? newRoutine : r,
             );
           } else {
             updatedRoutines = [...routines, newRoutine];
@@ -1734,8 +1751,64 @@ export function EntryForm({
           }
         };
 
+        // Check if there's a quick-check entry (value === true, no workout data)
+        const hasQuickCheck = typeEntries.some((saved) => {
+          const entry = entries.find((e) => e.id === saved.id);
+          return saved.value === true && !entry?.workoutData?.exercises?.length;
+        });
+
+        // Toggle quick-check
+        const toggleQuickCheck = async () => {
+          if (hasQuickCheck) {
+            // Remove the quick-check entry
+            typeEntries.forEach((saved) => {
+              const entry = entries.find((e) => e.id === saved.id);
+              if (
+                saved.value === true &&
+                !entry?.workoutData?.exercises?.length
+              ) {
+                deleteEntry(saved.id);
+              }
+            });
+          } else {
+            // Add a quick-check entry
+            handleSaveValue(type.id, true);
+          }
+        };
+
         return (
           <div className='pt-3 space-y-2'>
+            {/* Quick check option - for when user doesn't want to log full workout details */}
+            <div className='flex items-center justify-between px-1 mb-2'>
+              <span className='text-[13px] text-gray-500'>
+                Quick check (no details)
+              </span>
+              <button
+                onClick={toggleQuickCheck}
+                className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
+                  hasQuickCheck
+                    ? "bg-ios-green text-white"
+                    : "bg-gray-200 dark:bg-gray-700 text-gray-400",
+                )}>
+                <svg
+                  className='w-5 h-5'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={hasQuickCheck ? 3 : 2}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M5 13l4 4L19 7'
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className='border-t border-gray-200 dark:border-gray-700 mb-2' />
+
             {/* Routine selector */}
             <div className='mb-3'>
               <p className='text-[12px] text-gray-500 mb-2'>Select routine:</p>
@@ -1746,7 +1819,7 @@ export function EntryForm({
                     "px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors",
                     selectedRoutineId === null
                       ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300",
                   )}>
                   All
                 </button>
@@ -1762,7 +1835,7 @@ export function EntryForm({
                       "px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors flex items-center gap-1.5",
                       selectedRoutineId === routine.id
                         ? "text-white"
-                        : "bg-gray-100 dark:bg-gray-700"
+                        : "bg-gray-100 dark:bg-gray-700",
                     )}
                     style={{
                       backgroundColor:
@@ -1832,7 +1905,7 @@ export function EntryForm({
                           "w-full px-3 py-2 rounded-lg text-left text-[14px] flex items-center justify-between transition-colors",
                           newRoutineExercises.includes(exercise.name)
                             ? "bg-ios-blue/10 text-ios-blue"
-                            : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                            : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300",
                         )}>
                         <span>{exercise.name}</span>
                         {newRoutineExercises.includes(exercise.name) && (
@@ -1910,14 +1983,14 @@ export function EntryForm({
                         "rounded-xl overflow-hidden",
                         isExpanded
                           ? "bg-gray-50 dark:bg-gray-800"
-                          : "bg-white dark:bg-gray-800"
+                          : "bg-white dark:bg-gray-800",
                       )}>
                       {/* Exercise header - tap to expand */}
                       <button
                         onClick={() => toggleExercise(ex.name)}
                         className={cn(
                           "w-full px-4 py-3 flex items-center justify-between",
-                          isExpanded && "bg-gray-100 dark:bg-gray-700"
+                          isExpanded && "bg-gray-100 dark:bg-gray-700",
                         )}>
                         <div className='flex items-center gap-2'>
                           <span
@@ -1925,7 +1998,7 @@ export function EntryForm({
                               "text-[15px] font-medium",
                               hasData || savedEx
                                 ? "text-ios-green"
-                                : "text-gray-900 dark:text-white"
+                                : "text-gray-900 dark:text-white",
                             )}>
                             {ex.name}
                           </span>
@@ -1945,7 +2018,7 @@ export function EntryForm({
                         <svg
                           className={cn(
                             "w-5 h-5 text-gray-400 transition-transform",
-                            isExpanded && "rotate-180"
+                            isExpanded && "rotate-180",
                           )}
                           fill='none'
                           viewBox='0 0 24 24'
@@ -1971,7 +2044,7 @@ export function EntryForm({
                           {sets.map((set, index) => {
                             const placeholder = getPlaceholderForSet(
                               ex.name,
-                              index
+                              index,
                             );
                             return (
                               <div
@@ -1996,7 +2069,7 @@ export function EntryForm({
                                             "reps",
                                             e.target.value
                                               ? parseInt(e.target.value)
-                                              : undefined
+                                              : undefined,
                                           )
                                         }
                                         onFocus={(e) => e.target.select()}
@@ -2022,7 +2095,7 @@ export function EntryForm({
                                             "weight",
                                             e.target.value
                                               ? parseFloat(e.target.value)
-                                              : undefined
+                                              : undefined,
                                           )
                                         }
                                         onFocus={(e) => e.target.select()}
@@ -2049,7 +2122,7 @@ export function EntryForm({
                                             "distance",
                                             e.target.value
                                               ? parseFloat(e.target.value)
-                                              : undefined
+                                              : undefined,
                                           )
                                         }
                                         onFocus={(e) => e.target.select()}
@@ -2077,7 +2150,7 @@ export function EntryForm({
                                             "duration",
                                             e.target.value
                                               ? parseInt(e.target.value)
-                                              : undefined
+                                              : undefined,
                                           )
                                         }
                                         onFocus={(e) => e.target.select()}
@@ -2163,7 +2236,7 @@ export function EntryForm({
   // Handler for checkmark toggle in icon grid view
   const handleCheckmarkToggle = (
     typeId: string,
-    typeSavedValues: Array<{ id: string; value: unknown }>
+    typeSavedValues: Array<{ id: string; value: unknown }>,
   ) => {
     const hasSavedValues = typeSavedValues.length > 0;
     const now = Date.now();
@@ -2190,6 +2263,47 @@ export function EntryForm({
         // Add the checkmark
         handleSaveValue(typeId, true);
       }
+    }
+  };
+
+  // Handler for workout quick-check toggle in icon grid view
+  // Single click: opens workout panel, Double click: toggles quick-check
+  const handleWorkoutQuickCheck = (
+    typeId: string,
+    typeSavedValues: Array<{ id: string; value: unknown }>,
+  ) => {
+    const now = Date.now();
+    const lastClick = lastClickTime[typeId] || 0;
+    const isDoubleClick = now - lastClick < 400;
+    setLastClickTime({ ...lastClickTime, [typeId]: now });
+
+    if (isDoubleClick) {
+      // Double-click: toggle quick-check (simple checkmark without workout details)
+      // Check if there's already a quick-check entry (value === true, no workoutData)
+      const hasQuickCheck = typeSavedValues.some((saved) => {
+        const entry = entries.find((e) => e.id === saved.id);
+        return saved.value === true && !entry?.workoutData?.exercises?.length;
+      });
+
+      if (hasQuickCheck) {
+        // Remove the quick-check entry
+        typeSavedValues.forEach((saved) => {
+          const entry = entries.find((e) => e.id === saved.id);
+          if (saved.value === true && !entry?.workoutData?.exercises?.length) {
+            deleteEntry(saved.id);
+          }
+        });
+      } else {
+        // Add a quick-check entry
+        handleSaveValue(typeId, true);
+      }
+      // Close expanded panel if open
+      if (expandedTypeId === typeId) {
+        setExpandedTypeId(null);
+      }
+    } else {
+      // Single click: toggle expansion (open workout panel)
+      setExpandedTypeId(expandedTypeId === typeId ? null : typeId);
     }
   };
 
@@ -2301,7 +2415,7 @@ export function EntryForm({
                 const sets = workoutData[exerciseName] || [];
                 return sets.some(
                   (set) =>
-                    set.reps || set.weight || set.distance || set.duration
+                    set.reps || set.weight || set.distance || set.duration,
                 );
               });
 
@@ -2337,13 +2451,40 @@ export function EntryForm({
                   count = Object.keys(workoutData).filter((name) => {
                     const sets = workoutData[name] || [];
                     return sets.some(
-                      (s) => s.reps || s.weight || s.distance || s.duration
+                      (s) => s.reps || s.weight || s.distance || s.duration,
                     );
                   }).length;
                 }
+                // Show count if exercises logged, or nothing if just quick-check (icon will show green)
                 return count > 0 ? `${count}` : null;
               }
-              // For nutrition and text types, show the activity type name
+              // For nutrition types with goals, show goals reached
+              if (isNutrition && type.nutritionGoal) {
+                const totals = getNutritionTotals(type.id);
+                const goal = type.nutritionGoal;
+                let goalsSet = 0;
+                let goalsReached = 0;
+                if (goal.protein) {
+                  goalsSet++;
+                  if (totals.protein >= goal.protein) goalsReached++;
+                }
+                if (goal.calories) {
+                  goalsSet++;
+                  if (totals.calories >= goal.calories) goalsReached++;
+                }
+                if (goal.carbs) {
+                  goalsSet++;
+                  if (totals.carbs >= goal.carbs) goalsReached++;
+                }
+                if (goal.fat) {
+                  goalsSet++;
+                  if (totals.fat >= goal.fat) goalsReached++;
+                }
+                if (goalsSet > 0) {
+                  return `${goalsReached}/${goalsSet}`;
+                }
+              }
+              // For nutrition without goals and text types, show the activity type name
               if (hasSavedValues) {
                 return type.name;
               }
@@ -2352,6 +2493,16 @@ export function EntryForm({
 
             const displayText = getIconDisplayText();
 
+            // Check if workout has a quick-check (value === true, no exercises)
+            const hasWorkoutQuickCheck =
+              isWorkout &&
+              typeSavedValues.some((saved) => {
+                const entry = entries.find((e) => e.id === saved.id);
+                return (
+                  saved.value === true && !entry?.workoutData?.exercises?.length
+                );
+              });
+
             return (
               <button
                 key={type.id}
@@ -2359,10 +2510,13 @@ export function EntryForm({
                   if (isCheckmark) {
                     // For checkmark types, toggle directly without expanding
                     handleCheckmarkToggle(type.id, typeSavedValues);
+                  } else if (isWorkout) {
+                    // For workout types, use double-click for quick-check
+                    handleWorkoutQuickCheck(type.id, typeSavedValues);
                   } else {
                     // For other types, toggle expansion
                     setExpandedTypeId(
-                      expandedTypeId === type.id ? null : type.id
+                      expandedTypeId === type.id ? null : type.id,
                     );
                   }
                 }}
@@ -2371,18 +2525,18 @@ export function EntryForm({
                   hasValue && !isSkipped
                     ? "bg-ios-green/15 dark:bg-ios-green/20"
                     : isSkipped
-                    ? "bg-ios-red/15 dark:bg-ios-red/20"
-                    : "bg-gray-200 dark:bg-gray-800"
+                      ? "bg-ios-red/15 dark:bg-ios-red/20"
+                      : "bg-gray-200 dark:bg-gray-800",
                 )}>
-                {/* Checkmark indicator for checkmark activity types only */}
-                {isCheckmark && (
+                {/* Checkmark indicator for checkmark and workout activity types */}
+                {(isCheckmark || isWorkout) && (
                   <div className='absolute top-1 right-1'>
                     <svg
                       className={cn(
                         "w-2.5 h-2.5",
-                        hasValue && !isSkipped
+                        (hasValue && !isSkipped) || hasWorkoutQuickCheck
                           ? "text-ios-green"
-                          : "text-gray-300 dark:text-gray-600"
+                          : "text-gray-300 dark:text-gray-600",
                       )}
                       viewBox='0 0 24 24'
                       fill='none'
@@ -2400,8 +2554,8 @@ export function EntryForm({
                     hasValue && !isSkipped
                       ? "text-ios-green"
                       : isSkipped
-                      ? "text-ios-red"
-                      : "text-ios-blue"
+                        ? "text-ios-red"
+                        : "text-ios-blue",
                   )}>
                   {type.icon in icons ? (
                     <Icon name={type.icon as IconName} className='w-7 h-7' />
@@ -2409,8 +2563,10 @@ export function EntryForm({
                     <span className='text-2xl'>{type.icon}</span>
                   )}
                 </div>
-                <span className='text-[9px] text-white dark:text-gray-400 text-center w-full px-0.5 line-clamp-2 leading-tight'>
-                  {type.name}
+                <span className='text-[9px] text-gray-900 dark:text-white text-center w-full px-0.5 line-clamp-2 leading-tight'>
+                  {isNutrition && type.nutritionGoal && displayText
+                    ? displayText
+                    : type.name}
                 </span>
                 {isSkipped && (
                   <div className='w-1.5 h-1.5 rounded-full bg-ios-red' />
@@ -2442,7 +2598,7 @@ export function EntryForm({
                 const sets = workoutData[exerciseName] || [];
                 return sets.some(
                   (set) =>
-                    set.reps || set.weight || set.distance || set.duration
+                    set.reps || set.weight || set.distance || set.duration,
                 );
               });
 
@@ -2452,7 +2608,7 @@ export function EntryForm({
                   const sets = workoutData[exerciseName] || [];
                   return sets.some(
                     (set) =>
-                      set.reps || set.weight || set.distance || set.duration
+                      set.reps || set.weight || set.distance || set.duration,
                   );
                 }).length
               : 0;
@@ -2529,7 +2685,7 @@ export function EntryForm({
                   className={cn(
                     "flex items-center min-h-[40px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
                     isExpanded && "bg-gray-50 dark:bg-gray-800",
-                    isLocked && "pointer-events-none opacity-75"
+                    isLocked && "pointer-events-none opacity-75",
                   )}
                   onClick={handleRowClick}>
                   {/* Icon */}
@@ -2540,8 +2696,8 @@ export function EntryForm({
                         isLocked
                           ? "bg-ios-green/10"
                           : hasSavedValues || workoutHasEnteredData
-                          ? "bg-ios-green/10"
-                          : "bg-ios-blue/10"
+                            ? "bg-ios-green/10"
+                            : "bg-ios-blue/10",
                       )}>
                       {type.icon in icons ? (
                         <Icon
@@ -2551,8 +2707,8 @@ export function EntryForm({
                             isLocked
                               ? "text-ios-green"
                               : hasSavedValues || workoutHasEnteredData
-                              ? "text-ios-green"
-                              : "text-ios-blue"
+                                ? "text-ios-green"
+                                : "text-ios-blue",
                           )}
                         />
                       ) : (
@@ -2567,18 +2723,20 @@ export function EntryForm({
                       "flex-1 py-2 flex items-center min-w-0 overflow-hidden",
                       !isLast &&
                         !isExpanded &&
-                        "border-b border-gray-200/80 dark:border-gray-700/80"
+                        "border-b border-gray-200/80 dark:border-gray-700/80",
                     )}>
-                    {/* Main label and inline text value */}
-                    <div className='flex-1 min-w-0 flex items-center gap-2 overflow-hidden'>
-                      <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
-                        {type.name}
-                      </span>
-                      {/* Only show inline value for text type */}
+                    {/* Main label */}
+                    <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
+                      {type.name}
+                    </span>
+
+                    {/* Right-aligned values for all types */}
+                    <div className='flex items-center gap-2 ml-auto shrink-0'>
+                      {/* Text type values - right aligned */}
                       {hasSavedValues &&
                         !isExpanded &&
                         type.valueType === "text" && (
-                          <span className='text-[15px] text-gray-400 dark:text-gray-500 truncate min-w-0'>
+                          <span className='text-[15px] text-gray-500 dark:text-gray-400 truncate max-w-[180px]'>
                             {typeSavedValues.map((saved, i) => (
                               <span key={saved.id}>
                                 {formatValue(saved.value, type.id)}
@@ -2587,132 +2745,45 @@ export function EntryForm({
                             ))}
                           </span>
                         )}
-                    </div>
-
-                    {/* Right-aligned value type controls (except text) */}
-                    {(isCheckmark ||
-                      isMood ||
-                      isCounter ||
-                      isNutrition ||
-                      isWorkout ||
-                      type.valueType === "boolean") && (
-                      <div className='flex items-center gap-2 ml-auto shrink-0'>
-                        {/* Workout summary - show for saved data or entered data */}
-                        {isWorkout &&
-                          (hasSavedValues || workoutHasEnteredData) &&
-                          (() => {
-                            // Count total exercises for today (saved)
-                            let totalSavedExercises = 0;
-                            typeSavedValues.forEach((saved) => {
-                              const entry = entries.find(
-                                (e) => e.id === saved.id
-                              );
-                              if (entry?.workoutData?.exercises) {
-                                totalSavedExercises +=
-                                  entry.workoutData.exercises.length;
-                              }
-                            });
-                            // Use entered count if no saved data, or saved count if data is saved
-                            const displayCount = hasSavedValues
-                              ? totalSavedExercises
-                              : workoutEnteredExerciseCount;
-                            const isSaved =
-                              hasSavedValues && totalSavedExercises > 0;
-                            return (
-                              <span className='text-[15px] font-medium text-ios-green'>
-                                {displayCount} exercise
-                                {displayCount !== 1 ? "s" : ""}
-                                {isSaved ? " ✓" : ""}
-                              </span>
+                      {/* Workout summary - show for saved data or entered data */}
+                      {isWorkout &&
+                        (hasSavedValues || workoutHasEnteredData) &&
+                        (() => {
+                          // Count total exercises for today (saved)
+                          let totalSavedExercises = 0;
+                          // Check for quick-check entry (value === true, no exercises)
+                          let hasQuickCheck = false;
+                          typeSavedValues.forEach((saved) => {
+                            const entry = entries.find(
+                              (e) => e.id === saved.id,
                             );
-                          })()}
-                        {/* Nutrition progress summary */}
-                        {isNutrition &&
-                          (() => {
-                            const totals = getNutritionTotals(type.id);
-                            const goal = type.nutritionGoal || {};
-                            const hasGoal =
-                              goal.protein ||
-                              goal.calories ||
-                              goal.carbs ||
-                              goal.fat;
-                            const hasEntries = hasSavedValues;
+                            if (entry?.workoutData?.exercises) {
+                              totalSavedExercises +=
+                                entry.workoutData.exercises.length;
+                            }
+                            if (
+                              saved.value === true &&
+                              !entry?.workoutData?.exercises?.length
+                            ) {
+                              hasQuickCheck = true;
+                            }
+                          });
+                          // Use entered count if no saved data, or saved count if data is saved
+                          const displayCount = hasSavedValues
+                            ? totalSavedExercises
+                            : workoutEnteredExerciseCount;
+                          const isSaved =
+                            hasSavedValues && totalSavedExercises > 0;
 
-                            if (!hasGoal && !hasEntries) return null;
-
-                            // Show primary goal progress (protein first, then calories)
-                            const primaryGoal = goal.protein
-                              ? "protein"
-                              : goal.calories
-                              ? "calories"
-                              : null;
-                            const totalValue =
-                              primaryGoal === "protein"
-                                ? totals.protein
-                                : totals.calories;
-                            const goalValue =
-                              primaryGoal === "protein"
-                                ? goal.protein
-                                : goal.calories;
-                            const isGoalReached =
-                              goalValue && totalValue >= goalValue;
-
+                          // If quick-check only (no exercises logged), show checkmark
+                          if (
+                            hasQuickCheck &&
+                            totalSavedExercises === 0 &&
+                            !workoutHasEnteredData
+                          ) {
                             return (
-                              <span
-                                className={cn(
-                                  "text-[15px] font-medium truncate min-w-0",
-                                  isGoalReached
-                                    ? "text-ios-green"
-                                    : "text-gray-500 dark:text-gray-400"
-                                )}>
-                                {primaryGoal === "protein" && goalValue ? (
-                                  <>
-                                    {totals.protein}g / {goal.protein}g{" "}
-                                    {isGoalReached && "✓"}
-                                  </>
-                                ) : primaryGoal === "calories" && goalValue ? (
-                                  <>
-                                    {totals.calories} / {goal.calories} kcal{" "}
-                                    {isGoalReached && "✓"}
-                                  </>
-                                ) : hasEntries ? (
-                                  // Show food names instead of "x items"
-                                  <>
-                                    {typeSavedValues
-                                      .map((saved) => {
-                                        const entry = entries.find(
-                                          (e) => e.id === saved.id
-                                        );
-                                        return (
-                                          entry?.nutritionData?.foodName ||
-                                          String(saved.value)
-                                        );
-                                      })
-                                      .join(", ")}
-                                  </>
-                                ) : null}
-                              </span>
-                            );
-                          })()}
-                        {/* Checkmark icon */}
-                        {isCheckmark && hasSavedValues && (
-                          <>
-                            {typeSavedValues[0]?.value === "skipped" ? (
                               <svg
-                                className='w-5 h-5 text-ios-red shrink-0'
-                                fill='none'
-                                stroke='currentColor'
-                                viewBox='0 0 24 24'
-                                strokeWidth={3}>
-                                <path
-                                  strokeLinecap='round'
-                                  strokeLinejoin='round'
-                                  d='M6 18L18 6M6 6l12 12'
-                                />
-                              </svg>
-                            ) : (
-                              <svg
-                                className='w-5 h-5 text-ios-green shrink-0'
+                                className='w-5 h-5 text-ios-green'
                                 fill='none'
                                 stroke='currentColor'
                                 viewBox='0 0 24 24'
@@ -2723,151 +2794,262 @@ export function EntryForm({
                                   d='M5 13l4 4L19 7'
                                 />
                               </svg>
-                            )}
-                          </>
-                        )}
-                        {/* Mood icon display */}
-                        {isMood && hasSavedValues && (
-                          <span className='shrink-0'>
-                            {typeSavedValues[0].value === "happy" && (
-                              <svg
-                                className='w-5 h-5 text-ios-green'
-                                viewBox='0 0 24 24'
-                                fill='none'
-                                stroke='currentColor'
-                                strokeWidth='2'
-                                strokeLinecap='round'
-                                strokeLinejoin='round'>
-                                <circle cx='12' cy='12' r='10' />
-                                <path d='M8 14s1.5 2 4 2 4-2 4-2' />
-                                <line
-                                  x1='9'
-                                  y1='9'
-                                  x2='9.01'
-                                  y2='9'
-                                  strokeWidth='3'
-                                />
-                                <line
-                                  x1='15'
-                                  y1='9'
-                                  x2='15.01'
-                                  y2='9'
-                                  strokeWidth='3'
-                                />
-                              </svg>
-                            )}
-                            {typeSavedValues[0].value === "neutral" && (
-                              <svg
-                                className='w-5 h-5 text-ios-orange'
-                                viewBox='0 0 24 24'
-                                fill='none'
-                                stroke='currentColor'
-                                strokeWidth='2'
-                                strokeLinecap='round'
-                                strokeLinejoin='round'>
-                                <circle cx='12' cy='12' r='10' />
-                                <line x1='8' y1='15' x2='16' y2='15' />
-                                <line
-                                  x1='9'
-                                  y1='9'
-                                  x2='9.01'
-                                  y2='9'
-                                  strokeWidth='3'
-                                />
-                                <line
-                                  x1='15'
-                                  y1='9'
-                                  x2='15.01'
-                                  y2='9'
-                                  strokeWidth='3'
-                                />
-                              </svg>
-                            )}
-                            {typeSavedValues[0].value === "sad" && (
-                              <svg
-                                className='w-5 h-5 text-ios-red'
-                                viewBox='0 0 24 24'
-                                fill='none'
-                                stroke='currentColor'
-                                strokeWidth='2'
-                                strokeLinecap='round'
-                                strokeLinejoin='round'>
-                                <circle cx='12' cy='12' r='10' />
-                                <path d='M16 16s-1.5-2-4-2-4 2-4 2' />
-                                <line
-                                  x1='9'
-                                  y1='9'
-                                  x2='9.01'
-                                  y2='9'
-                                  strokeWidth='3'
-                                />
-                                <line
-                                  x1='15'
-                                  y1='9'
-                                  x2='15.01'
-                                  y2='9'
-                                  strokeWidth='3'
-                                />
-                              </svg>
-                            )}
-                          </span>
-                        )}
-                        {/* Counter controls */}
-                        {isCounter && (
-                          <div
-                            className='flex items-center gap-x-2'
-                            onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCounterChange(-1);
-                              }}
-                              disabled={currentCounterValue === 0}
-                              className={cn(
-                                "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-gray-200 dark:border-gray-600",
-                                "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 shadow-none",
-                                "active:bg-gray-100 dark:active:bg-gray-700 active:scale-95 transition-transform",
-                                currentCounterValue === 0 && "opacity-30"
-                              )}>
-                              −
-                            </button>
-                            <span
-                              className={cn(
-                                "w-7 text-center text-[17px] font-semibold tabular-nums",
-                                currentCounterValue > 0
-                                  ? "text-ios-green"
-                                  : "text-gray-400 dark:text-gray-500"
-                              )}>
-                              {currentCounterValue}
+                            );
+                          }
+
+                          return (
+                            <span className='text-[15px] text-gray-500 dark:text-gray-400'>
+                              {displayCount} exercise
+                              {displayCount !== 1 ? "s" : ""}
+                              {isSaved && (
+                                <span className='text-ios-green ml-1'>✓</span>
+                              )}
                             </span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCounterChange(1);
-                              }}
-                              className={cn(
-                                "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-ios-blue/20",
-                                "bg-ios-blue/5 text-ios-blue shadow-none",
-                                "active:bg-ios-blue/10 active:scale-95 transition-transform"
-                              )}>
-                              +
-                            </button>
-                          </div>
-                        )}
-                        {/* Boolean value display (show check or x if saved) */}
-                        {type.valueType === "boolean" && hasSavedValues && (
+                          );
+                        })()}
+                      {/* Nutrition progress summary */}
+                      {isNutrition &&
+                        (() => {
+                          const totals = getNutritionTotals(type.id);
+                          const goal = type.nutritionGoal || {};
+                          const hasGoal =
+                            goal.protein ||
+                            goal.calories ||
+                            goal.carbs ||
+                            goal.fat;
+                          const hasEntries = hasSavedValues;
+
+                          if (!hasGoal && !hasEntries) return null;
+
+                          // Show primary goal progress (protein first, then calories)
+                          const primaryGoal = goal.protein
+                            ? "protein"
+                            : goal.calories
+                              ? "calories"
+                              : null;
+                          const totalValue =
+                            primaryGoal === "protein"
+                              ? totals.protein
+                              : totals.calories;
+                          const goalValue =
+                            primaryGoal === "protein"
+                              ? goal.protein
+                              : goal.calories;
+                          const isGoalReached =
+                            goalValue && totalValue >= goalValue;
+
+                          return (
+                            <span className='text-[15px] text-gray-500 dark:text-gray-400 truncate max-w-[180px]'>
+                              {primaryGoal === "protein" && goalValue ? (
+                                <>
+                                  {totals.protein}g / {goal.protein}g
+                                  {isGoalReached && (
+                                    <span className='text-ios-green ml-1'>
+                                      ✓
+                                    </span>
+                                  )}
+                                </>
+                              ) : primaryGoal === "calories" && goalValue ? (
+                                <>
+                                  {totals.calories} / {goal.calories} kcal
+                                  {isGoalReached && (
+                                    <span className='text-ios-green ml-1'>
+                                      ✓
+                                    </span>
+                                  )}
+                                </>
+                              ) : hasEntries ? (
+                                // Show food names instead of "x items"
+                                <>
+                                  {typeSavedValues
+                                    .map((saved) => {
+                                      const entry = entries.find(
+                                        (e) => e.id === saved.id,
+                                      );
+                                      return (
+                                        entry?.nutritionData?.foodName ||
+                                        String(saved.value)
+                                      );
+                                    })
+                                    .join(", ")}
+                                </>
+                              ) : null}
+                            </span>
+                          );
+                        })()}
+                      {/* Checkmark icon */}
+                      {isCheckmark && hasSavedValues && (
+                        <>
+                          {typeSavedValues[0]?.value === "skipped" ? (
+                            <svg
+                              className='w-5 h-5 text-ios-red shrink-0'
+                              fill='none'
+                              stroke='currentColor'
+                              viewBox='0 0 24 24'
+                              strokeWidth={3}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M6 18L18 6M6 6l12 12'
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              className='w-5 h-5 text-ios-green shrink-0'
+                              fill='none'
+                              stroke='currentColor'
+                              viewBox='0 0 24 24'
+                              strokeWidth={3}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M5 13l4 4L19 7'
+                              />
+                            </svg>
+                          )}
+                        </>
+                      )}
+                      {/* Mood icon display */}
+                      {isMood && hasSavedValues && (
+                        <span className='shrink-0'>
+                          {typeSavedValues[0].value === "happy" && (
+                            <svg
+                              className='w-5 h-5 text-ios-green'
+                              viewBox='0 0 24 24'
+                              fill='none'
+                              stroke='currentColor'
+                              strokeWidth='2'
+                              strokeLinecap='round'
+                              strokeLinejoin='round'>
+                              <circle cx='12' cy='12' r='10' />
+                              <path d='M8 14s1.5 2 4 2 4-2 4-2' />
+                              <line
+                                x1='9'
+                                y1='9'
+                                x2='9.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                              <line
+                                x1='15'
+                                y1='9'
+                                x2='15.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                            </svg>
+                          )}
+                          {typeSavedValues[0].value === "neutral" && (
+                            <svg
+                              className='w-5 h-5 text-ios-orange'
+                              viewBox='0 0 24 24'
+                              fill='none'
+                              stroke='currentColor'
+                              strokeWidth='2'
+                              strokeLinecap='round'
+                              strokeLinejoin='round'>
+                              <circle cx='12' cy='12' r='10' />
+                              <line x1='8' y1='15' x2='16' y2='15' />
+                              <line
+                                x1='9'
+                                y1='9'
+                                x2='9.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                              <line
+                                x1='15'
+                                y1='9'
+                                x2='15.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                            </svg>
+                          )}
+                          {typeSavedValues[0].value === "sad" && (
+                            <svg
+                              className='w-5 h-5 text-ios-red'
+                              viewBox='0 0 24 24'
+                              fill='none'
+                              stroke='currentColor'
+                              strokeWidth='2'
+                              strokeLinecap='round'
+                              strokeLinejoin='round'>
+                              <circle cx='12' cy='12' r='10' />
+                              <path d='M16 16s-1.5-2-4-2-4 2-4 2' />
+                              <line
+                                x1='9'
+                                y1='9'
+                                x2='9.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                              <line
+                                x1='15'
+                                y1='9'
+                                x2='15.01'
+                                y2='9'
+                                strokeWidth='3'
+                              />
+                            </svg>
+                          )}
+                        </span>
+                      )}
+                      {/* Counter controls */}
+                      {isCounter && (
+                        <div
+                          className='flex items-center gap-x-2'
+                          onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCounterChange(-1);
+                            }}
+                            disabled={currentCounterValue === 0}
+                            className={cn(
+                              "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-gray-200 dark:border-gray-600",
+                              "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 shadow-none",
+                              "active:bg-gray-100 dark:active:bg-gray-700 active:scale-95 transition-transform",
+                              currentCounterValue === 0 && "opacity-30",
+                            )}>
+                            −
+                          </button>
                           <span
                             className={cn(
-                              "w-5 h-5 flex items-center justify-center text-[17px] font-bold",
-                              typeSavedValues[0].value
+                              "w-7 text-center text-[17px] font-semibold tabular-nums",
+                              currentCounterValue > 0
                                 ? "text-ios-green"
-                                : "text-ios-red"
+                                : "text-gray-400 dark:text-gray-500",
                             )}>
-                            {typeSavedValues[0].value ? "✓" : "✗"}
+                            {currentCounterValue}
                           </span>
-                        )}
-                      </div>
-                    )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCounterChange(1);
+                            }}
+                            className={cn(
+                              "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-ios-blue/20",
+                              "bg-ios-blue/5 text-ios-blue shadow-none",
+                              "active:bg-ios-blue/10 active:scale-95 transition-transform",
+                            )}>
+                            +
+                          </button>
+                        </div>
+                      )}
+                      {/* Boolean value display (show check or x if saved) */}
+                      {type.valueType === "boolean" && hasSavedValues && (
+                        <span
+                          className={cn(
+                            "w-5 h-5 flex items-center justify-center text-[17px] font-bold",
+                            typeSavedValues[0].value
+                              ? "text-ios-green"
+                              : "text-ios-red",
+                          )}>
+                          {typeSavedValues[0].value ? "✓" : "✗"}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -2877,7 +3059,7 @@ export function EntryForm({
                     className={cn(
                       "px-4 pb-4 pt-2 bg-gray-50 dark:bg-gray-800/50",
                       !isLast &&
-                        "border-b border-gray-200/80 dark:border-gray-700/80"
+                        "border-b border-gray-200/80 dark:border-gray-700/80",
                     )}>
                     {/* Saved values with delete option - not for mood or workout type */}
                     {hasSavedValues && !isMood && !isWorkout && (
@@ -2948,13 +3130,13 @@ export function EntryForm({
               isLocked
                 ? "bg-ios-green text-white shadow-lg shadow-ios-green/30"
                 : "bg-white/80 dark:bg-ios-card-dark text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700",
-              isLocking && "opacity-70 cursor-not-allowed"
+              isLocking && "opacity-70 cursor-not-allowed",
             )}>
             {/* Lock icon with animation */}
             <div
               className={cn(
                 "transition-transform duration-500",
-                isLocked && "animate-bounce-once"
+                isLocked && "animate-bounce-once",
               )}>
               {isLocked ? (
                 <svg
@@ -2988,8 +3170,8 @@ export function EntryForm({
               {isLocking
                 ? "Working..."
                 : isLocked
-                ? "Day Locked ✨"
-                : "Lock Day"}
+                  ? "Day Locked ✨"
+                  : "Lock Day"}
             </span>
           </button>
         </div>

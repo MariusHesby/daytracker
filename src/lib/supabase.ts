@@ -9,14 +9,14 @@ if (typeof window !== 'undefined') {
     const authData = localStorage.getItem('daytracker-auth');
     if (authData) {
       const parsed = JSON.parse(authData);
-      // Check if the stored session is missing required tokens or expired
+      // Only clear if the data is completely invalid (missing tokens)
+      // Don't clear based on expiry - let Supabase handle refresh
       const isInvalid = !parsed || 
         !parsed.refresh_token || 
-        !parsed.access_token ||
-        (parsed.expires_at && new Date(parsed.expires_at * 1000) < new Date());
+        !parsed.access_token;
       
       if (isInvalid) {
-        console.warn('Clearing invalid/expired auth session');
+        console.warn('Clearing invalid auth session (missing tokens)');
         localStorage.removeItem('daytracker-auth');
         // Also clear any other Supabase storage keys
         Object.keys(localStorage).forEach((key) => {
@@ -54,29 +54,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-// Handle auth errors globally - clear invalid sessions
+// Handle auth errors globally - only clear on explicit sign out
 if (typeof window !== 'undefined') {
   supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
-      // Clear any stale auth data
+    if (event === 'SIGNED_OUT') {
+      // Only clear auth data on explicit sign out
       localStorage.removeItem('daytracker-auth');
     }
-  });
-  
-  // Also check session validity on load and clear if invalid
-  supabase.auth.getSession().then(({ error }) => {
-    if (error?.message?.includes('Refresh Token') || error?.message?.includes('refresh_token')) {
-      console.warn('Invalid refresh token detected, clearing session');
-      localStorage.removeItem('daytracker-auth');
-      // Clear any other Supabase storage keys
-      Object.keys(localStorage).forEach((key) => {
-        if (key.startsWith('sb-') || key.includes('supabase')) {
-          localStorage.removeItem(key);
-        }
-      });
-      // Reload to get a fresh state
-      window.location.reload();
-    }
+    // Don't clear on TOKEN_REFRESHED - let Supabase retry
   });
 }
 
@@ -93,6 +78,7 @@ export interface DbActivityType {
   hidden: boolean;
   nutrition_goal: Record<string, number> | null;
   custom_exercises: Record<string, unknown>[] | null;
+  workout_routines: Record<string, unknown>[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -109,6 +95,7 @@ export interface DbLogEntry {
   imdb_rating: string | null;
   year: string | null;
   user_rating: number | null;
+  is_watchlist: boolean | null;
   nutrition_data: Record<string, unknown> | null;
   workout_data: Record<string, unknown> | null;
   created_at: string;

@@ -138,6 +138,7 @@ export interface LogEntry {
   imdbRating?: string;
   year?: string;
   userRating?: number; // 1-10 scale
+  isWatchlist?: boolean; // True if this is a watchlist item (want to watch)
   // Nutrition data
   nutritionData?: NutritionData;
   // Workout data
