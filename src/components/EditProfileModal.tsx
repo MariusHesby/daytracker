@@ -102,6 +102,9 @@ function ImageCropper({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const [isPinching, setIsPinching] = useState(false);
+  const [initialPinchDistance, setInitialPinchDistance] = useState(0);
+  const [initialPinchScale, setInitialPinchScale] = useState(1);
 
   // Load image
   useEffect(() => {
@@ -121,8 +124,26 @@ function ImageCropper({
     img.src = imageSrc;
   }, [imageSrc]);
 
+  // Calculate distance between two touch points
+  const getTouchDistance = (touches: React.TouchList | TouchList) => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
   const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
+    
+    // Check for pinch gesture (two fingers)
+    if ("touches" in e && e.touches.length === 2) {
+      const distance = getTouchDistance(e.touches);
+      setIsPinching(true);
+      setInitialPinchDistance(distance);
+      setInitialPinchScale(scale);
+      return;
+    }
+    
     setIsDragging(true);
     const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
     const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
@@ -131,6 +152,16 @@ function ImageCropper({
 
   const handleMouseMove = useCallback(
     (e: MouseEvent | TouchEvent) => {
+      // Handle pinch zoom
+      if (isPinching && "touches" in e && e.touches.length === 2) {
+        const distance = getTouchDistance(e.touches);
+        if (initialPinchDistance > 0) {
+          const newScale = initialPinchScale * (distance / initialPinchDistance);
+          setScale(Math.min(3, Math.max(0.1, newScale)));
+        }
+        return;
+      }
+      
       if (!isDragging) return;
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
@@ -139,11 +170,12 @@ function ImageCropper({
         y: clientY - dragStart.y,
       });
     },
-    [isDragging, dragStart]
+    [isDragging, dragStart, isPinching, initialPinchDistance, initialPinchScale],
   );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
+    setIsPinching(false);
   }, []);
 
   useEffect(() => {
@@ -211,7 +243,7 @@ function ImageCropper({
       0,
       0,
       outputSize,
-      outputSize
+      outputSize,
     );
 
     canvas.toBlob(
@@ -221,7 +253,7 @@ function ImageCropper({
         }
       },
       "image/jpeg",
-      0.85
+      0.85,
     );
   };
 
@@ -290,7 +322,9 @@ function ImageCropper({
       {/* Zoom Slider */}
       <div
         className='px-8 py-6 bg-black/80'
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
+        }}>
         <div className='flex items-center gap-4'>
           <button
             onClick={() => setScale(Math.max(0.1, scale - 0.2))}
@@ -345,7 +379,7 @@ function ImageCropper({
 // Compress image function
 async function compressImage(
   file: File,
-  maxSizeMB: number = 1.5
+  maxSizeMB: number = 1.5,
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -393,7 +427,7 @@ async function compressImage(
             }
           },
           "image/jpeg",
-          quality
+          quality,
         );
       };
 
@@ -534,7 +568,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
 
     const { error: submitError } = await updateProfile(
       fullName.trim(),
-      avatarValue
+      avatarValue,
     );
 
     if (submitError) {
@@ -656,7 +690,9 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
                 className='text-ios-blue text-[15px] font-medium active:opacity-60'>
-                {customImageUrl ? t("profile.changePhoto") : t("profile.upload")}
+                {customImageUrl
+                  ? t("profile.changePhoto")
+                  : t("profile.upload")}
               </button>
               <input
                 ref={fileInputRef}
