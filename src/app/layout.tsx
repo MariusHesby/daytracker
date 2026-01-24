@@ -38,8 +38,16 @@ export default function RootLayout({
   return (
     <html lang='en' suppressHydrationWarning>
       <head>
-        <meta name='theme-color' content='#f5f3f0' media='(prefers-color-scheme: light)' />
-        <meta name='theme-color' content='#000000' media='(prefers-color-scheme: dark)' />
+        <meta
+          name='theme-color'
+          content='#f5f3f0'
+          media='(prefers-color-scheme: light)'
+        />
+        <meta
+          name='theme-color'
+          content='#000000'
+          media='(prefers-color-scheme: dark)'
+        />
       </head>
       <body className='antialiased bg-ios-bg dark:bg-ios-bg-dark'>
         <AuthProvider>

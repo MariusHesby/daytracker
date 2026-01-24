@@ -373,7 +373,9 @@ export function EntryForm({
   }, [date, loadEntriesForDateRange]);
 
   useEffect(() => {
-    const dateEntries = entries.filter((e) => e.date === date && !e.isWatchlist);
+    const dateEntries = entries.filter(
+      (e) => e.date === date && !e.isWatchlist,
+    );
     const newSavedValues: Record<string, SavedValue[]> = {};
     dateEntries.forEach((entry) => {
       if (!newSavedValues[entry.activityTypeId]) {

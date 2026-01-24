@@ -361,6 +361,15 @@ function MediaCard({
   onRemoveFromWatchlist,
   isWatchlistView = false,
   layout = "grid",
+  isDraggable = false,
+  onDragStart,
+  onDragEnd,
+  onDragEnter,
+  onDragLeave,
+  onDragOver,
+  onDrop,
+  isDragging = false,
+  isDragOver = false,
 }: {
   entry: LogEntry;
   onRate: (entryId: string, rating: number) => void;
@@ -369,6 +378,15 @@ function MediaCard({
   onRemoveFromWatchlist?: (entryId: string) => void;
   isWatchlistView?: boolean;
   layout?: "grid" | "list";
+  isDraggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
+  onDragEnter?: (e: React.DragEvent) => void;
+  onDragLeave?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  isDragging?: boolean;
+  isDragOver?: boolean;
 }) {
   const [showRating, setShowRating] = useState(false);
   const [showPosterPicker, setShowPosterPicker] = useState(false);
@@ -376,8 +394,40 @@ function MediaCard({
 
   if (layout === "list") {
     return (
-      <div>
+      <div
+        draggable={isDraggable}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragEnter={onDragEnter}
+        onDragLeave={onDragLeave}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        className={cn(
+          isDraggable && "cursor-grab active:cursor-grabbing",
+          isDragging && "opacity-50",
+          isDragOver && "ring-2 ring-ios-blue rounded-xl"
+        )}>
+        {/* Drag handle for watchlist */}
+        {isDraggable && (
+          <div className='flex items-center gap-2 mb-1.5'>
+            <div className='text-gray-400 dark:text-gray-500'>
+              <svg
+                className='w-5 h-5'
+                fill='currentColor'
+                viewBox='0 0 24 24'>
+                <path d='M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z' />
+              </svg>
+            </div>
+            <p className='text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide'>
+              {`Added ${new Date(entry.date).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })}`}
+            </p>
+          </div>
+        )}
         {/* Added date above the card - iOS style */}
+        {!isDraggable && (
         <p className='text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5 px-0.5'>
           {isWatchlistView
             ? `Added ${new Date(entry.date).toLocaleDateString("en-US", {
@@ -389,6 +439,7 @@ function MediaCard({
                 day: "numeric",
               })}
         </p>
+        )}
         <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden shadow-sm flex'>
           <button
             onClick={() => setShowPosterPicker(true)}
@@ -661,6 +712,36 @@ export default function MoviesPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [showWatchlist, setShowWatchlist] = useState(false);
 
+  // Drag and drop state for watchlist reordering
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const dragCounter = useRef(0);
+  
+  // Watchlist order stored in localStorage (map of entry.id -> order)
+  const [watchlistOrder, setWatchlistOrder] = useState<Record<string, Record<string, number>>>({});
+
+  // Load watchlist order from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedOrder = localStorage.getItem("watchlistOrder");
+      if (savedOrder) {
+        try {
+          setWatchlistOrder(JSON.parse(savedOrder));
+        } catch (e) {
+          console.error("Failed to parse watchlist order:", e);
+        }
+      }
+    }
+  }, []);
+
+  // Save watchlist order to localStorage
+  const saveWatchlistOrder = useCallback((newOrder: Record<string, Record<string, number>>) => {
+    setWatchlistOrder(newOrder);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("watchlistOrder", JSON.stringify(newOrder));
+    }
+  }, []);
+
   // Favorites filter state
   const [showFavorites, setShowFavorites] = useState(false);
   const [minStarRating, setMinStarRating] = useState(1);
@@ -874,7 +955,22 @@ export default function MoviesPage() {
     });
 
     // Convert back to array and sort
-    return Array.from(uniqueByTitle.values()).sort((a, b) => {
+    const sortedEntries = Array.from(uniqueByTitle.values());
+    
+    // If showing watchlist, use custom order from localStorage
+    if (showWatchlist) {
+      const orderKey = activeTab; // 'movies' or 'series'
+      const order = watchlistOrder[orderKey] || {};
+      return sortedEntries.sort((a, b) => {
+        const orderA = order[a.id] ?? Number.MAX_SAFE_INTEGER;
+        const orderB = order[b.id] ?? Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) return orderA - orderB;
+        // Fall back to date order for items without custom order
+        return b.date.localeCompare(a.date);
+      });
+    }
+    
+    return sortedEntries.sort((a, b) => {
       if (sortBy === "rating") return (b.userRating || 0) - (a.userRating || 0);
       if (sortBy === "imdb")
         return (
@@ -890,6 +986,7 @@ export default function MoviesPage() {
     sortBy,
     showFavorites,
     showWatchlist,
+    watchlistOrder,
     favoriteEntries,
     minStarRating,
     favoriteActivityTypes,
@@ -976,6 +1073,75 @@ export default function MoviesPage() {
     });
   };
 
+  // Drag and drop handlers for watchlist reordering
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", index.toString());
+    setTimeout(() => {
+      const target = e.target as HTMLElement;
+      target.style.opacity = "0.5";
+    }, 0);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    const target = e.target as HTMLElement;
+    target.style.opacity = "1";
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    dragCounter.current = 0;
+  };
+
+  const handleDragEnter = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (draggedIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) {
+      setDragOverIndex(null);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex) {
+      setDragOverIndex(null);
+      return;
+    }
+
+    // Reorder the items
+    const newOrder = [...mediaEntries];
+    const [draggedItem] = newOrder.splice(draggedIndex, 1);
+    newOrder.splice(dropIndex, 0, draggedItem);
+
+    // Save the new order
+    const orderKey = activeTab; // 'movies' or 'series'
+    const newOrderMap: Record<string, number> = {};
+    newOrder.forEach((entry, idx) => {
+      newOrderMap[entry.id] = idx;
+    });
+
+    saveWatchlistOrder({
+      ...watchlistOrder,
+      [orderKey]: newOrderMap,
+    });
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    dragCounter.current = 0;
+  };
+
   return (
     <div className='pb-16'>
       {/* Viewing Another User Banner */}
@@ -1013,7 +1179,26 @@ export default function MoviesPage() {
 
       <div className='px-4 mb-3 flex gap-2 items-center'>
         <div className='flex gap-2 flex-1 items-center'>
-          {/* Sort dropdown */}
+          {/* Sort dropdown OR Back button when in watchlist */}
+          {showWatchlist ? (
+            <button
+              onClick={() => setShowWatchlist(false)}
+              className='px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5 bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300'>
+              <svg
+                className='w-4 h-4'
+                fill='none'
+                viewBox='0 0 24 24'
+                strokeWidth={2}
+                stroke='currentColor'>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M15.75 19.5L8.25 12l7.5-7.5'
+                />
+              </svg>
+              Watched
+            </button>
+          ) : (
           <div className='relative'>
             <button
               onClick={() => setShowSortDropdown(!showSortDropdown)}
@@ -1088,7 +1273,9 @@ export default function MoviesPage() {
               </>
             )}
           </div>
-          {/* Heart button for favorites */}
+          )}
+          {/* Heart button for favorites - hide when watchlist is active */}
+          {!showWatchlist && (
           <button
             onClick={() => {
               setShowFavorites(!showFavorites);
@@ -1109,6 +1296,7 @@ export default function MoviesPage() {
               <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
             </svg>
           </button>
+          )}
           {/* Watchlist button */}
           <button
             onClick={() => {
@@ -1232,7 +1420,7 @@ export default function MoviesPage() {
           </div>
         ) : viewMode === "grid" ? (
           <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-8'>
-            {mediaEntries.map((entry) => (
+            {mediaEntries.map((entry, index) => (
               <MediaCard
                 key={entry.id}
                 entry={entry}
@@ -1247,7 +1435,7 @@ export default function MoviesPage() {
           </div>
         ) : (
           <div className='space-y-3'>
-            {mediaEntries.map((entry) => (
+            {mediaEntries.map((entry, index) => (
               <MediaCard
                 key={entry.id}
                 entry={entry}
@@ -1257,6 +1445,15 @@ export default function MoviesPage() {
                 onRemoveFromWatchlist={handleRemoveFromWatchlist}
                 isWatchlistView={showWatchlist}
                 layout='list'
+                isDraggable={showWatchlist && !isViewingOther}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragEnd={handleDragEnd}
+                onDragEnter={(e) => handleDragEnter(e, index)}
+                onDragLeave={handleDragLeave}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, index)}
+                isDragging={draggedIndex === index}
+                isDragOver={dragOverIndex === index}
               />
             ))}
           </div>
