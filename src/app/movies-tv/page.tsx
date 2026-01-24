@@ -1146,7 +1146,9 @@ export default function MoviesPage() {
                       }}
                       className={cn(
                         "w-full px-4 py-2.5 text-left text-[13px] font-medium",
-                        sortBy === option.value && !showFavorites && !showWatchlist
+                        sortBy === option.value &&
+                          !showFavorites &&
+                          !showWatchlist
                           ? "bg-ios-blue/10 text-ios-blue"
                           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
                       )}>
@@ -1160,8 +1162,12 @@ export default function MoviesPage() {
           {/* Heart button for favorites */}
           <button
             onClick={() => {
-              setShowFavorites(!showFavorites);
-              if (!showFavorites) setShowWatchlist(false);
+              if (showFavorites) {
+                setShowFavorites(false);
+              } else {
+                setShowFavorites(true);
+                setShowWatchlist(false);
+              }
             }}
             className={cn(
               "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
@@ -1181,8 +1187,12 @@ export default function MoviesPage() {
           {/* Watchlist button */}
           <button
             onClick={() => {
-              setShowWatchlist(!showWatchlist);
-              if (!showWatchlist) setShowFavorites(false);
+              if (showWatchlist) {
+                setShowWatchlist(false);
+              } else {
+                setShowWatchlist(true);
+                setShowFavorites(false);
+              }
             }}
             className={cn(
               "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
