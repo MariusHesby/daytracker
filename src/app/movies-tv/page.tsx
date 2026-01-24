@@ -1081,13 +1081,38 @@ export default function MoviesPage() {
 
       <div className='px-4 mb-3 flex gap-2 items-center'>
         <div className='flex gap-2 flex-1 items-center'>
-          {/* Sort dropdown OR Back button when in watchlist */}
-          {showWatchlist ? (
+          {/* Sort dropdown - always visible */}
+          <div className='relative'>
             <button
-              onClick={() => setShowWatchlist(false)}
-              className='px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5 bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300'>
+              onClick={() => setShowSortDropdown(!showSortDropdown)}
+              className={cn(
+                "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
+                !showFavorites && !showWatchlist
+                  ? "bg-ios-blue text-white"
+                  : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300",
+              )}>
               <svg
                 className='w-4 h-4'
+                fill='none'
+                viewBox='0 0 24 24'
+                strokeWidth={1.5}
+                stroke='currentColor'>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5'
+                />
+              </svg>
+              {sortBy === "date"
+                ? "Newest"
+                : sortBy === "rating"
+                  ? "My rating"
+                  : "IMDB"}
+              <svg
+                className={cn(
+                  "w-3 h-3 transition-transform",
+                  showSortDropdown && "rotate-180",
+                )}
                 fill='none'
                 viewBox='0 0 24 24'
                 strokeWidth={2}
@@ -1095,87 +1120,43 @@ export default function MoviesPage() {
                 <path
                   strokeLinecap='round'
                   strokeLinejoin='round'
-                  d='M15.75 19.5L8.25 12l7.5-7.5'
+                  d='M19.5 8.25l-7.5 7.5-7.5-7.5'
                 />
               </svg>
-              Watched
             </button>
-          ) : (
-            <div className='relative'>
-              <button
-                onClick={() => setShowSortDropdown(!showSortDropdown)}
-                className={cn(
-                  "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
-                  !showFavorites
-                    ? "bg-ios-blue text-white"
-                    : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300",
-                )}>
-                <svg
-                  className='w-4 h-4'
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  strokeWidth={1.5}
-                  stroke='currentColor'>
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    d='M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5'
-                  />
-                </svg>
-                {sortBy === "date"
-                  ? "Newest"
-                  : sortBy === "rating"
-                    ? "My rating"
-                    : "IMDB"}
-                <svg
-                  className={cn(
-                    "w-3 h-3 transition-transform",
-                    showSortDropdown && "rotate-180",
-                  )}
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  strokeWidth={2}
-                  stroke='currentColor'>
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    d='M19.5 8.25l-7.5 7.5-7.5-7.5'
-                  />
-                </svg>
-              </button>
-              {showSortDropdown && (
-                <>
-                  <div
-                    className='fixed inset-0 z-40'
-                    onClick={() => setShowSortDropdown(false)}
-                  />
-                  <div className='absolute top-full left-0 mt-1 bg-white dark:bg-ios-card-dark rounded-xl shadow-lg overflow-hidden z-50 min-w-[120px]'>
-                    {[
-                      { value: "date", label: "Newest" },
-                      { value: "rating", label: "My rating" },
-                      { value: "imdb", label: "IMDB" },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setShowFavorites(false);
-                          setSortBy(option.value as typeof sortBy);
-                          setShowSortDropdown(false);
-                        }}
-                        className={cn(
-                          "w-full px-4 py-2.5 text-left text-[13px] font-medium",
-                          sortBy === option.value
-                            ? "bg-ios-blue/10 text-ios-blue"
-                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
-                        )}>
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+            {showSortDropdown && (
+              <>
+                <div
+                  className='fixed inset-0 z-40'
+                  onClick={() => setShowSortDropdown(false)}
+                />
+                <div className='absolute top-full left-0 mt-1 bg-white dark:bg-ios-card-dark rounded-xl shadow-lg overflow-hidden z-50 min-w-[120px]'>
+                  {[
+                    { value: "date", label: "Newest" },
+                    { value: "rating", label: "My rating" },
+                    { value: "imdb", label: "IMDB" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setShowFavorites(false);
+                        setShowWatchlist(false);
+                        setSortBy(option.value as typeof sortBy);
+                        setShowSortDropdown(false);
+                      }}
+                      className={cn(
+                        "w-full px-4 py-2.5 text-left text-[13px] font-medium",
+                        sortBy === option.value && !showFavorites && !showWatchlist
+                          ? "bg-ios-blue/10 text-ios-blue"
+                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
+                      )}>
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           {/* Heart button for favorites */}
           <button
             onClick={() => {

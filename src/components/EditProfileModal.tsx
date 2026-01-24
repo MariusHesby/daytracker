@@ -134,7 +134,7 @@ function ImageCropper({
 
   const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
-    
+
     // Check for pinch gesture (two fingers)
     if ("touches" in e && e.touches.length === 2) {
       const distance = getTouchDistance(e.touches);
@@ -143,7 +143,7 @@ function ImageCropper({
       setInitialPinchScale(scale);
       return;
     }
-    
+
     setIsDragging(true);
     const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
     const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
@@ -156,12 +156,13 @@ function ImageCropper({
       if (isPinching && "touches" in e && e.touches.length === 2) {
         const distance = getTouchDistance(e.touches);
         if (initialPinchDistance > 0) {
-          const newScale = initialPinchScale * (distance / initialPinchDistance);
+          const newScale =
+            initialPinchScale * (distance / initialPinchDistance);
           setScale(Math.min(3, Math.max(0.1, newScale)));
         }
         return;
       }
-      
+
       if (!isDragging) return;
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
@@ -170,7 +171,13 @@ function ImageCropper({
         y: clientY - dragStart.y,
       });
     },
-    [isDragging, dragStart, isPinching, initialPinchDistance, initialPinchScale],
+    [
+      isDragging,
+      dragStart,
+      isPinching,
+      initialPinchDistance,
+      initialPinchScale,
+    ],
   );
 
   const handleMouseUp = useCallback(() => {
