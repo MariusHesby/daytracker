@@ -7,7 +7,7 @@ import { formatDate, addDays, cn } from "@/lib/utils";
 import { LogEntry } from "@/types";
 import { IOSSegmentedControl } from "@/components/ios";
 import { IOSModal } from "@/components/ios";
-import { MediaSearch } from "@/components/MediaSearch";
+import { MediaSearch, StarRating } from "@/components";
 import { searchMedia } from "@/lib/omdb";
 import { getSharedWithMe, SharedUser } from "@/lib/sharing";
 import { supabase } from "@/lib/supabase";
@@ -147,106 +147,6 @@ function PosterPickerModal({
         </div>
       </div>
     </IOSModal>
-  );
-}
-
-function StarRating({
-  rating,
-  onRate,
-  size = "md",
-}: {
-  rating?: number;
-  onRate?: (rating: number) => void;
-  size?: "sm" | "md" | "lg";
-}) {
-  const [hovered, setHovered] = useState<number | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const displayRating = hovered ?? rating ?? 0;
-  const sizeClasses = { sm: "w-5 h-5", md: "w-6 h-6", lg: "w-7 h-7" };
-
-  const getRatingFromPosition = useCallback((clientX: number) => {
-    if (!containerRef.current) return null;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const starWidth = rect.width / 10;
-    const star = Math.ceil(x / starWidth);
-    return Math.max(1, Math.min(10, star));
-  }, []);
-
-  // Use native event listeners for better touch control
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const onTouchStart = (e: TouchEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      setIsDragging(true);
-      const rating = getRatingFromPosition(e.touches[0].clientX);
-      if (rating) setHovered(rating);
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const rating = getRatingFromPosition(e.touches[0].clientX);
-      if (rating) setHovered(rating);
-    };
-
-    const onTouchEnd = (e: TouchEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      setIsDragging(false);
-    };
-
-    container.addEventListener("touchstart", onTouchStart, { passive: false });
-    container.addEventListener("touchmove", onTouchMove, { passive: false });
-    container.addEventListener("touchend", onTouchEnd, { passive: false });
-
-    return () => {
-      container.removeEventListener("touchstart", onTouchStart);
-      container.removeEventListener("touchmove", onTouchMove);
-      container.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [getRatingFromPosition]);
-
-  // Save rating when dragging ends with a hovered value
-  useEffect(() => {
-    if (!isDragging && hovered !== null && onRate) {
-      onRate(hovered);
-      setHovered(null);
-    }
-  }, [isDragging, hovered, onRate]);
-
-  return (
-    <div
-      ref={containerRef}
-      data-no-swipe
-      className='flex gap-1 touch-none select-none'
-      style={{ touchAction: "none" }}>
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
-        <button
-          key={star}
-          data-no-swipe
-          onClick={() => onRate?.(star)}
-          onMouseEnter={() => setHovered(star)}
-          onMouseLeave={() => setHovered(null)}
-          className='transition-transform hover:scale-110 touch-none'
-          style={{ touchAction: "none" }}>
-          <svg
-            className={cn(
-              sizeClasses[size],
-              star <= displayRating
-                ? "text-amber-400 fill-amber-400"
-                : "text-gray-300 dark:text-gray-600 fill-gray-300 dark:fill-gray-600",
-            )}
-            viewBox='0 0 24 24'>
-            <path d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' />
-          </svg>
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -405,16 +305,13 @@ function MediaCard({
         className={cn(
           isDraggable && "cursor-grab active:cursor-grabbing",
           isDragging && "opacity-50",
-          isDragOver && "ring-2 ring-ios-blue rounded-xl"
+          isDragOver && "ring-2 ring-ios-blue rounded-xl",
         )}>
         {/* Drag handle for watchlist */}
         {isDraggable && (
           <div className='flex items-center gap-2 mb-1.5'>
             <div className='text-gray-400 dark:text-gray-500'>
-              <svg
-                className='w-5 h-5'
-                fill='currentColor'
-                viewBox='0 0 24 24'>
+              <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 24 24'>
                 <path d='M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z' />
               </svg>
             </div>
@@ -428,17 +325,17 @@ function MediaCard({
         )}
         {/* Added date above the card - iOS style */}
         {!isDraggable && (
-        <p className='text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5 px-0.5'>
-          {isWatchlistView
-            ? `Added ${new Date(entry.date).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}`
-            : new Date(entry.date).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}
-        </p>
+          <p className='text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5 px-0.5'>
+            {isWatchlistView
+              ? `Added ${new Date(entry.date).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}`
+              : new Date(entry.date).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+          </p>
         )}
         <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden shadow-sm flex'>
           <button
@@ -716,9 +613,11 @@ export default function MoviesPage() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragCounter = useRef(0);
-  
+
   // Watchlist order stored in localStorage (map of entry.id -> order)
-  const [watchlistOrder, setWatchlistOrder] = useState<Record<string, Record<string, number>>>({});
+  const [watchlistOrder, setWatchlistOrder] = useState<
+    Record<string, Record<string, number>>
+  >({});
 
   // Load watchlist order from localStorage
   useEffect(() => {
@@ -735,12 +634,15 @@ export default function MoviesPage() {
   }, []);
 
   // Save watchlist order to localStorage
-  const saveWatchlistOrder = useCallback((newOrder: Record<string, Record<string, number>>) => {
-    setWatchlistOrder(newOrder);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("watchlistOrder", JSON.stringify(newOrder));
-    }
-  }, []);
+  const saveWatchlistOrder = useCallback(
+    (newOrder: Record<string, Record<string, number>>) => {
+      setWatchlistOrder(newOrder);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("watchlistOrder", JSON.stringify(newOrder));
+      }
+    },
+    [],
+  );
 
   // Favorites filter state
   const [showFavorites, setShowFavorites] = useState(false);
@@ -956,7 +858,7 @@ export default function MoviesPage() {
 
     // Convert back to array and sort
     const sortedEntries = Array.from(uniqueByTitle.values());
-    
+
     // If showing watchlist, use custom order from localStorage
     if (showWatchlist) {
       const orderKey = activeTab; // 'movies' or 'series'
@@ -969,7 +871,7 @@ export default function MoviesPage() {
         return b.date.localeCompare(a.date);
       });
     }
-    
+
     return sortedEntries.sort((a, b) => {
       if (sortBy === "rating") return (b.userRating || 0) - (a.userRating || 0);
       if (sortBy === "imdb")
@@ -1199,83 +1101,82 @@ export default function MoviesPage() {
               Watched
             </button>
           ) : (
-          <div className='relative'>
-            <button
-              onClick={() => setShowSortDropdown(!showSortDropdown)}
-              className={cn(
-                "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
-                !showFavorites
-                  ? "bg-ios-blue text-white"
-                  : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300",
-              )}>
-              <svg
-                className='w-4 h-4'
-                fill='none'
-                viewBox='0 0 24 24'
-                strokeWidth={1.5}
-                stroke='currentColor'>
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  d='M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5'
-                />
-              </svg>
-              {sortBy === "date"
-                ? "Newest"
-                : sortBy === "rating"
-                  ? "My rating"
-                  : "IMDB"}
-              <svg
+            <div className='relative'>
+              <button
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
                 className={cn(
-                  "w-3 h-3 transition-transform",
-                  showSortDropdown && "rotate-180",
-                )}
-                fill='none'
-                viewBox='0 0 24 24'
-                strokeWidth={2}
-                stroke='currentColor'>
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  d='M19.5 8.25l-7.5 7.5-7.5-7.5'
-                />
-              </svg>
-            </button>
-            {showSortDropdown && (
-              <>
-                <div
-                  className='fixed inset-0 z-40'
-                  onClick={() => setShowSortDropdown(false)}
-                />
-                <div className='absolute top-full left-0 mt-1 bg-white dark:bg-ios-card-dark rounded-xl shadow-lg overflow-hidden z-50 min-w-[120px]'>
-                  {[
-                    { value: "date", label: "Newest" },
-                    { value: "rating", label: "My rating" },
-                    { value: "imdb", label: "IMDB" },
-                  ].map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => {
-                        setShowFavorites(false);
-                        setSortBy(option.value as typeof sortBy);
-                        setShowSortDropdown(false);
-                      }}
-                      className={cn(
-                        "w-full px-4 py-2.5 text-left text-[13px] font-medium",
-                        sortBy === option.value
-                          ? "bg-ios-blue/10 text-ios-blue"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
-                      )}>
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+                  "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
+                  !showFavorites
+                    ? "bg-ios-blue text-white"
+                    : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300",
+                )}>
+                <svg
+                  className='w-4 h-4'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  strokeWidth={1.5}
+                  stroke='currentColor'>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5'
+                  />
+                </svg>
+                {sortBy === "date"
+                  ? "Newest"
+                  : sortBy === "rating"
+                    ? "My rating"
+                    : "IMDB"}
+                <svg
+                  className={cn(
+                    "w-3 h-3 transition-transform",
+                    showSortDropdown && "rotate-180",
+                  )}
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  strokeWidth={2}
+                  stroke='currentColor'>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M19.5 8.25l-7.5 7.5-7.5-7.5'
+                  />
+                </svg>
+              </button>
+              {showSortDropdown && (
+                <>
+                  <div
+                    className='fixed inset-0 z-40'
+                    onClick={() => setShowSortDropdown(false)}
+                  />
+                  <div className='absolute top-full left-0 mt-1 bg-white dark:bg-ios-card-dark rounded-xl shadow-lg overflow-hidden z-50 min-w-[120px]'>
+                    {[
+                      { value: "date", label: "Newest" },
+                      { value: "rating", label: "My rating" },
+                      { value: "imdb", label: "IMDB" },
+                    ].map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setShowFavorites(false);
+                          setSortBy(option.value as typeof sortBy);
+                          setShowSortDropdown(false);
+                        }}
+                        className={cn(
+                          "w-full px-4 py-2.5 text-left text-[13px] font-medium",
+                          sortBy === option.value
+                            ? "bg-ios-blue/10 text-ios-blue"
+                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
+                        )}>
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           )}
-          {/* Heart button for favorites - hide when watchlist is active */}
-          {!showWatchlist && (
+          {/* Heart button for favorites */}
           <button
             onClick={() => {
               setShowFavorites(!showFavorites);
@@ -1296,7 +1197,6 @@ export default function MoviesPage() {
               <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
             </svg>
           </button>
-          )}
           {/* Watchlist button */}
           <button
             onClick={() => {

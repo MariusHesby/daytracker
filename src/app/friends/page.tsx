@@ -42,7 +42,7 @@ export default function FriendsPage() {
   >("shared");
   const [incomingRequests, setIncomingRequests] = useState<ShareRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<ShareRequest[]>([]);
-  const [hideOutgoingRequests, setHideOutgoingRequests] = useState(false);
+  const [showAllOutgoing, setShowAllOutgoing] = useState(false);
   const [sharedWithMe, setSharedWithMe] = useState<SharedUser[]>([]);
   const [myShares, setMyShares] = useState<
     { share: Share; viewerEmail: string; viewerProfile?: UserProfile }[]
@@ -56,7 +56,7 @@ export default function FriendsPage() {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [userToRemove, setUserToRemove] = useState<SharedUser | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<ShareRequest | null>(
-    null
+    null,
   );
   const [selectedShare, setSelectedShare] = useState<{
     share: Share;
@@ -64,7 +64,7 @@ export default function FriendsPage() {
     viewerProfile?: UserProfile;
   } | null>(null);
   const [selectedActivityTypes, setSelectedActivityTypes] = useState<string[]>(
-    []
+    [],
   );
   const [requestEmail, setRequestEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -195,7 +195,7 @@ export default function FriendsPage() {
           };
           console.error(
             "Failed to load incoming requests:",
-            err?.message || err?.code || JSON.stringify(e)
+            err?.message || err?.code || JSON.stringify(e),
           );
           return [] as ShareRequest[];
         }),
@@ -207,7 +207,7 @@ export default function FriendsPage() {
           };
           console.error(
             "Failed to load outgoing requests:",
-            err?.message || err?.code || JSON.stringify(e)
+            err?.message || err?.code || JSON.stringify(e),
           );
           return [] as ShareRequest[];
         }),
@@ -219,7 +219,7 @@ export default function FriendsPage() {
           };
           console.error(
             "Failed to load shared with me:",
-            err?.message || err?.code || JSON.stringify(e)
+            err?.message || err?.code || JSON.stringify(e),
           );
           return [] as SharedUser[];
         }),
@@ -231,7 +231,7 @@ export default function FriendsPage() {
           };
           console.error(
             "Failed to load my shares:",
-            err?.message || err?.code || JSON.stringify(e)
+            err?.message || err?.code || JSON.stringify(e),
           );
           return [] as { share: Share; viewerEmail: string }[];
         }),
@@ -252,7 +252,7 @@ export default function FriendsPage() {
             outgoingRequests: outgoing,
             sharedWithMe: shared,
             myShares: shares,
-          })
+          }),
         );
       }
     } catch (error) {
@@ -319,7 +319,7 @@ export default function FriendsPage() {
       user.id,
       user.email,
       result.userId,
-      result.email || undefined
+      result.email || undefined,
     );
     if (error) {
       setMessage(error.message);
@@ -339,7 +339,7 @@ export default function FriendsPage() {
       selectedRequest.id,
       user.id,
       selectedRequest.fromUserId,
-      selectedActivityTypes
+      selectedActivityTypes,
     );
 
     if (error) {
@@ -358,10 +358,6 @@ export default function FriendsPage() {
     if (!error) {
       loadData();
     }
-  };
-
-  const handleClearAllOutgoing = () => {
-    setHideOutgoingRequests(true);
   };
 
   const handleRemoveShare = async (shareId: string) => {
@@ -389,7 +385,7 @@ export default function FriendsPage() {
 
     const { error } = await updateSharePermissions(
       selectedShare.share.id,
-      selectedActivityTypes
+      selectedActivityTypes,
     );
 
     if (!error) {
@@ -413,7 +409,7 @@ export default function FriendsPage() {
       setLastViewedTimes(newLastViewed);
       localStorage.setItem(
         "friendActivityLastViewed",
-        JSON.stringify(newLastViewed)
+        JSON.stringify(newLastViewed),
       );
     }
 
@@ -492,7 +488,7 @@ export default function FriendsPage() {
                 "flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 activeTab === tab.id
                   ? "bg-ios-blue text-white"
-                  : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300"
+                  : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300",
               )}>
               {tab.label}
               {tab.count > 0 && (
@@ -709,61 +705,77 @@ export default function FriendsPage() {
 
             {/* Outgoing */}
             <div>
-              <div className='flex items-center justify-between mb-2'>
-                <h3 className='text-sm font-medium text-gray-500'>
-                  {t("friends.outgoing")}
-                </h3>
-                {outgoingRequests.length > 0 && !hideOutgoingRequests && (
-                  <button
-                    onClick={handleClearAllOutgoing}
-                    className='text-xs text-red-500 hover:text-red-600 font-medium'>
-                    {t("friends.clearAll")}
-                  </button>
-                )}
-              </div>
-              {outgoingRequests.length === 0 || hideOutgoingRequests ? (
+              <h3 className='text-sm font-medium text-gray-500 mb-2'>
+                {t("friends.outgoing")}
+              </h3>
+              {outgoingRequests.length === 0 ? (
                 <p className='text-sm text-gray-400 py-4 text-center'>
                   {t("friends.noOutgoing")}
                 </p>
               ) : (
-                <div className='space-y-2'>
-                  {outgoingRequests.map((req) => (
-                    <div
-                      key={req.id}
-                      className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl flex items-center gap-3'>
-                      <Avatar
-                        avatar={req.toProfile?.avatar || null}
-                        size='md'
-                      />
-                      <div className='min-w-0 flex-1'>
-                        <p className='font-medium text-gray-900 dark:text-white truncate'>
-                          {req.toProfile?.fullName || req.toEmail}
-                        </p>
-                        {req.toProfile?.email && (
-                          <p className='text-sm text-gray-500 truncate'>
-                            {req.toProfile.email}
-                          </p>
-                        )}
-                      </div>
-                      <span
-                        className={cn(
-                          "text-xs px-2 py-1 rounded-full flex-shrink-0",
-                          req.status === "pending" &&
-                            "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-                          req.status === "accepted" &&
-                            "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                          req.status === "rejected" &&
-                            "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                        )}>
-                        {req.status === "pending"
-                          ? t("friends.pending")
-                          : req.status === "accepted"
-                          ? t("friends.accepted")
-                          : t("friends.rejected")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <>
+                  <div className='space-y-2'>
+                    {[...outgoingRequests]
+                      .sort((a, b) => {
+                        // Sort by status: accepted first, then pending, then rejected
+                        const statusOrder = {
+                          accepted: 0,
+                          pending: 1,
+                          rejected: 2,
+                        };
+                        return (
+                          (statusOrder[a.status] || 2) -
+                          (statusOrder[b.status] || 2)
+                        );
+                      })
+                      .slice(0, showAllOutgoing ? undefined : 10)
+                      .map((req) => (
+                        <div
+                          key={req.id}
+                          className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl flex items-center gap-3'>
+                          <Avatar
+                            avatar={req.toProfile?.avatar || null}
+                            size='md'
+                          />
+                          <div className='min-w-0 flex-1'>
+                            <p className='font-medium text-gray-900 dark:text-white truncate'>
+                              {req.toProfile?.fullName || req.toEmail}
+                            </p>
+                            {req.toProfile?.email && (
+                              <p className='text-sm text-gray-500 truncate'>
+                                {req.toProfile.email}
+                              </p>
+                            )}
+                          </div>
+                          <span
+                            className={cn(
+                              "text-xs px-2 py-1 rounded-full shrink-0",
+                              req.status === "pending" &&
+                                "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+                              req.status === "accepted" &&
+                                "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                              req.status === "rejected" &&
+                                "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                            )}>
+                            {req.status === "pending"
+                              ? t("friends.pending")
+                              : req.status === "accepted"
+                                ? t("friends.accepted")
+                                : t("friends.rejected")}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                  {outgoingRequests.length > 10 && (
+                    <button
+                      onClick={() => setShowAllOutgoing(!showAllOutgoing)}
+                      className='w-full mt-3 py-2 text-sm text-ios-blue font-medium'>
+                      {showAllOutgoing
+                        ? "Show less"
+                        : `View all (${outgoingRequests.length})`}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -781,42 +793,55 @@ export default function FriendsPage() {
               myShares.map(({ share, viewerEmail, viewerProfile }) => (
                 <div
                   key={share.id}
-                  className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl'>
-                  <div className='flex items-center gap-3'>
+                  className='relative p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl'>
+                  {/* Remove button - top right corner */}
+                  <button
+                    onClick={() => handleRemoveShare(share.id)}
+                    className='absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors'>
+                    <svg
+                      viewBox='0 0 24 24'
+                      className='w-4 h-4'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='2'>
+                      <path d='M6 18L18 6M6 6l12 12' />
+                    </svg>
+                  </button>
+
+                  <div className='flex items-center gap-3 pr-6'>
                     <Avatar avatar={viewerProfile?.avatar || null} size='md' />
-                    <div className='flex-1 min-w-0'>
-                      <p className='font-medium text-gray-900 dark:text-white truncate'>
+                    <div className='min-w-0 flex-1'>
+                      <p className='font-medium text-gray-900 dark:text-white'>
                         {viewerProfile?.fullName || viewerEmail}
                       </p>
                       <p className='text-sm text-gray-500 truncate'>
                         {viewerEmail}
                       </p>
                     </div>
-                    <div className='flex items-center gap-2 flex-shrink-0'>
-                      <div className='w-8 h-8 bg-ios-blue/10 rounded-full flex items-center justify-center'>
-                        <span className='text-sm font-medium text-ios-blue'>
-                          {share.activityTypeIds.length}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSelectedShare({
-                            share,
-                            viewerEmail,
-                            viewerProfile,
-                          });
-                          setSelectedActivityTypes(share.activityTypeIds);
-                          setShowEditShare(true);
-                        }}
-                        className='px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm'>
-                        {t("friends.edit")}
-                      </button>
-                      <button
-                        onClick={() => handleRemoveShare(share.id)}
-                        className='px-3 py-1.5 bg-ios-red/10 text-ios-red rounded-lg text-sm'>
-                        {t("friends.remove")}
-                      </button>
-                    </div>
+                  </div>
+
+                  {/* Bottom row with activity count and edit */}
+                  <div className='flex items-center justify-between mt-3'>
+                    <p className='text-sm text-gray-500'>
+                      {share.activityTypeIds.length}{" "}
+                      {share.activityTypeIds.length === 1
+                        ? "activity"
+                        : "activities"}{" "}
+                      shared
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSelectedShare({
+                          share,
+                          viewerEmail,
+                          viewerProfile,
+                        });
+                        setSelectedActivityTypes(share.activityTypeIds);
+                        setShowEditShare(true);
+                      }}
+                      className='text-sm text-ios-blue'>
+                      {t("friends.edit")}
+                    </button>
                   </div>
                 </div>
               ))
@@ -951,7 +976,7 @@ export default function FriendsPage() {
                       ]);
                     } else {
                       setSelectedActivityTypes(
-                        selectedActivityTypes.filter((id) => id !== type.id)
+                        selectedActivityTypes.filter((id) => id !== type.id),
                       );
                     }
                   }}
@@ -1003,7 +1028,7 @@ export default function FriendsPage() {
                       ]);
                     } else {
                       setSelectedActivityTypes(
-                        selectedActivityTypes.filter((id) => id !== type.id)
+                        selectedActivityTypes.filter((id) => id !== type.id),
                       );
                     }
                   }}

@@ -5,44 +5,7 @@ import { useApp } from "@/context/AppContext";
 import { formatDate, addDays, cn } from "@/lib/utils";
 import { LogEntry } from "@/types";
 import { IOSSegmentedControl } from "@/components/ios";
-
-function StarRating({
-  rating,
-  onRate,
-  size = "md",
-}: {
-  rating?: number;
-  onRate?: (rating: number) => void;
-  size?: "sm" | "md" | "lg";
-}) {
-  const [hovered, setHovered] = useState<number | null>(null);
-  const displayRating = hovered ?? rating ?? 0;
-  const sizeClasses = { sm: "w-4 h-4", md: "w-5 h-5", lg: "w-6 h-6" };
-
-  return (
-    <div className='flex gap-0.5'>
-      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
-        <button
-          key={star}
-          onClick={() => onRate?.(star)}
-          onMouseEnter={() => setHovered(star)}
-          onMouseLeave={() => setHovered(null)}
-          className='transition-transform hover:scale-110'>
-          <svg
-            className={cn(
-              sizeClasses[size],
-              star <= displayRating
-                ? "text-amber-400 fill-amber-400"
-                : "text-gray-300 dark:text-gray-600 fill-gray-300 dark:fill-gray-600"
-            )}
-            viewBox='0 0 24 24'>
-            <path d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' />
-          </svg>
-        </button>
-      ))}
-    </div>
-  );
-}
+import { StarRating } from "@/components";
 
 function MediaCard({
   entry,
@@ -241,7 +204,7 @@ export default function MoviesPage() {
     return activityTypes.find(
       (t) =>
         t.name.toLowerCase().includes("movie") ||
-        t.name.toLowerCase().includes("film")
+        t.name.toLowerCase().includes("film"),
     )?.id;
   }, [activityTypes]);
 
@@ -249,7 +212,7 @@ export default function MoviesPage() {
     return activityTypes.find(
       (t) =>
         t.name.toLowerCase().includes("tv") ||
-        t.name.toLowerCase().includes("series")
+        t.name.toLowerCase().includes("series"),
     )?.id;
   }, [activityTypes]);
 
@@ -293,10 +256,10 @@ export default function MoviesPage() {
 
     // Count unique movies/series
     const uniqueMovies = new Set(
-      movies.map((e) => String(e.value).toLowerCase())
+      movies.map((e) => String(e.value).toLowerCase()),
     ).size;
     const uniqueSeries = new Set(
-      series.map((e) => String(e.value).toLowerCase())
+      series.map((e) => String(e.value).toLowerCase()),
     ).size;
 
     return { totalMovies: uniqueMovies, totalSeries: uniqueSeries };
@@ -359,7 +322,7 @@ export default function MoviesPage() {
                 "px-4 py-2 rounded-full text-[13px] font-medium",
                 sortBy === option.value
                   ? "bg-ios-blue text-white"
-                  : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300"
+                  : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300",
               )}>
               {option.label}
             </button>

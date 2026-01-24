@@ -9,7 +9,14 @@ import {
   LogEntry,
   WorkoutExercise,
 } from "@/types";
-import { calculateStatistics, cn } from "@/lib/utils";
+import {
+  calculateStatistics,
+  cn,
+  getMonday,
+  toDateStr,
+  getWeekNumber,
+  getDateRangeWithOffset,
+} from "@/lib/utils";
 import { IOSSegmentedControl } from "@/components/ios";
 
 // Helper to render icon
@@ -29,105 +36,6 @@ const TIME_RANGES: { value: TimeRange; label: string }[] = [
   { value: "month", label: "Month" },
   { value: "year", label: "Year" },
 ];
-
-// Helper to get Monday of a given week
-function getMonday(d: Date): Date {
-  const date = new Date(d);
-  const day = date.getDay();
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Monday
-  date.setDate(diff);
-  date.setHours(12, 0, 0, 0);
-  return date;
-}
-
-// Helper to format date as YYYY-MM-DD
-function toDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
-    2,
-    "0",
-  )}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-// Get date range for a specific offset (0 = current, -1 = previous, etc.)
-function getDateRangeWithOffset(
-  range: TimeRange,
-  offset: number,
-): { start: string; end: string; label: string } {
-  const now = new Date();
-  now.setHours(12, 0, 0, 0);
-
-  if (range === "week") {
-    const monday = getMonday(now);
-    monday.setDate(monday.getDate() + offset * 7);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-
-    const weekNum = getWeekNumber(monday);
-    const label = `Week ${weekNum}, ${monday.getFullYear()}`;
-
-    return { start: toDateStr(monday), end: toDateStr(sunday), label };
-  } else if (range === "month") {
-    const targetDate = new Date(
-      now.getFullYear(),
-      now.getMonth() + offset,
-      1,
-      12,
-      0,
-      0,
-    );
-    const monthStart = new Date(
-      targetDate.getFullYear(),
-      targetDate.getMonth(),
-      1,
-      12,
-      0,
-      0,
-    );
-    const monthEnd = new Date(
-      targetDate.getFullYear(),
-      targetDate.getMonth() + 1,
-      0,
-      12,
-      0,
-      0,
-    );
-
-    const label = monthStart.toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
-
-    return { start: toDateStr(monthStart), end: toDateStr(monthEnd), label };
-  } else {
-    // Year
-    const targetYear = now.getFullYear() + offset;
-    const yearStart = new Date(targetYear, 0, 1, 12, 0, 0);
-    const yearEnd = new Date(targetYear, 11, 31, 12, 0, 0);
-
-    return {
-      start: toDateStr(yearStart),
-      end: toDateStr(yearEnd),
-      label: String(targetYear),
-    };
-  }
-}
-
-// Get ISO week number
-function getWeekNumber(d: Date): number {
-  const date = new Date(d);
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
-  const week1 = new Date(date.getFullYear(), 0, 4);
-  return (
-    1 +
-    Math.round(
-      ((date.getTime() - week1.getTime()) / 86400000 -
-        3 +
-        ((week1.getDay() + 6) % 7)) /
-        7,
-    )
-  );
-}
 
 // Get mood color classes
 function getMoodColorClasses(

@@ -14,3 +14,7 @@ export { ProfileSetupWrapper } from './ProfileSetupWrapper';
 export { EditProfileModal } from './EditProfileModal';
 export { PeriodAlertPopup } from './PeriodAlertPopup';
 export { SearchEntries } from './SearchEntries';
+export { StarRating } from './StarRating';
+export type { StarRatingProps } from './StarRating';
+export { LoadingSpinner, LoadingState } from './LoadingSpinner';
+export type { LoadingSpinnerProps } from './LoadingSpinner';

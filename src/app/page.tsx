@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useLanguage } from "@/context/LanguageContext";
-import { EntryForm, DateNavigator, SearchEntries } from "@/components";
+import {
+  EntryForm,
+  DateNavigator,
+  SearchEntries,
+  LoadingState,
+} from "@/components";
 import { addDays } from "@/lib/utils";
 
 export default function HomePage() {
@@ -43,14 +48,7 @@ export default function HomePage() {
   }, [selectedDate, loadEntriesForDateRange]);
 
   if (isLoading) {
-    return (
-      <div className='min-h-screen flex items-center justify-center'>
-        <div className='flex flex-col items-center gap-3'>
-          <div className='w-8 h-8 border-3 border-gray-200 border-t-ios-blue rounded-full animate-spin'></div>
-          <div className='text-gray-500 text-[15px]'>Loading...</div>
-        </div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
