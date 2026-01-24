@@ -1084,7 +1084,16 @@ export default function MoviesPage() {
           {/* Sort dropdown - always visible */}
           <div className='relative'>
             <button
-              onClick={() => setShowSortDropdown(!showSortDropdown)}
+              onClick={() => {
+                // If favorites or watchlist is active, switch to watched list
+                if (showFavorites || showWatchlist) {
+                  setShowFavorites(false);
+                  setShowWatchlist(false);
+                } else {
+                  // Otherwise toggle dropdown
+                  setShowSortDropdown(!showSortDropdown);
+                }
+              }}
               className={cn(
                 "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
                 !showFavorites && !showWatchlist
@@ -1139,16 +1148,12 @@ export default function MoviesPage() {
                     <button
                       key={option.value}
                       onClick={() => {
-                        setShowFavorites(false);
-                        setShowWatchlist(false);
                         setSortBy(option.value as typeof sortBy);
                         setShowSortDropdown(false);
                       }}
                       className={cn(
                         "w-full px-4 py-2.5 text-left text-[13px] font-medium",
-                        sortBy === option.value &&
-                          !showFavorites &&
-                          !showWatchlist
+                        sortBy === option.value
                           ? "bg-ios-blue/10 text-ios-blue"
                           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700",
                       )}>
