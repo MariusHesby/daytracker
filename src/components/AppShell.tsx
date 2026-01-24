@@ -218,7 +218,7 @@ export function AppShell({ children }: AppShellProps) {
         router.push(TABS[currentIndex - 1]);
       }
     },
-    [pathname, router]
+    [pathname, router],
   );
 
   useEffect(() => {

@@ -226,12 +226,14 @@ function ImageCropper({
   };
 
   return (
-    <div className='fixed inset-0 bg-black z-[60] flex flex-col'>
+    <div
+      className='fixed inset-0 bg-black z-[60] flex flex-col'
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
       {/* Header */}
       <div className='flex items-center justify-between px-4 py-3 bg-black/80'>
         <button
           onClick={onCancel}
-          className='text-white text-[17px] active:opacity-60'>
+          className='text-white text-[17px] px-2 py-1 active:opacity-60'>
           {t("common.cancel")}
         </button>
         <span className='text-white text-[17px] font-semibold'>
@@ -239,7 +241,7 @@ function ImageCropper({
         </span>
         <button
           onClick={handleCrop}
-          className='text-ios-blue text-[17px] font-semibold active:opacity-60'>
+          className='text-ios-blue text-[17px] font-semibold px-2 py-1 active:opacity-60'>
           {t("profile.choose") || "Choose"}
         </button>
       </div>
@@ -255,18 +257,19 @@ function ImageCropper({
           {/* Image */}
           {imageLoaded && imageRef.current && (
             <div
-              className='absolute cursor-move'
+              className={`absolute ${isDragging ? "" : "transition-transform duration-75"}`}
               style={{
                 width: imageSize.width * scale,
                 height: imageSize.height * scale,
                 left: "50%",
                 top: "50%",
                 transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
+                cursor: isDragging ? "grabbing" : "grab",
               }}>
               <img
                 src={imageSrc}
                 alt='Crop preview'
-                className='w-full h-full object-contain pointer-events-none'
+                className='w-full h-full object-contain pointer-events-none select-none'
                 draggable={false}
               />
             </div>
@@ -285,20 +288,26 @@ function ImageCropper({
       </div>
 
       {/* Zoom Slider */}
-      <div className='px-8 py-6 bg-black/80'>
+      <div
+        className='px-8 py-6 bg-black/80'
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
         <div className='flex items-center gap-4'>
-          <svg
-            className='w-5 h-5 text-white/60'
-            fill='none'
-            viewBox='0 0 24 24'
-            stroke='currentColor'>
-            <path
-              strokeLinecap='round'
-              strokeLinejoin='round'
-              strokeWidth={2}
-              d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7'
-            />
-          </svg>
+          <button
+            onClick={() => setScale(Math.max(0.1, scale - 0.2))}
+            className='p-2 active:opacity-60'>
+            <svg
+              className='w-5 h-5 text-white/60'
+              fill='none'
+              viewBox='0 0 24 24'
+              stroke='currentColor'>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth={2}
+                d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7'
+              />
+            </svg>
+          </button>
           <input
             type='range'
             min='0.1'
@@ -306,20 +315,24 @@ function ImageCropper({
             step='0.01'
             value={scale}
             onChange={(e) => setScale(parseFloat(e.target.value))}
-            className='flex-1 h-1 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg'
+            className='flex-1 h-1 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:active:scale-110 [&::-webkit-slider-thumb]:transition-transform'
           />
-          <svg
-            className='w-6 h-6 text-white/60'
-            fill='none'
-            viewBox='0 0 24 24'
-            stroke='currentColor'>
-            <path
-              strokeLinecap='round'
-              strokeLinejoin='round'
-              strokeWidth={2}
-              d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7'
-            />
-          </svg>
+          <button
+            onClick={() => setScale(Math.min(3, scale + 0.2))}
+            className='p-2 active:opacity-60'>
+            <svg
+              className='w-6 h-6 text-white/60'
+              fill='none'
+              viewBox='0 0 24 24'
+              stroke='currentColor'>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth={2}
+                d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7'
+              />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -576,28 +589,50 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
               {t("profile.chooseAvatar")}
             </label>
 
-            {/* Custom Image Upload */}
-            <div className='flex justify-center mb-4'>
+            {/* Custom Image Upload - larger and more prominent */}
+            <div className='flex flex-col items-center gap-3 mb-4'>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className={`relative w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center transition-all border-2 border-dashed border-gray-300 dark:border-gray-600 ${
+                className={`relative w-24 h-24 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center transition-all active:scale-95 ${
                   customImageUrl
-                    ? "ring-4 ring-ios-blue ring-offset-2 dark:ring-offset-ios-card-dark"
-                    : "hover:border-ios-blue"
+                    ? "ring-4 ring-ios-blue ring-offset-2 dark:ring-offset-ios-card-dark border-0"
+                    : "border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-ios-blue"
                 }`}>
                 {isUploading ? (
-                  <div className='w-6 h-6 border-2 border-ios-blue border-t-transparent rounded-full animate-spin' />
+                  <div className='w-8 h-8 border-2 border-ios-blue border-t-transparent rounded-full animate-spin' />
                 ) : customImageUrl ? (
-                  <img
-                    src={customImageUrl}
-                    alt='Custom avatar'
-                    className='w-full h-full rounded-full object-cover'
-                  />
+                  <>
+                    <img
+                      src={customImageUrl}
+                      alt='Custom avatar'
+                      className='w-full h-full rounded-full object-cover'
+                    />
+                    {/* Edit badge */}
+                    <div className='absolute bottom-0 right-0 w-7 h-7 bg-ios-blue rounded-full flex items-center justify-center shadow-lg'>
+                      <svg
+                        className='w-4 h-4 text-white'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        strokeWidth={2}
+                        stroke='currentColor'>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z'
+                        />
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z'
+                        />
+                      </svg>
+                    </div>
+                  </>
                 ) : (
-                  <div className='text-center'>
+                  <div className='text-center p-2'>
                     <svg
-                      className='w-6 h-6 mx-auto text-gray-400'
+                      className='w-8 h-8 mx-auto text-gray-400'
                       fill='none'
                       viewBox='0 0 24 24'
                       strokeWidth={1.5}
@@ -613,11 +648,15 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                         d='M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z'
                       />
                     </svg>
-                    <span className='text-[10px] text-gray-400 mt-1 block'>
-                      {t("profile.upload")}
-                    </span>
                   </div>
                 )}
+              </button>
+              {/* Upload button text */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className='text-ios-blue text-[15px] font-medium active:opacity-60'>
+                {customImageUrl ? t("profile.changePhoto") : t("profile.upload")}
               </button>
               <input
                 ref={fileInputRef}
