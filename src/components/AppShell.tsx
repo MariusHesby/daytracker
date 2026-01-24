@@ -427,7 +427,11 @@ export function AppShell({ children }: AppShellProps) {
         <SplashScreen onComplete={handleSplashComplete} />
       )}
       <BackgroundLogo />
-      <main className='pb-16 relative z-10'>{children}</main>
+      <main
+        className='pb-16 relative z-10'
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+        {children}
+      </main>
       <IOSTabBar items={tabItems} />
     </div>
   );
