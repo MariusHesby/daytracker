@@ -367,48 +367,44 @@ export default function WorkoutPage() {
   ).length;
 
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-black pb-32'>
+    <div className='min-h-screen bg-gray-50 dark:bg-black pb-40'>
       {/* Header */}
-      <div
-        className='bg-white dark:bg-ios-card-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-20'
-        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-        <div className='px-4 py-4'>
-          <div className='flex items-center justify-between'>
-            <div>
-              <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
-                {t("workout.title")}
-              </h1>
-              {exercisesWithData > 0 && (
-                <p className='text-sm text-ios-green font-medium mt-0.5'>
-                  ✓ {exercisesWithData} exercise
-                  {exercisesWithData !== 1 ? "s" : ""} logged
-                </p>
-              )}
-            </div>
-            <button
-              onClick={() => setShowManageRoutines(true)}
-              className='p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'>
-              <svg
-                className='w-5 h-5'
-                fill='none'
-                viewBox='0 0 24 24'
-                stroke='currentColor'>
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  strokeWidth={2}
-                  d='M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4'
-                />
-              </svg>
-            </button>
+      <div className='px-4 pt-6 pb-4'>
+        <div className='flex items-center justify-between'>
+          <div>
+            <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
+              {t("workout.title")}
+            </h1>
+            {exercisesWithData > 0 && (
+              <p className='text-sm text-ios-green font-medium mt-0.5'>
+                ✓ {exercisesWithData} exercise
+                {exercisesWithData !== 1 ? "s" : ""} logged
+              </p>
+            )}
           </div>
+          <button
+            onClick={() => setShowManageRoutines(true)}
+            className='p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'>
+            <svg
+              className='w-5 h-5'
+              fill='none'
+              viewBox='0 0 24 24'
+              stroke='currentColor'>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth={2}
+                d='M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4'
+              />
+            </svg>
+          </button>
         </div>
       </div>
 
       {/* Routines */}
       {routines.length > 0 && (
-        <div className='px-4 pt-4'>
-          <div className='flex gap-2 overflow-x-auto pb-2 scrollbar-hide'>
+        <div className='px-4'>
+          <div className='flex gap-2 overflow-x-auto pb-3 scrollbar-hide'>
             <button
               onClick={() => setSelectedRoutineId(null)}
               className={cn(
