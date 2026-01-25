@@ -41,7 +41,7 @@ export default function SettingsPage() {
   const [resetLinkSent, setResetLinkSent] = useState(false);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [authMessageType, setAuthMessageType] = useState<"info" | "error">(
-    "info"
+    "info",
   );
   const [isSyncingData, setIsSyncingData] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -78,7 +78,7 @@ export default function SettingsPage() {
     if (isSignUp) {
       const { error, needsConfirmation } = await signUpWithEmail(
         email,
-        password
+        password,
       );
       if (error) {
         setAuthMessage(error.message);
@@ -290,13 +290,13 @@ export default function SettingsPage() {
                       disabled={authLoading || resetLinkSent}
                       className={cn(
                         "w-full px-4 py-3 text-white rounded-lg text-[17px] font-medium active:opacity-80 disabled:opacity-50 transition-colors",
-                        resetLinkSent ? "bg-green-600" : "bg-ios-blue"
+                        resetLinkSent ? "bg-green-600" : "bg-ios-blue",
                       )}>
                       {authLoading
                         ? t("settings.loading")
                         : resetLinkSent
-                        ? t("settings.resetLinkSent")
-                        : t("settings.sendResetLink")}
+                          ? t("settings.resetLinkSent")
+                          : t("settings.sendResetLink")}
                     </button>
                     <button
                       onClick={() => {
@@ -317,8 +317,8 @@ export default function SettingsPage() {
                       {authLoading
                         ? t("settings.loading")
                         : isSignUp
-                        ? t("settings.createAccount")
-                        : t("settings.signIn")}
+                          ? t("settings.createAccount")
+                          : t("settings.signIn")}
                     </button>
                     {!isSignUp && (
                       <button
@@ -351,7 +351,7 @@ export default function SettingsPage() {
                 "text-[13px] px-4 mt-2",
                 authMessageType === "error"
                   ? "text-ios-red"
-                  : "text-gray-500 dark:text-gray-400"
+                  : "text-gray-500 dark:text-gray-400",
               )}>
               {authMessage}
             </p>
@@ -374,7 +374,7 @@ export default function SettingsPage() {
                 className={cn(
                   "w-full px-4 py-3 flex items-center justify-between min-h-[44px] text-left active:bg-gray-100 dark:active:bg-gray-700",
                   index < themeOptions.length - 1 &&
-                    "border-b border-gray-200/80 dark:border-gray-700/80"
+                    "border-b border-gray-200/80 dark:border-gray-700/80",
                 )}>
                 <span className='text-[17px] text-gray-900 dark:text-white'>
                   {option.label}
@@ -592,7 +592,7 @@ export default function SettingsPage() {
                 href='/friends'
                 className='w-full px-4 py-3 min-h-[44px] flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
                 <span className='text-[17px] text-gray-900 dark:text-white'>
-                  👥 Friends
+                  Friends
                 </span>
                 <svg
                   className='w-5 h-5 text-gray-400'
