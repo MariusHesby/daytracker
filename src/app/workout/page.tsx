@@ -367,7 +367,7 @@ export default function WorkoutPage() {
   ).length;
 
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-black pb-24'>
+    <div className='min-h-screen bg-gray-50 dark:bg-black pb-32'>
       {/* Header */}
       <div
         className='bg-white dark:bg-ios-card-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-20'
