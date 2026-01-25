@@ -8,11 +8,11 @@ import {
   ReactNode,
 } from "react";
 
-type Theme = "light" | "dark" | "system";
+type Theme = "light" | "dark" | "colorful" | "system";
 
 interface ThemeContextType {
   theme: Theme;
-  resolvedTheme: "light" | "dark";
+  resolvedTheme: "light" | "dark" | "colorful";
   setTheme: (theme: Theme) => void;
 }
 
@@ -20,7 +20,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("system");
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark" | "colorful">("light");
 
   // Load saved theme on mount
   useEffect(() => {
@@ -33,7 +33,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Resolve the actual theme and apply it
   useEffect(() => {
     const applyTheme = () => {
-      let resolved: "light" | "dark";
+      let resolved: "light" | "dark" | "colorful";
 
       if (theme === "system") {
         resolved = window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -45,11 +45,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
       setResolvedTheme(resolved);
 
-      // Apply to document
+      // Remove all theme classes first
+      document.documentElement.classList.remove("dark", "colorful");
+      
+      // Apply the appropriate class
       if (resolved === "dark") {
         document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
+      } else if (resolved === "colorful") {
+        document.documentElement.classList.add("colorful");
       }
     };
 

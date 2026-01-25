@@ -163,6 +163,7 @@ export default function SettingsPage() {
   const themeOptions = [
     { value: "light", label: t("settings.light") },
     { value: "dark", label: t("settings.dark") },
+    { value: "colorful", label: "Colorful" },
     { value: "system", label: t("settings.system") },
   ] as const;
 

@@ -494,9 +494,23 @@ export default function WorkoutPage() {
                           : "bg-gray-100 dark:bg-gray-800",
                       )}>
                       {exercise.category === "cardio" ? (
-                        <Heart className={cn("w-6 h-6", hasData ? "text-ios-green" : "text-gray-500 dark:text-gray-400")} />
+                        <Heart
+                          className={cn(
+                            "w-6 h-6",
+                            hasData
+                              ? "text-ios-green"
+                              : "text-gray-500 dark:text-gray-400",
+                          )}
+                        />
                       ) : (
-                        <Dumbbell className={cn("w-6 h-6", hasData ? "text-ios-green" : "text-gray-500 dark:text-gray-400")} />
+                        <Dumbbell
+                          className={cn(
+                            "w-6 h-6",
+                            hasData
+                              ? "text-ios-green"
+                              : "text-gray-500 dark:text-gray-400",
+                          )}
+                        />
                       )}
                     </div>
                     <div className='flex-1 text-left'>
@@ -737,7 +751,7 @@ export default function WorkoutPage() {
                         ? "bg-ios-blue text-white"
                         : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
                     )}>
-                    <Dumbbell className="w-5 h-5" />
+                    <Dumbbell className='w-5 h-5' />
                     Strength
                   </button>
                   <button
@@ -754,7 +768,7 @@ export default function WorkoutPage() {
                         ? "bg-ios-blue text-white"
                         : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
                     )}>
-                    <Heart className="w-5 h-5" />
+                    <Heart className='w-5 h-5' />
                     Cardio
                   </button>
                 </div>
@@ -993,9 +1007,9 @@ export default function WorkoutPage() {
                             : "bg-gray-100 dark:bg-gray-800 border-2 border-transparent",
                         )}>
                         {ex.category === "cardio" ? (
-                          <Heart className="w-5 h-5 text-gray-500" />
+                          <Heart className='w-5 h-5 text-gray-500' />
                         ) : (
-                          <Dumbbell className="w-5 h-5 text-gray-500" />
+                          <Dumbbell className='w-5 h-5 text-gray-500' />
                         )}
                         <span className='text-[15px] font-medium text-gray-900 dark:text-white flex-1'>
                           {ex.name}

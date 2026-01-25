@@ -74,6 +74,100 @@
   --foreground: var(--ios-label);
 }
 
+/* Colorful Theme - Sharp, vibrant, high contrast */
+.colorful {
+  /* Deep indigo/navy background for contrast */
+  --ios-bg: #0f172a;
+  --ios-bg-secondary: rgba(30, 41, 59, 0.9);
+  --ios-bg-tertiary: rgba(51, 65, 85, 0.9);
+  
+  /* Card background - slate with transparency */
+  --ios-card: rgba(30, 41, 59, 0.85);
+  
+  /* High contrast text */
+  --ios-label: #f8fafc;
+  --ios-label-secondary: #cbd5e1;
+  --ios-label-tertiary: #94a3b8;
+  
+  /* Vibrant accent colors - sharp and modern */
+  --ios-blue: #3b82f6;
+  --ios-green: #10b981;
+  --ios-red: #ef4444;
+  --ios-orange: #f97316;
+  --ios-yellow: #eab308;
+  --ios-teal: #14b8a6;
+  --ios-purple: #a855f7;
+  
+  /* Colorful separators */
+  --ios-separator: rgba(148, 163, 184, 0.2);
+  --ios-separator-opaque: #334155;
+  
+  /* Vibrant gradient */
+  --gradient-start: #6366f1;
+  --gradient-end: #8b5cf6;
+  
+  --background: var(--ios-bg);
+  --foreground: var(--ios-label);
+}
+
+/* Colorful theme specific styles */
+.colorful .bg-white {
+  background-color: rgba(30, 41, 59, 0.85) !important;
+}
+
+.colorful .bg-white\/80 {
+  background-color: rgba(30, 41, 59, 0.85) !important;
+}
+
+.colorful .text-gray-900 {
+  color: #f8fafc !important;
+}
+
+.colorful .text-gray-600 {
+  color: #cbd5e1 !important;
+}
+
+.colorful .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+.colorful .text-gray-400 {
+  color: #64748b !important;
+}
+
+.colorful .bg-gray-50 {
+  background-color: #0f172a !important;
+}
+
+.colorful .bg-gray-100 {
+  background-color: rgba(51, 65, 85, 0.7) !important;
+}
+
+.colorful .bg-gray-800 {
+  background-color: rgba(51, 65, 85, 0.9) !important;
+}
+
+.colorful .border-gray-200 {
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+.colorful .border-gray-200\/80 {
+  border-color: rgba(148, 163, 184, 0.15) !important;
+}
+
+/* Colorful theme accent highlights */
+.colorful .bg-ios-blue {
+  background-color: #6366f1 !important;
+}
+
+.colorful .text-ios-blue {
+  color: #818cf8 !important;
+}
+
+.colorful .ring-ios-blue {
+  --tw-ring-color: #6366f1 !important;
+}
+
 @theme inline {
   --color-ios-bg: var(--ios-bg);
   --color-ios-bg-secondary: var(--ios-bg-secondary);
