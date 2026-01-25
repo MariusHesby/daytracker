@@ -20,37 +20,56 @@ export default function WorkoutPage() {
   const { t } = useLanguage();
 
   const [selectedDate] = useState(() => toDateStr(new Date()));
-  
+
   // Modal states
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [showAddRoutine, setShowAddRoutine] = useState(false);
   const [showManageRoutines, setShowManageRoutines] = useState(false);
-  const [editingRoutine, setEditingRoutine] = useState<WorkoutRoutine | null>(null);
-  
+  const [editingRoutine, setEditingRoutine] = useState<WorkoutRoutine | null>(
+    null,
+  );
+
   // New exercise form
   const [newExerciseName, setNewExerciseName] = useState("");
-  const [newExerciseCategory, setNewExerciseCategory] = useState<"strength" | "cardio">("strength");
+  const [newExerciseCategory, setNewExerciseCategory] = useState<
+    "strength" | "cardio"
+  >("strength");
   const [newExerciseTrackWeight, setNewExerciseTrackWeight] = useState(true);
   const [newExerciseTrackReps, setNewExerciseTrackReps] = useState(true);
-  const [newExerciseTrackDistance, setNewExerciseTrackDistance] = useState(false);
-  const [newExerciseTrackDuration, setNewExerciseTrackDuration] = useState(false);
-  
+  const [newExerciseTrackDistance, setNewExerciseTrackDistance] =
+    useState(false);
+  const [newExerciseTrackDuration, setNewExerciseTrackDuration] =
+    useState(false);
+
   // Routine form
   const [newRoutineName, setNewRoutineName] = useState("");
   const [newRoutineColor, setNewRoutineColor] = useState(ROUTINE_COLORS[0]);
-  const [selectedExercisesForRoutine, setSelectedExercisesForRoutine] = useState<string[]>([]);
-  
+  const [selectedExercisesForRoutine, setSelectedExercisesForRoutine] =
+    useState<string[]>([]);
+
   // Workout state
-  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
-  const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set());
+  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(
+    null,
+  );
+  const [expandedExercises, setExpandedExercises] = useState<Set<string>>(
+    new Set(),
+  );
   const [workoutData, setWorkoutData] = useState<
-    Record<string, Array<{ reps?: number; weight?: number; distance?: number; duration?: number }>>
+    Record<
+      string,
+      Array<{
+        reps?: number;
+        weight?: number;
+        distance?: number;
+        duration?: number;
+      }>
+    >
   >({});
 
   // Get workout activity type
   const workoutType = useMemo(
     () => activityTypes.find((t) => t.valueType === "workout"),
-    [activityTypes]
+    [activityTypes],
   );
 
   // Get user's exercises
@@ -69,7 +88,9 @@ export default function WorkoutPage() {
     const routine = routines.find((r) => r.id === selectedRoutineId);
     if (!routine) return exercises;
     return exercises.filter((e) =>
-      routine.exerciseNames.some((n) => n.toLowerCase() === e.name.toLowerCase())
+      routine.exerciseNames.some(
+        (n) => n.toLowerCase() === e.name.toLowerCase(),
+      ),
     );
   }, [selectedRoutineId, routines, exercises]);
 
@@ -77,7 +98,10 @@ export default function WorkoutPage() {
   const savedWorkoutEntry = useMemo(() => {
     if (!workoutType) return null;
     return entries.find(
-      (e) => e.date === selectedDate && e.activityTypeId === workoutType.id && e.workoutData
+      (e) =>
+        e.date === selectedDate &&
+        e.activityTypeId === workoutType.id &&
+        e.workoutData,
     );
   }, [entries, workoutType, selectedDate]);
 
@@ -138,7 +162,7 @@ export default function WorkoutPage() {
     await updateActivityType({
       ...workoutType,
       customExercises: (workoutType.customExercises || []).filter(
-        (e) => e.name.toLowerCase() !== name.toLowerCase()
+        (e) => e.name.toLowerCase() !== name.toLowerCase(),
       ),
     });
   };
@@ -175,7 +199,7 @@ export default function WorkoutPage() {
       workoutRoutines: (workoutType.workoutRoutines || []).map((r) =>
         r.id === editingRoutine.id
           ? { ...editingRoutine, exerciseNames: selectedExercisesForRoutine }
-          : r
+          : r,
       ),
     });
 
@@ -188,7 +212,9 @@ export default function WorkoutPage() {
     if (!workoutType) return;
     await updateActivityType({
       ...workoutType,
-      workoutRoutines: (workoutType.workoutRoutines || []).filter((r) => r.id !== id),
+      workoutRoutines: (workoutType.workoutRoutines || []).filter(
+        (r) => r.id !== id,
+      ),
     });
     if (selectedRoutineId === id) setSelectedRoutineId(null);
   };
@@ -214,7 +240,7 @@ export default function WorkoutPage() {
     exerciseName: string,
     index: number,
     field: string,
-    value: number | undefined
+    value: number | undefined,
   ) => {
     const sets = [...(workoutData[exerciseName] || [{}])];
     sets[index] = { ...sets[index], [field]: value };
@@ -225,7 +251,10 @@ export default function WorkoutPage() {
   const addSet = (exerciseName: string) => {
     const sets = workoutData[exerciseName] || [{}];
     const lastSet = sets[sets.length - 1] || {};
-    setWorkoutData((prev) => ({ ...prev, [exerciseName]: [...sets, { ...lastSet }] }));
+    setWorkoutData((prev) => ({
+      ...prev,
+      [exerciseName]: [...sets, { ...lastSet }],
+    }));
   };
 
   // Remove set
@@ -247,12 +276,14 @@ export default function WorkoutPage() {
 
   // Get exercise config
   const getExerciseConfig = (name: string) => {
-    return exercises.find((e) => e.name.toLowerCase() === name.toLowerCase()) || {
-      name,
-      category: "strength" as const,
-      trackWeight: true,
-      trackReps: true,
-    };
+    return (
+      exercises.find((e) => e.name.toLowerCase() === name.toLowerCase()) || {
+        name,
+        category: "strength" as const,
+        trackWeight: true,
+        trackReps: true,
+      }
+    );
   };
 
   // Save workout
@@ -265,7 +296,9 @@ export default function WorkoutPage() {
       const sets = workoutData[exerciseName];
       const config = getExerciseConfig(exerciseName);
 
-      const validSets = sets.filter((s) => s.reps || s.weight || s.distance || s.duration);
+      const validSets = sets.filter(
+        (s) => s.reps || s.weight || s.distance || s.duration,
+      );
       if (validSets.length === 0) continue;
 
       exercisesToSave.push({
@@ -303,7 +336,14 @@ export default function WorkoutPage() {
         workoutData: { exercises: exercisesToSave },
       });
     }
-  }, [workoutType, workoutData, savedWorkoutEntry, selectedDate, addEntry, updateEntry]);
+  }, [
+    workoutType,
+    workoutData,
+    savedWorkoutEntry,
+    selectedDate,
+    addEntry,
+    updateEntry,
+  ]);
 
   // Auto-save (debounced)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -311,7 +351,7 @@ export default function WorkoutPage() {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
       const hasData = Object.values(workoutData).some((sets) =>
-        sets.some((s) => s.reps || s.weight || s.distance || s.duration)
+        sets.some((s) => s.reps || s.weight || s.distance || s.duration),
       );
       if (hasData) {
         saveWorkout();
@@ -322,33 +362,43 @@ export default function WorkoutPage() {
     };
   }, [workoutData, saveWorkout]);
 
-  const exercisesWithData = Object.keys(workoutData).filter((name) => exerciseHasData(name)).length;
+  const exercisesWithData = Object.keys(workoutData).filter((name) =>
+    exerciseHasData(name),
+  ).length;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black pb-24">
+    <div className='min-h-screen bg-gray-50 dark:bg-black pb-24'>
       {/* Header */}
       <div
-        className="bg-white dark:bg-ios-card-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-20"
-        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
-      >
-        <div className="px-4 py-4">
-          <div className="flex items-center justify-between">
+        className='bg-white dark:bg-ios-card-dark border-b border-gray-200 dark:border-gray-800 sticky top-0 z-20'
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+        <div className='px-4 py-4'>
+          <div className='flex items-center justify-between'>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
                 {t("workout.title")}
               </h1>
               {exercisesWithData > 0 && (
-                <p className="text-sm text-ios-green font-medium mt-0.5">
-                  ✓ {exercisesWithData} exercise{exercisesWithData !== 1 ? "s" : ""} logged
+                <p className='text-sm text-ios-green font-medium mt-0.5'>
+                  ✓ {exercisesWithData} exercise
+                  {exercisesWithData !== 1 ? "s" : ""} logged
                 </p>
               )}
             </div>
             <button
               onClick={() => setShowManageRoutines(true)}
-              className="p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              className='p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'>
+              <svg
+                className='w-5 h-5'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  strokeWidth={2}
+                  d='M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4'
+                />
               </svg>
             </button>
           </div>
@@ -357,35 +407,37 @@ export default function WorkoutPage() {
 
       {/* Routines */}
       {routines.length > 0 && (
-        <div className="px-4 pt-4">
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <div className='px-4 pt-4'>
+          <div className='flex gap-2 overflow-x-auto pb-2 scrollbar-hide'>
             <button
               onClick={() => setSelectedRoutineId(null)}
               className={cn(
                 "px-4 py-2.5 rounded-full text-[14px] font-semibold whitespace-nowrap transition-all flex-shrink-0",
                 selectedRoutineId === null
                   ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-                  : "bg-white dark:bg-ios-card-dark text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
-              )}
-            >
+                  : "bg-white dark:bg-ios-card-dark text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700",
+              )}>
               All Exercises
             </button>
             {routines.map((routine) => (
               <button
                 key={routine.id}
-                onClick={() => setSelectedRoutineId(selectedRoutineId === routine.id ? null : routine.id)}
+                onClick={() =>
+                  setSelectedRoutineId(
+                    selectedRoutineId === routine.id ? null : routine.id,
+                  )
+                }
                 className={cn(
                   "px-4 py-2.5 rounded-full text-[14px] font-semibold whitespace-nowrap transition-all flex-shrink-0",
                   selectedRoutineId === routine.id
                     ? "text-white"
-                    : "bg-white dark:bg-ios-card-dark text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
+                    : "bg-white dark:bg-ios-card-dark text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700",
                 )}
                 style={
                   selectedRoutineId === routine.id
                     ? { backgroundColor: routine.color }
                     : undefined
-                }
-              >
+                }>
                 {routine.name}
               </button>
             ))}
@@ -394,26 +446,25 @@ export default function WorkoutPage() {
       )}
 
       {/* Content */}
-      <div className="px-4 py-4 space-y-4">
+      <div className='px-4 py-4 space-y-4'>
         {/* Add Exercise Button */}
         <button
           onClick={() => setShowAddExercise(true)}
-          className="w-full py-4 rounded-2xl bg-gradient-to-r from-ios-blue to-blue-600 text-white text-[17px] font-semibold flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform"
-        >
-          <Plus className="w-6 h-6" />
+          className='w-full py-4 rounded-2xl bg-gradient-to-r from-ios-blue to-blue-600 text-white text-[17px] font-semibold flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform'>
+          <Plus className='w-6 h-6' />
           Add Exercise
         </button>
 
         {/* Empty State */}
         {exercises.length === 0 && (
-          <div className="py-16 text-center">
-            <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-              <Dumbbell className="w-10 h-10 text-gray-400" />
+          <div className='py-16 text-center'>
+            <div className='w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center'>
+              <Dumbbell className='w-10 h-10 text-gray-400' />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-2'>
               No exercises yet
             </h3>
-            <p className="text-gray-500 dark:text-gray-400 text-[15px] max-w-xs mx-auto">
+            <p className='text-gray-500 dark:text-gray-400 text-[15px] max-w-xs mx-auto'>
               Add your first exercise to start tracking your workouts
             </p>
           </div>
@@ -421,7 +472,7 @@ export default function WorkoutPage() {
 
         {/* Exercise List */}
         {displayedExercises.length > 0 && (
-          <div className="space-y-3">
+          <div className='space-y-3'>
             {displayedExercises.map((exercise) => {
               const isExpanded = expandedExercises.has(exercise.name);
               const hasData = exerciseHasData(exercise.name);
@@ -430,47 +481,51 @@ export default function WorkoutPage() {
               return (
                 <div
                   key={exercise.name}
-                  className="bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden shadow-sm"
-                >
+                  className='bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden shadow-sm'>
                   {/* Exercise Header */}
                   <button
                     onClick={() => toggleExercise(exercise.name)}
-                    className="w-full px-4 py-4 flex items-center gap-3"
-                  >
+                    className='w-full px-4 py-4 flex items-center gap-3'>
                     <div
                       className={cn(
                         "w-12 h-12 rounded-xl flex items-center justify-center",
                         hasData
                           ? "bg-ios-green/10"
-                          : "bg-gray-100 dark:bg-gray-800"
-                      )}
-                    >
-                      <span className="text-2xl">
+                          : "bg-gray-100 dark:bg-gray-800",
+                      )}>
+                      <span className='text-2xl'>
                         {exercise.category === "cardio" ? "🏃" : "💪"}
                       </span>
                     </div>
-                    <div className="flex-1 text-left">
+                    <div className='flex-1 text-left'>
                       <span
                         className={cn(
                           "text-[17px] font-semibold block",
-                          hasData ? "text-ios-green" : "text-gray-900 dark:text-white"
-                        )}
-                      >
+                          hasData
+                            ? "text-ios-green"
+                            : "text-gray-900 dark:text-white",
+                        )}>
                         {exercise.name}
                       </span>
                       {hasData && (
-                        <span className="text-[13px] text-ios-green">
-                          {sets.filter((s) => s.reps || s.weight || s.distance || s.duration).length} sets
+                        <span className='text-[13px] text-ios-green'>
+                          {
+                            sets.filter(
+                              (s) =>
+                                s.reps || s.weight || s.distance || s.duration,
+                            ).length
+                          }{" "}
+                          sets
                         </span>
                       )}
                     </div>
                     {hasData ? (
-                      <Check className="w-6 h-6 text-ios-green" />
+                      <Check className='w-6 h-6 text-ios-green' />
                     ) : (
                       <ChevronRight
                         className={cn(
                           "w-5 h-5 text-gray-400 transition-transform",
-                          isExpanded && "rotate-90"
+                          isExpanded && "rotate-90",
                         )}
                       />
                     )}
@@ -478,109 +533,114 @@ export default function WorkoutPage() {
 
                   {/* Expanded Content */}
                   {isExpanded && (
-                    <div className="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-gray-800 pt-3">
+                    <div className='px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-gray-800 pt-3'>
                       {sets.map((set, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-3"
-                        >
+                        <div key={index} className='flex items-center gap-3'>
                           {/* Set Number */}
-                          <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                            <span className="text-[15px] font-bold text-gray-500 dark:text-gray-400">
+                          <div className='w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center'>
+                            <span className='text-[15px] font-bold text-gray-500 dark:text-gray-400'>
                               {index + 1}
                             </span>
                           </div>
 
                           {/* Inputs */}
-                          <div className="flex-1 grid grid-cols-2 gap-2">
+                          <div className='flex-1 grid grid-cols-2 gap-2'>
                             {exercise.trackReps !== false && (
-                              <div className="relative">
+                              <div className='relative'>
                                 <input
-                                  type="number"
-                                  inputMode="numeric"
+                                  type='number'
+                                  inputMode='numeric'
                                   value={set.reps || ""}
                                   onChange={(e) =>
                                     updateExerciseSet(
                                       exercise.name,
                                       index,
                                       "reps",
-                                      e.target.value ? parseInt(e.target.value) : undefined
+                                      e.target.value
+                                        ? parseInt(e.target.value)
+                                        : undefined,
                                     )
                                   }
                                   onFocus={(e) => e.target.select()}
-                                  placeholder="0"
-                                  className="w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                                  placeholder='0'
+                                  className='w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                                 />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium">
+                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium'>
                                   reps
                                 </span>
                               </div>
                             )}
                             {exercise.trackWeight !== false && (
-                              <div className="relative">
+                              <div className='relative'>
                                 <input
-                                  type="number"
-                                  inputMode="decimal"
+                                  type='number'
+                                  inputMode='decimal'
                                   value={set.weight || ""}
                                   onChange={(e) =>
                                     updateExerciseSet(
                                       exercise.name,
                                       index,
                                       "weight",
-                                      e.target.value ? parseFloat(e.target.value) : undefined
+                                      e.target.value
+                                        ? parseFloat(e.target.value)
+                                        : undefined,
                                     )
                                   }
                                   onFocus={(e) => e.target.select()}
-                                  placeholder="0"
-                                  className="w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                                  placeholder='0'
+                                  className='w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                                 />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium">
+                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium'>
                                   kg
                                 </span>
                               </div>
                             )}
                             {exercise.trackDistance && (
-                              <div className="relative">
+                              <div className='relative'>
                                 <input
-                                  type="number"
-                                  inputMode="decimal"
+                                  type='number'
+                                  inputMode='decimal'
                                   value={set.distance || ""}
                                   onChange={(e) =>
                                     updateExerciseSet(
                                       exercise.name,
                                       index,
                                       "distance",
-                                      e.target.value ? parseFloat(e.target.value) : undefined
+                                      e.target.value
+                                        ? parseFloat(e.target.value)
+                                        : undefined,
                                     )
                                   }
                                   onFocus={(e) => e.target.select()}
-                                  placeholder="0"
-                                  className="w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                                  placeholder='0'
+                                  className='w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                                 />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium">
+                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium'>
                                   km
                                 </span>
                               </div>
                             )}
                             {exercise.trackDuration && (
-                              <div className="relative">
+                              <div className='relative'>
                                 <input
-                                  type="number"
-                                  inputMode="numeric"
+                                  type='number'
+                                  inputMode='numeric'
                                   value={set.duration || ""}
                                   onChange={(e) =>
                                     updateExerciseSet(
                                       exercise.name,
                                       index,
                                       "duration",
-                                      e.target.value ? parseInt(e.target.value) : undefined
+                                      e.target.value
+                                        ? parseInt(e.target.value)
+                                        : undefined,
                                     )
                                   }
                                   onFocus={(e) => e.target.select()}
-                                  placeholder="0"
-                                  className="w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                                  placeholder='0'
+                                  className='w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                                 />
-                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium">
+                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium'>
                                   min
                                 </span>
                               </div>
@@ -591,9 +651,8 @@ export default function WorkoutPage() {
                           {sets.length > 1 && (
                             <button
                               onClick={() => removeSet(exercise.name, index)}
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-ios-red hover:bg-ios-red/10 transition-colors"
-                            >
-                              <X className="w-5 h-5" />
+                              className='w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-ios-red hover:bg-ios-red/10 transition-colors'>
+                              <X className='w-5 h-5' />
                             </button>
                           )}
                         </div>
@@ -602,17 +661,15 @@ export default function WorkoutPage() {
                       {/* Add Set Button */}
                       <button
                         onClick={() => addSet(exercise.name)}
-                        className="w-full py-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-[15px] font-medium flex items-center justify-center gap-2 hover:border-ios-blue hover:text-ios-blue transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
+                        className='w-full py-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-[15px] font-medium flex items-center justify-center gap-2 hover:border-ios-blue hover:text-ios-blue transition-colors'>
+                        <Plus className='w-4 h-4' />
                         Add Set
                       </button>
 
                       {/* Delete Exercise */}
                       <button
                         onClick={() => handleDeleteExercise(exercise.name)}
-                        className="w-full py-2 text-ios-red text-[14px] font-medium"
-                      >
+                        className='w-full py-2 text-ios-red text-[14px] font-medium'>
                         Delete Exercise
                       </button>
                     </div>
@@ -626,42 +683,44 @@ export default function WorkoutPage() {
 
       {/* Add Exercise Modal */}
       {showAddExercise && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddExercise(false)} />
-          <div className="relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-10 animate-slide-up">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+        <div className='fixed inset-0 z-50 flex items-end justify-center'>
+          <div
+            className='absolute inset-0 bg-black/50'
+            onClick={() => setShowAddExercise(false)}
+          />
+          <div className='relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-10 animate-slide-up'>
+            <div className='flex items-center justify-between mb-6'>
+              <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
                 Add Exercise
               </h2>
               <button
                 onClick={() => setShowAddExercise(false)}
-                className="p-2 rounded-full bg-gray-100 dark:bg-gray-800"
-              >
-                <X className="w-5 h-5 text-gray-500" />
+                className='p-2 rounded-full bg-gray-100 dark:bg-gray-800'>
+                <X className='w-5 h-5 text-gray-500' />
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className='space-y-4'>
               {/* Name */}
               <div>
-                <label className="text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
+                <label className='text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-1.5 block'>
                   Exercise Name
                 </label>
                 <input
-                  type="text"
+                  type='text'
                   value={newExerciseName}
                   onChange={(e) => setNewExerciseName(e.target.value)}
-                  placeholder="e.g., Bench Press"
-                  className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-[16px] text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                  placeholder='e.g., Bench Press'
+                  className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-[16px] text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                 />
               </div>
 
               {/* Category */}
               <div>
-                <label className="text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
+                <label className='text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-1.5 block'>
                   Category
                 </label>
-                <div className="flex gap-2">
+                <div className='flex gap-2'>
                   <button
                     onClick={() => {
                       setNewExerciseCategory("strength");
@@ -674,9 +733,8 @@ export default function WorkoutPage() {
                       "flex-1 py-3 rounded-xl text-[15px] font-medium transition-all",
                       newExerciseCategory === "strength"
                         ? "bg-ios-blue text-white"
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                    )}
-                  >
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
+                    )}>
                     💪 Strength
                   </button>
                   <button
@@ -691,9 +749,8 @@ export default function WorkoutPage() {
                       "flex-1 py-3 rounded-xl text-[15px] font-medium transition-all",
                       newExerciseCategory === "cardio"
                         ? "bg-ios-blue text-white"
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                    )}
-                  >
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
+                    )}>
                     🏃 Cardio
                   </button>
                 </div>
@@ -701,15 +758,35 @@ export default function WorkoutPage() {
 
               {/* Tracking Options */}
               <div>
-                <label className="text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
+                <label className='text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-1.5 block'>
                   Track
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className='grid grid-cols-2 gap-2'>
                   {[
-                    { key: "reps", label: "Reps", state: newExerciseTrackReps, set: setNewExerciseTrackReps },
-                    { key: "weight", label: "Weight (kg)", state: newExerciseTrackWeight, set: setNewExerciseTrackWeight },
-                    { key: "distance", label: "Distance (km)", state: newExerciseTrackDistance, set: setNewExerciseTrackDistance },
-                    { key: "duration", label: "Duration (min)", state: newExerciseTrackDuration, set: setNewExerciseTrackDuration },
+                    {
+                      key: "reps",
+                      label: "Reps",
+                      state: newExerciseTrackReps,
+                      set: setNewExerciseTrackReps,
+                    },
+                    {
+                      key: "weight",
+                      label: "Weight (kg)",
+                      state: newExerciseTrackWeight,
+                      set: setNewExerciseTrackWeight,
+                    },
+                    {
+                      key: "distance",
+                      label: "Distance (km)",
+                      state: newExerciseTrackDistance,
+                      set: setNewExerciseTrackDistance,
+                    },
+                    {
+                      key: "duration",
+                      label: "Duration (min)",
+                      state: newExerciseTrackDuration,
+                      set: setNewExerciseTrackDuration,
+                    },
                   ].map((opt) => (
                     <button
                       key={opt.key}
@@ -718,10 +795,10 @@ export default function WorkoutPage() {
                         "py-3 rounded-xl text-[14px] font-medium transition-all border",
                         opt.state
                           ? "bg-ios-blue/10 border-ios-blue text-ios-blue"
-                          : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-600 dark:text-gray-400"
-                      )}
-                    >
-                      {opt.state && "✓ "}{opt.label}
+                          : "bg-gray-100 dark:bg-gray-800 border-transparent text-gray-600 dark:text-gray-400",
+                      )}>
+                      {opt.state && "✓ "}
+                      {opt.label}
                     </button>
                   ))}
                 </div>
@@ -731,8 +808,7 @@ export default function WorkoutPage() {
               <button
                 onClick={handleAddExercise}
                 disabled={!newExerciseName.trim()}
-                className="w-full py-4 rounded-xl bg-ios-blue text-white text-[17px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+                className='w-full py-4 rounded-xl bg-ios-blue text-white text-[17px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed'>
                 Add Exercise
               </button>
             </div>
@@ -742,18 +818,20 @@ export default function WorkoutPage() {
 
       {/* Manage Routines Modal */}
       {showManageRoutines && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowManageRoutines(false)} />
-          <div className="relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-10 animate-slide-up max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+        <div className='fixed inset-0 z-50 flex items-end justify-center'>
+          <div
+            className='absolute inset-0 bg-black/50'
+            onClick={() => setShowManageRoutines(false)}
+          />
+          <div className='relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-10 animate-slide-up max-h-[80vh] overflow-y-auto'>
+            <div className='flex items-center justify-between mb-6'>
+              <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
                 Workout Groups
               </h2>
               <button
                 onClick={() => setShowManageRoutines(false)}
-                className="p-2 rounded-full bg-gray-100 dark:bg-gray-800"
-              >
-                <X className="w-5 h-5 text-gray-500" />
+                className='p-2 rounded-full bg-gray-100 dark:bg-gray-800'>
+                <X className='w-5 h-5 text-gray-500' />
               </button>
             </div>
 
@@ -763,32 +841,30 @@ export default function WorkoutPage() {
                 setShowManageRoutines(false);
                 setShowAddRoutine(true);
               }}
-              className="w-full py-4 rounded-xl bg-ios-blue text-white text-[16px] font-semibold mb-4 flex items-center justify-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
+              className='w-full py-4 rounded-xl bg-ios-blue text-white text-[16px] font-semibold mb-4 flex items-center justify-center gap-2'>
+              <Plus className='w-5 h-5' />
               Create New Group
             </button>
 
             {/* Routines List */}
             {routines.length === 0 ? (
-              <div className="py-8 text-center">
-                <p className="text-gray-500 dark:text-gray-400">
+              <div className='py-8 text-center'>
+                <p className='text-gray-500 dark:text-gray-400'>
                   No workout groups yet. Create one to organize your exercises!
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className='space-y-3'>
                 {routines.map((routine) => (
                   <div
                     key={routine.id}
-                    className="bg-gray-100 dark:bg-gray-800 rounded-xl p-4"
-                  >
-                    <div className="flex items-center gap-3 mb-2">
+                    className='bg-gray-100 dark:bg-gray-800 rounded-xl p-4'>
+                    <div className='flex items-center gap-3 mb-2'>
                       <div
-                        className="w-4 h-4 rounded-full"
+                        className='w-4 h-4 rounded-full'
                         style={{ backgroundColor: routine.color }}
                       />
-                      <span className="text-[16px] font-semibold text-gray-900 dark:text-white flex-1">
+                      <span className='text-[16px] font-semibold text-gray-900 dark:text-white flex-1'>
                         {routine.name}
                       </span>
                       <button
@@ -797,19 +873,18 @@ export default function WorkoutPage() {
                           setSelectedExercisesForRoutine(routine.exerciseNames);
                           setShowManageRoutines(false);
                         }}
-                        className="text-ios-blue text-[14px] font-medium"
-                      >
+                        className='text-ios-blue text-[14px] font-medium'>
                         Edit
                       </button>
                       <button
                         onClick={() => handleDeleteRoutine(routine.id)}
-                        className="text-ios-red text-[14px] font-medium"
-                      >
+                        className='text-ios-red text-[14px] font-medium'>
                         Delete
                       </button>
                     </div>
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">
-                      {routine.exerciseNames.length} exercise{routine.exerciseNames.length !== 1 ? "s" : ""}
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      {routine.exerciseNames.length} exercise
+                      {routine.exerciseNames.length !== 1 ? "s" : ""}
                     </p>
                   </div>
                 ))}
@@ -821,18 +896,18 @@ export default function WorkoutPage() {
 
       {/* Add/Edit Routine Modal */}
       {(showAddRoutine || editingRoutine) && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
+        <div className='fixed inset-0 z-50 flex items-end justify-center'>
           <div
-            className="absolute inset-0 bg-black/50"
+            className='absolute inset-0 bg-black/50'
             onClick={() => {
               setShowAddRoutine(false);
               setEditingRoutine(null);
               setSelectedExercisesForRoutine([]);
             }}
           />
-          <div className="relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-10 animate-slide-up max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+          <div className='relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-10 animate-slide-up max-h-[85vh] overflow-y-auto'>
+            <div className='flex items-center justify-between mb-6'>
+              <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
                 {editingRoutine ? "Edit Group" : "Create Group"}
               </h2>
               <button
@@ -841,25 +916,24 @@ export default function WorkoutPage() {
                   setEditingRoutine(null);
                   setSelectedExercisesForRoutine([]);
                 }}
-                className="p-2 rounded-full bg-gray-100 dark:bg-gray-800"
-              >
-                <X className="w-5 h-5 text-gray-500" />
+                className='p-2 rounded-full bg-gray-100 dark:bg-gray-800'>
+                <X className='w-5 h-5 text-gray-500' />
               </button>
             </div>
 
-            <div className="space-y-5">
+            <div className='space-y-5'>
               {/* Name */}
               {!editingRoutine && (
                 <div>
-                  <label className="text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
+                  <label className='text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-1.5 block'>
                     Group Name
                   </label>
                   <input
-                    type="text"
+                    type='text'
                     value={newRoutineName}
                     onChange={(e) => setNewRoutineName(e.target.value)}
-                    placeholder="e.g., Push Day, Leg Day"
-                    className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-[16px] text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue"
+                    placeholder='e.g., Push Day, Leg Day'
+                    className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-[16px] text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                   />
                 </div>
               )}
@@ -867,17 +941,18 @@ export default function WorkoutPage() {
               {/* Color */}
               {!editingRoutine && (
                 <div>
-                  <label className="text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                  <label className='text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-2 block'>
                     Color
                   </label>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className='flex gap-2 flex-wrap'>
                     {ROUTINE_COLORS.map((color) => (
                       <button
                         key={color}
                         onClick={() => setNewRoutineColor(color)}
                         className={cn(
                           "w-10 h-10 rounded-full transition-all",
-                          newRoutineColor === color && "ring-2 ring-offset-2 ring-gray-400"
+                          newRoutineColor === color &&
+                            "ring-2 ring-offset-2 ring-gray-400",
                         )}
                         style={{ backgroundColor: color }}
                       />
@@ -888,15 +963,15 @@ export default function WorkoutPage() {
 
               {/* Exercises */}
               <div>
-                <label className="text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                <label className='text-[14px] font-medium text-gray-700 dark:text-gray-300 mb-2 block'>
                   Select Exercises
                 </label>
                 {exercises.length === 0 ? (
-                  <p className="text-gray-500 dark:text-gray-400 text-[14px] py-4">
+                  <p className='text-gray-500 dark:text-gray-400 text-[14px] py-4'>
                     Add some exercises first before creating a group.
                   </p>
                 ) : (
-                  <div className="space-y-2 max-h-[40vh] overflow-y-auto">
+                  <div className='space-y-2 max-h-[40vh] overflow-y-auto'>
                     {exercises.map((ex) => (
                       <button
                         key={ex.name}
@@ -904,22 +979,23 @@ export default function WorkoutPage() {
                           setSelectedExercisesForRoutine((prev) =>
                             prev.includes(ex.name)
                               ? prev.filter((n) => n !== ex.name)
-                              : [...prev, ex.name]
+                              : [...prev, ex.name],
                           );
                         }}
                         className={cn(
                           "w-full px-4 py-3 rounded-xl text-left flex items-center gap-3 transition-all",
                           selectedExercisesForRoutine.includes(ex.name)
                             ? "bg-ios-blue/10 border-2 border-ios-blue"
-                            : "bg-gray-100 dark:bg-gray-800 border-2 border-transparent"
-                        )}
-                      >
-                        <span className="text-xl">{ex.category === "cardio" ? "🏃" : "💪"}</span>
-                        <span className="text-[15px] font-medium text-gray-900 dark:text-white flex-1">
+                            : "bg-gray-100 dark:bg-gray-800 border-2 border-transparent",
+                        )}>
+                        <span className='text-xl'>
+                          {ex.category === "cardio" ? "🏃" : "💪"}
+                        </span>
+                        <span className='text-[15px] font-medium text-gray-900 dark:text-white flex-1'>
                           {ex.name}
                         </span>
                         {selectedExercisesForRoutine.includes(ex.name) && (
-                          <Check className="w-5 h-5 text-ios-blue" />
+                          <Check className='w-5 h-5 text-ios-blue' />
                         )}
                       </button>
                     ))}
@@ -929,10 +1005,11 @@ export default function WorkoutPage() {
 
               {/* Save Button */}
               <button
-                onClick={editingRoutine ? handleUpdateRoutine : handleAddRoutine}
+                onClick={
+                  editingRoutine ? handleUpdateRoutine : handleAddRoutine
+                }
                 disabled={editingRoutine ? false : !newRoutineName.trim()}
-                className="w-full py-4 rounded-xl bg-ios-blue text-white text-[17px] font-semibold disabled:opacity-50"
-              >
+                className='w-full py-4 rounded-xl bg-ios-blue text-white text-[17px] font-semibold disabled:opacity-50'>
                 {editingRoutine ? "Save Changes" : "Create Group"}
               </button>
             </div>

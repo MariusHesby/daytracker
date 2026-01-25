@@ -48,38 +48,8 @@ export interface WorkoutData {
   notes?: string;
 }
 
-// Common exercises with their typical tracking fields
-export const COMMON_EXERCISES: { name: string; category: ExerciseCategory; trackWeight?: boolean; trackReps?: boolean; trackDistance?: boolean; trackDuration?: boolean }[] = [
-  // Strength - Upper Body
-  { name: 'Bench Press', category: 'strength', trackWeight: true, trackReps: true },
-  { name: 'Overhead Press', category: 'strength', trackWeight: true, trackReps: true },
-  { name: 'Bicep Curls', category: 'strength', trackWeight: true, trackReps: true },
-  { name: 'Tricep Dips', category: 'strength', trackReps: true },
-  { name: 'Pull-ups', category: 'strength', trackReps: true },
-  { name: 'Push-ups', category: 'strength', trackReps: true },
-  { name: 'Lat Pulldown', category: 'strength', trackWeight: true, trackReps: true },
-  { name: 'Rows', category: 'strength', trackWeight: true, trackReps: true },
-  // Strength - Lower Body
-  { name: 'Squats', category: 'strength', trackWeight: true, trackReps: true },
-  { name: 'Deadlift', category: 'strength', trackWeight: true, trackReps: true },
-  { name: 'Leg Press', category: 'strength', trackWeight: true, trackReps: true },
-  { name: 'Lunges', category: 'strength', trackWeight: true, trackReps: true },
-  { name: 'Leg Curls', category: 'strength', trackWeight: true, trackReps: true },
-  { name: 'Calf Raises', category: 'strength', trackWeight: true, trackReps: true },
-  // Cardio
-  { name: 'Running', category: 'cardio', trackDistance: true, trackDuration: true },
-  { name: 'Walking', category: 'cardio', trackDistance: true, trackDuration: true },
-  { name: 'Cycling', category: 'cardio', trackDistance: true, trackDuration: true },
-  { name: 'Swimming', category: 'cardio', trackDistance: true, trackDuration: true },
-  { name: 'Rowing', category: 'cardio', trackDistance: true, trackDuration: true },
-  { name: 'Jump Rope', category: 'cardio', trackDuration: true },
-  { name: 'Elliptical', category: 'cardio', trackDuration: true },
-  { name: 'Stair Climber', category: 'cardio', trackDuration: true },
-  // Flexibility
-  { name: 'Yoga', category: 'flexibility', trackDuration: true },
-  { name: 'Stretching', category: 'flexibility', trackDuration: true },
-  { name: 'Pilates', category: 'flexibility', trackDuration: true },
-];
+// Common exercises - empty by default, users add their own
+export const COMMON_EXERCISES: { name: string; category: ExerciseCategory; trackWeight?: boolean; trackReps?: boolean; trackDistance?: boolean; trackDuration?: boolean }[] = [];
 
 // Custom exercise configuration (for user-defined exercises)
 export interface CustomExercise {
