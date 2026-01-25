@@ -142,6 +142,9 @@ const translations = {
   "settings.deleting": "Deleting...",
   "settings.typeToConfirm": "Type DELETE to confirm",
 
+  // Tab navigation
+  "tab.workout": "Workout",
+
   // Friends/Sharing
   "tab.friends": "Friends",
   "friends.title": "Friends",

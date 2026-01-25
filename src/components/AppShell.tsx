@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { IOSTabBar } from "./ios";
 import { useLanguage } from "@/context/LanguageContext";
 import { SplashScreen } from "./SplashScreen";
-import { Clock, Clapperboard, ChartBar, Settings, Users } from "lucide-react";
+import { Clock, Clapperboard, ChartBar, Settings, Dumbbell } from "lucide-react";
 
 // Pull-to-refresh indicator component
 function PullToRefreshIndicator({
@@ -156,15 +156,15 @@ const SettingsIcon = ({ filled = false }: { filled?: boolean }) => (
   <Settings className='w-full h-full' strokeWidth={filled ? 2.5 : 1.5} />
 );
 
-const FriendsIcon = ({ filled = false }: { filled?: boolean }) => (
-  <Users className='w-full h-full' strokeWidth={filled ? 2.5 : 1.5} />
+const WorkoutIcon = ({ filled = false }: { filled?: boolean }) => (
+  <Dumbbell className='w-full h-full' strokeWidth={filled ? 2.5 : 1.5} />
 );
 
 interface AppShellProps {
   children: ReactNode;
 }
 
-const TABS = ["/", "/movies-tv", "/stats", "/friends", "/settings"];
+const TABS = ["/", "/movies-tv", "/workout", "/stats", "/settings"];
 
 export function AppShell({ children }: AppShellProps) {
   const { t } = useLanguage();
@@ -396,16 +396,16 @@ export function AppShell({ children }: AppShellProps) {
       activeIcon: <MoviesIcon filled />,
     },
     {
+      href: "/workout",
+      label: t("tab.workout"),
+      icon: <WorkoutIcon />,
+      activeIcon: <WorkoutIcon filled />,
+    },
+    {
       href: "/stats",
       label: t("tab.statistics"),
       icon: <StatsIcon />,
       activeIcon: <StatsIcon filled />,
-    },
-    {
-      href: "/friends",
-      label: t("tab.friends"),
-      icon: <FriendsIcon />,
-      activeIcon: <FriendsIcon filled />,
     },
     {
       href: "/settings",
