@@ -5,7 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { IOSTabBar } from "./ios";
 import { useLanguage } from "@/context/LanguageContext";
 import { SplashScreen } from "./SplashScreen";
-import { Clock, Clapperboard, ChartBar, Settings, Dumbbell } from "lucide-react";
+import {
+  Clock,
+  Clapperboard,
+  ChartBar,
+  Settings,
+  Dumbbell,
+} from "lucide-react";
 
 // Pull-to-refresh indicator component
 function PullToRefreshIndicator({
