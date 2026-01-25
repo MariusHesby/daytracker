@@ -236,6 +236,23 @@ const translations = {
   "profile.uploadFailed": "Failed to upload image",
   "profile.adjustPhoto": "Adjust Photo",
   "profile.choose": "Choose",
+
+  // Workout
+  "workout.title": "Workout",
+  "workout.myWorkout": "My Workout",
+  "workout.browse": "Browse",
+  "workout.searchExercises": "Search exercises...",
+  "workout.addExercise": "Add Exercise",
+  "workout.noExercises": "No exercises yet. Add some to get started!",
+  "workout.browseExercises": "Browse Exercises",
+  "workout.muscleGroups": "Muscle Groups",
+  "workout.sets": "sets",
+  "workout.reps": "reps",
+  "workout.weight": "kg",
+  "workout.distance": "km",
+  "workout.duration": "min",
+  "workout.addSet": "Add Set",
+  "workout.exercisesLogged": "exercises logged",
 } as const;
 
 export type TranslationKey = keyof typeof translations;

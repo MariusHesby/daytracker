@@ -89,6 +89,9 @@ export interface CustomExercise {
   trackReps?: boolean;
   trackDistance?: boolean;
   trackDuration?: boolean;
+  wgerId?: number; // wger.de API exercise ID
+  imageUrl?: string; // Exercise image from API
+  muscles?: string[]; // Target muscles
 }
 
 // Workout routine/group for organizing exercises
