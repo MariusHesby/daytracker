@@ -11,7 +11,7 @@ import {
   WorkoutRoutine,
   ROUTINE_COLORS,
 } from "@/types";
-import { Plus, X, Check, ChevronRight, Dumbbell } from "lucide-react";
+import { Plus, X, Check, ChevronRight, Dumbbell, Heart } from "lucide-react";
 
 export default function WorkoutPage() {
   const { activityTypes, entries, addEntry, updateEntry, updateActivityType } =
@@ -478,8 +478,9 @@ export default function WorkoutPage() {
                 <div
                   key={exercise.name}
                   className={cn(
-                    'bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden shadow-sm transition-all',
-                    isExpanded && 'ring-2 ring-ios-blue ring-offset-2 ring-offset-gray-50 dark:ring-offset-black'
+                    "bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden shadow-sm transition-all",
+                    isExpanded &&
+                      "ring-2 ring-ios-blue ring-offset-2 ring-offset-gray-50 dark:ring-offset-black",
                   )}>
                   {/* Exercise Header */}
                   <button
@@ -492,9 +493,11 @@ export default function WorkoutPage() {
                           ? "bg-ios-green/10"
                           : "bg-gray-100 dark:bg-gray-800",
                       )}>
-                      <span className='text-2xl'>
-                        {exercise.category === "cardio" ? "🏃" : "💪"}
-                      </span>
+                      {exercise.category === "cardio" ? (
+                        <Heart className={cn("w-6 h-6", hasData ? "text-ios-green" : "text-gray-500 dark:text-gray-400")} />
+                      ) : (
+                        <Dumbbell className={cn("w-6 h-6", hasData ? "text-ios-green" : "text-gray-500 dark:text-gray-400")} />
+                      )}
                     </div>
                     <div className='flex-1 text-left'>
                       <span
@@ -729,12 +732,13 @@ export default function WorkoutPage() {
                       setNewExerciseTrackDuration(false);
                     }}
                     className={cn(
-                      "flex-1 py-3 rounded-xl text-[15px] font-medium transition-all",
+                      "flex-1 py-3 rounded-xl text-[15px] font-medium transition-all flex items-center justify-center gap-2",
                       newExerciseCategory === "strength"
                         ? "bg-ios-blue text-white"
                         : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
                     )}>
-                    💪 Strength
+                    <Dumbbell className="w-5 h-5" />
+                    Strength
                   </button>
                   <button
                     onClick={() => {
@@ -745,12 +749,13 @@ export default function WorkoutPage() {
                       setNewExerciseTrackDuration(true);
                     }}
                     className={cn(
-                      "flex-1 py-3 rounded-xl text-[15px] font-medium transition-all",
+                      "flex-1 py-3 rounded-xl text-[15px] font-medium transition-all flex items-center justify-center gap-2",
                       newExerciseCategory === "cardio"
                         ? "bg-ios-blue text-white"
                         : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
                     )}>
-                    🏃 Cardio
+                    <Heart className="w-5 h-5" />
+                    Cardio
                   </button>
                 </div>
               </div>
@@ -987,9 +992,11 @@ export default function WorkoutPage() {
                             ? "bg-ios-blue/10 border-2 border-ios-blue"
                             : "bg-gray-100 dark:bg-gray-800 border-2 border-transparent",
                         )}>
-                        <span className='text-xl'>
-                          {ex.category === "cardio" ? "🏃" : "💪"}
-                        </span>
+                        {ex.category === "cardio" ? (
+                          <Heart className="w-5 h-5 text-gray-500" />
+                        ) : (
+                          <Dumbbell className="w-5 h-5 text-gray-500" />
+                        )}
                         <span className='text-[15px] font-medium text-gray-900 dark:text-white flex-1'>
                           {ex.name}
                         </span>
