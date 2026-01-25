@@ -20,7 +20,9 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("system");
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark" | "colorful">("light");
+  const [resolvedTheme, setResolvedTheme] = useState<
+    "light" | "dark" | "colorful"
+  >("light");
 
   // Load saved theme on mount
   useEffect(() => {
@@ -47,7 +49,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
       // Remove all theme classes first
       document.documentElement.classList.remove("dark", "colorful");
-      
+
       // Apply the appropriate class
       if (resolved === "dark") {
         document.documentElement.classList.add("dark");
