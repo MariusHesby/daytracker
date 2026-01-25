@@ -77,10 +77,10 @@
 /* Colorful Theme - Bright, playful, child-friendly */
 .colorful {
   /* Bright white/light background */
-  /* Rainbow gradient background */
-  --ios-bg: linear-gradient(180deg, #fef3c7 0%, #fce7f3 50%, #ddd6fe 100%);
-  --ios-bg-secondary: #fef9c3;
-  --ios-bg-tertiary: #fbcfe8;
+  /* Rainbow gradient background - slightly darker for contrast */
+  --ios-bg: linear-gradient(180deg, #fde047 0%, #f9a8d4 50%, #c4b5fd 100%);
+  --ios-bg-secondary: #fde047;
+  --ios-bg-tertiary: #f9a8d4;
   
   /* Card backgrounds - soft rainbow tints */
   --ios-card: #ffffff;
@@ -107,19 +107,19 @@
   --gradient-start: #f472b6;
   --gradient-end: #38bdf8;
   
-  --background: #fef3c7;
+  --background: #fde047;
   --foreground: var(--ios-label);
 }
 
 /* SUPER COLORFUL theme - rainbow candy land! */
 
-/* Main background - rainbow gradient */
+/* Main background - rainbow gradient (darker/more saturated) */
 .colorful {
-  background: linear-gradient(180deg, #fef3c7 0%, #fce7f3 35%, #e0e7ff 65%, #ccfbf1 100%) !important;
+  background: linear-gradient(180deg, #fde047 0%, #f9a8d4 35%, #c4b5fd 65%, #5eead4 100%) !important;
 }
 
 .colorful body {
-  background: linear-gradient(180deg, #fef3c7 0%, #fce7f3 35%, #e0e7ff 65%, #ccfbf1 100%) !important;
+  background: linear-gradient(180deg, #fde047 0%, #f9a8d4 35%, #c4b5fd 65%, #5eead4 100%) !important;
 }
 
 /* White cards with rainbow borders */
@@ -219,10 +219,10 @@
   box-shadow: 0 0 0 2px #c4b5fd, 0 8px 24px rgba(196, 181, 253, 0.25) !important;
 }
 
-/* Tab bar - rainbow gradient */
+/* Tab bar - rainbow gradient (darker) */
 .colorful .dark\:bg-\[\#2b2930\] {
-  background: linear-gradient(90deg, #fef3c7, #fce7f3, #e0e7ff, #ccfbf1) !important;
-  border-top: 2px solid #f9a8d4 !important;
+  background: linear-gradient(90deg, #fde047, #f9a8d4, #c4b5fd, #5eead4) !important;
+  border-top: 2px solid #ec4899 !important;
 }
 
 /* Super bright checkmarks */
