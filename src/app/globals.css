@@ -77,139 +77,209 @@
 /* Colorful Theme - Bright, playful, child-friendly */
 .colorful {
   /* Bright white/light background */
-  --ios-bg: #ffffff;
-  --ios-bg-secondary: #f0f9ff;
-  --ios-bg-tertiary: #e0f2fe;
+  /* Rainbow gradient background */
+  --ios-bg: linear-gradient(180deg, #fef3c7 0%, #fce7f3 50%, #ddd6fe 100%);
+  --ios-bg-secondary: #fef9c3;
+  --ios-bg-tertiary: #fbcfe8;
   
-  /* Card background - pure white */
+  /* Card backgrounds - soft rainbow tints */
   --ios-card: #ffffff;
   
-  /* Dark text for maximum contrast */
-  --ios-label: #1e293b;
-  --ios-label-secondary: #475569;
-  --ios-label-tertiary: #64748b;
+  /* Dark text for contrast */
+  --ios-label: #1e1b4b;
+  --ios-label-secondary: #4c1d95;
+  --ios-label-tertiary: #6b21a8;
   
-  /* Bright, saturated candy colors */
-  --ios-blue: #2563eb;
-  --ios-green: #16a34a;
-  --ios-red: #dc2626;
-  --ios-orange: #ea580c;
-  --ios-yellow: #ca8a04;
-  --ios-teal: #0891b2;
-  --ios-purple: #9333ea;
+  /* SUPER bright candy colors */
+  --ios-blue: #3b82f6;
+  --ios-green: #22c55e;
+  --ios-red: #ef4444;
+  --ios-orange: #f97316;
+  --ios-yellow: #eab308;
+  --ios-teal: #14b8a6;
+  --ios-purple: #a855f7;
   
-  /* Light separators */
-  --ios-separator: rgba(0, 0, 0, 0.08);
-  --ios-separator-opaque: #e2e8f0;
+  /* Colorful separators */
+  --ios-separator: rgba(168, 85, 247, 0.2);
+  --ios-separator-opaque: #e9d5ff;
   
-  /* Fun gradient */
+  /* Rainbow gradient */
   --gradient-start: #f472b6;
-  --gradient-end: #a855f7;
+  --gradient-end: #38bdf8;
   
-  --background: var(--ios-bg);
+  --background: #fef3c7;
   --foreground: var(--ios-label);
 }
 
-/* Colorful theme specific styles - bright and fun */
+/* SUPER COLORFUL theme - rainbow candy land! */
+
+/* Main background - rainbow gradient */
+.colorful {
+  background: linear-gradient(180deg, #fef3c7 0%, #fce7f3 35%, #e0e7ff 65%, #ccfbf1 100%) !important;
+}
+
+.colorful body {
+  background: linear-gradient(180deg, #fef3c7 0%, #fce7f3 35%, #e0e7ff 65%, #ccfbf1 100%) !important;
+}
+
+/* White cards with rainbow borders */
 .colorful .bg-white {
   background-color: #ffffff !important;
+  box-shadow: 0 0 0 2px #f9a8d4, 0 4px 12px rgba(249, 168, 212, 0.3) !important;
 }
 
 .colorful .bg-white\/80 {
   background-color: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 0 0 2px #c4b5fd !important;
 }
 
+/* Colorful text */
 .colorful .text-gray-900 {
-  color: #1e293b !important;
+  color: #4c1d95 !important;
 }
 
 .colorful .text-gray-600 {
-  color: #475569 !important;
+  color: #7c3aed !important;
 }
 
 .colorful .text-gray-500 {
-  color: #64748b !important;
+  color: #8b5cf6 !important;
 }
 
 .colorful .text-gray-400 {
-  color: #94a3b8 !important;
+  color: #a78bfa !important;
 }
 
+/* Candy colored backgrounds */
 .colorful .bg-gray-50 {
-  background-color: #fdf4ff !important;
+  background: linear-gradient(135deg, #fef9c3, #fce7f3) !important;
 }
 
 .colorful .bg-gray-100 {
-  background-color: #fae8ff !important;
+  background: linear-gradient(135deg, #fbcfe8, #ddd6fe) !important;
 }
 
 .colorful .bg-gray-800 {
-  background-color: #f5d0fe !important;
+  background: linear-gradient(135deg, #c4b5fd, #f9a8d4) !important;
 }
 
+/* Rainbow borders */
 .colorful .border-gray-200 {
-  border-color: #e9d5ff !important;
+  border-color: #f9a8d4 !important;
 }
 
 .colorful .border-gray-200\/80 {
-  border-color: #f3e8ff !important;
+  border-color: #c4b5fd !important;
 }
 
 .colorful .border-gray-700 {
-  border-color: #d8b4fe !important;
+  border-color: #f472b6 !important;
 }
 
 .colorful .border-gray-700\/80 {
-  border-color: #e9d5ff !important;
+  border-color: #a78bfa !important;
 }
 
 .colorful .border-gray-800 {
-  border-color: #e9d5ff !important;
+  border-color: #818cf8 !important;
 }
 
-/* Colorful theme accent highlights */
+/* Rainbow gradient buttons */
 .colorful .bg-ios-blue {
-  background: linear-gradient(135deg, #ec4899, #8b5cf6) !important;
+  background: linear-gradient(135deg, #f472b6 0%, #818cf8 50%, #38bdf8 100%) !important;
 }
 
 .colorful .text-ios-blue {
-  color: #9333ea !important;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
 }
 
 .colorful .ring-ios-blue {
-  --tw-ring-color: #a855f7 !important;
+  --tw-ring-color: #f472b6 !important;
 }
 
 .colorful .from-ios-blue {
-  --tw-gradient-from: #ec4899 !important;
+  --tw-gradient-from: #f472b6 !important;
 }
 
 .colorful .to-blue-600 {
-  --tw-gradient-to: #8b5cf6 !important;
+  --tw-gradient-to: #38bdf8 !important;
 }
 
-/* Cards get colorful borders */
+/* Cards with colorful glow */
 .colorful .bg-ios-card-dark {
   background-color: #ffffff !important;
-  border: 2px solid #e9d5ff !important;
+  box-shadow: 0 0 0 2px #f9a8d4, 0 8px 24px rgba(249, 168, 212, 0.25) !important;
 }
 
 .colorful .dark\:bg-ios-card-dark {
   background-color: #ffffff !important;
+  box-shadow: 0 0 0 2px #c4b5fd, 0 8px 24px rgba(196, 181, 253, 0.25) !important;
 }
 
-/* Tab bar */
+/* Tab bar - rainbow gradient */
 .colorful .dark\:bg-\[\#2b2930\] {
-  background-color: #fdf4ff !important;
+  background: linear-gradient(90deg, #fef3c7, #fce7f3, #e0e7ff, #ccfbf1) !important;
+  border-top: 2px solid #f9a8d4 !important;
 }
 
-/* Fun colored checkmarks */
+/* Super bright checkmarks */
 .colorful .text-ios-green {
-  color: #16a34a !important;
+  color: #22c55e !important;
+  text-shadow: 0 0 8px rgba(34, 197, 94, 0.5) !important;
 }
 
 .colorful .bg-ios-green\/10 {
-  background-color: rgba(22, 163, 74, 0.15) !important;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(52, 211, 153, 0.2)) !important;
+}
+
+/* Colorful inputs */
+.colorful input,
+.colorful textarea,
+.colorful select {
+  background-color: #fffbeb !important;
+  border-color: #fcd34d !important;
+}
+
+.colorful input:focus,
+.colorful textarea:focus,
+.colorful select:focus {
+  border-color: #f472b6 !important;
+  box-shadow: 0 0 0 3px rgba(244, 114, 182, 0.3) !important;
+}
+
+/* Fun hover effects */
+.colorful button:hover {
+  transform: scale(1.02);
+  transition: transform 0.2s ease;
+}
+
+/* Activity type colors - make them pop! */
+.colorful .text-ios-red {
+  color: #ef4444 !important;
+  text-shadow: 0 0 6px rgba(239, 68, 68, 0.4) !important;
+}
+
+.colorful .text-ios-orange {
+  color: #f97316 !important;
+  text-shadow: 0 0 6px rgba(249, 115, 22, 0.4) !important;
+}
+
+.colorful .text-ios-yellow {
+  color: #eab308 !important;
+  text-shadow: 0 0 6px rgba(234, 179, 8, 0.4) !important;
+}
+
+.colorful .text-ios-teal {
+  color: #14b8a6 !important;
+  text-shadow: 0 0 6px rgba(20, 184, 166, 0.4) !important;
+}
+
+.colorful .text-ios-purple {
+  color: #a855f7 !important;
+  text-shadow: 0 0 6px rgba(168, 85, 247, 0.4) !important;
 }
 
 @theme inline {
