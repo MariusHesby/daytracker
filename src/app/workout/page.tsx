@@ -477,7 +477,10 @@ export default function WorkoutPage() {
               return (
                 <div
                   key={exercise.name}
-                  className='bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden shadow-sm'>
+                  className={cn(
+                    'bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden shadow-sm transition-all',
+                    isExpanded && 'ring-2 ring-ios-blue ring-offset-2 ring-offset-gray-50 dark:ring-offset-black'
+                  )}>
                   {/* Exercise Header */}
                   <button
                     onClick={() => toggleExercise(exercise.name)}
