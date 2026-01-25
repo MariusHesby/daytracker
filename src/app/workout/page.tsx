@@ -684,7 +684,7 @@ export default function WorkoutPage() {
             className='absolute inset-0 bg-black/50'
             onClick={() => setShowAddExercise(false)}
           />
-          <div className='relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-10 animate-slide-up'>
+          <div className='relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-24 animate-slide-up'>
             <div className='flex items-center justify-between mb-6'>
               <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
                 Add Exercise
@@ -819,7 +819,7 @@ export default function WorkoutPage() {
             className='absolute inset-0 bg-black/50'
             onClick={() => setShowManageRoutines(false)}
           />
-          <div className='relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-10 animate-slide-up max-h-[80vh] overflow-y-auto'>
+          <div className='relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-24 animate-slide-up max-h-[80vh] overflow-y-auto'>
             <div className='flex items-center justify-between mb-6'>
               <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
                 Workout Groups
@@ -901,7 +901,7 @@ export default function WorkoutPage() {
               setSelectedExercisesForRoutine([]);
             }}
           />
-          <div className='relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-10 animate-slide-up max-h-[85vh] overflow-y-auto'>
+          <div className='relative w-full max-w-lg bg-white dark:bg-ios-card-dark rounded-t-3xl p-6 pb-24 animate-slide-up max-h-[85vh] overflow-y-auto'>
             <div className='flex items-center justify-between mb-6'>
               <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
                 {editingRoutine ? "Edit Group" : "Create Group"}
