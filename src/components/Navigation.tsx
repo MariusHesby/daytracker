@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Log", icon: "📝" },
-  { href: "/workout", label: "Workout", icon: "💪" },
   { href: "/movies-tv", label: "Movies", icon: "🎬" },
+  { href: "/workout", label: "Workout", icon: "💪" },
   { href: "/stats", label: "Stats", icon: "📊" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
 ];
@@ -30,12 +30,12 @@ export function Navigation() {
                   "flex flex-col items-center gap-0.5 px-6 py-3 rounded-2xl transition-all",
                   isActive
                     ? "bg-purple-100 dark:bg-purple-900/50"
-                    : "hover:bg-gray-100 dark:hover:bg-gray-800/50"
+                    : "hover:bg-gray-100 dark:hover:bg-gray-800/50",
                 )}>
                 <span
                   className={cn(
                     "text-2xl transition-transform",
-                    isActive && "scale-110"
+                    isActive && "scale-110",
                   )}>
                   {item.icon}
                 </span>
@@ -44,7 +44,7 @@ export function Navigation() {
                     "text-xs font-medium",
                     isActive
                       ? "text-purple-700 dark:text-purple-300"
-                      : "text-gray-600 dark:text-gray-400"
+                      : "text-gray-600 dark:text-gray-400",
                   )}>
                   {item.label}
                 </span>

@@ -571,9 +571,28 @@ export default function SettingsPage() {
             <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
               <a
                 href='/admin'
-                className='w-full px-4 py-3 min-h-[44px] flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
+                className='w-full px-4 py-3 min-h-[44px] flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700 border-b border-gray-200 dark:border-gray-700'>
                 <span className='text-[17px] text-gray-900 dark:text-white'>
                   Admin Dashboard
+                </span>
+                <svg
+                  className='w-5 h-5 text-gray-400'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  strokeWidth={2}
+                  stroke='currentColor'>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M8.25 4.5l7.5 7.5-7.5 7.5'
+                  />
+                </svg>
+              </a>
+              <a
+                href='/friends'
+                className='w-full px-4 py-3 min-h-[44px] flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
+                <span className='text-[17px] text-gray-900 dark:text-white'>
+                  👥 Friends
                 </span>
                 <svg
                   className='w-5 h-5 text-gray-400'
