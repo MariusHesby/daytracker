@@ -451,7 +451,7 @@ export default function FriendsPage() {
           </h1>
           <button
             onClick={() => setShowSendRequest(true)}
-            className='px-4 py-2 bg-ios-blue text-white rounded-lg text-sm font-medium'>
+            className='px-4 py-2.5 bg-ios-blue text-white rounded-full text-[14px] font-medium shadow-lg shadow-ios-blue/30'>
             + {t("friends.addFriend")}
           </button>
         </div>
@@ -485,9 +485,9 @@ export default function FriendsPage() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={cn(
-                "flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                "flex-1 px-3 py-2.5 rounded-full text-[14px] font-medium transition-colors",
                 activeTab === tab.id
-                  ? "bg-ios-blue text-white"
+                  ? "bg-ios-blue text-white shadow-lg shadow-ios-blue/30"
                   : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300",
               )}>
               {tab.label}
@@ -688,12 +688,12 @@ export default function FriendsPage() {
                             setSelectedActivityTypes([]);
                             setShowAcceptModal(true);
                           }}
-                          className='px-3 py-1.5 bg-ios-blue text-white rounded-lg text-sm'>
+                          className='px-3 py-1.5 bg-ios-blue text-white rounded-full text-[13px] font-medium shadow-md shadow-ios-blue/30'>
                           {t("friends.accept")}
                         </button>
                         <button
                           onClick={() => handleRejectRequest(req.id)}
-                          className='px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm'>
+                          className='px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-[13px] font-medium'>
                           {t("friends.reject")}
                         </button>
                       </div>
@@ -906,7 +906,7 @@ export default function FriendsPage() {
                   </div>
                   <button
                     onClick={() => handleSendRequestToUser(result)}
-                    className='px-3 py-1.5 bg-ios-blue text-white rounded-lg text-sm font-medium'>
+                    className='px-3 py-1.5 bg-ios-blue text-white rounded-full text-[13px] font-medium shadow-md shadow-ios-blue/30'>
                     {t("friends.send")}
                   </button>
                 </div>
@@ -945,7 +945,7 @@ export default function FriendsPage() {
           <button
             onClick={() => handleSendRequest()}
             disabled={!requestEmail.trim()}
-            className='w-full px-4 py-3 bg-ios-blue text-white rounded-lg font-medium disabled:opacity-50'>
+            className='w-full py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium shadow-lg shadow-ios-blue/30 disabled:opacity-50 disabled:shadow-none'>
             {t("friends.send")}
           </button>
         </div>
@@ -997,7 +997,7 @@ export default function FriendsPage() {
           <button
             onClick={handleAcceptRequest}
             disabled={selectedActivityTypes.length === 0}
-            className='w-full px-4 py-3 bg-ios-blue text-white rounded-lg font-medium disabled:opacity-50'>
+            className='w-full py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium shadow-lg shadow-ios-blue/30 disabled:opacity-50 disabled:shadow-none'>
             {t("friends.acceptAndShare")}
           </button>
         </div>
@@ -1048,7 +1048,7 @@ export default function FriendsPage() {
           </div>
           <button
             onClick={handleUpdateShare}
-            className='w-full px-4 py-3 bg-ios-blue text-white rounded-lg font-medium'>
+            className='w-full py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium shadow-lg shadow-ios-blue/30'>
             {t("friends.saveChanges")}
           </button>
         </div>
@@ -1079,12 +1079,12 @@ export default function FriendsPage() {
                 setShowRemoveConfirm(false);
                 setUserToRemove(null);
               }}
-              className='flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg font-medium'>
+              className='flex-1 py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-[14px] font-medium'>
               {t("common.cancel") || "Cancel"}
             </button>
             <button
               onClick={handleRemoveFriend}
-              className='flex-1 px-4 py-3 bg-red-500 text-white rounded-lg font-medium'>
+              className='flex-1 py-2.5 rounded-full bg-red-500 text-white text-[14px] font-medium shadow-lg shadow-red-500/30'>
               {t("common.remove") || "Remove"}
             </button>
           </div>

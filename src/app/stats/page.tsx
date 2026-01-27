@@ -922,7 +922,7 @@ export default function StatsPage() {
           </div>
           <button
             onClick={() => setViewingUser(null)}
-            className='px-3 py-1.5 bg-white/20 rounded-lg text-sm font-medium hover:bg-white/30 transition-colors'>
+            className='px-3 py-1.5 bg-white/20 rounded-full text-[13px] font-medium hover:bg-white/30 transition-colors'>
             Back to my data
           </button>
         </div>

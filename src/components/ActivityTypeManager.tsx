@@ -136,7 +136,7 @@ export const ActivityTypeManager = forwardRef<
     // Check if exercise already exists in custom exercises only
     // (Built-in exercises are already available, so selecting one from dropdown is just for customizing tracking options)
     const existsInCustom = customExercises.some(
-      (e) => e.name.toLowerCase() === newExerciseName.trim().toLowerCase()
+      (e) => e.name.toLowerCase() === newExerciseName.trim().toLowerCase(),
     );
 
     if (existsInCustom) {
@@ -178,7 +178,8 @@ export const ActivityTypeManager = forwardRef<
     // Check for duplicate name (case-insensitive)
     const nameExists = activityTypes.some(
       (t) =>
-        t.name.toLowerCase() === name.trim().toLowerCase() && t.id !== editingId
+        t.name.toLowerCase() === name.trim().toLowerCase() &&
+        t.id !== editingId,
     );
 
     if (nameExists) {
@@ -233,7 +234,7 @@ export const ActivityTypeManager = forwardRef<
   const handleDelete = async (id: string) => {
     if (
       confirm(
-        "Delete this activity type? Existing entries will not be deleted."
+        "Delete this activity type? Existing entries will not be deleted.",
       )
     ) {
       await deleteActivityType(id);
@@ -330,7 +331,7 @@ export const ActivityTypeManager = forwardRef<
                 "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white",
                 "focus:outline-none focus:ring-2 focus:ring-ios-blue",
                 "placeholder:text-gray-400",
-                error && "ring-2 ring-ios-red"
+                error && "ring-2 ring-ios-red",
               )}
             />
             {error && (
@@ -348,7 +349,7 @@ export const ActivityTypeManager = forwardRef<
               className={cn(
                 "w-full px-3 py-2.5 rounded-lg text-[17px]",
                 "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white",
-                "flex items-center justify-center gap-2"
+                "flex items-center justify-center gap-2",
               )}>
               {renderIcon(icon)}
               <span className='text-[15px] text-gray-500'>Select icon</span>
@@ -382,7 +383,7 @@ export const ActivityTypeManager = forwardRef<
                 "w-full px-3 py-2.5 rounded-lg text-[17px] text-left",
                 "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white",
                 "focus:outline-none focus:ring-2 focus:ring-ios-blue",
-                "flex items-center justify-between"
+                "flex items-center justify-between",
               )}>
               <span>
                 {VALUE_TYPE_OPTIONS.find((o) => o.value === valueType)?.label ||
@@ -391,7 +392,7 @@ export const ActivityTypeManager = forwardRef<
               <svg
                 className={cn(
                   "w-5 h-5 text-gray-400 transition-transform",
-                  showValueTypePicker && "rotate-180"
+                  showValueTypePicker && "rotate-180",
                 )}
                 fill='none'
                 stroke='currentColor'
@@ -418,7 +419,7 @@ export const ActivityTypeManager = forwardRef<
                     className={cn(
                       "w-full px-4 py-3 text-left flex items-center justify-between",
                       "hover:bg-gray-50 dark:hover:bg-gray-700/50",
-                      valueType === option.value && "bg-ios-blue/10"
+                      valueType === option.value && "bg-ios-blue/10",
                     )}>
                     <div>
                       <p className='text-[17px] text-gray-900 dark:text-white'>
@@ -580,12 +581,12 @@ export const ActivityTypeManager = forwardRef<
                           (ex) =>
                             !customExercises.some(
                               (ce) =>
-                                ce.name.toLowerCase() === ex.name.toLowerCase()
+                                ce.name.toLowerCase() === ex.name.toLowerCase(),
                             ) &&
                             (newExerciseName === "" ||
                               ex.name
                                 .toLowerCase()
-                                .includes(newExerciseName.toLowerCase()))
+                                .includes(newExerciseName.toLowerCase())),
                         ).map((exercise) => (
                           <button
                             key={exercise.name}
@@ -595,16 +596,16 @@ export const ActivityTypeManager = forwardRef<
                               setNewExerciseName(exercise.name);
                               setNewExerciseCategory(exercise.category);
                               setNewExerciseTrackWeight(
-                                exercise.trackWeight || false
+                                exercise.trackWeight || false,
                               );
                               setNewExerciseTrackReps(
-                                exercise.trackReps || false
+                                exercise.trackReps || false,
                               );
                               setNewExerciseTrackDistance(
-                                exercise.trackDistance || false
+                                exercise.trackDistance || false,
                               );
                               setNewExerciseTrackDuration(
-                                exercise.trackDuration || false
+                                exercise.trackDuration || false,
                               );
                               setShowExerciseDropdown(false);
                             }}
@@ -621,12 +622,12 @@ export const ActivityTypeManager = forwardRef<
                           (ex) =>
                             !customExercises.some(
                               (ce) =>
-                                ce.name.toLowerCase() === ex.name.toLowerCase()
+                                ce.name.toLowerCase() === ex.name.toLowerCase(),
                             ) &&
                             (newExerciseName === "" ||
                               ex.name
                                 .toLowerCase()
-                                .includes(newExerciseName.toLowerCase()))
+                                .includes(newExerciseName.toLowerCase())),
                         ).length === 0 &&
                           newExerciseName.trim() && (
                             <div className='px-3 py-2 text-[13px] text-gray-500'>
@@ -659,7 +660,7 @@ export const ActivityTypeManager = forwardRef<
                             "flex-1 py-1.5 rounded-lg text-[12px] capitalize",
                             newExerciseCategory === cat
                               ? "bg-ios-blue text-white"
-                              : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                              : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300",
                           )}>
                           {cat}
                         </button>
@@ -682,7 +683,7 @@ export const ActivityTypeManager = forwardRef<
                           "px-3 py-1.5 rounded-lg text-[13px]",
                           newExerciseTrackWeight
                             ? "bg-ios-blue text-white"
-                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300",
                         )}>
                         Weight (kg)
                       </button>
@@ -695,7 +696,7 @@ export const ActivityTypeManager = forwardRef<
                           "px-3 py-1.5 rounded-lg text-[13px]",
                           newExerciseTrackReps
                             ? "bg-ios-blue text-white"
-                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300",
                         )}>
                         Sets/Reps
                       </button>
@@ -708,7 +709,7 @@ export const ActivityTypeManager = forwardRef<
                           "px-3 py-1.5 rounded-lg text-[13px]",
                           newExerciseTrackDistance
                             ? "bg-ios-blue text-white"
-                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300",
                         )}>
                         Distance (km)
                       </button>
@@ -721,7 +722,7 @@ export const ActivityTypeManager = forwardRef<
                           "px-3 py-1.5 rounded-lg text-[13px]",
                           newExerciseTrackDuration
                             ? "bg-ios-blue text-white"
-                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300"
+                            : "bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300",
                         )}>
                         Duration (min)
                       </button>
@@ -733,13 +734,13 @@ export const ActivityTypeManager = forwardRef<
                       type='button'
                       onClick={handleAddExercise}
                       disabled={!newExerciseName.trim()}
-                      className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-ios-blue text-white disabled:opacity-50'>
+                      className='flex-1 py-2.5 rounded-full text-[14px] font-medium bg-ios-blue text-white shadow-lg shadow-ios-blue/30 disabled:opacity-50'>
                       Add
                     </button>
                     <button
                       type='button'
                       onClick={() => setShowAddExercise(false)}
-                      className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'>
+                      className='flex-1 py-2.5 rounded-full text-[14px] font-medium bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'>
                       Cancel
                     </button>
                   </div>
@@ -813,13 +814,13 @@ export const ActivityTypeManager = forwardRef<
           <div className='flex gap-2 pt-2'>
             <button
               type='submit'
-              className='flex-1 py-2.5 rounded-lg text-[17px] font-medium bg-ios-blue text-white'>
+              className='flex-1 py-2.5 rounded-full text-[15px] font-medium bg-ios-blue text-white shadow-lg shadow-ios-blue/30'>
               {editingId ? "Update" : "Add"}
             </button>
             <button
               type='button'
               onClick={resetForm}
-              className='flex-1 py-2.5 rounded-lg text-[17px] font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'>
+              className='flex-1 py-2.5 rounded-full text-[15px] font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'>
               Cancel
             </button>
           </div>
@@ -847,7 +848,7 @@ export const ActivityTypeManager = forwardRef<
                 "flex items-center min-h-[56px] px-4",
                 "cursor-grab active:cursor-grabbing",
                 isDragging && "opacity-50",
-                isDragOver && "bg-ios-blue/10"
+                isDragOver && "bg-ios-blue/10",
               )}>
               {/* Drag handle */}
               <div className='text-gray-400 dark:text-gray-500 mr-3'>
@@ -869,7 +870,7 @@ export const ActivityTypeManager = forwardRef<
                 className={cn(
                   "flex-1 py-3 flex items-center justify-between",
                   !isLast &&
-                    "border-b border-gray-200/80 dark:border-gray-700/80"
+                    "border-b border-gray-200/80 dark:border-gray-700/80",
                 )}>
                 <div className='flex-1 min-w-0'>
                   <p
@@ -877,7 +878,7 @@ export const ActivityTypeManager = forwardRef<
                       "text-[17px]",
                       type.hidden
                         ? "text-gray-400 dark:text-gray-500"
-                        : "text-gray-900 dark:text-white"
+                        : "text-gray-900 dark:text-white",
                     )}>
                     {type.name}
                   </p>
@@ -911,7 +912,7 @@ export const ActivityTypeManager = forwardRef<
                     onClick={() => toggleActivityTypeHidden(type.id)}
                     className={cn(
                       "p-2 rounded-lg",
-                      type.hidden ? "text-gray-400" : "text-ios-orange"
+                      type.hidden ? "text-gray-400" : "text-ios-orange",
                     )}
                     title={type.hidden ? "Show" : "Hide"}>
                     {type.hidden ? (

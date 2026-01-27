@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import {
   ActivityType,
@@ -63,6 +64,7 @@ export function EntryForm({
     isDayLocked,
     toggleDayLock,
   } = useApp();
+  const router = useRouter();
   const [expandedTypeId, setExpandedTypeIdState] = useState<string | null>(
     () => {
       if (typeof window !== "undefined") {
@@ -855,7 +857,7 @@ export function EntryForm({
                       handleSaveValue(type.id, customValue.trim());
                       setShowTextDropdown(false);
                     }}
-                    className='px-4 py-2 rounded-lg bg-ios-blue text-white text-[17px] font-medium'>
+                    className='px-5 py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium shadow-lg shadow-ios-blue/30'>
                     Add
                   </button>
                 )}
@@ -1339,7 +1341,7 @@ export function EntryForm({
                   <button
                     onClick={() => handleSaveNutrition(type.id)}
                     disabled={!nutritionInput.foodName.trim()}
-                    className='w-full py-2.5 rounded-lg text-[17px] font-medium bg-ios-blue text-white disabled:opacity-50 disabled:cursor-not-allowed'>
+                    className='w-full py-2.5 rounded-full text-[14px] font-medium bg-ios-blue text-white shadow-lg shadow-ios-blue/30 disabled:opacity-50 disabled:cursor-not-allowed'>
                     Add Food
                   </button>
                 </div>
@@ -1351,884 +1353,130 @@ export function EntryForm({
 
       case "workout": {
         const typeEntries = savedValues[type.id] || [];
-        // Get all saved exercises from workout entries for today
-        const savedExercises: WorkoutExercise[] = [];
+
+        // Group exercises by entry ID to show separate workouts (use Set to avoid duplicates)
+        const seenEntryIds = new Set<string>();
+        const workoutEntries: Array<{
+          entryId: string;
+          exercises: WorkoutExercise[];
+        }> = [];
+        let quickCheckEntryId: string | null = null;
+
         typeEntries.forEach((saved) => {
+          // Skip if we've already processed this entry
+          if (seenEntryIds.has(saved.id)) return;
+          seenEntryIds.add(saved.id);
+
           const entry = entries.find((e) => e.id === saved.id);
-          if (entry?.workoutData?.exercises) {
-            savedExercises.push(...entry.workoutData.exercises);
-          }
-        });
-
-        const hasSavedWorkout = savedExercises.length > 0;
-
-        // Use only custom exercises from activity type settings
-        const customExercises = type.customExercises || [];
-
-        // Find last used values for an exercise from history (previous days)
-        // Checks both saved database entries AND localStorage from recent days
-        const getLastUsedValues = (exerciseName: string) => {
-          // First check localStorage from previous days (for unsaved/unlocked data)
-          if (typeof window !== "undefined") {
-            // Check last 30 days of localStorage
-            for (let i = 1; i <= 30; i++) {
-              const prevDate = new Date(date);
-              prevDate.setDate(prevDate.getDate() - i);
-              const prevDateStr = prevDate.toISOString().split("T")[0];
-              const savedData = localStorage.getItem(
-                `workout-data-${prevDateStr}`,
-              );
-              if (savedData) {
-                try {
-                  const workoutData = JSON.parse(savedData) as Record<
-                    string,
-                    Array<{
-                      reps?: number;
-                      weight?: number;
-                      distance?: number;
-                      duration?: number;
-                    }>
-                  >;
-                  const exerciseData = workoutData[exerciseName];
-                  if (exerciseData && exerciseData.length > 0) {
-                    // Check if any set has actual data
-                    const validSets = exerciseData.filter(
-                      (set) =>
-                        set.reps || set.weight || set.distance || set.duration,
-                    );
-                    if (validSets.length > 0) {
-                      return {
-                        sets: validSets.length,
-                        reps: validSets[0].reps,
-                        weight: validSets[0].weight,
-                        distance: validSets[0].distance,
-                        duration: validSets[0].duration,
-                        setsData: validSets,
-                      };
-                    }
-                  }
-                } catch (e) {
-                  // Invalid JSON, skip
-                }
-              }
-            }
-          }
-
-          // Fall back to saved database entries
-          const sortedEntries = [...workoutHistoryEntries].sort((a, b) =>
-            b.date.localeCompare(a.date),
-          );
-
-          for (const entry of sortedEntries) {
-            if (entry.workoutData?.exercises) {
-              const found = entry.workoutData.exercises.find(
-                (ex) => ex.name.toLowerCase() === exerciseName.toLowerCase(),
-              );
-              if (found) {
-                return {
-                  sets: found.sets || 1,
-                  reps: found.reps,
-                  weight: found.weight,
-                  distance: found.distance,
-                  duration: found.duration,
-                  setsData: found.setsData,
-                };
-              }
-            }
-          }
-          return { sets: 1 };
-        };
-
-        // Get placeholder values for an exercise set (from last used data)
-        const getPlaceholderForSet = (
-          exerciseName: string,
-          setIndex: number,
-        ) => {
-          const lastUsed = getLastUsedValues(exerciseName);
-          if (lastUsed.setsData && lastUsed.setsData.length > setIndex) {
-            return lastUsed.setsData[setIndex];
-          } else if (lastUsed.setsData && lastUsed.setsData.length > 0) {
-            // Use last set's data for additional sets
-            return lastUsed.setsData[lastUsed.setsData.length - 1];
-          }
-          return {
-            reps: lastUsed.reps,
-            weight: lastUsed.weight,
-            distance: lastUsed.distance,
-            duration: lastUsed.duration,
-          };
-        };
-
-        // Toggle exercise expansion - no auto-save, only saves when day is locked
-        const toggleExercise = async (exerciseName: string) => {
-          const newExpanded = new Set(expandedExercises);
-          if (newExpanded.has(exerciseName)) {
-            // Just collapse, don't save - save happens when locking day
-            newExpanded.delete(exerciseName);
-            setExpandedExercises(newExpanded);
-          } else {
-            newExpanded.add(exerciseName);
-            // Initialize with empty sets if not already set (show placeholders instead of values)
-            if (!workoutData[exerciseName]) {
-              // Start with one empty set
-              setWorkoutData((prev) => ({
-                ...prev,
-                [exerciseName]: [{}],
-              }));
-            }
-            setExpandedExercises(newExpanded);
-          }
-        };
-
-        // Update a specific set's data for an exercise
-        const updateExerciseSet = (
-          exerciseName: string,
-          index: number,
-          field: string,
-          value: number | undefined,
-        ) => {
-          const sets = [...(workoutData[exerciseName] || [{}])];
-          sets[index] = { ...sets[index], [field]: value };
-          setWorkoutData((prev) => ({ ...prev, [exerciseName]: sets }));
-        };
-
-        // Add a new set to an exercise (empty, with placeholders)
-        const addExerciseSet = (exerciseName: string) => {
-          const sets = workoutData[exerciseName] || [{}];
-          // Add empty set - placeholder will show previous values
-          setWorkoutData((prev) => ({
-            ...prev,
-            [exerciseName]: [...sets, {}],
-          }));
-        };
-
-        // Remove a set from an exercise
-        const removeExerciseSet = (exerciseName: string, index: number) => {
-          const sets = workoutData[exerciseName] || [];
-          if (sets.length > 1) {
-            setWorkoutData((prev) => ({
-              ...prev,
-              [exerciseName]: sets.filter((_, i) => i !== index),
-            }));
-          }
-        };
-
-        // Check if exercise has data entered
-        const exerciseHasData = (exerciseName: string) => {
-          const sets = workoutData[exerciseName] || [];
-          return sets.some(
-            (set) => set.reps || set.weight || set.distance || set.duration,
-          );
-        };
-
-        // Get saved data for an exercise
-        const getSavedExercise = (exerciseName: string) => {
-          return savedExercises.find((ex) => ex.name === exerciseName);
-        };
-
-        // Start editing - load saved data into state
-        const startEditing = () => {
-          const newWorkoutData: typeof workoutData = {};
-          savedExercises.forEach((ex) => {
-            // Use stored setsData if available, otherwise recreate from aggregated values
-            if (ex.setsData && ex.setsData.length > 0) {
-              newWorkoutData[ex.name] = ex.setsData;
-            } else {
-              const numSets = ex.sets || 1;
-              newWorkoutData[ex.name] = Array.from({ length: numSets }, () => ({
-                reps: ex.reps,
-                weight: ex.weight,
-                distance: ex.distance,
-                duration: ex.duration,
-              }));
-            }
-          });
-          setWorkoutData(newWorkoutData);
-          setExpandedExercises(new Set(savedExercises.map((ex) => ex.name)));
-          setIsEditingWorkout(true);
-        };
-
-        // Check if any exercise has data
-        const hasAnyData = Object.keys(workoutData).some((name) =>
-          exerciseHasData(name),
-        );
-
-        // Show saved view or editing view
-        if (hasSavedWorkout && !isEditingWorkout) {
-          return (
-            <div className='pt-3 space-y-3'>
-              <div className='flex items-center justify-between mb-2'>
-                <p className='text-[13px] font-medium text-gray-500'>
-                  Today&apos;s workout ({savedExercises.length} exercise
-                  {savedExercises.length !== 1 ? "s" : ""})
-                </p>
-                <button
-                  onClick={startEditing}
-                  className='text-[15px] text-ios-blue font-medium'>
-                  Edit
-                </button>
-              </div>
-
-              {/* iOS-style grouped list */}
-              <div className='rounded-xl overflow-hidden bg-white dark:bg-gray-800'>
-                {savedExercises.map((exercise, exIndex) => {
-                  const config = customExercises.find(
-                    (e) => e.name === exercise.name,
-                  );
-                  const setsToShow =
-                    exercise.setsData ||
-                    (exercise.sets
-                      ? Array.from({ length: exercise.sets }, () => ({
-                          reps: exercise.reps,
-                          weight: exercise.weight,
-                          distance: exercise.distance,
-                          duration: exercise.duration,
-                        }))
-                      : [
-                          {
-                            reps: exercise.reps,
-                            weight: exercise.weight,
-                            distance: exercise.distance,
-                            duration: exercise.duration,
-                          },
-                        ]);
-
-                  return (
-                    <div key={exercise.id}>
-                      {/* Exercise name header */}
-                      <div
-                        className={cn(
-                          "px-4 py-2.5 bg-gray-100 dark:bg-gray-700",
-                          exIndex > 0 &&
-                            "border-t border-gray-200 dark:border-gray-600",
-                        )}>
-                        <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
-                          {exercise.name}
-                        </span>
-                      </div>
-
-                      {/* Individual sets */}
-                      <div className='divide-y divide-gray-100 dark:divide-gray-700'>
-                        {setsToShow.map((set, setIndex) => (
-                          <div
-                            key={setIndex}
-                            className='px-4 py-2.5 flex items-center justify-between'>
-                            <span className='text-[14px] text-gray-500 w-16'>
-                              Set {setIndex + 1}
-                            </span>
-                            <div className='flex items-center gap-4'>
-                              {set.reps && (
-                                <div className='flex items-center gap-1'>
-                                  <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
-                                    {set.reps}
-                                  </span>
-                                  <span className='text-[13px] text-gray-500'>
-                                    reps
-                                  </span>
-                                </div>
-                              )}
-                              {set.weight && (
-                                <div className='flex items-center gap-1'>
-                                  <span className='text-[15px] font-medium text-ios-blue'>
-                                    {set.weight}
-                                  </span>
-                                  <span className='text-[13px] text-gray-500'>
-                                    kg
-                                  </span>
-                                </div>
-                              )}
-                              {set.distance && (
-                                <div className='flex items-center gap-1'>
-                                  <span className='text-[15px] font-medium text-ios-orange'>
-                                    {set.distance}
-                                  </span>
-                                  <span className='text-[13px] text-gray-500'>
-                                    km
-                                  </span>
-                                </div>
-                              )}
-                              {set.duration && (
-                                <div className='flex items-center gap-1'>
-                                  <span className='text-[15px] font-medium text-purple-500'>
-                                    {set.duration}
-                                  </span>
-                                  <span className='text-[13px] text-gray-500'>
-                                    min
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        }
-
-        // Editing/Adding view - show all exercises
-        // Get available routines
-        const routines = type.workoutRoutines || [];
-
-        // Filter exercises based on selected routine
-        const exercisesToShow = selectedRoutineId
-          ? customExercises.filter((ex) => {
-              const routine = routines.find((r) => r.id === selectedRoutineId);
-              return routine?.exerciseNames.includes(ex.name);
-            })
-          : customExercises;
-
-        // Get all available exercises (custom + built-in) for routine creation
-        const getAllExercisesForRoutine = () => {
-          return customExercises;
-        };
-
-        // Toggle exercise in new routine
-        const toggleExerciseInNewRoutine = (exerciseName: string) => {
-          if (newRoutineExercises.includes(exerciseName)) {
-            setNewRoutineExercises(
-              newRoutineExercises.filter((n) => n !== exerciseName),
-            );
-          } else {
-            setNewRoutineExercises([...newRoutineExercises, exerciseName]);
-          }
-        };
-
-        // Handle adding/updating routine
-        const handleSaveRoutine = async () => {
-          if (!newRoutineName.trim() || newRoutineExercises.length === 0)
-            return;
-
-          const colorIndex = routines.length % ROUTINE_COLORS.length;
-          const newRoutine: WorkoutRoutine = {
-            id: editingRoutineId || Date.now().toString(),
-            name: newRoutineName.trim(),
-            exerciseNames: newRoutineExercises,
-            color: editingRoutineId
-              ? routines.find((r) => r.id === editingRoutineId)?.color ||
-                ROUTINE_COLORS[colorIndex]
-              : ROUTINE_COLORS[colorIndex],
-          };
-
-          let updatedRoutines: WorkoutRoutine[];
-          if (editingRoutineId) {
-            updatedRoutines = routines.map((r) =>
-              r.id === editingRoutineId ? newRoutine : r,
-            );
-          } else {
-            updatedRoutines = [...routines, newRoutine];
-          }
-
-          await updateActivityType({
-            ...type,
-            workoutRoutines: updatedRoutines,
-          });
-
-          setNewRoutineName("");
-          setNewRoutineExercises([]);
-          setShowAddRoutine(false);
-          setEditingRoutineId(null);
-        };
-
-        // Handle editing routine
-        const startEditRoutine = (routine: WorkoutRoutine) => {
-          setEditingRoutineId(routine.id);
-          setNewRoutineName(routine.name);
-          setNewRoutineExercises([...routine.exerciseNames]);
-          setShowAddRoutine(true);
-        };
-
-        // Handle deleting routine
-        const handleDeleteRoutine = async (routineId: string) => {
-          const updatedRoutines = routines.filter((r) => r.id !== routineId);
-          await updateActivityType({
-            ...type,
-            workoutRoutines: updatedRoutines,
-          });
-          if (selectedRoutineId === routineId) {
-            setSelectedRoutineId(null);
-          }
-        };
-
-        // Check if there's a quick-check entry (value === true, no workout data)
-        const hasQuickCheck = typeEntries.some((saved) => {
-          const entry = entries.find((e) => e.id === saved.id);
-          return saved.value === true && !entry?.workoutData?.exercises?.length;
-        });
-
-        // Toggle quick-check
-        const toggleQuickCheck = async () => {
-          if (hasQuickCheck) {
-            // Remove the quick-check entry
-            typeEntries.forEach((saved) => {
-              const entry = entries.find((e) => e.id === saved.id);
-              if (
-                saved.value === true &&
-                !entry?.workoutData?.exercises?.length
-              ) {
-                deleteEntry(saved.id);
-              }
+          if (entry?.workoutData?.exercises?.length) {
+            workoutEntries.push({
+              entryId: saved.id,
+              exercises: entry.workoutData.exercises,
             });
-          } else {
-            // Add a quick-check entry
-            handleSaveValue(type.id, true);
+          } else if (saved.value === true) {
+            // Track quick check separately - don't add to visible list
+            quickCheckEntryId = saved.id;
           }
-        };
+        });
+
+        const hasAnyWorkout = workoutEntries.length > 0;
+        const isQuickChecked = !!quickCheckEntryId;
 
         return (
-          <div className='pt-3 space-y-2'>
-            {/* Quick check option - for when user doesn't want to log full workout details */}
-            <div className='flex items-center justify-between px-1 mb-2'>
-              <span className='text-[13px] text-gray-500'>
-                Quick check (no details)
-              </span>
+          <div className='space-y-3'>
+            {/* List of workout entries (only actual workouts, not quick checks) */}
+            {workoutEntries.map((workout, workoutIdx) => {
+              const firstExercise = workout.exercises[0];
+              const hasMoreExercises = workout.exercises.length > 1;
+
+              return (
+                <div
+                  key={workout.entryId}
+                  className='flex items-center justify-between py-2 px-3 bg-white dark:bg-gray-800 rounded-xl'>
+                  <div className='flex items-center gap-3 flex-1 min-w-0'>
+                    <span className='w-6 h-6 rounded-full bg-ios-green/10 text-ios-green text-[13px] font-semibold flex items-center justify-center shrink-0'>
+                      {workoutIdx + 1}
+                    </span>
+                    <div className='flex items-center gap-2 min-w-0'>
+                      <span className='text-[15px] font-medium text-gray-900 dark:text-white truncate'>
+                        {firstExercise.name}
+                      </span>
+                      {hasMoreExercises ? (
+                        <span className='text-[13px] text-gray-400 dark:text-gray-500 shrink-0'>
+                          ++
+                        </span>
+                      ) : (
+                        firstExercise.sets && (
+                          <span className='text-[13px] text-gray-400 dark:text-gray-500 shrink-0'>
+                            {firstExercise.sets}×
+                            {firstExercise.weight &&
+                              ` ${firstExercise.weight}kg`}
+                          </span>
+                        )
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() =>
+                      router.push(`/workout?edit=${workout.entryId}`)
+                    }
+                    className='p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 dark:text-gray-500 shrink-0'>
+                    <svg
+                      className='w-4 h-4'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z'
+                      />
+                    </svg>
+                  </button>
+                </div>
+              );
+            })}
+
+            {/* Bottom row with quick check and add workout */}
+            <div className='flex items-center gap-2'>
+              {/* Quick check button */}
               <button
-                onClick={toggleQuickCheck}
+                onClick={() => {
+                  if (isQuickChecked && quickCheckEntryId) {
+                    deleteEntry(quickCheckEntryId);
+                  } else {
+                    handleSaveValue(type.id, true);
+                  }
+                }}
                 className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center transition-all",
-                  hasQuickCheck
-                    ? "bg-ios-green text-white"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-400",
+                  "flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-colors",
+                  isQuickChecked
+                    ? "bg-ios-green text-white shadow-lg shadow-ios-green/30"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
                 )}>
                 <svg
-                  className='w-5 h-5'
+                  className='w-4 h-4'
                   fill='none'
                   viewBox='0 0 24 24'
                   stroke='currentColor'
-                  strokeWidth={hasQuickCheck ? 3 : 2}>
+                  strokeWidth={2}>
                   <path
                     strokeLinecap='round'
                     strokeLinejoin='round'
                     d='M5 13l4 4L19 7'
                   />
                 </svg>
+                Quick check
+              </button>
+
+              {/* Add new workout button */}
+              <button
+                onClick={() => router.push("/workout")}
+                className='px-4 py-2 rounded-full text-[13px] bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors'>
+                + Add workout
               </button>
             </div>
-
-            {/* Divider */}
-            <div className='border-t border-gray-200 dark:border-gray-700 mb-2' />
-
-            {/* Routine selector */}
-            <div className='mb-3'>
-              <p className='text-[12px] text-gray-500 mb-2'>Select routine:</p>
-              <div className='flex flex-wrap gap-2'>
-                <button
-                  onClick={() => setSelectedRoutineId(null)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors",
-                    selectedRoutineId === null
-                      ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300",
-                  )}>
-                  All
-                </button>
-                {routines.map((routine) => (
-                  <button
-                    key={routine.id}
-                    onClick={() => setSelectedRoutineId(routine.id)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      startEditRoutine(routine);
-                    }}
-                    className={cn(
-                      "px-3 py-1.5 rounded-full text-[14px] font-medium transition-colors flex items-center gap-1.5",
-                      selectedRoutineId === routine.id
-                        ? "text-white"
-                        : "bg-gray-100 dark:bg-gray-700",
-                    )}
-                    style={{
-                      backgroundColor:
-                        selectedRoutineId === routine.id
-                          ? routine.color
-                          : undefined,
-                      color:
-                        selectedRoutineId === routine.id
-                          ? "white"
-                          : routine.color,
-                    }}>
-                    <span
-                      className='w-2 h-2 rounded-full'
-                      style={{ backgroundColor: routine.color }}
-                    />
-                    {routine.name}
-                  </button>
-                ))}
-                <button
-                  onClick={() => {
-                    setShowAddRoutine(!showAddRoutine);
-                    setEditingRoutineId(null);
-                    setNewRoutineName("");
-                    setNewRoutineExercises([]);
-                  }}
-                  className='px-3 py-1.5 rounded-full text-[14px] font-medium text-ios-blue bg-ios-blue/10 transition-colors'>
-                  + Add
-                </button>
-              </div>
-            </div>
-
-            {/* Add/Edit Routine Modal */}
-            {showAddRoutine && (
-              <div className='p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 space-y-3'>
-                <div className='flex items-center justify-between'>
-                  <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
-                    {editingRoutineId ? "Edit Routine" : "New Routine"}
-                  </span>
-                  {editingRoutineId && (
-                    <button
-                      onClick={() => handleDeleteRoutine(editingRoutineId)}
-                      className='text-[13px] text-ios-red font-medium'>
-                      Delete
-                    </button>
-                  )}
-                </div>
-                <input
-                  type='text'
-                  value={newRoutineName}
-                  onChange={(e) => setNewRoutineName(e.target.value)}
-                  placeholder='Routine name (e.g., Push Day)'
-                  className='w-full px-3 py-2.5 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                />
-                <div>
-                  <label className='text-[13px] text-gray-500 mb-2 block'>
-                    Select exercises:
-                  </label>
-                  <div className='max-h-48 overflow-auto space-y-1 rounded-lg bg-gray-50 dark:bg-gray-700/50 p-2'>
-                    {getAllExercisesForRoutine().map((exercise) => (
-                      <button
-                        key={exercise.name}
-                        type='button'
-                        onClick={() =>
-                          toggleExerciseInNewRoutine(exercise.name)
-                        }
-                        className={cn(
-                          "w-full px-3 py-2 rounded-lg text-left text-[14px] flex items-center justify-between transition-colors",
-                          newRoutineExercises.includes(exercise.name)
-                            ? "bg-ios-blue/10 text-ios-blue"
-                            : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300",
-                        )}>
-                        <span>{exercise.name}</span>
-                        {newRoutineExercises.includes(exercise.name) && (
-                          <svg
-                            className='w-5 h-5'
-                            fill='none'
-                            viewBox='0 0 24 24'
-                            stroke='currentColor'
-                            strokeWidth={2}>
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              d='M5 13l4 4L19 7'
-                            />
-                          </svg>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  {newRoutineExercises.length > 0 && (
-                    <p className='text-[12px] text-ios-blue mt-2'>
-                      {newRoutineExercises.length} exercise
-                      {newRoutineExercises.length !== 1 ? "s" : ""} selected
-                    </p>
-                  )}
-                </div>
-                <div className='flex gap-2'>
-                  <button
-                    onClick={handleSaveRoutine}
-                    disabled={
-                      !newRoutineName.trim() || newRoutineExercises.length === 0
-                    }
-                    className='flex-1 py-2.5 rounded-lg text-[15px] font-medium bg-ios-blue text-white disabled:opacity-50'>
-                    {editingRoutineId ? "Update" : "Add"}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddRoutine(false);
-                      setEditingRoutineId(null);
-                      setNewRoutineName("");
-                      setNewRoutineExercises([]);
-                    }}
-                    className='flex-1 py-2.5 rounded-lg text-[15px] font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'>
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {customExercises.length === 0 ? (
-              <div className='py-4 text-center text-gray-500'>
-                <p className='text-[14px]'>No exercises configured</p>
-                <p className='text-[12px] mt-1'>Add exercises in Settings</p>
-              </div>
-            ) : exercisesToShow.length === 0 ? (
-              <div className='py-4 text-center text-gray-500'>
-                <p className='text-[14px]'>No exercises in this routine</p>
-                <p className='text-[12px] mt-1'>
-                  Select a different routine or edit in Settings
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* List all exercises with expandable sections */}
-                {exercisesToShow.map((ex) => {
-                  const isExpanded = expandedExercises.has(ex.name);
-                  const sets = workoutData[ex.name] || [{}];
-                  const hasData = exerciseHasData(ex.name);
-                  const savedEx = getSavedExercise(ex.name);
-
-                  return (
-                    <div
-                      key={ex.name}
-                      className={cn(
-                        "rounded-xl overflow-hidden",
-                        isExpanded
-                          ? "bg-gray-50 dark:bg-gray-800"
-                          : "bg-white dark:bg-gray-800",
-                      )}>
-                      {/* Exercise header - tap to expand */}
-                      <button
-                        onClick={() => toggleExercise(ex.name)}
-                        className={cn(
-                          "w-full px-4 py-3 flex items-center justify-between",
-                          isExpanded && "bg-gray-100 dark:bg-gray-700",
-                        )}>
-                        <div className='flex items-center gap-2'>
-                          <span
-                            className={cn(
-                              "text-[15px] font-medium",
-                              hasData || savedEx
-                                ? "text-ios-green"
-                                : "text-gray-900 dark:text-white",
-                            )}>
-                            {ex.name}
-                          </span>
-                          {(hasData || savedEx) && (
-                            <svg
-                              className='w-4 h-4 text-ios-green'
-                              fill='currentColor'
-                              viewBox='0 0 20 20'>
-                              <path
-                                fillRule='evenodd'
-                                d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z'
-                                clipRule='evenodd'
-                              />
-                            </svg>
-                          )}
-                        </div>
-                        <svg
-                          className={cn(
-                            "w-5 h-5 text-gray-400 transition-transform",
-                            isExpanded && "rotate-180",
-                          )}
-                          fill='none'
-                          viewBox='0 0 24 24'
-                          stroke='currentColor'>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            strokeWidth={2}
-                            d='M19 9l-7 7-7-7'
-                          />
-                        </svg>
-                      </button>
-
-                      {/* Expanded content - sets input */}
-                      {isExpanded && (
-                        <div className='px-4 pb-3 space-y-2 border-t border-gray-100 dark:border-gray-700'>
-                          <div className='flex items-center justify-between pt-2'>
-                            <span className='text-[13px] text-gray-500'>
-                              Sets ({sets.length})
-                            </span>
-                          </div>
-
-                          {sets.map((set, index) => {
-                            const placeholder = getPlaceholderForSet(
-                              ex.name,
-                              index,
-                            );
-                            return (
-                              <div
-                                key={index}
-                                className='flex items-center gap-3 py-2'>
-                                {/* Set number */}
-                                <span className='text-[15px] font-semibold text-gray-500 w-6 text-center'>
-                                  {index + 1}
-                                </span>
-
-                                {/* Input fields */}
-                                <div className='flex-1 flex items-center gap-2'>
-                                  {ex.trackReps && (
-                                    <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
-                                      <input
-                                        type='number'
-                                        value={set.reps || ""}
-                                        onChange={(e) =>
-                                          updateExerciseSet(
-                                            ex.name,
-                                            index,
-                                            "reps",
-                                            e.target.value
-                                              ? parseInt(e.target.value)
-                                              : undefined,
-                                          )
-                                        }
-                                        onFocus={(e) => e.target.select()}
-                                        placeholder={
-                                          placeholder.reps?.toString() || "0"
-                                        }
-                                        className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
-                                      />
-                                      <span className='text-[13px] text-gray-500'>
-                                        reps
-                                      </span>
-                                    </div>
-                                  )}
-                                  {ex.trackWeight && (
-                                    <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
-                                      <input
-                                        type='number'
-                                        value={set.weight || ""}
-                                        onChange={(e) =>
-                                          updateExerciseSet(
-                                            ex.name,
-                                            index,
-                                            "weight",
-                                            e.target.value
-                                              ? parseFloat(e.target.value)
-                                              : undefined,
-                                          )
-                                        }
-                                        onFocus={(e) => e.target.select()}
-                                        placeholder={
-                                          placeholder.weight?.toString() || "0"
-                                        }
-                                        step='0.5'
-                                        className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
-                                      />
-                                      <span className='text-[13px] text-gray-500'>
-                                        kg
-                                      </span>
-                                    </div>
-                                  )}
-                                  {ex.trackDistance && (
-                                    <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
-                                      <input
-                                        type='number'
-                                        value={set.distance || ""}
-                                        onChange={(e) =>
-                                          updateExerciseSet(
-                                            ex.name,
-                                            index,
-                                            "distance",
-                                            e.target.value
-                                              ? parseFloat(e.target.value)
-                                              : undefined,
-                                          )
-                                        }
-                                        onFocus={(e) => e.target.select()}
-                                        placeholder={
-                                          placeholder.distance?.toString() ||
-                                          "0"
-                                        }
-                                        step='0.1'
-                                        className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
-                                      />
-                                      <span className='text-[13px] text-gray-500'>
-                                        km
-                                      </span>
-                                    </div>
-                                  )}
-                                  {ex.trackDuration && (
-                                    <div className='flex-1 flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2'>
-                                      <input
-                                        type='number'
-                                        value={set.duration || ""}
-                                        onChange={(e) =>
-                                          updateExerciseSet(
-                                            ex.name,
-                                            index,
-                                            "duration",
-                                            e.target.value
-                                              ? parseInt(e.target.value)
-                                              : undefined,
-                                          )
-                                        }
-                                        onFocus={(e) => e.target.select()}
-                                        placeholder={
-                                          placeholder.duration?.toString() ||
-                                          "0"
-                                        }
-                                        className='w-full text-[16px] font-medium bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none text-right'
-                                      />
-                                      <span className='text-[13px] text-gray-500'>
-                                        min
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Delete button */}
-                                {sets.length > 1 ? (
-                                  <button
-                                    onClick={() =>
-                                      removeExerciseSet(ex.name, index)
-                                    }
-                                    className='p-2 ml-2'>
-                                    <svg
-                                      className='w-5 h-5 text-ios-red'
-                                      fill='none'
-                                      viewBox='0 0 24 24'
-                                      stroke='currentColor'
-                                      strokeWidth={2}>
-                                      <path
-                                        strokeLinecap='round'
-                                        strokeLinejoin='round'
-                                        d='M6 18L18 6M6 6l12 12'
-                                      />
-                                    </svg>
-                                  </button>
-                                ) : (
-                                  <div className='w-9' />
-                                )}
-                              </div>
-                            );
-                          })}
-
-                          {/* Add Set Button */}
-                          <button
-                            onClick={() => addExerciseSet(ex.name)}
-                            className='w-full py-2.5 mt-2 rounded-lg text-[15px] font-medium text-ios-blue bg-ios-blue/10 active:bg-ios-blue/20'>
-                            + Add Set
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* Edit mode controls */}
-                {isEditingWorkout && (
-                  <div className='pt-2 flex gap-2'>
-                    <button
-                      onClick={() => {
-                        setWorkoutData({});
-                        setExpandedExercises(new Set());
-                        setIsEditingWorkout(false);
-                      }}
-                      className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300'>
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleDeleteWorkout(type.id)}
-                      className='flex-1 py-2 rounded-lg text-[15px] font-medium bg-ios-red/10 text-ios-red'>
-                      Delete Workout
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
           </div>
         );
       }
@@ -2326,23 +1574,14 @@ export function EntryForm({
           const isCounter = type.valueType === "counter";
 
           return (
-            <div className='mb-4 bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible relative z-10'>
+            <div className='mb-4 bg-white dark:bg-ios-card-dark rounded-2xl shadow-lg shadow-black/5 dark:shadow-black/20 overflow-visible relative z-10'>
               {/* Header with close button */}
-              <div className='flex items-center justify-between px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+              <div className='flex items-center justify-between px-4 py-3'>
                 <div className='flex items-center gap-3'>
                   {type.icon && (
-                    <div className='w-8 h-8 rounded-lg flex items-center justify-center bg-ios-blue/10'>
-                      {type.icon in icons ? (
-                        <Icon
-                          name={type.icon as IconName}
-                          className='w-5 h-5 text-ios-blue'
-                        />
-                      ) : (
-                        <span className='text-lg'>{type.icon}</span>
-                      )}
-                    </div>
+                    <span className='text-[24px]'>{type.icon}</span>
                   )}
-                  <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                  <span className='text-[17px] font-semibold text-gray-900 dark:text-white'>
                     {type.name}
                   </span>
                 </div>
@@ -2365,7 +1604,7 @@ export function EntryForm({
               </div>
 
               {/* Content */}
-              <div className='px-4 pb-4 pt-2'>
+              <div className='px-4 pb-4'>
                 {/* Saved values with delete option - not for mood, workout, checkmark, or counter type */}
                 {hasSavedValues &&
                   !isMood &&
@@ -2685,27 +1924,22 @@ export function EntryForm({
                 {/* Activity row */}
                 <div
                   className={cn(
-                    "flex items-center min-h-[40px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
+                    "flex items-center min-h-[44px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
                     isExpanded && "bg-gray-50 dark:bg-gray-800",
                     isLocked && "pointer-events-none opacity-75",
+                    !isLast &&
+                      !isExpanded &&
+                      "border-b border-gray-200/80 dark:border-gray-700/80",
                   )}
                   onClick={handleRowClick}>
                   {/* Icon */}
                   {type.icon && (
-                    <div
-                      className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center mr-3 shrink-0",
-                        isLocked
-                          ? "bg-ios-green/10"
-                          : hasSavedValues || workoutHasEnteredData
-                            ? "bg-ios-green/10"
-                            : "bg-ios-blue/10",
-                      )}>
+                    <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
                       {type.icon in icons ? (
                         <Icon
                           name={type.icon as IconName}
                           className={cn(
-                            "w-5 h-5",
+                            "w-6 h-6",
                             isLocked
                               ? "text-ios-green"
                               : hasSavedValues || workoutHasEnteredData
@@ -2714,19 +1948,13 @@ export function EntryForm({
                           )}
                         />
                       ) : (
-                        <span className='text-lg'>{type.icon}</span>
+                        <span className='text-xl'>{type.icon}</span>
                       )}
                     </div>
                   )}
 
                   {/* Content and right-aligned controls */}
-                  <div
-                    className={cn(
-                      "flex-1 py-2 flex items-center min-w-0 overflow-hidden",
-                      !isLast &&
-                        !isExpanded &&
-                        "border-b border-gray-200/80 dark:border-gray-700/80",
-                    )}>
+                  <div className='flex-1 py-2 flex items-center min-w-0 overflow-hidden'>
                     {/* Main label */}
                     <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
                       {type.name}
@@ -2747,66 +1975,41 @@ export function EntryForm({
                             ))}
                           </span>
                         )}
-                      {/* Workout summary - show for saved data or entered data */}
+                      {/* Workout - show green checkmark if has workout */}
                       {isWorkout &&
-                        (hasSavedValues || workoutHasEnteredData) &&
                         (() => {
-                          // Count total exercises for today (saved)
-                          let totalSavedExercises = 0;
-                          // Check for quick-check entry (value === true, no exercises)
-                          let hasQuickCheck = false;
+                          // Check if there are any saved workout entries
+                          let hasWorkout = false;
                           typeSavedValues.forEach((saved) => {
                             const entry = entries.find(
                               (e) => e.id === saved.id,
                             );
-                            if (entry?.workoutData?.exercises) {
-                              totalSavedExercises +=
-                                entry.workoutData.exercises.length;
-                            }
                             if (
-                              saved.value === true &&
-                              !entry?.workoutData?.exercises?.length
+                              entry?.workoutData?.exercises?.length ||
+                              saved.value === true
                             ) {
-                              hasQuickCheck = true;
+                              hasWorkout = true;
                             }
                           });
-                          // Use entered count if no saved data, or saved count if data is saved
-                          const displayCount = hasSavedValues
-                            ? totalSavedExercises
-                            : workoutEnteredExerciseCount;
-                          const isSaved =
-                            hasSavedValues && totalSavedExercises > 0;
 
-                          // If quick-check only (no exercises logged), show checkmark
-                          if (
-                            hasQuickCheck &&
-                            totalSavedExercises === 0 &&
-                            !workoutHasEnteredData
-                          ) {
-                            return (
-                              <svg
-                                className='w-5 h-5 text-ios-green'
-                                fill='none'
-                                stroke='currentColor'
-                                viewBox='0 0 24 24'
-                                strokeWidth={3}>
-                                <path
-                                  strokeLinecap='round'
-                                  strokeLinejoin='round'
-                                  d='M5 13l4 4L19 7'
-                                />
-                              </svg>
-                            );
+                          if (!hasWorkout && !workoutHasEnteredData) {
+                            return null;
                           }
 
+                          // Has workout - show green checkmark
                           return (
-                            <span className='text-[15px] text-gray-500 dark:text-gray-400'>
-                              {displayCount} exercise
-                              {displayCount !== 1 ? "s" : ""}
-                              {isSaved && (
-                                <span className='text-ios-green ml-1'>✓</span>
-                              )}
-                            </span>
+                            <svg
+                              className='w-5 h-5 text-ios-green shrink-0'
+                              fill='none'
+                              stroke='currentColor'
+                              viewBox='0 0 24 24'
+                              strokeWidth={3}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M5 13l4 4L19 7'
+                              />
+                            </svg>
                           );
                         })()}
                       {/* Nutrition progress summary */}

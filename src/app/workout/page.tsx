@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -14,12 +15,28 @@ import {
 import { Plus, X, Check, ChevronRight, Dumbbell, Heart } from "lucide-react";
 
 export default function WorkoutPage() {
-  const { activityTypes, entries, addEntry, updateEntry, updateActivityType } =
-    useApp();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const editingEntryId = searchParams.get("edit");
+  const {
+    activityTypes,
+    entries,
+    addEntry,
+    updateEntry,
+    deleteEntry,
+    updateActivityType,
+    selectedDate,
+  } = useApp();
   const { user } = useAuth();
   const { t } = useLanguage();
 
-  const [selectedDate] = useState(() => toDateStr(new Date()));
+  // View settings - persist to localStorage
+  const [compactView, setCompactView] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("workout-compact-view") !== "false";
+    }
+    return true;
+  });
 
   // Modal states
   const [showAddExercise, setShowAddExercise] = useState(false);
@@ -94,22 +111,24 @@ export default function WorkoutPage() {
     );
   }, [selectedRoutineId, routines, exercises]);
 
-  // Today's saved workout
+  // Today's saved workout (only when editing a specific entry)
   const savedWorkoutEntry = useMemo(() => {
-    if (!workoutType) return null;
+    if (!workoutType || !editingEntryId) return null;
     return entries.find(
       (e) =>
-        e.date === selectedDate &&
+        e.id === editingEntryId &&
         e.activityTypeId === workoutType.id &&
         e.workoutData,
     );
-  }, [entries, workoutType, selectedDate]);
+  }, [entries, workoutType, editingEntryId]);
+
+  const isEditing = !!editingEntryId && !!savedWorkoutEntry;
 
   const savedExercises = savedWorkoutEntry?.workoutData?.exercises || [];
 
-  // Load saved data on mount
+  // Load saved data on mount (only when editing)
   useEffect(() => {
-    if (savedExercises.length > 0) {
+    if (isEditing && savedExercises.length > 0) {
       const newData: typeof workoutData = {};
       savedExercises.forEach((ex) => {
         if (ex.setsData && ex.setsData.length > 0) {
@@ -124,9 +143,10 @@ export default function WorkoutPage() {
         }
       });
       setWorkoutData(newData);
-      setExpandedExercises(new Set(savedExercises.map((ex) => ex.name)));
+      // Keep exercises closed when editing
+      setExpandedExercises(new Set());
     }
-  }, [savedWorkoutEntry?.id]);
+  }, [savedWorkoutEntry?.id, isEditing]);
 
   // Add new exercise
   const handleAddExercise = async () => {
@@ -288,17 +308,30 @@ export default function WorkoutPage() {
 
   // Save workout
   const saveWorkout = useCallback(async () => {
-    if (!workoutType) return;
+    if (!workoutType) {
+      console.log("No workout type found");
+      return;
+    }
 
     const exercisesToSave: WorkoutExercise[] = [];
 
+    console.log("workoutData:", workoutData);
+
     for (const exerciseName of Object.keys(workoutData)) {
       const sets = workoutData[exerciseName];
-      const config = getExerciseConfig(exerciseName);
+      const config = exercises.find(
+        (e) => e.name.toLowerCase() === exerciseName.toLowerCase(),
+      ) || {
+        name: exerciseName,
+        category: "strength" as const,
+        trackWeight: true,
+        trackReps: true,
+      };
 
       const validSets = sets.filter(
         (s) => s.reps || s.weight || s.distance || s.duration,
       );
+      console.log(`Exercise ${exerciseName}: ${validSets.length} valid sets`);
       if (validSets.length === 0) continue;
 
       exercisesToSave.push({
@@ -320,15 +353,24 @@ export default function WorkoutPage() {
       });
     }
 
-    if (exercisesToSave.length === 0) return;
+    console.log("Exercises to save:", exercisesToSave.length);
 
-    if (savedWorkoutEntry) {
+    if (exercisesToSave.length === 0) {
+      console.log("No exercises to save");
+      return;
+    }
+
+    if (isEditing && savedWorkoutEntry) {
+      // Update existing workout entry
+      console.log("Updating existing entry");
       await updateEntry({
         ...savedWorkoutEntry,
         value: `${exercisesToSave.length} exercise${exercisesToSave.length !== 1 ? "s" : ""}`,
         workoutData: { exercises: exercisesToSave },
       });
     } else {
+      // Always create a new workout entry
+      console.log("Creating new entry");
       await addEntry({
         date: selectedDate,
         activityTypeId: workoutType.id,
@@ -336,6 +378,7 @@ export default function WorkoutPage() {
         workoutData: { exercises: exercisesToSave },
       });
     }
+    console.log("Save complete");
   }, [
     workoutType,
     workoutData,
@@ -343,11 +386,16 @@ export default function WorkoutPage() {
     selectedDate,
     addEntry,
     updateEntry,
+    isEditing,
+    exercises,
   ]);
 
-  // Auto-save (debounced)
+  // Auto-save (debounced) - only when editing an existing workout
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
+    // Only auto-save when editing an existing entry
+    if (!isEditing) return;
+
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(() => {
       const hasData = Object.values(workoutData).some((sets) =>
@@ -360,14 +408,14 @@ export default function WorkoutPage() {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [workoutData, saveWorkout]);
+  }, [workoutData, saveWorkout, isEditing]);
 
   const exercisesWithData = Object.keys(workoutData).filter((name) =>
     exerciseHasData(name),
   ).length;
 
   return (
-    <div className='min-h-screen bg-gray-50 dark:bg-black pb-40'>
+    <div className='min-h-screen bg-gray-50 dark:bg-black'>
       {/* Header */}
       <div className='px-4 pt-6 pb-4'>
         <div className='flex items-center justify-between'>
@@ -382,22 +430,63 @@ export default function WorkoutPage() {
               </p>
             )}
           </div>
-          <button
-            onClick={() => setShowManageRoutines(true)}
-            className='p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'>
-            <svg
-              className='w-5 h-5'
-              fill='none'
-              viewBox='0 0 24 24'
-              stroke='currentColor'>
-              <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                strokeWidth={2}
-                d='M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4'
-              />
-            </svg>
-          </button>
+          <div className='flex items-center gap-2'>
+            {/* Compact/Expanded toggle */}
+            <button
+              onClick={() => {
+                const newValue = !compactView;
+                setCompactView(newValue);
+                localStorage.setItem(
+                  "workout-compact-view",
+                  newValue.toString(),
+                );
+              }}
+              className='p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'>
+              {compactView ? (
+                <svg
+                  className='w-5 h-5'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={2}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className='w-5 h-5'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={2}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25'
+                  />
+                </svg>
+              )}
+            </button>
+            <button
+              onClick={() => setShowManageRoutines(true)}
+              className='p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'>
+              <svg
+                className='w-5 h-5'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  strokeWidth={2}
+                  d='M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4'
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -446,8 +535,8 @@ export default function WorkoutPage() {
         {/* Add Exercise Button */}
         <button
           onClick={() => setShowAddExercise(true)}
-          className='w-full py-4 rounded-2xl bg-gradient-to-r from-ios-blue to-blue-600 text-white text-[17px] font-semibold flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform'>
-          <Plus className='w-6 h-6' />
+          className='w-full py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium flex items-center justify-center gap-2 shadow-lg shadow-ios-blue/30 active:scale-[0.98] transition-all'>
+          <Plus className='w-4 h-4' />
           Add Exercise
         </button>
 
@@ -468,38 +557,29 @@ export default function WorkoutPage() {
 
         {/* Exercise List */}
         {displayedExercises.length > 0 && (
-          <div className='space-y-3'>
-            {displayedExercises.map((exercise) => {
+          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden divide-y divide-gray-200/80 dark:divide-gray-700/80'>
+            {displayedExercises.map((exercise, index) => {
               const isExpanded = expandedExercises.has(exercise.name);
               const hasData = exerciseHasData(exercise.name);
               const sets = workoutData[exercise.name] || [{}];
 
               return (
                 <div
-                  key={exercise.name}
+                  key={`${exercise.name}-${index}`}
                   className={cn(
-                    "bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden shadow-sm transition-all",
-                    isExpanded &&
-                      "ring-2 ring-ios-blue ring-offset-2 ring-offset-gray-50 dark:ring-offset-black",
+                    "transition-all",
+                    isExpanded && "bg-gray-50 dark:bg-gray-800/50",
                   )}>
                   {/* Exercise Header */}
                   <button
                     onClick={() => toggleExercise(exercise.name)}
-                    className='w-full px-4 py-4 flex items-center gap-3'>
-                    <div
-                      className={cn(
-                        "w-12 h-12 rounded-xl flex items-center justify-center",
-                        hasData
-                          ? "bg-ios-green/10"
-                          : "bg-gray-100 dark:bg-gray-800",
-                      )}>
+                    className='w-full min-h-[44px] px-4 flex items-center active:bg-gray-100 dark:active:bg-gray-700'>
+                    <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
                       {exercise.category === "cardio" ? (
                         <Heart
                           className={cn(
                             "w-6 h-6",
-                            hasData
-                              ? "text-ios-green"
-                              : "text-gray-500 dark:text-gray-400",
+                            hasData ? "text-ios-green" : "text-ios-red",
                           )}
                         />
                       ) : (
@@ -508,7 +588,7 @@ export default function WorkoutPage() {
                             "w-6 h-6",
                             hasData
                               ? "text-ios-green"
-                              : "text-gray-500 dark:text-gray-400",
+                              : "text-gray-600 dark:text-gray-300",
                           )}
                         />
                       )}
@@ -516,24 +596,13 @@ export default function WorkoutPage() {
                     <div className='flex-1 text-left'>
                       <span
                         className={cn(
-                          "text-[17px] font-semibold block",
+                          "text-[17px] font-medium block",
                           hasData
                             ? "text-ios-green"
                             : "text-gray-900 dark:text-white",
                         )}>
                         {exercise.name}
                       </span>
-                      {hasData && (
-                        <span className='text-[13px] text-ios-green'>
-                          {
-                            sets.filter(
-                              (s) =>
-                                s.reps || s.weight || s.distance || s.duration,
-                            ).length
-                          }{" "}
-                          sets
-                        </span>
-                      )}
                     </div>
                     {hasData ? (
                       <Check className='w-6 h-6 text-ios-green' />
@@ -549,12 +618,12 @@ export default function WorkoutPage() {
 
                   {/* Expanded Content */}
                   {isExpanded && (
-                    <div className='px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-gray-800 pt-3'>
+                    <div className='px-4 pb-3 space-y-2 border-t border-gray-100 dark:border-gray-800 pt-2'>
                       {sets.map((set, index) => (
-                        <div key={index} className='flex items-center gap-3'>
+                        <div key={index} className='flex items-center gap-2'>
                           {/* Set Number */}
-                          <div className='w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center'>
-                            <span className='text-[15px] font-bold text-gray-500 dark:text-gray-400'>
+                          <div className='w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center'>
+                            <span className='text-[14px] font-bold text-gray-500 dark:text-gray-400'>
                               {index + 1}
                             </span>
                           </div>
@@ -579,9 +648,9 @@ export default function WorkoutPage() {
                                   }
                                   onFocus={(e) => e.target.select()}
                                   placeholder='0'
-                                  className='w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                                  className='w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-center text-[16px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                                 />
-                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium'>
+                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 font-medium'>
                                   reps
                                 </span>
                               </div>
@@ -604,9 +673,9 @@ export default function WorkoutPage() {
                                   }
                                   onFocus={(e) => e.target.select()}
                                   placeholder='0'
-                                  className='w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                                  className='w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-center text-[16px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                                 />
-                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium'>
+                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 font-medium'>
                                   kg
                                 </span>
                               </div>
@@ -629,9 +698,9 @@ export default function WorkoutPage() {
                                   }
                                   onFocus={(e) => e.target.select()}
                                   placeholder='0'
-                                  className='w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                                  className='w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-center text-[16px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                                 />
-                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium'>
+                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 font-medium'>
                                   km
                                 </span>
                               </div>
@@ -654,9 +723,9 @@ export default function WorkoutPage() {
                                   }
                                   onFocus={(e) => e.target.select()}
                                   placeholder='0'
-                                  className='w-full px-3 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-center text-[18px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                                  className='w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-center text-[16px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                                 />
-                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400 font-medium'>
+                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 font-medium'>
                                   min
                                 </span>
                               </div>
@@ -667,8 +736,8 @@ export default function WorkoutPage() {
                           {sets.length > 1 && (
                             <button
                               onClick={() => removeSet(exercise.name, index)}
-                              className='w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-ios-red hover:bg-ios-red/10 transition-colors'>
-                              <X className='w-5 h-5' />
+                              className='w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-ios-red hover:bg-ios-red/10 transition-colors'>
+                              <X className='w-4 h-4' />
                             </button>
                           )}
                         </div>
@@ -677,7 +746,7 @@ export default function WorkoutPage() {
                       {/* Add Set Button */}
                       <button
                         onClick={() => addSet(exercise.name)}
-                        className='w-full py-3 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 text-[15px] font-medium flex items-center justify-center gap-2 hover:border-ios-blue hover:text-ios-blue transition-colors'>
+                        className='w-full py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[14px] font-medium flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors'>
                         <Plus className='w-4 h-4' />
                         Add Set
                       </button>
@@ -685,7 +754,7 @@ export default function WorkoutPage() {
                       {/* Delete Exercise */}
                       <button
                         onClick={() => handleDeleteExercise(exercise.name)}
-                        className='w-full py-2 text-ios-red text-[14px] font-medium'>
+                        className='w-full py-1 text-ios-red text-[13px] font-medium'>
                         Delete Exercise
                       </button>
                     </div>
@@ -695,6 +764,37 @@ export default function WorkoutPage() {
             })}
           </div>
         )}
+
+        {/* Add/Update Workout Button - inline after exercises */}
+        {displayedExercises.length > 0 && (
+          <div className='flex items-center justify-center gap-3'>
+            {isEditing && (
+              <button
+                onClick={async () => {
+                  if (editingEntryId) {
+                    await deleteEntry(editingEntryId);
+                    router.push("/");
+                  }
+                }}
+                className='px-5 py-2.5 rounded-full bg-ios-red text-white text-[14px] font-medium flex items-center justify-center gap-2 shadow-lg shadow-ios-red/30 active:scale-[0.98] transition-all'>
+                <X className='w-4 h-4' />
+                Delete workout
+              </button>
+            )}
+            <button
+              onClick={async () => {
+                await saveWorkout();
+                router.push("/");
+              }}
+              className='px-6 py-2.5 rounded-full bg-ios-green text-white text-[14px] font-medium flex items-center justify-center gap-2 shadow-lg shadow-ios-green/30 active:scale-[0.98] transition-all'>
+              <Check className='w-4 h-4' />
+              {isEditing ? "Update workout" : "Add workout"}
+            </button>
+          </div>
+        )}
+
+        {/* Bottom spacing for tab bar */}
+        <div className='h-24' />
       </div>
 
       {/* Add Exercise Modal */}
@@ -826,7 +926,7 @@ export default function WorkoutPage() {
               <button
                 onClick={handleAddExercise}
                 disabled={!newExerciseName.trim()}
-                className='w-full py-4 rounded-xl bg-ios-blue text-white text-[17px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed'>
+                className='w-full py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium shadow-lg shadow-ios-blue/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none'>
                 Add Exercise
               </button>
             </div>
@@ -859,8 +959,8 @@ export default function WorkoutPage() {
                 setShowManageRoutines(false);
                 setShowAddRoutine(true);
               }}
-              className='w-full py-4 rounded-xl bg-ios-blue text-white text-[16px] font-semibold mb-4 flex items-center justify-center gap-2'>
-              <Plus className='w-5 h-5' />
+              className='w-full py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium mb-4 flex items-center justify-center gap-2 shadow-lg shadow-ios-blue/30'>
+              <Plus className='w-4 h-4' />
               Create New Group
             </button>
 
@@ -1029,7 +1129,7 @@ export default function WorkoutPage() {
                   editingRoutine ? handleUpdateRoutine : handleAddRoutine
                 }
                 disabled={editingRoutine ? false : !newRoutineName.trim()}
-                className='w-full py-4 rounded-xl bg-ios-blue text-white text-[17px] font-semibold disabled:opacity-50'>
+                className='w-full py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium shadow-lg shadow-ios-blue/30 disabled:opacity-50 disabled:shadow-none'>
                 {editingRoutine ? "Save Changes" : "Create Group"}
               </button>
             </div>

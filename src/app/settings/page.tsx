@@ -314,7 +314,7 @@ export default function SettingsPage() {
                     <button
                       onClick={handleAuth}
                       disabled={authLoading}
-                      className='w-full px-4 py-3 bg-ios-blue text-white rounded-lg text-[17px] font-medium active:opacity-80 disabled:opacity-50'>
+                      className='w-full px-4 py-3 bg-ios-blue text-white rounded-full text-[15px] font-medium shadow-lg shadow-ios-blue/30 active:opacity-80 disabled:opacity-50'>
                       {authLoading
                         ? t("settings.loading")
                         : isSignUp
