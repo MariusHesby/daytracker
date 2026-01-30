@@ -19,6 +19,7 @@ export function StarRating({ rating, onRate, size = "md" }: StarRatingProps) {
   const [hovered, setHovered] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const justTouchedRef = useRef(false);
   const displayRating = hovered ?? rating ?? 0;
 
   const getRatingFromPosition = useCallback((clientX: number) => {
@@ -30,6 +31,18 @@ export function StarRating({ rating, onRate, size = "md" }: StarRatingProps) {
     return Math.max(1, Math.min(10, star));
   }, []);
 
+  // Handle click - but ignore if we just handled a touch
+  const handleClick = useCallback(
+    (star: number) => {
+      if (justTouchedRef.current) {
+        // Ignore synthetic click after touch
+        return;
+      }
+      onRate?.(star);
+    },
+    [onRate],
+  );
+
   // Use native event listeners for better touch control
   useEffect(() => {
     const container = containerRef.current;
@@ -38,6 +51,7 @@ export function StarRating({ rating, onRate, size = "md" }: StarRatingProps) {
     const onTouchStart = (e: TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
+      justTouchedRef.current = true;
       setIsDragging(true);
       const rating = getRatingFromPosition(e.touches[0].clientX);
       if (rating) setHovered(rating);
@@ -54,6 +68,10 @@ export function StarRating({ rating, onRate, size = "md" }: StarRatingProps) {
       e.stopPropagation();
       e.preventDefault();
       setIsDragging(false);
+      // Reset touch flag after a delay to ignore synthetic click
+      setTimeout(() => {
+        justTouchedRef.current = false;
+      }, 300);
     };
 
     container.addEventListener("touchstart", onTouchStart, { passive: false });
@@ -84,8 +102,9 @@ export function StarRating({ rating, onRate, size = "md" }: StarRatingProps) {
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
         <button
           key={star}
+          type='button'
           data-no-swipe
-          onClick={() => onRate?.(star)}
+          onClick={() => handleClick(star)}
           onMouseEnter={() => setHovered(star)}
           onMouseLeave={() => setHovered(null)}
           className='transition-transform hover:scale-110 touch-none'

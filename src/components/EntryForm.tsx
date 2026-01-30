@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
 import {
   ActivityType,
   Suggestion,
@@ -64,6 +65,7 @@ export function EntryForm({
     isDayLocked,
     toggleDayLock,
   } = useApp();
+  const { user } = useAuth();
   const router = useRouter();
   const [expandedTypeId, setExpandedTypeIdState] = useState<string | null>(
     () => {
@@ -198,10 +200,15 @@ export function EntryForm({
     }
   }, [date]);
 
-  // Load workout state from localStorage when date changes
+  // Load workout state from localStorage when date changes (only for anonymous users)
+  // Signed-in users get their data from Supabase via entries
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedData = localStorage.getItem(`workout-data-${date}`);
+      // Only load workout-data from localStorage for anonymous users
+      const savedData = !user
+        ? localStorage.getItem(`workout-data-${date}`)
+        : null;
+      // UI state (expanded, editing, routine) can be loaded for all users
       const savedExpanded = localStorage.getItem(`workout-expanded-${date}`);
       const savedEditing = localStorage.getItem(`workout-editing-${date}`);
       const savedRoutine = localStorage.getItem(`workout-routine-${date}`);
@@ -216,7 +223,7 @@ export function EntryForm({
       // Mark this date as loaded - only after state is set
       loadedDateRef.current = date;
     }
-  }, [date]);
+  }, [date, user]);
 
   // Load workout history for placeholders (from previous days)
   useEffect(() => {
@@ -230,9 +237,14 @@ export function EntryForm({
     loadHistory();
   }, [date, activityTypes, getWorkoutHistory]);
 
-  // Save workout data to localStorage - only if we've loaded for this date
+  // Save workout data to localStorage - only for anonymous users
+  // Signed-in users save directly to Supabase when they click Save
   useEffect(() => {
-    if (typeof window !== "undefined" && loadedDateRef.current === date) {
+    if (
+      typeof window !== "undefined" &&
+      loadedDateRef.current === date &&
+      !user
+    ) {
       const hasActualData = Object.keys(workoutData).some((exerciseName) => {
         const sets = workoutData[exerciseName] || [];
         return sets.some(
@@ -249,7 +261,7 @@ export function EntryForm({
         localStorage.removeItem(`workout-data-${date}`);
       }
     }
-  }, [workoutData, date]);
+  }, [workoutData, date, user]);
 
   // Save expanded exercises to localStorage
   useEffect(() => {
@@ -1440,35 +1452,37 @@ export function EntryForm({
 
             {/* Bottom row with quick check and add workout */}
             <div className='flex items-center gap-2'>
-              {/* Quick check button */}
-              <button
-                onClick={() => {
-                  if (isQuickChecked && quickCheckEntryId) {
-                    deleteEntry(quickCheckEntryId);
-                  } else {
-                    handleSaveValue(type.id, true);
-                  }
-                }}
-                className={cn(
-                  "flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-colors",
-                  isQuickChecked
-                    ? "bg-ios-green text-white shadow-lg shadow-ios-green/30"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
-                )}>
-                <svg
-                  className='w-4 h-4'
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  stroke='currentColor'
-                  strokeWidth={2}>
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    d='M5 13l4 4L19 7'
-                  />
-                </svg>
-                Quick check
-              </button>
+              {/* Quick check button - only show if no workouts added */}
+              {!hasAnyWorkout && (
+                <button
+                  onClick={() => {
+                    if (isQuickChecked && quickCheckEntryId) {
+                      deleteEntry(quickCheckEntryId);
+                    } else {
+                      handleSaveValue(type.id, true);
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-colors",
+                    isQuickChecked
+                      ? "bg-ios-green text-white shadow-lg shadow-ios-green/30"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
+                  )}>
+                  <svg
+                    className='w-4 h-4'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M5 13l4 4L19 7'
+                    />
+                  </svg>
+                  Quick check
+                </button>
+              )}
 
               {/* Add new workout button */}
               <button

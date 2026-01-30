@@ -11,6 +11,7 @@ import {
   ChartBar,
   Settings,
   Dumbbell,
+  Users,
 } from "lucide-react";
 
 // Pull-to-refresh indicator component
@@ -166,11 +167,15 @@ const WorkoutIcon = ({ filled = false }: { filled?: boolean }) => (
   <Dumbbell className='w-full h-full' strokeWidth={filled ? 2.5 : 1.5} />
 );
 
+const FriendsIcon = ({ filled = false }: { filled?: boolean }) => (
+  <Users className='w-full h-full' strokeWidth={filled ? 2.5 : 1.5} />
+);
+
 interface AppShellProps {
   children: ReactNode;
 }
 
-const TABS = ["/", "/movies-tv", "/workout", "/stats", "/settings"];
+const TABS = ["/", "/movies-tv", "/friends", "/stats", "/settings"];
 
 export function AppShell({ children }: AppShellProps) {
   const { t } = useLanguage();
@@ -402,10 +407,10 @@ export function AppShell({ children }: AppShellProps) {
       activeIcon: <MoviesIcon filled />,
     },
     {
-      href: "/workout",
-      label: t("tab.workout"),
-      icon: <WorkoutIcon />,
-      activeIcon: <WorkoutIcon filled />,
+      href: "/friends",
+      label: t("tab.friends"),
+      icon: <FriendsIcon />,
+      activeIcon: <FriendsIcon filled />,
     },
     {
       href: "/stats",

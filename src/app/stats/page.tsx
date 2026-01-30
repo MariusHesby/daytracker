@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
 import { Icon, icons, IconName } from "@/components";
 import {
   TimeRange,
@@ -204,14 +205,18 @@ export default function StatsPage() {
     setViewingUser,
     isViewingOther,
   } = useApp();
+  const { user } = useAuth();
   const [timeRange, setTimeRange] = useState<TimeRange>("week");
   const [offset, setOffset] = useState(0); // 0 = current, -1 = previous, etc.
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
     null,
   );
 
-  // Get localStorage workout data for recent days (not yet locked)
+  // Get localStorage workout data for recent days (only for anonymous users)
+  // Signed-in users get all data from Supabase
   const localStorageWorkoutEntries = useMemo(() => {
+    // Skip localStorage for signed-in users - they have Supabase as source of truth
+    if (user) return [];
     if (typeof window === "undefined") return [];
 
     const workoutType = activityTypes.find((t) => t.valueType === "workout");
@@ -299,7 +304,7 @@ export default function StatsPage() {
     }
 
     return localEntries;
-  }, [activityTypes, entries]);
+  }, [activityTypes, entries, user]);
 
   // Combine database entries with localStorage workout entries
   const allEntries = useMemo(() => {

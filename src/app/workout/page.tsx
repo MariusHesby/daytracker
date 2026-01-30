@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  Suspense,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
@@ -14,7 +21,36 @@ import {
 } from "@/types";
 import { Plus, X, Check, ChevronRight, Dumbbell, Heart } from "lucide-react";
 
+// Wrapper component with Suspense for useSearchParams
 export default function WorkoutPage() {
+  return (
+    <Suspense fallback={<WorkoutPageSkeleton />}>
+      <WorkoutPageContent />
+    </Suspense>
+  );
+}
+
+// Loading skeleton
+function WorkoutPageSkeleton() {
+  return (
+    <div className='min-h-screen bg-ios-gray-light dark:bg-ios-dark pb-20'>
+      <div className='px-4 pt-4 pb-2 flex items-center justify-between'>
+        <div className='h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
+        <div className='h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse' />
+      </div>
+      <div className='px-4 space-y-3'>
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className='h-14 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse'
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function WorkoutPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editingEntryId = searchParams.get("edit");
@@ -30,13 +66,16 @@ export default function WorkoutPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
 
-  // View settings - persist to localStorage
-  const [compactView, setCompactView] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("workout-compact-view") !== "false";
+  // View settings - persist to localStorage (hydrate after mount to avoid SSR mismatch)
+  const [compactView, setCompactView] = useState(true);
+
+  // Hydrate compactView from localStorage after mount
+  useEffect(() => {
+    const saved = localStorage.getItem("workout-compact-view");
+    if (saved !== null) {
+      setCompactView(saved !== "false");
     }
-    return true;
-  });
+  }, []);
 
   // Modal states
   const [showAddExercise, setShowAddExercise] = useState(false);
@@ -573,19 +612,26 @@ export default function WorkoutPage() {
                   {/* Exercise Header */}
                   <button
                     onClick={() => toggleExercise(exercise.name)}
-                    className='w-full min-h-[44px] px-4 flex items-center active:bg-gray-100 dark:active:bg-gray-700'>
-                    <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
+                    className={cn(
+                      "w-full px-4 flex items-center active:bg-gray-100 dark:active:bg-gray-700",
+                      compactView ? "min-h-[44px]" : "min-h-[56px] py-2",
+                    )}>
+                    <div
+                      className={cn(
+                        "flex items-center justify-center mr-3 shrink-0",
+                        compactView ? "w-8 h-8" : "w-10 h-10",
+                      )}>
                       {exercise.category === "cardio" ? (
                         <Heart
                           className={cn(
-                            "w-6 h-6",
+                            compactView ? "w-6 h-6" : "w-7 h-7",
                             hasData ? "text-ios-green" : "text-ios-red",
                           )}
                         />
                       ) : (
                         <Dumbbell
                           className={cn(
-                            "w-6 h-6",
+                            compactView ? "w-6 h-6" : "w-7 h-7",
                             hasData
                               ? "text-ios-green"
                               : "text-gray-600 dark:text-gray-300",
@@ -596,7 +642,8 @@ export default function WorkoutPage() {
                     <div className='flex-1 text-left'>
                       <span
                         className={cn(
-                          "text-[17px] font-medium block",
+                          "font-medium block",
+                          compactView ? "text-[17px]" : "text-[19px]",
                           hasData
                             ? "text-ios-green"
                             : "text-gray-900 dark:text-white",
@@ -605,11 +652,17 @@ export default function WorkoutPage() {
                       </span>
                     </div>
                     {hasData ? (
-                      <Check className='w-6 h-6 text-ios-green' />
+                      <Check
+                        className={cn(
+                          compactView ? "w-6 h-6" : "w-7 h-7",
+                          "text-ios-green",
+                        )}
+                      />
                     ) : (
                       <ChevronRight
                         className={cn(
-                          "w-5 h-5 text-gray-400 transition-transform",
+                          "text-gray-400 transition-transform",
+                          compactView ? "w-5 h-5" : "w-6 h-6",
                           isExpanded && "rotate-90",
                         )}
                       />
@@ -618,18 +671,41 @@ export default function WorkoutPage() {
 
                   {/* Expanded Content */}
                   {isExpanded && (
-                    <div className='px-4 pb-3 space-y-2 border-t border-gray-100 dark:border-gray-800 pt-2'>
+                    <div
+                      className={cn(
+                        "px-4 border-t border-gray-100 dark:border-gray-800",
+                        compactView
+                          ? "pb-3 space-y-2 pt-2"
+                          : "pb-4 space-y-3 pt-3",
+                      )}>
                       {sets.map((set, index) => (
-                        <div key={index} className='flex items-center gap-2'>
+                        <div
+                          key={index}
+                          className={cn(
+                            "flex items-center",
+                            compactView ? "gap-2" : "gap-3",
+                          )}>
                           {/* Set Number */}
-                          <div className='w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center'>
-                            <span className='text-[14px] font-bold text-gray-500 dark:text-gray-400'>
+                          <div
+                            className={cn(
+                              "rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center",
+                              compactView ? "w-8 h-8" : "w-10 h-10",
+                            )}>
+                            <span
+                              className={cn(
+                                "font-bold text-gray-500 dark:text-gray-400",
+                                compactView ? "text-[14px]" : "text-[16px]",
+                              )}>
                               {index + 1}
                             </span>
                           </div>
 
                           {/* Inputs */}
-                          <div className='flex-1 grid grid-cols-2 gap-2'>
+                          <div
+                            className={cn(
+                              "flex-1 grid grid-cols-2",
+                              compactView ? "gap-2" : "gap-3",
+                            )}>
                             {exercise.trackReps !== false && (
                               <div className='relative'>
                                 <input
@@ -648,9 +724,20 @@ export default function WorkoutPage() {
                                   }
                                   onFocus={(e) => e.target.select()}
                                   placeholder='0'
-                                  className='w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-center text-[16px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                                  className={cn(
+                                    "w-full bg-gray-100 dark:bg-gray-800 rounded-lg text-center font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue",
+                                    compactView
+                                      ? "px-3 py-2 text-[16px]"
+                                      : "px-4 py-3 text-[18px]",
+                                  )}
                                 />
-                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 font-medium'>
+                                <span
+                                  className={cn(
+                                    "absolute top-1/2 -translate-y-1/2 text-gray-400 font-medium",
+                                    compactView
+                                      ? "right-3 text-[11px]"
+                                      : "right-4 text-[12px]",
+                                  )}>
                                   reps
                                 </span>
                               </div>
@@ -673,9 +760,20 @@ export default function WorkoutPage() {
                                   }
                                   onFocus={(e) => e.target.select()}
                                   placeholder='0'
-                                  className='w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-center text-[16px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                                  className={cn(
+                                    "w-full bg-gray-100 dark:bg-gray-800 rounded-lg text-center font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue",
+                                    compactView
+                                      ? "px-3 py-2 text-[16px]"
+                                      : "px-4 py-3 text-[18px]",
+                                  )}
                                 />
-                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 font-medium'>
+                                <span
+                                  className={cn(
+                                    "absolute top-1/2 -translate-y-1/2 text-gray-400 font-medium",
+                                    compactView
+                                      ? "right-3 text-[11px]"
+                                      : "right-4 text-[12px]",
+                                  )}>
                                   kg
                                 </span>
                               </div>
@@ -698,9 +796,20 @@ export default function WorkoutPage() {
                                   }
                                   onFocus={(e) => e.target.select()}
                                   placeholder='0'
-                                  className='w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-center text-[16px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                                  className={cn(
+                                    "w-full bg-gray-100 dark:bg-gray-800 rounded-lg text-center font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue",
+                                    compactView
+                                      ? "px-3 py-2 text-[16px]"
+                                      : "px-4 py-3 text-[18px]",
+                                  )}
                                 />
-                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 font-medium'>
+                                <span
+                                  className={cn(
+                                    "absolute top-1/2 -translate-y-1/2 text-gray-400 font-medium",
+                                    compactView
+                                      ? "right-3 text-[11px]"
+                                      : "right-4 text-[12px]",
+                                  )}>
                                   km
                                 </span>
                               </div>
@@ -723,9 +832,20 @@ export default function WorkoutPage() {
                                   }
                                   onFocus={(e) => e.target.select()}
                                   placeholder='0'
-                                  className='w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-center text-[16px] font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                                  className={cn(
+                                    "w-full bg-gray-100 dark:bg-gray-800 rounded-lg text-center font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue",
+                                    compactView
+                                      ? "px-3 py-2 text-[16px]"
+                                      : "px-4 py-3 text-[18px]",
+                                  )}
                                 />
-                                <span className='absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 font-medium'>
+                                <span
+                                  className={cn(
+                                    "absolute top-1/2 -translate-y-1/2 text-gray-400 font-medium",
+                                    compactView
+                                      ? "right-3 text-[11px]"
+                                      : "right-4 text-[12px]",
+                                  )}>
                                   min
                                 </span>
                               </div>
@@ -736,8 +856,13 @@ export default function WorkoutPage() {
                           {sets.length > 1 && (
                             <button
                               onClick={() => removeSet(exercise.name, index)}
-                              className='w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-ios-red hover:bg-ios-red/10 transition-colors'>
-                              <X className='w-4 h-4' />
+                              className={cn(
+                                "rounded-lg flex items-center justify-center text-gray-400 hover:text-ios-red hover:bg-ios-red/10 transition-colors",
+                                compactView ? "w-8 h-8" : "w-10 h-10",
+                              )}>
+                              <X
+                                className={compactView ? "w-4 h-4" : "w-5 h-5"}
+                              />
                             </button>
                           )}
                         </div>
@@ -746,15 +871,25 @@ export default function WorkoutPage() {
                       {/* Add Set Button */}
                       <button
                         onClick={() => addSet(exercise.name)}
-                        className='w-full py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-[14px] font-medium flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors'>
-                        <Plus className='w-4 h-4' />
+                        className={cn(
+                          "w-full rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors",
+                          compactView
+                            ? "py-2.5 text-[14px]"
+                            : "py-3 text-[15px]",
+                        )}>
+                        <Plus className={compactView ? "w-4 h-4" : "w-5 h-5"} />
                         Add Set
                       </button>
 
                       {/* Delete Exercise */}
                       <button
                         onClick={() => handleDeleteExercise(exercise.name)}
-                        className='w-full py-1 text-ios-red text-[13px] font-medium'>
+                        className={cn(
+                          "w-full text-ios-red font-medium",
+                          compactView
+                            ? "py-1 text-[13px]"
+                            : "py-1.5 text-[14px]",
+                        )}>
                         Delete Exercise
                       </button>
                     </div>
@@ -765,31 +900,58 @@ export default function WorkoutPage() {
           </div>
         )}
 
-        {/* Add/Update Workout Button - inline after exercises */}
+        {/* Action Buttons */}
         {displayedExercises.length > 0 && (
-          <div className='flex items-center justify-center gap-3'>
-            {isEditing && (
-              <button
-                onClick={async () => {
-                  if (editingEntryId) {
-                    await deleteEntry(editingEntryId);
+          <div className='flex flex-col items-center gap-3'>
+            {isEditing ? (
+              <>
+                {/* Centered Save button */}
+                <button
+                  onClick={async () => {
+                    await saveWorkout();
                     router.push("/");
-                  }
-                }}
-                className='px-5 py-2.5 rounded-full bg-ios-red text-white text-[14px] font-medium flex items-center justify-center gap-2 shadow-lg shadow-ios-red/30 active:scale-[0.98] transition-all'>
-                <X className='w-4 h-4' />
-                Delete workout
-              </button>
+                  }}
+                  className='px-8 py-2.5 rounded-full bg-ios-green text-white text-[14px] font-medium shadow-lg shadow-ios-green/30 active:scale-[0.98] transition-all'>
+                  Save
+                </button>
+                {/* Subtle text links for Cancel and Delete */}
+                <div className='flex items-center gap-4'>
+                  <button
+                    onClick={() => router.push("/")}
+                    className='text-[13px] text-gray-500 dark:text-gray-400 active:opacity-70'>
+                    Cancel
+                  </button>
+                  <span className='text-gray-300 dark:text-gray-600'>•</span>
+                  <button
+                    onClick={async () => {
+                      if (editingEntryId) {
+                        await deleteEntry(editingEntryId);
+                        router.push("/");
+                      }
+                    }}
+                    className='text-[13px] text-ios-red active:opacity-70'>
+                    Delete
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className='flex items-center gap-2'>
+                <button
+                  onClick={() => router.push("/")}
+                  className='px-4 py-2.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[14px] font-medium active:scale-[0.98] transition-all'>
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    await saveWorkout();
+                    router.push("/");
+                  }}
+                  className='px-6 py-2.5 rounded-full bg-ios-green text-white text-[14px] font-medium flex items-center justify-center gap-2 shadow-lg shadow-ios-green/30 active:scale-[0.98] transition-all'>
+                  <Check className='w-4 h-4' />
+                  Add
+                </button>
+              </div>
             )}
-            <button
-              onClick={async () => {
-                await saveWorkout();
-                router.push("/");
-              }}
-              className='px-6 py-2.5 rounded-full bg-ios-green text-white text-[14px] font-medium flex items-center justify-center gap-2 shadow-lg shadow-ios-green/30 active:scale-[0.98] transition-all'>
-              <Check className='w-4 h-4' />
-              {isEditing ? "Update workout" : "Add workout"}
-            </button>
           </div>
         )}
 
