@@ -68,14 +68,16 @@ export async function getActivityTypesFromSupabase(userId: string): Promise<Acti
 
 // Initialize default activity types for new users
 export async function initializeDefaultActivityTypes(userId: string): Promise<ActivityType[]> {
+  // First check if user already has activity types (avoid duplicates)
+  const existing = await getActivityTypesFromSupabase(userId);
+  if (existing.length > 0) {
+    return existing;
+  }
+  
   const createdTypes: ActivityType[] = [];
   
-  for (let i = 0; i < DEFAULT_ACTIVITY_TYPES.length; i++) {
-    const type = DEFAULT_ACTIVITY_TYPES[i];
-    const newType = await addActivityTypeToSupabase(userId, {
-      ...type,
-      order: i,
-    });
+  for (const type of DEFAULT_ACTIVITY_TYPES) {
+    const newType = await addActivityTypeToSupabase(userId, type);
     createdTypes.push(newType);
   }
   
