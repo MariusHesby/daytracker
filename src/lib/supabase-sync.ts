@@ -94,7 +94,7 @@ export async function addActivityTypeToSupabase(
       icon: type.icon || null,
       value_type: type.valueType,
       unit: type.unit || null,
-      sort_order: type.order || null,
+      sort_order: type.order ?? null,
       is_default: type.isDefault || false,
       hidden: type.hidden || false,
       nutrition_goal: type.nutritionGoal || null,
