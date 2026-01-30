@@ -81,6 +81,7 @@ function WorkoutPageContent() {
   const [showAddExercise, setShowAddExercise] = useState(false);
   const [showAddRoutine, setShowAddRoutine] = useState(false);
   const [showManageRoutines, setShowManageRoutines] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editingRoutine, setEditingRoutine] = useState<WorkoutRoutine | null>(
     null,
   );
@@ -923,12 +924,7 @@ function WorkoutPageContent() {
                   </button>
                   <span className='text-gray-300 dark:text-gray-600'>•</span>
                   <button
-                    onClick={async () => {
-                      if (editingEntryId) {
-                        await deleteEntry(editingEntryId);
-                        router.push("/");
-                      }
-                    }}
+                    onClick={() => setShowDeleteConfirm(true)}
                     className='text-[13px] text-ios-red active:opacity-70'>
                     Delete
                   </button>
@@ -1299,6 +1295,43 @@ function WorkoutPageContent() {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center px-4'>
+          <div
+            className='absolute inset-0 bg-black/50'
+            onClick={() => setShowDeleteConfirm(false)}
+          />
+          <div className='relative w-full max-w-sm bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden animate-scale-in'>
+            <div className='p-6 text-center'>
+              <h3 className='text-[17px] font-semibold text-gray-900 dark:text-white mb-2'>
+                Delete Workout?
+              </h3>
+              <p className='text-[15px] text-gray-500 dark:text-gray-400'>
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className='border-t border-gray-200 dark:border-gray-700 flex'>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className='flex-1 py-3.5 text-[17px] font-medium text-ios-blue border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800'>
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (editingEntryId) {
+                    await deleteEntry(editingEntryId);
+                    router.push("/");
+                  }
+                }}
+                className='flex-1 py-3.5 text-[17px] font-medium text-ios-red active:bg-gray-100 dark:active:bg-gray-800'>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Animation Styles */}
       <style jsx>{`
         @keyframes slide-up {
@@ -1311,6 +1344,19 @@ function WorkoutPageContent() {
         }
         .animate-slide-up {
           animation: slide-up 0.3s ease-out;
+        }
+        @keyframes scale-in {
+          from {
+            transform: scale(0.95);
+            opacity: 0;
+          }
+          to {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        .animate-scale-in {
+          animation: scale-in 0.2s ease-out;
         }
       `}</style>
     </div>

@@ -47,6 +47,7 @@ export default function SettingsPage() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [showDeleteAllDataModal, setShowDeleteAllDataModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -533,19 +534,7 @@ export default function SettingsPage() {
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             <button
-              onClick={async () => {
-                if (confirm(t("settings.deleteAllConfirm"))) {
-                  if (user) {
-                    // Delete from Supabase if logged in
-                    await deleteAllData();
-                  } else {
-                    // Just clear local data if not logged in
-                    indexedDB.deleteDatabase("daytracker-db");
-                    localStorage.clear();
-                  }
-                  window.location.reload();
-                }
-              }}
+              onClick={() => setShowDeleteAllDataModal(true)}
               className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 border-b border-gray-200/80 dark:border-gray-700/80'>
               {t("settings.deleteAllData")}
             </button>
@@ -599,6 +588,48 @@ export default function SettingsPage() {
         isOpen={isEditingProfile}
         onClose={() => setIsEditingProfile(false)}
       />
+
+      {/* Delete All Data Confirmation Modal */}
+      {showDeleteAllDataModal && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center px-4'>
+          <div
+            className='absolute inset-0 bg-black/50'
+            onClick={() => setShowDeleteAllDataModal(false)}
+          />
+          <div className='relative w-full max-w-sm bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden animate-scale-in'>
+            <div className='p-6 text-center'>
+              <h3 className='text-[17px] font-semibold text-gray-900 dark:text-white mb-2'>
+                {t("settings.deleteAllData")}?
+              </h3>
+              <p className='text-[15px] text-gray-500 dark:text-gray-400'>
+                {t("settings.deleteAllConfirm")}
+              </p>
+            </div>
+            <div className='border-t border-gray-200 dark:border-gray-700 flex'>
+              <button
+                onClick={() => setShowDeleteAllDataModal(false)}
+                className='flex-1 py-3.5 text-[17px] font-medium text-ios-blue border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800'>
+                {t("settings.cancel")}
+              </button>
+              <button
+                onClick={async () => {
+                  if (user) {
+                    // Delete from Supabase if logged in
+                    await deleteAllData();
+                  } else {
+                    // Just clear local data if not logged in
+                    indexedDB.deleteDatabase("daytracker-db");
+                    localStorage.clear();
+                  }
+                  window.location.reload();
+                }}
+                className='flex-1 py-3.5 text-[17px] font-medium text-ios-red active:bg-gray-100 dark:active:bg-gray-800'>
+                {t("settings.delete")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Account Modal */}
       {showDeleteAccountModal && (
@@ -669,6 +700,23 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Animation Styles */}
+      <style jsx>{`
+        @keyframes scale-in {
+          from {
+            transform: scale(0.95);
+            opacity: 0;
+          }
+          to {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        .animate-scale-in {
+          animation: scale-in 0.2s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

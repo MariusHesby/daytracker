@@ -206,7 +206,7 @@ export default function StatsPage() {
     isViewingOther,
   } = useApp();
   const { user } = useAuth();
-  const [timeRange, setTimeRange] = useState<TimeRange>("week");
+  const [timeRange, setTimeRange] = useState<TimeRange>("year");
   const [offset, setOffset] = useState(0); // 0 = current, -1 = previous, etc.
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
     null,

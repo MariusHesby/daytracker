@@ -37,7 +37,7 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"created" | "lastActive" | "entries">(
-    "lastActive"
+    "lastActive",
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
@@ -170,13 +170,13 @@ export default function AdminPage() {
         totalEntries: usersList.reduce((sum, u) => sum + u.totalEntries, 0),
         totalActivityTypes: usersList.reduce(
           (sum, u) => sum + u.totalActivityTypes,
-          0
+          0,
         ),
         activeUsersLast7Days: usersList.filter(
-          (u) => u.lastActiveDate && u.lastActiveDate >= sevenDaysAgo
+          (u) => u.lastActiveDate && u.lastActiveDate >= sevenDaysAgo,
         ).length,
         activeUsersLast30Days: usersList.filter(
-          (u) => u.lastActiveDate && u.lastActiveDate >= thirtyDaysAgo
+          (u) => u.lastActiveDate && u.lastActiveDate >= thirtyDaysAgo,
         ).length,
       };
 
@@ -185,7 +185,7 @@ export default function AdminPage() {
     } catch (err) {
       console.error("Admin data error:", err);
       setError(
-        err instanceof Error ? err.message : "Failed to load admin data"
+        err instanceof Error ? err.message : "Failed to load admin data",
       );
     } finally {
       setIsLoading(false);
@@ -229,7 +229,7 @@ export default function AdminPage() {
     const date = new Date(dateStr);
     const now = new Date();
     const diffDays = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     if (diffDays === 0) return "Today";
@@ -322,6 +322,18 @@ export default function AdminPage() {
                       {appStats?.activeUsersLast30Days || 0}
                     </p>
                   </div>
+                  <div className='bg-white dark:bg-ios-card-dark p-4'>
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      Avg Entries/User
+                    </p>
+                    <p className='text-2xl font-bold text-gray-900 dark:text-white'>
+                      {appStats && appStats.totalUsers > 0
+                        ? Math.round(
+                            appStats.totalEntries / appStats.totalUsers,
+                          )
+                        : 0}
+                    </p>
+                  </div>
                 </div>
               </div>
             </section>
@@ -357,13 +369,24 @@ export default function AdminPage() {
                     className={cn(
                       "px-4 py-3",
                       index < sortedUsers.length - 1 &&
-                        "border-b border-gray-200/80 dark:border-gray-700/80"
+                        "border-b border-gray-200/80 dark:border-gray-700/80",
                     )}>
                     <div className='flex items-start gap-3'>
                       {/* Avatar */}
                       <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden shrink-0'>
-                        {userStats.avatar ? (
-                          <span className='text-xl'>{userStats.avatar}</span>
+                        {userStats.avatar &&
+                        userStats.avatar !== "avatar" &&
+                        userStats.avatar.length > 0 ? (
+                          userStats.avatar.startsWith("http") ||
+                          userStats.avatar.startsWith("/") ? (
+                            <img
+                              src={userStats.avatar}
+                              alt={userStats.fullName}
+                              className='w-full h-full object-cover'
+                            />
+                          ) : (
+                            <span className='text-xl'>{userStats.avatar}</span>
+                          )
                         ) : (
                           <svg
                             className='w-5 h-5 text-gray-400'

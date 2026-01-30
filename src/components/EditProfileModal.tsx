@@ -154,6 +154,7 @@ function ImageCropper({
     (e: MouseEvent | TouchEvent) => {
       // Handle pinch zoom
       if (isPinching && "touches" in e && e.touches.length === 2) {
+        e.preventDefault(); // Prevent page zoom
         const distance = getTouchDistance(e.touches);
         if (initialPinchDistance > 0) {
           const newScale =
@@ -164,6 +165,7 @@ function ImageCropper({
       }
 
       if (!isDragging) return;
+      if ("touches" in e) e.preventDefault(); // Prevent scroll while dragging
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
       setPosition({
@@ -186,10 +188,10 @@ function ImageCropper({
   }, []);
 
   useEffect(() => {
-    if (isDragging) {
+    if (isDragging || isPinching) {
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
-      window.addEventListener("touchmove", handleMouseMove);
+      window.addEventListener("touchmove", handleMouseMove, { passive: false });
       window.addEventListener("touchend", handleMouseUp);
       return () => {
         window.removeEventListener("mousemove", handleMouseMove);
@@ -198,7 +200,7 @@ function ImageCropper({
         window.removeEventListener("touchend", handleMouseUp);
       };
     }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  }, [isDragging, isPinching, handleMouseMove, handleMouseUp]);
 
   const handleCrop = () => {
     if (!imageRef.current || !canvasRef.current) return;
@@ -268,11 +270,14 @@ function ImageCropper({
     <div
       className='fixed inset-0 bg-black z-[60] flex flex-col'
       style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-      {/* Header */}
-      <div className='flex items-center justify-between px-4 py-3 bg-black/80'>
+      {/* Spacer for safe area */}
+      <div className='h-2' />
+
+      {/* Header - moved down for better accessibility */}
+      <div className='flex items-center justify-between px-4 py-4 bg-black/90 backdrop-blur-sm'>
         <button
           onClick={onCancel}
-          className='text-white text-[17px] px-2 py-1 active:opacity-60'>
+          className='text-white text-[17px] px-3 py-2 -ml-1 active:opacity-60 min-h-[44px] flex items-center'>
           {t("common.cancel")}
         </button>
         <span className='text-white text-[17px] font-semibold'>
@@ -280,7 +285,7 @@ function ImageCropper({
         </span>
         <button
           onClick={handleCrop}
-          className='text-ios-blue text-[17px] font-semibold px-2 py-1 active:opacity-60'>
+          className='text-ios-blue text-[17px] font-semibold px-3 py-2 -mr-1 active:opacity-60 min-h-[44px] flex items-center'>
           {t("profile.choose") || "Choose"}
         </button>
       </div>
@@ -296,7 +301,7 @@ function ImageCropper({
           {/* Image */}
           {imageLoaded && imageRef.current && (
             <div
-              className={`absolute ${isDragging ? "" : "transition-transform duration-75"}`}
+              className='absolute'
               style={{
                 width: imageSize.width * scale,
                 height: imageSize.height * scale,
@@ -304,6 +309,10 @@ function ImageCropper({
                 top: "50%",
                 transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
                 cursor: isDragging ? "grabbing" : "grab",
+                transition:
+                  isDragging || isPinching
+                    ? "none"
+                    : "width 0.15s ease-out, height 0.15s ease-out",
               }}>
               <img
                 src={imageSrc}
@@ -328,16 +337,20 @@ function ImageCropper({
 
       {/* Zoom Slider */}
       <div
-        className='px-8 py-6 bg-black/80'
+        className='px-6 py-6 bg-black/90 backdrop-blur-sm'
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
         }}>
-        <div className='flex items-center gap-4'>
+        {/* Pinch hint */}
+        <p className='text-white/40 text-xs text-center mb-4'>
+          {t("profile.pinchToZoom") || "Pinch to zoom • Drag to move"}
+        </p>
+        <div className='flex items-center gap-3'>
           <button
-            onClick={() => setScale(Math.max(0.1, scale - 0.2))}
-            className='p-2 active:opacity-60'>
+            onClick={() => setScale(Math.max(0.1, scale - 0.15))}
+            className='p-3 active:opacity-60 min-w-[44px] min-h-[44px] flex items-center justify-center'>
             <svg
-              className='w-5 h-5 text-white/60'
+              className='w-6 h-6 text-white/70'
               fill='none'
               viewBox='0 0 24 24'
               stroke='currentColor'>
@@ -356,13 +369,13 @@ function ImageCropper({
             step='0.01'
             value={scale}
             onChange={(e) => setScale(parseFloat(e.target.value))}
-            className='flex-1 h-1 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-7 [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:active:scale-110 [&::-webkit-slider-thumb]:transition-transform'
+            className='flex-1 h-2 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-8 [&::-webkit-slider-thumb]:h-8 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:active:scale-110 [&::-webkit-slider-thumb]:transition-transform'
           />
           <button
-            onClick={() => setScale(Math.min(3, scale + 0.2))}
-            className='p-2 active:opacity-60'>
+            onClick={() => setScale(Math.min(3, scale + 0.15))}
+            className='p-3 active:opacity-60 min-w-[44px] min-h-[44px] flex items-center justify-center'>
             <svg
-              className='w-6 h-6 text-white/60'
+              className='w-6 h-6 text-white/70'
               fill='none'
               viewBox='0 0 24 24'
               stroke='currentColor'>

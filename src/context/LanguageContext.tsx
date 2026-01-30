@@ -91,7 +91,7 @@ const translations = {
   "settings.version": "Version",
   "settings.dataStorage": "Data storage",
   "settings.dataStorageDesc":
-    "All data is stored locally on your device using IndexedDB.",
+    "When signed in, your data is stored securely in the cloud and syncs across devices. When not signed in, data is stored locally on your device.",
   "settings.data": "Data",
   "settings.deleteAllData": "Delete all data",
   "settings.deleteAllConfirm":
@@ -239,6 +239,7 @@ const translations = {
   "profile.uploadFailed": "Failed to upload image",
   "profile.adjustPhoto": "Adjust Photo",
   "profile.choose": "Choose",
+  "profile.pinchToZoom": "Pinch to zoom • Drag to move",
 
   // Workout
   "workout.title": "Workout",

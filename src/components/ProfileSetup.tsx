@@ -102,6 +102,9 @@ function ImageCropper({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
+  const [isPinching, setIsPinching] = useState(false);
+  const [initialPinchDistance, setInitialPinchDistance] = useState(0);
+  const [initialPinchScale, setInitialPinchScale] = useState(1);
 
   useEffect(() => {
     const img = new Image();
@@ -118,8 +121,26 @@ function ImageCropper({
     img.src = imageSrc;
   }, [imageSrc]);
 
+  // Calculate distance between two touch points
+  const getTouchDistance = (touches: React.TouchList | TouchList) => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
   const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
+
+    // Check for pinch gesture (two fingers)
+    if ("touches" in e && e.touches.length === 2) {
+      const distance = getTouchDistance(e.touches);
+      setIsPinching(true);
+      setInitialPinchDistance(distance);
+      setInitialPinchScale(scale);
+      return;
+    }
+
     setIsDragging(true);
     const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
     const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
@@ -128,23 +149,43 @@ function ImageCropper({
 
   const handleMouseMove = useCallback(
     (e: MouseEvent | TouchEvent) => {
+      // Handle pinch zoom
+      if (isPinching && "touches" in e && e.touches.length === 2) {
+        e.preventDefault(); // Prevent page zoom
+        const distance = getTouchDistance(e.touches);
+        if (initialPinchDistance > 0) {
+          const newScale =
+            initialPinchScale * (distance / initialPinchDistance);
+          setScale(Math.min(3, Math.max(0.1, newScale)));
+        }
+        return;
+      }
+
       if (!isDragging) return;
+      if ("touches" in e) e.preventDefault(); // Prevent scroll while dragging
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
       setPosition({ x: clientX - dragStart.x, y: clientY - dragStart.y });
     },
-    [isDragging, dragStart]
+    [
+      isDragging,
+      dragStart,
+      isPinching,
+      initialPinchDistance,
+      initialPinchScale,
+    ],
   );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
+    setIsPinching(false);
   }, []);
 
   useEffect(() => {
-    if (isDragging) {
+    if (isDragging || isPinching) {
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
-      window.addEventListener("touchmove", handleMouseMove);
+      window.addEventListener("touchmove", handleMouseMove, { passive: false });
       window.addEventListener("touchend", handleMouseUp);
       return () => {
         window.removeEventListener("mousemove", handleMouseMove);
@@ -153,7 +194,7 @@ function ImageCropper({
         window.removeEventListener("touchend", handleMouseUp);
       };
     }
-  }, [isDragging, handleMouseMove, handleMouseUp]);
+  }, [isDragging, isPinching, handleMouseMove, handleMouseUp]);
 
   const handleCrop = () => {
     if (!imageRef.current || !canvasRef.current) return;
@@ -187,7 +228,7 @@ function ImageCropper({
       0,
       0,
       outputSize,
-      outputSize
+      outputSize,
     );
 
     canvas.toBlob(
@@ -195,16 +236,22 @@ function ImageCropper({
         if (blob) onCropComplete(blob);
       },
       "image/jpeg",
-      0.85
+      0.85,
     );
   };
 
   return (
-    <div className='fixed inset-0 bg-black z-[60] flex flex-col'>
-      <div className='flex items-center justify-between px-4 py-3 bg-black/80'>
+    <div
+      className='fixed inset-0 bg-black z-[60] flex flex-col'
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+      {/* Spacer for safe area */}
+      <div className='h-2' />
+
+      {/* Header - moved down for better accessibility */}
+      <div className='flex items-center justify-between px-4 py-4 bg-black/90 backdrop-blur-sm'>
         <button
           onClick={onCancel}
-          className='text-white text-[17px] active:opacity-60'>
+          className='text-white text-[17px] px-3 py-2 -ml-1 active:opacity-60 min-h-[44px] flex items-center'>
           {t("common.cancel")}
         </button>
         <span className='text-white text-[17px] font-semibold'>
@@ -212,7 +259,7 @@ function ImageCropper({
         </span>
         <button
           onClick={handleCrop}
-          className='text-ios-blue text-[17px] font-semibold active:opacity-60'>
+          className='text-ios-blue text-[17px] font-semibold px-3 py-2 -mr-1 active:opacity-60 min-h-[44px] flex items-center'>
           {t("profile.choose") || "Choose"}
         </button>
       </div>
@@ -225,18 +272,23 @@ function ImageCropper({
           onTouchStart={handleMouseDown}>
           {imageLoaded && imageRef.current && (
             <div
-              className='absolute cursor-move'
+              className='absolute'
               style={{
                 width: imageSize.width * scale,
                 height: imageSize.height * scale,
                 left: "50%",
                 top: "50%",
                 transform: `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`,
+                cursor: isDragging ? "grabbing" : "grab",
+                transition:
+                  isDragging || isPinching
+                    ? "none"
+                    : "width 0.15s ease-out, height 0.15s ease-out",
               }}>
               <img
                 src={imageSrc}
                 alt='Crop preview'
-                className='w-full h-full object-contain pointer-events-none'
+                className='w-full h-full object-contain pointer-events-none select-none'
                 draggable={false}
               />
             </div>
@@ -251,20 +303,33 @@ function ImageCropper({
           <div className='absolute inset-0 rounded-full border-2 border-white/50 pointer-events-none' />
         </div>
       </div>
-      <div className='px-8 py-6 bg-black/80'>
-        <div className='flex items-center gap-4'>
-          <svg
-            className='w-5 h-5 text-white/60'
-            fill='none'
-            viewBox='0 0 24 24'
-            stroke='currentColor'>
-            <path
-              strokeLinecap='round'
-              strokeLinejoin='round'
-              strokeWidth={2}
-              d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7'
-            />
-          </svg>
+      {/* Zoom Slider */}
+      <div
+        className='px-6 py-6 bg-black/90 backdrop-blur-sm'
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+        }}>
+        {/* Pinch hint */}
+        <p className='text-white/40 text-xs text-center mb-4'>
+          {t("profile.pinchToZoom") || "Pinch to zoom • Drag to move"}
+        </p>
+        <div className='flex items-center gap-3'>
+          <button
+            onClick={() => setScale(Math.max(0.1, scale - 0.15))}
+            className='p-3 active:opacity-60 min-w-[44px] min-h-[44px] flex items-center justify-center'>
+            <svg
+              className='w-6 h-6 text-white/70'
+              fill='none'
+              viewBox='0 0 24 24'
+              stroke='currentColor'>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth={2}
+                d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7'
+              />
+            </svg>
+          </button>
           <input
             type='range'
             min='0.1'
@@ -272,20 +337,24 @@ function ImageCropper({
             step='0.01'
             value={scale}
             onChange={(e) => setScale(parseFloat(e.target.value))}
-            className='flex-1 h-1 bg-white/30 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg'
+            className='flex-1 h-2 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-8 [&::-webkit-slider-thumb]:h-8 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:active:scale-110 [&::-webkit-slider-thumb]:transition-transform'
           />
-          <svg
-            className='w-6 h-6 text-white/60'
-            fill='none'
-            viewBox='0 0 24 24'
-            stroke='currentColor'>
-            <path
-              strokeLinecap='round'
-              strokeLinejoin='round'
-              strokeWidth={2}
-              d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7'
-            />
-          </svg>
+          <button
+            onClick={() => setScale(Math.min(3, scale + 0.15))}
+            className='p-3 active:opacity-60 min-w-[44px] min-h-[44px] flex items-center justify-center'>
+            <svg
+              className='w-6 h-6 text-white/70'
+              fill='none'
+              viewBox='0 0 24 24'
+              stroke='currentColor'>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                strokeWidth={2}
+                d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7'
+              />
+            </svg>
+          </button>
         </div>
       </div>
       <canvas ref={canvasRef} className='hidden' />
@@ -296,7 +365,7 @@ function ImageCropper({
 // Compress image function
 async function compressImage(
   file: File,
-  maxSizeMB: number = 1.5
+  maxSizeMB: number = 1.5,
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -339,7 +408,7 @@ async function compressImage(
             }
           },
           "image/jpeg",
-          quality
+          quality,
         );
       };
       tryCompress(0.9);
@@ -447,7 +516,7 @@ export function ProfileSetup() {
 
     const { error: submitError } = await createProfile(
       fullName.trim(),
-      avatarValue
+      avatarValue,
     );
 
     if (submitError) {
