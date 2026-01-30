@@ -59,7 +59,16 @@ export async function getActivityTypes(): Promise<ActivityType[]> {
     const request = store.getAll();
 
     request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const types = request.result as ActivityType[];
+      // Sort by order (nulls last)
+      types.sort((a, b) => {
+        const orderA = a.order ?? 999;
+        const orderB = b.order ?? 999;
+        return orderA - orderB;
+      });
+      resolve(types);
+    };
   });
 }
 
