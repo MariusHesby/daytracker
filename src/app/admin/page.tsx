@@ -40,6 +40,8 @@ export default function AdminPage() {
     "lastActive",
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [userToDelete, setUserToDelete] = useState<UserStats | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Check if current user is admin
   const isAdmin = user?.email === ADMIN_EMAIL;
@@ -189,6 +191,84 @@ export default function AdminPage() {
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const deleteUser = async (userStats: UserStats) => {
+    setIsDeleting(true);
+    try {
+      const userId = userStats.userId;
+
+      // Delete all user data from Supabase in order (respecting foreign keys)
+      // 1. Delete log entries
+      const { error: entriesError } = await supabase
+        .from("log_entries")
+        .delete()
+        .eq("user_id", userId);
+      if (entriesError) throw entriesError;
+
+      // 2. Delete suggestions
+      const { error: suggestionsError } = await supabase
+        .from("suggestions")
+        .delete()
+        .eq("user_id", userId);
+      if (suggestionsError) throw suggestionsError;
+
+      // 3. Delete activity types
+      const { error: activityError } = await supabase
+        .from("activity_types")
+        .delete()
+        .eq("user_id", userId);
+      if (activityError) throw activityError;
+
+      // 4. Delete locked days
+      const { error: lockedError } = await supabase
+        .from("locked_days")
+        .delete()
+        .eq("user_id", userId);
+      if (lockedError) throw lockedError;
+
+      // 5. Delete shared access (both as sharer and viewer)
+      const { error: sharedError1 } = await supabase
+        .from("shared_access")
+        .delete()
+        .eq("owner_id", userId);
+      if (sharedError1) console.warn("shared_access owner delete:", sharedError1);
+
+      const { error: sharedError2 } = await supabase
+        .from("shared_access")
+        .delete()
+        .eq("viewer_id", userId);
+      if (sharedError2) console.warn("shared_access viewer delete:", sharedError2);
+
+      // 6. Delete profile
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("user_id", userId);
+      if (profileError) throw profileError;
+
+      // Update local state
+      setUsers((prev) => prev.filter((u) => u.userId !== userId));
+      setUserToDelete(null);
+
+      // Update app stats
+      if (appStats) {
+        setAppStats({
+          ...appStats,
+          totalUsers: appStats.totalUsers - 1,
+          totalEntries: appStats.totalEntries - userStats.totalEntries,
+          totalActivityTypes:
+            appStats.totalActivityTypes - userStats.totalActivityTypes,
+        });
+      }
+    } catch (err) {
+      console.error("Delete user error:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to delete user",
+      );
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -421,7 +501,7 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      {/* Stats */}
+                      {/* Stats & Delete */}
                       <div className='text-right shrink-0'>
                         <p className='text-[17px] font-medium text-gray-900 dark:text-white'>
                           {userStats.totalEntries}
@@ -430,6 +510,14 @@ export default function AdminPage() {
                         <p className='text-[12px] text-gray-400 mt-1'>
                           {userStats.daysActive} days
                         </p>
+                        {/* Delete button - don't allow deleting yourself */}
+                        {userStats.email !== ADMIN_EMAIL && (
+                          <button
+                            onClick={() => setUserToDelete(userStats)}
+                            className='text-[12px] text-ios-red mt-2 active:opacity-60'>
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -446,6 +534,62 @@ export default function AdminPage() {
           </>
         )}
       </main>
+
+      {/* Delete User Confirmation Modal */}
+      {userToDelete && (
+        <div
+          className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4'
+          onClick={() => !isDeleting && setUserToDelete(null)}>
+          <div
+            className='bg-white dark:bg-ios-card-dark rounded-2xl w-full max-w-[300px] overflow-hidden'
+            style={{ animation: "scale-in 0.2s ease-out" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div className='p-6 text-center'>
+              <h3 className='text-[17px] font-semibold text-gray-900 dark:text-white mb-2'>
+                Delete User?
+              </h3>
+              <p className='text-[14px] text-gray-500 dark:text-gray-400'>
+                This will permanently delete{" "}
+                <span className='font-medium text-gray-900 dark:text-white'>
+                  {userToDelete.fullName}
+                </span>{" "}
+                and all their data ({userToDelete.totalEntries} entries,{" "}
+                {userToDelete.totalActivityTypes} activity types).
+              </p>
+              <p className='text-[13px] text-ios-red mt-2'>
+                This action cannot be undone.
+              </p>
+            </div>
+            <div className='border-t border-gray-200 dark:border-gray-700 flex'>
+              <button
+                onClick={() => setUserToDelete(null)}
+                disabled={isDeleting}
+                className='flex-1 py-3 text-[17px] text-ios-blue font-normal border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800 disabled:opacity-50'>
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteUser(userToDelete)}
+                disabled={isDeleting}
+                className='flex-1 py-3 text-[17px] text-ios-red font-semibold active:bg-gray-100 dark:active:bg-gray-800 disabled:opacity-50'>
+                {isDeleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes scale-in {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 }
