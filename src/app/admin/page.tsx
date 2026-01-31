@@ -233,13 +233,15 @@ export default function AdminPage() {
         .from("shared_access")
         .delete()
         .eq("owner_id", userId);
-      if (sharedError1) console.warn("shared_access owner delete:", sharedError1);
+      if (sharedError1)
+        console.warn("shared_access owner delete:", sharedError1);
 
       const { error: sharedError2 } = await supabase
         .from("shared_access")
         .delete()
         .eq("viewer_id", userId);
-      if (sharedError2) console.warn("shared_access viewer delete:", sharedError2);
+      if (sharedError2)
+        console.warn("shared_access viewer delete:", sharedError2);
 
       // 6. Delete profile
       const { error: profileError } = await supabase
@@ -264,9 +266,7 @@ export default function AdminPage() {
       }
     } catch (err) {
       console.error("Delete user error:", err);
-      setError(
-        err instanceof Error ? err.message : "Failed to delete user",
-      );
+      setError(err instanceof Error ? err.message : "Failed to delete user");
     } finally {
       setIsDeleting(false);
     }

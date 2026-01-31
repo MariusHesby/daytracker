@@ -2,33 +2,33 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* iOS Color System - Light Mode (more colorful) */
+/* iOS Color System - Light Mode (high contrast) */
 :root {
-  /* Background colors - subtle warm tint */
-  --ios-bg: #f5f3f0;
-  --ios-bg-secondary: rgba(255, 255, 255, 0.8);
-  --ios-bg-tertiary: rgba(255, 255, 255, 0.8);
+  /* Background colors - distinct gray for contrast */
+  --ios-bg: #f2f2f7;
+  --ios-bg-secondary: #ffffff;
+  --ios-bg-tertiary: #ffffff;
   
-  /* Card/grouped backgrounds - 20% transparent */
-  --ios-card: rgba(255, 255, 255, 0.8);
+  /* Card/grouped backgrounds - solid white for contrast */
+  --ios-card: #ffffff;
   
-  /* Text colors */
-  --ios-label: #1a1a2e;
-  --ios-label-secondary: #4a4a5a;
-  --ios-label-tertiary: #6a6a7a;
+  /* Text colors - high contrast */
+  --ios-label: #000000;
+  --ios-label-secondary: #3c3c43;
+  --ios-label-tertiary: #6e6e73;
   
-  /* System colors - vibrant */
-  --ios-blue: #0066ff;
-  --ios-green: #00c853;
-  --ios-red: #ff3d71;
-  --ios-orange: #ff9100;
-  --ios-yellow: #ffd600;
-  --ios-teal: #00bcd4;
-  --ios-purple: #7c4dff;
+  /* System colors - iOS standard */
+  --ios-blue: #007aff;
+  --ios-green: #34c759;
+  --ios-red: #ff3b30;
+  --ios-orange: #ff9500;
+  --ios-yellow: #ffcc00;
+  --ios-teal: #5ac8fa;
+  --ios-purple: #af52de;
   
   /* Separators */
-  --ios-separator: rgba(60, 60, 67, 0.1);
-  --ios-separator-opaque: #e0ddd8;
+  --ios-separator: rgba(60, 60, 67, 0.12);
+  --ios-separator-opaque: #c6c6c8;
   
   /* Accent gradient colors */
   --gradient-start: #667eea;
@@ -39,22 +39,22 @@
   --foreground: var(--ios-label);
 }
 
-/* Dark Mode */
+/* Dark Mode - True iOS dark with high contrast */
 .dark {
-  /* Dark mode backgrounds */
+  /* Dark mode backgrounds - true black */
   --ios-bg: #000000;
-  --ios-bg-secondary: rgba(28, 28, 30, 0.8);
-  --ios-bg-tertiary: rgba(44, 44, 46, 0.8);
+  --ios-bg-secondary: #1c1c1e;
+  --ios-bg-tertiary: #2c2c2e;
   
-  /* Dark mode cards - 20% transparent */
-  --ios-card: rgba(28, 28, 30, 0.8);
+  /* Dark mode cards - elevated surfaces */
+  --ios-card: #1c1c1e;
   
-  /* Dark mode text */
+  /* Dark mode text - bright white */
   --ios-label: #ffffff;
   --ios-label-secondary: #ebebf5;
-  --ios-label-tertiary: #ebebf5;
+  --ios-label-tertiary: #8e8e93;
   
-  /* System colors - slightly muted for dark */
+  /* System colors - iOS dark mode */
   --ios-blue: #0a84ff;
   --ios-green: #30d158;
   --ios-red: #ff453a;
@@ -64,7 +64,7 @@
   --ios-purple: #bf5af2;
   
   /* Dark separators */
-  --ios-separator: rgba(84, 84, 88, 0.65);
+  --ios-separator: rgba(84, 84, 88, 0.6);
   --ios-separator-opaque: #38383a;
   
   --gradient-start: #4c5c96;
@@ -74,212 +74,178 @@
   --foreground: var(--ios-label);
 }
 
-/* Colorful Theme - Bright, playful, child-friendly */
+/* Colorful Theme - iOS-inspired with subtle, elegant gradients */
 .colorful {
-  /* Bright white/light background */
-  /* Rainbow gradient background - slightly darker for contrast */
-  --ios-bg: linear-gradient(180deg, #fde047 0%, #f9a8d4 50%, #c4b5fd 100%);
-  --ios-bg-secondary: #fde047;
-  --ios-bg-tertiary: #f9a8d4;
+  /* Soft warm background */
+  --ios-bg: #fef7f0;
+  --ios-bg-secondary: #ffffff;
+  --ios-bg-tertiary: #ffffff;
   
-  /* Card backgrounds - soft rainbow tints */
+  /* Card backgrounds - pure white */
   --ios-card: #ffffff;
   
-  /* Dark text for contrast */
-  --ios-label: #1e1b4b;
-  --ios-label-secondary: #4c1d95;
-  --ios-label-tertiary: #6b21a8;
+  /* Rich text colors */
+  --ios-label: #1a1a2e;
+  --ios-label-secondary: #3d3d5c;
+  --ios-label-tertiary: #6b6b8a;
   
-  /* SUPER bright candy colors */
-  --ios-blue: #3b82f6;
-  --ios-green: #22c55e;
-  --ios-red: #ef4444;
-  --ios-orange: #f97316;
-  --ios-yellow: #eab308;
-  --ios-teal: #14b8a6;
-  --ios-purple: #a855f7;
+  /* Vibrant iOS-like colors */
+  --ios-blue: #007aff;
+  --ios-green: #34c759;
+  --ios-red: #ff3b30;
+  --ios-orange: #ff9500;
+  --ios-yellow: #ffcc00;
+  --ios-teal: #5ac8fa;
+  --ios-purple: #af52de;
   
-  /* Colorful separators */
-  --ios-separator: rgba(168, 85, 247, 0.2);
-  --ios-separator-opaque: #e9d5ff;
+  /* Soft separators */
+  --ios-separator: rgba(175, 82, 222, 0.15);
+  --ios-separator-opaque: #e8e0f0;
   
-  /* Rainbow gradient */
-  --gradient-start: #f472b6;
-  --gradient-end: #38bdf8;
+  /* Gradient accents */
+  --gradient-start: #ff6b9d;
+  --gradient-end: #c86bff;
   
-  --background: #fde047;
+  --background: #fef7f0;
   --foreground: var(--ios-label);
 }
 
-/* SUPER COLORFUL theme - rainbow candy land! */
-
-/* Main background - rainbow gradient (darker/more saturated) */
+/* Colorful theme - subtle gradient background */
 .colorful {
-  background: linear-gradient(180deg, #fde047 0%, #f9a8d4 35%, #c4b5fd 65%, #5eead4 100%) !important;
+  background: linear-gradient(180deg, #fff5f5 0%, #fef5ff 50%, #f5f5ff 100%) !important;
 }
 
 .colorful body {
-  background: linear-gradient(180deg, #fde047 0%, #f9a8d4 35%, #c4b5fd 65%, #5eead4 100%) !important;
+  background: linear-gradient(180deg, #fff5f5 0%, #fef5ff 50%, #f5f5ff 100%) !important;
 }
 
-/* White cards with rainbow borders */
-.colorful .bg-white {
-  background-color: #ffffff !important;
-  box-shadow: 0 0 0 2px #f9a8d4, 0 4px 12px rgba(249, 168, 212, 0.3) !important;
-}
-
+/* Colorful cards - clean white with subtle colored shadow */
+.colorful .bg-white,
 .colorful .bg-white\/80 {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  box-shadow: 0 0 0 2px #c4b5fd !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 2px 12px rgba(175, 82, 222, 0.08) !important;
 }
 
-/* Colorful text */
+/* Colorful text - purple tinted grays */
 .colorful .text-gray-900 {
-  color: #4c1d95 !important;
+  color: #1a1a2e !important;
 }
 
 .colorful .text-gray-600 {
-  color: #7c3aed !important;
+  color: #4a4a6a !important;
 }
 
 .colorful .text-gray-500 {
-  color: #8b5cf6 !important;
+  color: #6b6b8a !important;
 }
 
 .colorful .text-gray-400 {
-  color: #a78bfa !important;
+  color: #9090a8 !important;
 }
 
-/* Candy colored backgrounds */
+/* Colorful backgrounds - subtle tints */
 .colorful .bg-gray-50 {
-  background: linear-gradient(135deg, #fef9c3, #fce7f3) !important;
+  background: #fef7ff !important;
 }
 
 .colorful .bg-gray-100 {
-  background: linear-gradient(135deg, #fbcfe8, #ddd6fe) !important;
+  background: #f8f0ff !important;
 }
 
 .colorful .bg-gray-800 {
-  background: linear-gradient(135deg, #c4b5fd, #f9a8d4) !important;
+  background: #f0e8f8 !important;
 }
 
-/* Rainbow borders */
-.colorful .border-gray-200 {
-  border-color: #f9a8d4 !important;
-}
-
+/* Colorful borders - soft purple */
+.colorful .border-gray-200,
 .colorful .border-gray-200\/80 {
-  border-color: #c4b5fd !important;
+  border-color: rgba(175, 82, 222, 0.15) !important;
 }
 
-.colorful .border-gray-700 {
-  border-color: #f472b6 !important;
-}
-
-.colorful .border-gray-700\/80 {
-  border-color: #a78bfa !important;
-}
-
+.colorful .border-gray-700,
+.colorful .border-gray-700\/80,
 .colorful .border-gray-800 {
-  border-color: #818cf8 !important;
+  border-color: rgba(175, 82, 222, 0.2) !important;
 }
 
-/* Rainbow gradient buttons */
+/* Colorful buttons - gradient accent */
 .colorful .bg-ios-blue {
-  background: linear-gradient(135deg, #f472b6 0%, #818cf8 50%, #38bdf8 100%) !important;
+  background: linear-gradient(135deg, #007aff 0%, #5856d6 100%) !important;
 }
 
 .colorful .text-ios-blue {
-  background: linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6) !important;
-  -webkit-background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  background-clip: text !important;
+  color: #5856d6 !important;
 }
 
 .colorful .ring-ios-blue {
-  --tw-ring-color: #f472b6 !important;
+  --tw-ring-color: #5856d6 !important;
+}
 }
 
 .colorful .from-ios-blue {
-  --tw-gradient-from: #f472b6 !important;
+  --tw-gradient-from: #007aff !important;
 }
 
 .colorful .to-blue-600 {
-  --tw-gradient-to: #38bdf8 !important;
+  --tw-gradient-to: #5856d6 !important;
 }
 
-/* Cards with colorful glow */
-.colorful .bg-ios-card-dark {
-  background-color: #ffffff !important;
-  box-shadow: 0 0 0 2px #f9a8d4, 0 8px 24px rgba(249, 168, 212, 0.25) !important;
-}
-
+/* Colorful cards - clean elevated surfaces */
+.colorful .bg-ios-card-dark,
 .colorful .dark\:bg-ios-card-dark {
   background-color: #ffffff !important;
-  box-shadow: 0 0 0 2px #c4b5fd, 0 8px 24px rgba(196, 181, 253, 0.25) !important;
+  box-shadow: 0 2px 12px rgba(175, 82, 222, 0.1) !important;
 }
 
-/* Tab bar - rainbow gradient (darker) */
+/* Tab bar - subtle gradient */
 .colorful .dark\:bg-\[\#2b2930\] {
-  background: linear-gradient(90deg, #fde047, #f9a8d4, #c4b5fd, #5eead4) !important;
-  border-top: 2px solid #ec4899 !important;
+  background: linear-gradient(90deg, #fff8f8, #fff5ff, #f8f5ff) !important;
+  border-top: 1px solid rgba(175, 82, 222, 0.15) !important;
 }
 
-/* Super bright checkmarks */
+/* Colorful accent colors */
 .colorful .text-ios-green {
-  color: #22c55e !important;
-  text-shadow: 0 0 8px rgba(34, 197, 94, 0.5) !important;
+  color: #34c759 !important;
 }
 
 .colorful .bg-ios-green\/10 {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(52, 211, 153, 0.2)) !important;
+  background: rgba(52, 199, 89, 0.12) !important;
 }
 
-/* Colorful inputs */
+/* Colorful inputs - subtle styling */
 .colorful input,
 .colorful textarea,
 .colorful select {
-  background-color: #fffbeb !important;
-  border-color: #fcd34d !important;
+  background-color: #ffffff !important;
+  border-color: rgba(175, 82, 222, 0.2) !important;
 }
 
 .colorful input:focus,
 .colorful textarea:focus,
 .colorful select:focus {
-  border-color: #f472b6 !important;
-  box-shadow: 0 0 0 3px rgba(244, 114, 182, 0.3) !important;
+  border-color: #5856d6 !important;
+  box-shadow: 0 0 0 3px rgba(88, 86, 214, 0.15) !important;
 }
 
-/* Fun hover effects */
-.colorful button:hover {
-  transform: scale(1.02);
-  transition: transform 0.2s ease;
-}
-
-/* Activity type colors - make them pop! */
+/* Activity type colors */
 .colorful .text-ios-red {
-  color: #ef4444 !important;
-  text-shadow: 0 0 6px rgba(239, 68, 68, 0.4) !important;
+  color: #ff3b30 !important;
 }
 
 .colorful .text-ios-orange {
-  color: #f97316 !important;
-  text-shadow: 0 0 6px rgba(249, 115, 22, 0.4) !important;
+  color: #ff9500 !important;
 }
 
 .colorful .text-ios-yellow {
-  color: #eab308 !important;
-  text-shadow: 0 0 6px rgba(234, 179, 8, 0.4) !important;
+  color: #ffcc00 !important;
 }
 
 .colorful .text-ios-teal {
-  color: #14b8a6 !important;
-  text-shadow: 0 0 6px rgba(20, 184, 166, 0.4) !important;
+  color: #5ac8fa !important;
 }
 
 .colorful .text-ios-purple {
-  color: #a855f7 !important;
-  text-shadow: 0 0 6px rgba(168, 85, 247, 0.4) !important;
+  color: #af52de !important;
 }
 
 @theme inline {
