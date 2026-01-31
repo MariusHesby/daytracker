@@ -72,35 +72,47 @@ function BackgroundLogo() {
   return (
     <div className='fixed inset-0 pointer-events-none overflow-hidden z-0'>
       {/* Large decorative gradient circles */}
-      <div 
-        className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-[0.025] dark:opacity-[0.04]"
-        style={{ background: 'radial-gradient(circle, var(--ios-blue) 0%, transparent 70%)' }}
+      <div
+        className='absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-[0.025] dark:opacity-[0.04]'
+        style={{
+          background:
+            "radial-gradient(circle, var(--ios-blue) 0%, transparent 70%)",
+        }}
       />
-      <div 
-        className="absolute -bottom-64 -left-64 w-[600px] h-[600px] rounded-full opacity-[0.02] dark:opacity-[0.035]"
-        style={{ background: 'radial-gradient(circle, var(--ios-purple, #af52de) 0%, transparent 70%)' }}
+      <div
+        className='absolute -bottom-64 -left-64 w-[600px] h-[600px] rounded-full opacity-[0.02] dark:opacity-[0.035]'
+        style={{
+          background:
+            "radial-gradient(circle, var(--ios-purple, #af52de) 0%, transparent 70%)",
+        }}
       />
-      <div 
-        className="absolute top-1/3 -right-32 w-80 h-80 rounded-full opacity-[0.015] dark:opacity-[0.025]"
-        style={{ background: 'radial-gradient(circle, var(--ios-green) 0%, transparent 70%)' }}
+      <div
+        className='absolute top-1/3 -right-32 w-80 h-80 rounded-full opacity-[0.015] dark:opacity-[0.025]'
+        style={{
+          background:
+            "radial-gradient(circle, var(--ios-green) 0%, transparent 70%)",
+        }}
       />
-      <div 
-        className="absolute bottom-1/4 left-1/4 w-48 h-48 rounded-full opacity-[0.02] dark:opacity-[0.03]"
-        style={{ background: 'radial-gradient(circle, var(--ios-orange) 0%, transparent 70%)' }}
+      <div
+        className='absolute bottom-1/4 left-1/4 w-48 h-48 rounded-full opacity-[0.02] dark:opacity-[0.03]'
+        style={{
+          background:
+            "radial-gradient(circle, var(--ios-orange) 0%, transparent 70%)",
+        }}
       />
-      
+
       {/* Subtle grid pattern */}
-      <div 
-        className="absolute inset-0 opacity-[0.012] dark:opacity-[0.025]"
-        style={{ 
+      <div
+        className='absolute inset-0 opacity-[0.012] dark:opacity-[0.025]'
+        style={{
           backgroundImage: `
             linear-gradient(rgba(0,122,255,0.4) 1px, transparent 1px),
             linear-gradient(90deg, rgba(0,122,255,0.4) 1px, transparent 1px)
           `,
-          backgroundSize: '80px 80px'
+          backgroundSize: "80px 80px",
         }}
       />
-      
+
       {/* Main logo - much bigger */}
       <svg
         className='absolute -bottom-32 -right-32 w-[180vw] h-[180vw] max-w-[1100px] max-h-[1100px] opacity-[0.03] dark:opacity-[0.045] rotate-12'
@@ -173,7 +185,7 @@ function BackgroundLogo() {
           className='text-ios-blue'
         />
       </svg>
-      
+
       {/* Secondary smaller logo in opposite corner */}
       <svg
         className='absolute -top-16 -left-16 w-[60vw] h-[60vw] max-w-[350px] max-h-[350px] opacity-[0.015] dark:opacity-[0.025] -rotate-12'
@@ -189,12 +201,57 @@ function BackgroundLogo() {
           strokeLinejoin='round'
           className='text-ios-purple'
         />
-        <circle cx='220' cy='200' r='22' fill='currentColor' className='text-ios-purple' />
-        <circle cx='220' cy='256' r='22' fill='currentColor' className='text-ios-purple' />
-        <circle cx='220' cy='312' r='22' fill='currentColor' className='text-ios-purple' />
-        <line x1='244' y1='200' x2='330' y2='200' stroke='currentColor' strokeWidth='14' strokeLinecap='round' className='text-ios-purple' />
-        <line x1='244' y1='256' x2='355' y2='256' stroke='currentColor' strokeWidth='14' strokeLinecap='round' className='text-ios-purple' />
-        <line x1='244' y1='312' x2='310' y2='312' stroke='currentColor' strokeWidth='14' strokeLinecap='round' className='text-ios-purple' />
+        <circle
+          cx='220'
+          cy='200'
+          r='22'
+          fill='currentColor'
+          className='text-ios-purple'
+        />
+        <circle
+          cx='220'
+          cy='256'
+          r='22'
+          fill='currentColor'
+          className='text-ios-purple'
+        />
+        <circle
+          cx='220'
+          cy='312'
+          r='22'
+          fill='currentColor'
+          className='text-ios-purple'
+        />
+        <line
+          x1='244'
+          y1='200'
+          x2='330'
+          y2='200'
+          stroke='currentColor'
+          strokeWidth='14'
+          strokeLinecap='round'
+          className='text-ios-purple'
+        />
+        <line
+          x1='244'
+          y1='256'
+          x2='355'
+          y2='256'
+          stroke='currentColor'
+          strokeWidth='14'
+          strokeLinecap='round'
+          className='text-ios-purple'
+        />
+        <line
+          x1='244'
+          y1='312'
+          x2='310'
+          y2='312'
+          stroke='currentColor'
+          strokeWidth='14'
+          strokeLinecap='round'
+          className='text-ios-purple'
+        />
       </svg>
     </div>
   );

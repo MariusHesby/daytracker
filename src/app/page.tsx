@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
+import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   EntryForm,
   DateNavigator,
   SearchEntries,
   LoadingState,
+  Avatar,
 } from "@/components";
 import { addDays } from "@/lib/utils";
 
@@ -21,6 +23,7 @@ export default function HomePage() {
     setViewingUser,
     isViewingOther,
   } = useApp();
+  const { user, profile } = useAuth();
   const { t } = useLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -110,6 +113,9 @@ export default function HomePage() {
             )}
           </button>
           <SearchEntries onSelectDate={setSelectedDate} />
+          {user && (
+            <Avatar avatar={profile?.avatar || null} size='sm' />
+          )}
         </div>
       </div>
 
