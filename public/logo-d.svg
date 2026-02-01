@@ -1,0 +1,19 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Stylized "D" shape -->
+  <path d="M100 60 L100 452 L260 452 C380 452 460 360 460 256 C460 152 380 60 260 60 L100 60 Z" 
+        fill="none" 
+        stroke="currentColor" 
+        stroke-width="40" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  
+  <!-- Timeline dots inside the D -->
+  <circle cx="180" cy="170" r="28" fill="currentColor"/>
+  <circle cx="180" cy="256" r="28" fill="currentColor"/>
+  <circle cx="180" cy="342" r="28" fill="currentColor"/>
+  
+  <!-- Connecting lines -->
+  <line x1="210" y1="170" x2="320" y2="170" stroke="currentColor" stroke-width="16" stroke-linecap="round"/>
+  <line x1="210" y1="256" x2="360" y2="256" stroke="currentColor" stroke-width="16" stroke-linecap="round"/>
+  <line x1="210" y1="342" x2="290" y2="342" stroke="currentColor" stroke-width="16" stroke-linecap="round"/>
+</svg>

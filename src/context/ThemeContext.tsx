@@ -66,21 +66,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         const savedScheme = localStorage.getItem("colorScheme") || "1";
         document.documentElement.classList.add(`colorful-${savedScheme}`);
 
-        // Apply custom colors if scheme 4
-        if (savedScheme === "4") {
-          const customColors = localStorage.getItem("customColors");
-          if (customColors) {
-            try {
-              const colors = JSON.parse(customColors);
-              const root = document.documentElement;
-              root.style.setProperty("--custom-color-1", colors.color1);
-              root.style.setProperty("--custom-color-2", colors.color2);
-              root.style.setProperty("--custom-color-3", colors.color3);
-              root.style.setProperty("--custom-color-4", colors.color4);
-              root.style.setProperty("--custom-color-5", colors.color5);
-            } catch {
-              // Invalid JSON, ignore
-            }
+        // Apply custom colors for the active scheme
+        const slotKey = `colorSlot${savedScheme}`;
+        const savedColors = localStorage.getItem(slotKey);
+        if (savedColors) {
+          try {
+            const colors = JSON.parse(savedColors);
+            const root = document.documentElement;
+            root.style.setProperty("--custom-color-1", colors.color1);
+            root.style.setProperty("--custom-color-2", colors.color2);
+            root.style.setProperty("--custom-color-3", colors.color3);
+            root.style.setProperty("--custom-color-4", colors.color4);
+            root.style.setProperty("--custom-color-5", colors.color5);
+          } catch {
+            // Invalid JSON, ignore
           }
         }
       }

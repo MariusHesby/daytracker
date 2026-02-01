@@ -76,9 +76,64 @@ export default function HomePage() {
       {/* Header with Search */}
       <div className='px-4 pt-10 pb-10'>
         <div className='flex items-center justify-between relative min-h-[72px]'>
-          <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
-            DayTracker
-          </h1>
+          <svg
+            className='h-12 text-ios-blue'
+            viewBox='0 0 1200 512'
+            fill='none'
+            style={{ width: "auto" }}>
+            {/* Stylized "D" shape - same as splash screen */}
+            <path
+              d='M160 120 L160 392 L280 392 C360 392 420 320 420 256 C420 192 360 120 280 120 L160 120 Z'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='28'
+              strokeLinecap='round'
+              strokeLinejoin='round'
+            />
+            {/* Timeline dots */}
+            <circle cx='220' cy='200' r='22' fill='currentColor' />
+            <circle cx='220' cy='256' r='22' fill='currentColor' />
+            <circle cx='220' cy='312' r='22' fill='currentColor' />
+            {/* Connecting lines */}
+            <line
+              x1='244'
+              y1='200'
+              x2='330'
+              y2='200'
+              stroke='currentColor'
+              strokeWidth='14'
+              strokeLinecap='round'
+            />
+            <line
+              x1='244'
+              y1='256'
+              x2='355'
+              y2='256'
+              stroke='currentColor'
+              strokeWidth='14'
+              strokeLinecap='round'
+            />
+            <line
+              x1='244'
+              y1='312'
+              x2='310'
+              y2='312'
+              stroke='currentColor'
+              strokeWidth='14'
+              strokeLinecap='round'
+            />
+            {/* "aytracker" text in handwritten style */}
+            <text
+              x='460'
+              y='310'
+              fill='currentColor'
+              fontSize='160'
+              fontFamily='Georgia, "Times New Roman", serif'
+              fontStyle='italic'
+              fontWeight='500'>
+              aytracker
+            </text>
+          </svg>
           {/* Centered Avatar */}
           {user && (
             <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
@@ -147,7 +202,7 @@ export default function HomePage() {
       </div>
 
       {/* Main Content */}
-      <main className='px-4 pb-4'>
+      <main className='px-4 pb-24'>
         <EntryForm
           date={selectedDate}
           viewMode={viewMode}

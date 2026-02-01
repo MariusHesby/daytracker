@@ -3,35 +3,35 @@
 import { useState, useEffect } from "react";
 
 export function SplashScreen({ onComplete }: { onComplete: () => void }) {
-  const [phase, setPhase] = useState<"logo" | "fadeOut" | "done">("logo");
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    // Show logo animation for 2.5 seconds
-    const logoTimer = setTimeout(() => {
-      setPhase("fadeOut");
-    }, 2500);
-
-    // Complete after fade out (2.5s + 0.5s = 3s total)
+    // Show logo animation for 2.5 seconds, then hold for 0.3s, then switch instantly
     const completeTimer = setTimeout(() => {
-      setPhase("done");
+      setVisible(false);
       onComplete();
-    }, 3000);
+    }, 2800);
 
     return () => {
-      clearTimeout(logoTimer);
       clearTimeout(completeTimer);
     };
   }, [onComplete]);
 
-  if (phase === "done") return null;
+  if (!visible) return null;
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-ios-bg dark:bg-ios-bg-dark transition-opacity duration-500 overflow-hidden ${
-        phase === "fadeOut" ? "opacity-0" : "opacity-100"
-      }`}>
+      className='fixed inset-0 z-[9999] flex items-center justify-center overflow-hidden'
+      style={{ backgroundColor: "#f5f5f7" }}>
+      <style>{`
+        .dark .splash-bg { background-color: #000 !important; }
+      `}</style>
+      <div
+        className='splash-bg absolute inset-0'
+        style={{ backgroundColor: "#f5f5f7" }}
+      />
       {/* Subtle background elements */}
-      <div className='absolute inset-0 overflow-hidden'>
+      <div className='absolute inset-0 overflow-hidden z-10'>
         {/* Large decorative circles */}
         <div
           className='absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-[0.03] dark:opacity-[0.05]'
@@ -90,7 +90,7 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
         />
       </div>
 
-      <div className='flex flex-col items-center gap-6 -mt-16 relative z-10'>
+      <div className='flex flex-col items-center gap-6 -mt-16 relative z-20'>
         {/* Animated Logo - Much bigger */}
         <svg
           className='w-56 h-56 sm:w-64 sm:h-64'
