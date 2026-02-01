@@ -280,7 +280,9 @@ export default function MoviesPage() {
         <div className='bg-ios-blue text-white px-4 py-3 flex items-center justify-between'>
           <div>
             <p className='text-sm font-medium'>Viewing shared data</p>
-            <p className='text-xs opacity-80'>{viewingUser.email}</p>
+            <p className='text-xs opacity-80'>
+              {viewingUser.fullName || viewingUser.email}
+            </p>
           </div>
           <button
             onClick={() => setViewingUser(null)}

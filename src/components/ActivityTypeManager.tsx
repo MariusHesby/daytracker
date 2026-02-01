@@ -60,7 +60,7 @@ export const ActivityTypeManager = forwardRef<
   ActivityTypeManagerProps
 >(function ActivityTypeManager({ onAddingChange }, ref) {
   const {
-    allActivityTypes: activityTypes,
+    ownActivityTypes: activityTypes,
     addActivityType,
     updateActivityType,
     deleteActivityType,

@@ -18,8 +18,9 @@ interface AppContextType {
   // Activity Types
   activityTypes: ActivityType[];
   allActivityTypes: ActivityType[]; // Including hidden ones for settings
+  ownActivityTypes: ActivityType[]; // Main user's activity types (never changes when viewing shared data)
   addActivityType: (
-    type: Omit<ActivityType, "id" | "createdAt">
+    type: Omit<ActivityType, "id" | "createdAt">,
   ) => Promise<void>;
   updateActivityType: (type: ActivityType) => Promise<void>;
   deleteActivityType: (id: string) => Promise<void>;
@@ -29,7 +30,7 @@ interface AppContextType {
   // Entries
   entries: LogEntry[];
   addEntry: (
-    entry: Omit<LogEntry, "id" | "createdAt" | "updatedAt">
+    entry: Omit<LogEntry, "id" | "createdAt" | "updatedAt">,
   ) => Promise<void>;
   updateEntry: (entry: LogEntry) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
@@ -41,7 +42,7 @@ interface AppContextType {
   // Workout history
   getWorkoutHistory: (
     activityTypeId: string,
-    beforeDate: string
+    beforeDate: string,
   ) => Promise<LogEntry[]>;
 
   // Sync
@@ -54,9 +55,21 @@ interface AppContextType {
   setSelectedDate: (date: string) => void;
 
   // Viewing as another user (for shared data)
-  viewingUser: { id: string; email: string; activityTypeIds: string[] } | null;
+  viewingUser: {
+    id: string;
+    email: string;
+    fullName?: string;
+    activityTypeIds: string[];
+    avatar?: string | null;
+  } | null;
   setViewingUser: (
-    user: { id: string; email: string; activityTypeIds: string[] } | null
+    user: {
+      id: string;
+      email: string;
+      fullName?: string;
+      activityTypeIds: string[];
+      avatar?: string | null;
+    } | null,
   ) => void;
   isViewingOther: boolean;
 
@@ -71,6 +84,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
+  const [ownActivityTypes, setOwnActivityTypes] = useState<ActivityType[]>([]);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -87,7 +101,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [viewingUser, setViewingUser] = useState<{
     id: string;
     email: string;
+    fullName?: string;
     activityTypeIds: string[];
+    avatar?: string | null;
   } | null>(null);
   const isViewingOther = viewingUser !== null;
 
@@ -115,6 +131,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             );
           });
           setActivityTypes(sortedTypes);
+          setOwnActivityTypes(sortedTypes);
 
           // Load locked days
           const locked = await getLockedDays(user.id);
@@ -133,6 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             );
           });
           setActivityTypes(sortedTypes);
+          setOwnActivityTypes(sortedTypes);
           setLockedDays([]);
         }
 
@@ -175,7 +193,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const cloudEntries = await cloudDb.getEntriesFromSupabase(
           user.id,
           currentDateRange.start,
-          currentDateRange.end
+          currentDateRange.end,
         );
         setEntries(cloudEntries);
       }
@@ -184,7 +202,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Re-throw as proper Error
       if (error instanceof Error) throw error;
       throw new Error(
-        typeof error === "object" ? JSON.stringify(error) : String(error)
+        typeof error === "object" ? JSON.stringify(error) : String(error),
       );
     } finally {
       setIsSyncing(false);
@@ -202,7 +220,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setActivityTypes((prev) => [...prev, newType]);
       }
     },
-    [user]
+    [user],
   );
 
   const updateActivityType = useCallback(
@@ -213,10 +231,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await db.updateActivityType(type);
       }
       setActivityTypes((prev) =>
-        prev.map((t) => (t.id === type.id ? type : t))
+        prev.map((t) => (t.id === type.id ? type : t)),
       );
     },
-    [user]
+    [user],
   );
 
   const deleteActivityType = useCallback(
@@ -228,7 +246,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       setActivityTypes((prev) => prev.filter((t) => t.id !== id));
     },
-    [user]
+    [user],
   );
 
   const toggleActivityTypeHidden = useCallback(
@@ -242,11 +260,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           await db.updateActivityType(updated);
         }
         setActivityTypes((prev) =>
-          prev.map((t) => (t.id === id ? updated : t))
+          prev.map((t) => (t.id === id ? updated : t)),
         );
       }
     },
-    [activityTypes, user]
+    [activityTypes, user],
   );
 
   // Reorder activity types
@@ -259,7 +277,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         await db.reorderActivityTypes(reorderedTypes);
       }
     },
-    [user]
+    [user],
   );
 
   // Entries
@@ -274,12 +292,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const loadedEntries = await cloudDb.getEntriesFromSupabase(
           targetUserId,
           start,
-          end
+          end,
         );
         // Filter entries if viewing another user
         if (viewingUser) {
           const filteredEntries = loadedEntries.filter((e) =>
-            viewingUser.activityTypeIds.includes(e.activityTypeId)
+            viewingUser.activityTypeIds.includes(e.activityTypeId),
           );
           setEntries(filteredEntries);
         } else {
@@ -290,7 +308,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setEntries(loadedEntries);
       }
     },
-    [user, viewingUser]
+    [user, viewingUser],
   );
 
   // Load activity types when viewingUser changes
@@ -302,12 +320,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Load the other user's activity types (filtered by shared IDs)
         try {
           const allTypes = await cloudDb.getActivityTypesFromSupabase(
-            viewingUser.id
+            viewingUser.id,
           );
 
           // Only include activity types that were shared with us
           const sharedTypes = allTypes.filter((t) =>
-            viewingUser.activityTypeIds.includes(t.id)
+            viewingUser.activityTypeIds.includes(t.id),
           );
 
           const sortedTypes = sharedTypes.sort((a, b) => {
@@ -320,19 +338,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
           setActivityTypes(sortedTypes);
 
-          // Reload entries for current date range
-          if (currentDateRange) {
-            const loadedEntries = await cloudDb.getEntriesFromSupabase(
-              viewingUser.id,
-              currentDateRange.start,
-              currentDateRange.end
-            );
-            // Filter to only shared activity types
-            const filteredEntries = loadedEntries.filter((e) =>
-              viewingUser.activityTypeIds.includes(e.activityTypeId)
-            );
-            setEntries(filteredEntries);
-          }
+          // Reload entries with a wide date range to ensure data is loaded
+          const start = "2000-01-01";
+          const today = new Date().toISOString().split("T")[0];
+          const end = new Date(
+            new Date(today).getTime() + 365 * 24 * 60 * 60 * 1000,
+          )
+            .toISOString()
+            .split("T")[0];
+
+          const loadedEntries = await cloudDb.getEntriesFromSupabase(
+            viewingUser.id,
+            start,
+            end,
+          );
+          // Filter to only shared activity types
+          const filteredEntries = loadedEntries.filter((e) =>
+            viewingUser.activityTypeIds.includes(e.activityTypeId),
+          );
+          setEntries(filteredEntries);
+          setCurrentDateRange({ start, end });
         } catch (error) {
           console.error("Failed to load viewing user data:", error);
         }
@@ -349,13 +374,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
             );
           });
           setActivityTypes(sortedTypes);
+          setOwnActivityTypes(sortedTypes);
 
           // Reload entries for current date range
           if (currentDateRange) {
             const loadedEntries = await cloudDb.getEntriesFromSupabase(
               user.id,
               currentDateRange.start,
-              currentDateRange.end
+              currentDateRange.end,
             );
             setEntries(loadedEntries);
           }
@@ -379,7 +405,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           await cloudDb.addOrUpdateSuggestionInSupabase(
             user.id,
             entry.activityTypeId,
-            entry.value
+            entry.value,
           );
         }
       } else {
@@ -392,7 +418,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [user]
+    [user],
   );
 
   const updateEntry = useCallback(
@@ -400,16 +426,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (user) {
         const updated = await cloudDb.updateEntryInSupabase(entry);
         setEntries((prev) =>
-          prev.map((e) => (e.id === entry.id ? updated : e))
+          prev.map((e) => (e.id === entry.id ? updated : e)),
         );
       } else {
         const updated = await db.updateEntry(entry);
         setEntries((prev) =>
-          prev.map((e) => (e.id === entry.id ? updated : e))
+          prev.map((e) => (e.id === entry.id ? updated : e)),
         );
       }
     },
-    [user]
+    [user],
   );
 
   const deleteEntry = useCallback(
@@ -421,7 +447,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       setEntries((prev) => prev.filter((e) => e.id !== id));
     },
-    [user]
+    [user],
   );
 
   // Suggestions
@@ -432,7 +458,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       return db.getSuggestions(activityTypeId);
     },
-    [user]
+    [user],
   );
 
   // Get workout history (last 90 days before specified date)
@@ -451,7 +477,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         historyEntries = await cloudDb.getEntriesFromSupabase(
           user.id,
           start,
-          end
+          end,
         );
       } else {
         historyEntries = await db.getEntries(start, end);
@@ -459,10 +485,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // Filter for workout entries of this type
       return historyEntries.filter(
-        (e) => e.activityTypeId === activityTypeId && e.workoutData?.exercises
+        (e) => e.activityTypeId === activityTypeId && e.workoutData?.exercises,
       );
     },
-    [user]
+    [user],
   );
 
   // Locked days
@@ -470,7 +496,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (date: string) => {
       return lockedDays.includes(date);
     },
-    [lockedDays]
+    [lockedDays],
   );
 
   const toggleDayLock = useCallback(
@@ -493,7 +519,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return !isLocked; // Return new state (locked = true)
       }
     },
-    [user, lockedDays]
+    [user, lockedDays],
   );
 
   // Filter out hidden activity types for normal use
@@ -504,6 +530,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         activityTypes: visibleActivityTypes,
         allActivityTypes: activityTypes,
+        ownActivityTypes,
         addActivityType,
         updateActivityType,
         deleteActivityType,

@@ -417,8 +417,10 @@ export default function FriendsPage() {
     setViewingUser({
       id: sharedUser.id,
       email: sharedUser.email,
+      fullName: sharedUser.profile?.fullName,
       activityTypeIds:
         sharedUser.activityTypeIds || sharedUser.activityTypes.map((a) => a.id),
+      avatar: sharedUser.profile?.avatar || null,
     });
     router.push("/");
   };

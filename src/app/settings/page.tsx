@@ -50,6 +50,184 @@ export default function SettingsPage() {
   const [showDeleteAllDataModal, setShowDeleteAllDataModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [colorScheme, setColorScheme] = useState<1 | 2 | 3>(1);
+
+  // Default color palettes based on the gradient images
+  const defaultPalettes = {
+    // Palette 1: Pink/Magenta/Orange/Yellow (top-left image)
+    slot1: {
+      color1: "#ff6b35", // Orange (bottom-left)
+      color2: "#f7931e", // Yellow-Orange (bottom-right)
+      color3: "#ff0099", // Magenta (top-right)
+      color4: "#cc0066", // Pink (top-left)
+      color5: "#ff3366", // Red-Pink (center)
+    },
+    // Palette 2: Blue/Purple/Pink/Cyan (top-right image)
+    slot2: {
+      color1: "#667eea", // Purple-Blue (bottom-left)
+      color2: "#ff6b9d", // Pink (bottom-right)
+      color3: "#00d4ff", // Cyan (top-right)
+      color4: "#4facfe", // Light Blue (top-left)
+      color5: "#a855f7", // Purple (center)
+    },
+    // Palette 3: Teal/Green/Yellow (bottom-left image)
+    slot3: {
+      color1: "#00c9a7", // Teal (bottom-left)
+      color2: "#a8e063", // Yellow-Green (bottom-right)
+      color3: "#11998e", // Dark Teal (top-right)
+      color4: "#38ef7d", // Bright Green (top-left)
+      color5: "#84fab0", // Light Green (center)
+    },
+  };
+
+  // Current colors for each slot (can be customized)
+  const [slot1Colors, setSlot1Colors] = useState(defaultPalettes.slot1);
+  const [slot2Colors, setSlot2Colors] = useState(defaultPalettes.slot2);
+  const [slot3Colors, setSlot3Colors] = useState(defaultPalettes.slot3);
+
+  // Load color scheme from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("colorScheme");
+    if (saved && ["1", "2", "3"].includes(saved)) {
+      setColorScheme(parseInt(saved) as 1 | 2 | 3);
+    }
+    // Load saved slot colors
+    const savedSlot1 = localStorage.getItem("colorSlot1");
+    if (savedSlot1) {
+      try {
+        setSlot1Colors(JSON.parse(savedSlot1));
+      } catch {
+        // Invalid JSON, use defaults
+      }
+    }
+    const savedSlot2 = localStorage.getItem("colorSlot2");
+    if (savedSlot2) {
+      try {
+        setSlot2Colors(JSON.parse(savedSlot2));
+      } catch {
+        // Invalid JSON
+      }
+    }
+    const savedSlot3 = localStorage.getItem("colorSlot3");
+    if (savedSlot3) {
+      try {
+        setSlot3Colors(JSON.parse(savedSlot3));
+      } catch {
+        // Invalid JSON
+      }
+    }
+  }, []);
+
+  // Get current colors for the active scheme
+  const getCurrentColors = () => {
+    switch (colorScheme) {
+      case 1:
+        return slot1Colors;
+      case 2:
+        return slot2Colors;
+      case 3:
+        return slot3Colors;
+    }
+  };
+
+  // Save color scheme and apply to document
+  const handleColorSchemeChange = (scheme: 1 | 2 | 3) => {
+    setColorScheme(scheme);
+    localStorage.setItem("colorScheme", String(scheme));
+    // Update the document class for the color scheme
+    document.documentElement.classList.remove(
+      "colorful-1",
+      "colorful-2",
+      "colorful-3",
+    );
+    document.documentElement.classList.add(`colorful-${scheme}`);
+
+    // Apply colors for the selected scheme
+    const colors =
+      scheme === 1 ? slot1Colors : scheme === 2 ? slot2Colors : slot3Colors;
+    applyCustomColors(colors);
+  };
+
+  // Apply custom colors to CSS variables
+  const applyCustomColors = (colors: typeof slot1Colors) => {
+    const root = document.documentElement;
+    root.style.setProperty("--custom-color-1", colors.color1);
+    root.style.setProperty("--custom-color-2", colors.color2);
+    root.style.setProperty("--custom-color-3", colors.color3);
+    root.style.setProperty("--custom-color-4", colors.color4);
+    root.style.setProperty("--custom-color-5", colors.color5);
+  };
+
+  // Handle color change for the current scheme
+  const handleColorChange = (
+    colorKey: keyof typeof slot1Colors,
+    value: string,
+  ) => {
+    const updateColors = (prev: typeof slot1Colors) => ({
+      ...prev,
+      [colorKey]: value,
+    });
+
+    if (colorScheme === 1) {
+      const newColors = updateColors(slot1Colors);
+      setSlot1Colors(newColors);
+      localStorage.setItem("colorSlot1", JSON.stringify(newColors));
+      applyCustomColors(newColors);
+    } else if (colorScheme === 2) {
+      const newColors = updateColors(slot2Colors);
+      setSlot2Colors(newColors);
+      localStorage.setItem("colorSlot2", JSON.stringify(newColors));
+      applyCustomColors(newColors);
+    } else {
+      const newColors = updateColors(slot3Colors);
+      setSlot3Colors(newColors);
+      localStorage.setItem("colorSlot3", JSON.stringify(newColors));
+      applyCustomColors(newColors);
+    }
+  };
+
+  // Reset current scheme to defaults
+  const resetCurrentScheme = () => {
+    if (colorScheme === 1) {
+      setSlot1Colors(defaultPalettes.slot1);
+      localStorage.removeItem("colorSlot1");
+      applyCustomColors(defaultPalettes.slot1);
+    } else if (colorScheme === 2) {
+      setSlot2Colors(defaultPalettes.slot2);
+      localStorage.removeItem("colorSlot2");
+      applyCustomColors(defaultPalettes.slot2);
+    } else {
+      setSlot3Colors(defaultPalettes.slot3);
+      localStorage.removeItem("colorSlot3");
+      applyCustomColors(defaultPalettes.slot3);
+    }
+  };
+
+  // Apply saved color scheme on mount when colorful theme is active
+  useEffect(() => {
+    if (theme === "colorful") {
+      document.documentElement.classList.remove(
+        "colorful-1",
+        "colorful-2",
+        "colorful-3",
+      );
+      document.documentElement.classList.add(`colorful-${colorScheme}`);
+      // Apply colors for the current scheme
+      const colors =
+        colorScheme === 1
+          ? slot1Colors
+          : colorScheme === 2
+            ? slot2Colors
+            : slot3Colors;
+      applyCustomColors(colors);
+    } else {
+      document.documentElement.classList.remove(
+        "colorful-1",
+        "colorful-2",
+        "colorful-3",
+      );
+    }
+  }, [theme, colorScheme, slot1Colors, slot2Colors, slot3Colors]);
 
   // Detect if app is running as standalone PWA and platform
   useEffect(() => {
@@ -370,32 +548,150 @@ export default function SettingsPage() {
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             {themeOptions.map((option, index) => (
-              <button
-                key={option.value}
-                onClick={() => setTheme(option.value)}
-                className={cn(
-                  "w-full px-4 py-3 flex items-center justify-between min-h-[44px] text-left active:bg-gray-100 dark:active:bg-gray-700",
-                  index < themeOptions.length - 1 &&
-                    "border-b border-gray-200/80 dark:border-gray-700/80",
-                )}>
-                <span className='text-[17px] text-gray-900 dark:text-white'>
-                  {option.label}
-                </span>
-                {theme === option.value && (
-                  <svg
-                    className='w-5 h-5 text-ios-blue'
-                    fill='none'
-                    viewBox='0 0 24 24'
-                    strokeWidth={2.5}
-                    stroke='currentColor'>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      d='M4.5 12.75l6 6 9-13.5'
-                    />
-                  </svg>
+              <div key={option.value}>
+                <button
+                  onClick={() => setTheme(option.value)}
+                  className={cn(
+                    "w-full px-4 py-3 flex items-center justify-between min-h-[44px] text-left active:bg-gray-100 dark:active:bg-gray-700",
+                    index < themeOptions.length - 1 &&
+                      theme !== "colorful" &&
+                      "border-b border-gray-200/80 dark:border-gray-700/80",
+                    option.value === "colorful" &&
+                      theme === "colorful" &&
+                      "border-b-0",
+                  )}>
+                  <span className='text-[17px] text-gray-900 dark:text-white'>
+                    {option.label}
+                  </span>
+                  {theme === option.value && (
+                    <svg
+                      className='w-5 h-5 text-ios-blue'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      strokeWidth={2.5}
+                      stroke='currentColor'>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M4.5 12.75l6 6 9-13.5'
+                      />
+                    </svg>
+                  )}
+                </button>
+                {/* Color scheme circles - only show when colorful is selected */}
+                {option.value === "colorful" && theme === "colorful" && (
+                  <>
+                    <div className='px-4 py-3 flex items-center gap-4 border-b border-gray-200/80 dark:border-gray-700/80'>
+                      <span className='text-[14px] text-gray-500 dark:text-gray-400'>
+                        Palette:
+                      </span>
+                      <div className='flex items-center gap-3'>
+                        {/* Scheme 1 - Pink/Orange */}
+                        <button
+                          onClick={() => handleColorSchemeChange(1)}
+                          className={cn(
+                            "w-8 h-8 rounded-full relative overflow-hidden transition-transform",
+                            colorScheme === 1 &&
+                              "ring-2 ring-ios-blue ring-offset-2 scale-110",
+                          )}
+                          style={{
+                            background: `conic-gradient(from 0deg, ${slot1Colors.color1}, ${slot1Colors.color2}, ${slot1Colors.color4}, ${slot1Colors.color3}, ${slot1Colors.color1})`,
+                          }}
+                          aria-label='Color scheme 1 (Pink/Orange)'
+                        />
+                        {/* Scheme 2 - Blue/Purple */}
+                        <button
+                          onClick={() => handleColorSchemeChange(2)}
+                          className={cn(
+                            "w-8 h-8 rounded-full relative overflow-hidden transition-transform",
+                            colorScheme === 2 &&
+                              "ring-2 ring-ios-blue ring-offset-2 scale-110",
+                          )}
+                          style={{
+                            background: `conic-gradient(from 0deg, ${slot2Colors.color1}, ${slot2Colors.color2}, ${slot2Colors.color4}, ${slot2Colors.color3}, ${slot2Colors.color1})`,
+                          }}
+                          aria-label='Color scheme 2 (Blue/Purple)'
+                        />
+                        {/* Scheme 3 - Green/Teal */}
+                        <button
+                          onClick={() => handleColorSchemeChange(3)}
+                          className={cn(
+                            "w-8 h-8 rounded-full relative overflow-hidden transition-transform",
+                            colorScheme === 3 &&
+                              "ring-2 ring-ios-blue ring-offset-2 scale-110",
+                          )}
+                          style={{
+                            background: `conic-gradient(from 0deg, ${slot3Colors.color1}, ${slot3Colors.color2}, ${slot3Colors.color4}, ${slot3Colors.color3}, ${slot3Colors.color1})`,
+                          }}
+                          aria-label='Color scheme 3 (Green/Teal)'
+                        />
+                      </div>
+                    </div>
+                    {/* Color pickers - always show when colorful theme is selected */}
+                    <div className='px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+                      <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-3'>
+                        Customize palette {colorScheme}:
+                      </p>
+                      <div className='grid grid-cols-5 gap-2'>
+                        {[
+                          {
+                            key: "color1" as const,
+                            label: "↙",
+                          },
+                          {
+                            key: "color2" as const,
+                            label: "↘",
+                          },
+                          {
+                            key: "color3" as const,
+                            label: "↗",
+                          },
+                          {
+                            key: "color4" as const,
+                            label: "↖",
+                          },
+                          {
+                            key: "color5" as const,
+                            label: "●",
+                          },
+                        ].map(({ key, label }) => (
+                          <div
+                            key={key}
+                            className='flex flex-col items-center gap-1'>
+                            <label className='relative cursor-pointer'>
+                              <input
+                                type='color'
+                                value={getCurrentColors()[key]}
+                                onChange={(e) =>
+                                  handleColorChange(key, e.target.value)
+                                }
+                                className='absolute inset-0 w-full h-full opacity-0 cursor-pointer'
+                              />
+                              <div
+                                className='w-10 h-10 rounded-xl shadow-md border border-white/50 transition-transform active:scale-95'
+                                style={{
+                                  backgroundColor: getCurrentColors()[key],
+                                }}
+                              />
+                            </label>
+                            <span className='text-[11px] text-gray-400'>
+                              {label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Reset button */}
+                      <div className='mt-4'>
+                        <button
+                          onClick={resetCurrentScheme}
+                          className='px-3 py-1.5 text-[13px] font-medium rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 active:scale-95 transition-transform'>
+                          Reset to default
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
-              </button>
+              </div>
             ))}
           </div>
         </section>

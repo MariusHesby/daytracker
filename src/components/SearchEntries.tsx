@@ -38,7 +38,7 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
           }
           // Search in activity type name
           const activityType = activityTypes.find(
-            (t) => t.id === entry.activityTypeId
+            (t) => t.id === entry.activityTypeId,
           );
           if (activityType?.name.toLowerCase().includes(lowerQuery)) {
             return true;
@@ -52,7 +52,7 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
         .map((entry) => ({
           ...entry,
           activityType: activityTypes.find(
-            (t) => t.id === entry.activityTypeId
+            (t) => t.id === entry.activityTypeId,
           ),
         }))
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -60,7 +60,7 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
 
       setResults(filtered);
     },
-    [entries, activityTypes]
+    [entries, activityTypes],
   );
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
     const today = new Date();
     today.setHours(12, 0, 0, 0);
     const diffDays = Math.floor(
-      (today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
+      (today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     if (diffDays === 0) return "Today";
@@ -145,7 +145,7 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
         className='bg-white dark:bg-gray-900 w-full max-h-[80vh] overflow-hidden flex flex-col'
         onClick={(e) => e.stopPropagation()}>
         {/* Search Input */}
-        <div className='p-4 border-b border-gray-200 dark:border-gray-700'>
+        <div className='pt-14 pb-4 px-4 border-b border-gray-200 dark:border-gray-700'>
           <div className='flex items-center gap-3'>
             <svg
               className='w-5 h-5 text-gray-400 shrink-0'

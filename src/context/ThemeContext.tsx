@@ -48,13 +48,41 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setResolvedTheme(resolved);
 
       // Remove all theme classes first
-      document.documentElement.classList.remove("dark", "colorful");
+      document.documentElement.classList.remove(
+        "dark",
+        "colorful",
+        "colorful-1",
+        "colorful-2",
+        "colorful-3",
+        "colorful-4",
+      );
 
       // Apply the appropriate class
       if (resolved === "dark") {
         document.documentElement.classList.add("dark");
       } else if (resolved === "colorful") {
         document.documentElement.classList.add("colorful");
+        // Also apply the saved color scheme
+        const savedScheme = localStorage.getItem("colorScheme") || "1";
+        document.documentElement.classList.add(`colorful-${savedScheme}`);
+
+        // Apply custom colors if scheme 4
+        if (savedScheme === "4") {
+          const customColors = localStorage.getItem("customColors");
+          if (customColors) {
+            try {
+              const colors = JSON.parse(customColors);
+              const root = document.documentElement;
+              root.style.setProperty("--custom-color-1", colors.color1);
+              root.style.setProperty("--custom-color-2", colors.color2);
+              root.style.setProperty("--custom-color-3", colors.color3);
+              root.style.setProperty("--custom-color-4", colors.color4);
+              root.style.setProperty("--custom-color-5", colors.color5);
+            } catch {
+              // Invalid JSON, ignore
+            }
+          }
+        }
       }
     };
 
