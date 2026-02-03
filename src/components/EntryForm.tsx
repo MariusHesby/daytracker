@@ -200,14 +200,12 @@ export function EntryForm({
     }
   }, [date]);
 
-  // Load workout state from localStorage when date changes (only for anonymous users)
-  // Signed-in users get their data from Supabase via entries
+  // Load workout state from localStorage when date changes
+  // This persists workout draft data across navigation for all users
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Only load workout-data from localStorage for anonymous users
-      const savedData = !user
-        ? localStorage.getItem(`workout-data-${date}`)
-        : null;
+      // Load workout draft data from localStorage for all users
+      const savedData = localStorage.getItem(`workout-data-${date}`);
       // UI state (expanded, editing, routine) can be loaded for all users
       const savedExpanded = localStorage.getItem(`workout-expanded-${date}`);
       const savedEditing = localStorage.getItem(`workout-editing-${date}`);
@@ -223,7 +221,7 @@ export function EntryForm({
       // Mark this date as loaded - only after state is set
       loadedDateRef.current = date;
     }
-  }, [date, user]);
+  }, [date]);
 
   // Load workout history for placeholders (from previous days)
   useEffect(() => {
@@ -237,14 +235,12 @@ export function EntryForm({
     loadHistory();
   }, [date, activityTypes, getWorkoutHistory]);
 
-  // Save workout data to localStorage - only for anonymous users
-  // Signed-in users save directly to Supabase when they click Save
+  // Save workout draft data to localStorage for all users
+  // This persists workout inputs across navigation (e.g., switching tabs)
   useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      loadedDateRef.current === date &&
-      !user
-    ) {
+    // Only save if we have actual data - never clear localStorage from this effect
+    // (clearing happens explicitly when workout is saved or deleted)
+    if (typeof window !== "undefined" && loadedDateRef.current === date) {
       const hasActualData = Object.keys(workoutData).some((exerciseName) => {
         const sets = workoutData[exerciseName] || [];
         return sets.some(
@@ -257,11 +253,10 @@ export function EntryForm({
           `workout-data-${date}`,
           JSON.stringify(workoutData),
         );
-      } else {
-        localStorage.removeItem(`workout-data-${date}`);
       }
+      // Don't remove localStorage here - it causes race conditions on remount
     }
-  }, [workoutData, date, user]);
+  }, [workoutData, date]);
 
   // Save expanded exercises to localStorage
   useEffect(() => {
@@ -271,9 +266,8 @@ export function EntryForm({
           `workout-expanded-${date}`,
           JSON.stringify([...expandedExercises]),
         );
-      } else {
-        localStorage.removeItem(`workout-expanded-${date}`);
       }
+      // Don't remove - causes race conditions
     }
   }, [expandedExercises, date]);
 
@@ -282,9 +276,8 @@ export function EntryForm({
     if (typeof window !== "undefined" && loadedDateRef.current === date) {
       if (isEditingWorkout) {
         localStorage.setItem(`workout-editing-${date}`, "true");
-      } else {
-        localStorage.removeItem(`workout-editing-${date}`);
       }
+      // Don't remove - causes race conditions
     }
   }, [isEditingWorkout, date]);
 
@@ -293,9 +286,8 @@ export function EntryForm({
     if (typeof window !== "undefined" && loadedDateRef.current === date) {
       if (selectedRoutineId) {
         localStorage.setItem(`workout-routine-${date}`, selectedRoutineId);
-      } else {
-        localStorage.removeItem(`workout-routine-${date}`);
       }
+      // Don't remove - causes race conditions
     }
   }, [selectedRoutineId, date]);
 
@@ -606,6 +598,10 @@ export function EntryForm({
 
       // Only reset if no exercises are expanded (user is done)
       if (expandedExercises.size === 0) {
+        // Clear localStorage since workout is saved
+        localStorage.removeItem(`workout-data-${date}`);
+        localStorage.removeItem(`workout-expanded-${date}`);
+        localStorage.removeItem(`workout-editing-${date}`);
         setWorkoutData({});
         setIsEditingWorkout(false);
       }
@@ -624,6 +620,10 @@ export function EntryForm({
     for (const entry of existingEntries) {
       await deleteEntry(entry.id);
     }
+    // Clear localStorage since workout is deleted
+    localStorage.removeItem(`workout-data-${date}`);
+    localStorage.removeItem(`workout-expanded-${date}`);
+    localStorage.removeItem(`workout-editing-${date}`);
     setWorkoutData({});
     setExpandedExercises(new Set());
     setIsEditingWorkout(false);
@@ -915,7 +915,7 @@ export function EntryForm({
                 }
               }}
               className={cn(
-                "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
+                "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center mood-btn",
                 "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
                 savedValues[type.id]?.[0]?.value === "happy" &&
                   "ring-2 ring-ios-green bg-ios-green/10 dark:bg-ios-green/20",
@@ -945,7 +945,7 @@ export function EntryForm({
                 }
               }}
               className={cn(
-                "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
+                "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center mood-btn",
                 "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
                 savedValues[type.id]?.[0]?.value === "neutral" &&
                   "ring-2 ring-ios-orange bg-ios-orange/10 dark:bg-ios-orange/20",
@@ -975,7 +975,7 @@ export function EntryForm({
                 }
               }}
               className={cn(
-                "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center",
+                "flex-1 py-4 rounded-xl active:scale-95 transition-transform flex items-center justify-center mood-btn",
                 "bg-gray-100 dark:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
                 savedValues[type.id]?.[0]?.value === "sad" &&
                   "ring-2 ring-ios-red bg-ios-red/10 dark:bg-ios-red/20",
@@ -1463,7 +1463,7 @@ export function EntryForm({
                     }
                   }}
                   className={cn(
-                    "flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-colors",
+                    "flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium transition-colors workout-action-btn",
                     isQuickChecked
                       ? "bg-ios-green text-white shadow-lg shadow-ios-green/30"
                       : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
@@ -1487,7 +1487,7 @@ export function EntryForm({
               {/* Add new workout button */}
               <button
                 onClick={() => router.push("/workout")}
-                className='px-4 py-2 rounded-full text-[13px] bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors'>
+                className='px-4 py-2 rounded-full text-[13px] bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors workout-action-btn'>
                 + Add workout
               </button>
             </div>
@@ -1777,12 +1777,20 @@ export function EntryForm({
                 }}
                 className={cn(
                   "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 p-1 overflow-hidden relative",
+                  isSkipped
+                    ? "bg-gradient-to-br from-red-400/40 via-rose-500/30 to-pink-400/40 dark:from-red-500/50 dark:via-rose-600/40 dark:to-pink-500/50 ring-2 ring-ios-red/50"
+                    : "bg-gray-100/90 dark:bg-gray-800/90",
+                )}
+                style={
                   hasValue && !isSkipped
-                    ? "bg-ios-green/15 dark:bg-ios-green/20"
-                    : isSkipped
-                      ? "bg-ios-red/15 dark:bg-ios-red/20"
-                      : "bg-gray-200 dark:bg-gray-800",
-                )}>
+                    ? {
+                        background:
+                          "linear-gradient(135deg, rgba(52, 199, 89, 0.35) 0%, rgba(48, 209, 88, 0.25) 25%, rgba(100, 210, 130, 0.3) 50%, rgba(52, 199, 89, 0.35) 100%)",
+                        boxShadow:
+                          "inset 0 0 20px rgba(52, 199, 89, 0.15), 0 2px 8px rgba(52, 199, 89, 0.2)",
+                      }
+                    : undefined
+                }>
                 {/* Checkmark indicator for checkmark and workout activity types */}
                 {(isCheckmark || isWorkout) && (
                   <div className='absolute top-1 right-1'>
@@ -1807,7 +1815,7 @@ export function EntryForm({
                   className={cn(
                     "w-8 h-8 flex items-center justify-center shrink-0",
                     hasValue && !isSkipped
-                      ? "text-ios-green"
+                      ? "text-green-600 dark:text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
                       : isSkipped
                         ? "text-ios-red"
                         : "text-ios-blue",

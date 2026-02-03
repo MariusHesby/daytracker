@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { useLanguage } from "@/context/LanguageContext";
@@ -11,13 +11,14 @@ import {
   LoadingState,
   Avatar,
 } from "@/components";
-import { addDays } from "@/lib/utils";
+import { addDays, formatDate } from "@/lib/utils";
 
 export default function HomePage() {
   const {
     selectedDate,
     setSelectedDate,
     loadEntriesForDateRange,
+    entries,
     isLoading,
     viewingUser,
     setViewingUser,
@@ -42,6 +43,34 @@ export default function HomePage() {
       localStorage.setItem("entryform-viewmode", mode);
     }
   };
+
+  // Calculate streak based on actual current date (not selected date)
+  // Recalculates when entries change, but always uses real "today" as reference
+  const streak = useMemo(() => {
+    if (!entries || entries.length === 0) return 0;
+
+    // Get unique dates with entries
+    const datesWithEntries = new Set(entries.map((e) => e.date));
+
+    // Start from yesterday (actual today minus 1) and count backwards
+    const today = new Date();
+    let count = 0;
+    let currentDate = new Date(today);
+    currentDate.setDate(currentDate.getDate() - 1);
+
+    while (true) {
+      const dateStr = formatDate(currentDate);
+      if (datesWithEntries.has(dateStr)) {
+        count++;
+        currentDate = new Date(currentDate);
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    return count;
+  }, [entries]);
 
   // Load entries for a wide range to support media date updates
   useEffect(() => {
@@ -74,83 +103,53 @@ export default function HomePage() {
       )}
 
       {/* Header with Search */}
-      <div className='px-4 pt-10 pb-10'>
-        <div className='flex items-center justify-between relative min-h-[72px]'>
-          <svg
-            className='h-12 text-ios-blue'
-            viewBox='0 0 1200 512'
-            fill='none'
-            style={{ width: "auto" }}>
-            {/* Stylized "D" shape - same as splash screen */}
-            <path
-              d='M160 120 L160 392 L280 392 C360 392 420 320 420 256 C420 192 360 120 280 120 L160 120 Z'
-              fill='none'
-              stroke='currentColor'
-              strokeWidth='28'
-              strokeLinecap='round'
-              strokeLinejoin='round'
-            />
-            {/* Timeline dots */}
-            <circle cx='220' cy='200' r='22' fill='currentColor' />
-            <circle cx='220' cy='256' r='22' fill='currentColor' />
-            <circle cx='220' cy='312' r='22' fill='currentColor' />
-            {/* Connecting lines */}
-            <line
-              x1='244'
-              y1='200'
-              x2='330'
-              y2='200'
-              stroke='currentColor'
-              strokeWidth='14'
-              strokeLinecap='round'
-            />
-            <line
-              x1='244'
-              y1='256'
-              x2='355'
-              y2='256'
-              stroke='currentColor'
-              strokeWidth='14'
-              strokeLinecap='round'
-            />
-            <line
-              x1='244'
-              y1='312'
-              x2='310'
-              y2='312'
-              stroke='currentColor'
-              strokeWidth='14'
-              strokeLinecap='round'
-            />
-            {/* "aytracker" text in handwritten style */}
-            <text
-              x='460'
-              y='310'
-              fill='currentColor'
-              fontSize='160'
-              fontFamily='Georgia, "Times New Roman", serif'
-              fontStyle='italic'
-              fontWeight='500'>
-              aytracker
-            </text>
-          </svg>
-          {/* Centered Avatar */}
+      <div className='px-4 pt-8 pb-6'>
+        <div className='flex items-center justify-between'>
+          {/* Profile section - left aligned */}
           {user && (
-            <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
+            <div className='flex items-center gap-2.5'>
               <div
                 className={`pointer-events-auto ${isViewingOther ? "animate-heartbeat" : ""}`}>
-                <div
-                  className={`rounded-full ${isViewingOther ? "ring-4 ring-pink-400/50 animate-border-pulse" : ""}`}>
-                  <Avatar
-                    avatar={
-                      isViewingOther
-                        ? viewingUser?.avatar || null
-                        : profile?.avatar || null
-                    }
-                    size='xl'
+                <div className='relative'>
+                  {/* Blue border effect matching activity icons */}
+                  <div
+                    className='absolute inset-0 rounded-full bg-ios-blue'
+                    style={{
+                      transform: "scale(1.05)",
+                    }}
                   />
+                  <div
+                    className={`relative rounded-full ${isViewingOther ? "ring-2 ring-pink-400/50" : ""}`}>
+                    <Avatar
+                      avatar={
+                        isViewingOther
+                          ? viewingUser?.avatar || null
+                          : profile?.avatar || null
+                      }
+                      size='md'
+                    />
+                  </div>
                 </div>
               </div>
+              <div>
+                <p className='text-[15px] font-semibold text-gray-900 dark:text-white leading-tight'>
+                  {isViewingOther
+                    ? viewingUser?.fullName || "User"
+                    : profile?.fullName || "Welcome"}
+                </p>
+                <p className='text-[12px] text-gray-500 dark:text-gray-400'>
+                  {isViewingOther
+                    ? "Viewing data"
+                    : `${streak} day${streak !== 1 ? "s" : ""} streak`}
+                </p>
+              </div>
+            </div>
+          )}
+          {!user && (
+            <div className='flex items-center'>
+              <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
+                DayTracker
+              </h1>
             </div>
           )}
           <div className='flex items-center gap-2'>

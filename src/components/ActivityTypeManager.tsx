@@ -849,6 +849,8 @@ export const ActivityTypeManager = forwardRef<
                 "cursor-grab active:cursor-grabbing",
                 isDragging && "opacity-50",
                 isDragOver && "bg-ios-blue/10",
+                !isLast &&
+                  "border-b border-gray-200/80 dark:border-gray-700/80",
               )}>
               {/* Drag handle */}
               <div className='text-gray-400 dark:text-gray-500 mr-3'>
@@ -861,17 +863,13 @@ export const ActivityTypeManager = forwardRef<
               </div>
 
               {/* Icon */}
-              <div className='w-8 h-8 rounded-lg bg-ios-blue/10 flex items-center justify-center mr-3 shrink-0'>
+              <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
                 <span className='text-ios-blue'>{renderIcon(type.icon)}</span>
               </div>
 
               {/* Content */}
               <div
-                className={cn(
-                  "flex-1 py-3 flex items-center justify-between",
-                  !isLast &&
-                    "border-b border-gray-200/80 dark:border-gray-700/80",
-                )}>
+                className={cn("flex-1 py-3 flex items-center justify-between")}>
                 <div className='flex-1 min-w-0'>
                   <p
                     className={cn(

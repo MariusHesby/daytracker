@@ -207,6 +207,33 @@
   -webkit-backdrop-filter: blur(12px) !important;
 }
 
+/* Workout action buttons in colorful theme */
+.colorful .workout-action-btn.bg-gray-100,
+.colorful .workout-action-btn {
+  background: rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.colorful .workout-action-btn:hover,
+.colorful .workout-action-btn:active {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Mood buttons in colorful theme */
+.colorful .mood-btn.bg-gray-100,
+.colorful .mood-btn {
+  background: rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.colorful .mood-btn:active {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
 .colorful .bg-gray-800 {
   background: linear-gradient(135deg, rgba(250, 240, 255, 0.5), rgba(240, 248, 255, 0.5)) !important;
   backdrop-filter: blur(12px) !important;

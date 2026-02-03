@@ -115,7 +115,7 @@ function BackgroundLogo() {
 
       {/* Main logo - much bigger */}
       <svg
-        className='absolute -bottom-32 -right-32 w-[180vw] h-[180vw] max-w-[1100px] max-h-[1100px] opacity-[0.03] dark:opacity-[0.045] rotate-12'
+        className='absolute -bottom-32 -right-32 w-[180vw] h-[180vw] max-w-[1100px] max-h-[1100px] opacity-[0.055] dark:opacity-[0.07] rotate-12'
         viewBox='0 0 512 512'
         fill='none'
         xmlns='http://www.w3.org/2000/svg'>

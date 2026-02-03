@@ -123,6 +123,84 @@ function WorkoutPageContent() {
     >
   >({});
 
+  // Track if initial load is done to prevent clearing localStorage on mount
+  const initialLoadDone = useRef(false);
+
+  // Get the current date for localStorage key
+  const currentDate = selectedDate || toDateStr(new Date());
+
+  // Load workout draft data from localStorage on mount
+  useEffect(() => {
+    if (!editingEntryId) {
+      const savedData = localStorage.getItem(
+        `workout-page-data-${currentDate}`,
+      );
+      const savedExpanded = localStorage.getItem(
+        `workout-page-expanded-${currentDate}`,
+      );
+      const savedRoutine = localStorage.getItem(
+        `workout-page-routine-${currentDate}`,
+      );
+
+      if (savedData) {
+        setWorkoutData(JSON.parse(savedData));
+      }
+      if (savedExpanded) {
+        setExpandedExercises(new Set(JSON.parse(savedExpanded)));
+      }
+      if (savedRoutine) {
+        setSelectedRoutineId(savedRoutine);
+      }
+    }
+    // Mark initial load as done after a tick
+    setTimeout(() => {
+      initialLoadDone.current = true;
+    }, 0);
+  }, [currentDate, editingEntryId]);
+
+  // Save workout draft data to localStorage (only for new workouts, not editing)
+  useEffect(() => {
+    if (!editingEntryId && initialLoadDone.current) {
+      const hasActualData = Object.keys(workoutData).some((exerciseName) => {
+        const sets = workoutData[exerciseName] || [];
+        return sets.some(
+          (set) => set.reps || set.weight || set.distance || set.duration,
+        );
+      });
+
+      if (hasActualData) {
+        localStorage.setItem(
+          `workout-page-data-${currentDate}`,
+          JSON.stringify(workoutData),
+        );
+      }
+    }
+  }, [workoutData, currentDate, editingEntryId]);
+
+  // Save expanded exercises to localStorage
+  useEffect(() => {
+    if (
+      !editingEntryId &&
+      initialLoadDone.current &&
+      expandedExercises.size > 0
+    ) {
+      localStorage.setItem(
+        `workout-page-expanded-${currentDate}`,
+        JSON.stringify([...expandedExercises]),
+      );
+    }
+  }, [expandedExercises, currentDate, editingEntryId]);
+
+  // Save selected routine to localStorage
+  useEffect(() => {
+    if (!editingEntryId && initialLoadDone.current && selectedRoutineId) {
+      localStorage.setItem(
+        `workout-page-routine-${currentDate}`,
+        selectedRoutineId,
+      );
+    }
+  }, [selectedRoutineId, currentDate, editingEntryId]);
+
   // Get workout activity type
   const workoutType = useMemo(
     () => activityTypes.find((t) => t.valueType === "workout"),
@@ -910,6 +988,14 @@ function WorkoutPageContent() {
                 <button
                   onClick={async () => {
                     await saveWorkout();
+                    // Clear localStorage after successful save
+                    localStorage.removeItem(`workout-page-data-${currentDate}`);
+                    localStorage.removeItem(
+                      `workout-page-expanded-${currentDate}`,
+                    );
+                    localStorage.removeItem(
+                      `workout-page-routine-${currentDate}`,
+                    );
                     router.push("/");
                   }}
                   className='px-8 py-2.5 rounded-full bg-ios-green text-white text-[14px] font-medium shadow-lg shadow-ios-green/30 active:scale-[0.98] transition-all'>
@@ -918,7 +1004,19 @@ function WorkoutPageContent() {
                 {/* Subtle text links for Cancel and Delete */}
                 <div className='flex items-center gap-4'>
                   <button
-                    onClick={() => router.push("/")}
+                    onClick={() => {
+                      // Clear localStorage when canceling edit
+                      localStorage.removeItem(
+                        `workout-page-data-${currentDate}`,
+                      );
+                      localStorage.removeItem(
+                        `workout-page-expanded-${currentDate}`,
+                      );
+                      localStorage.removeItem(
+                        `workout-page-routine-${currentDate}`,
+                      );
+                      router.push("/");
+                    }}
                     className='text-[13px] text-gray-500 dark:text-gray-400 active:opacity-70'>
                     Cancel
                   </button>
@@ -933,13 +1031,31 @@ function WorkoutPageContent() {
             ) : (
               <div className='flex items-center gap-2'>
                 <button
-                  onClick={() => router.push("/")}
+                  onClick={() => {
+                    // Clear localStorage when canceling
+                    localStorage.removeItem(`workout-page-data-${currentDate}`);
+                    localStorage.removeItem(
+                      `workout-page-expanded-${currentDate}`,
+                    );
+                    localStorage.removeItem(
+                      `workout-page-routine-${currentDate}`,
+                    );
+                    router.push("/");
+                  }}
                   className='px-4 py-2.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-[14px] font-medium active:scale-[0.98] transition-all'>
                   Cancel
                 </button>
                 <button
                   onClick={async () => {
                     await saveWorkout();
+                    // Clear localStorage after successful save
+                    localStorage.removeItem(`workout-page-data-${currentDate}`);
+                    localStorage.removeItem(
+                      `workout-page-expanded-${currentDate}`,
+                    );
+                    localStorage.removeItem(
+                      `workout-page-routine-${currentDate}`,
+                    );
                     router.push("/");
                   }}
                   className='px-6 py-2.5 rounded-full bg-ios-green text-white text-[14px] font-medium flex items-center justify-center gap-2 shadow-lg shadow-ios-green/30 active:scale-[0.98] transition-all'>

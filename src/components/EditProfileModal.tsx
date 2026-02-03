@@ -294,8 +294,8 @@ function ImageCropper({
       <div className='flex-1 flex items-center justify-center bg-black overflow-hidden'>
         <div
           ref={containerRef}
-          className='relative'
-          style={{ width: 280, height: 280 }}
+          className='relative overflow-hidden'
+          style={{ width: 280, height: 280, touchAction: "none" }}
           onMouseDown={handleMouseDown}
           onTouchStart={handleMouseDown}>
           {/* Image */}

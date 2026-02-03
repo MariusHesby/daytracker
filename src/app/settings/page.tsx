@@ -554,11 +554,8 @@ export default function SettingsPage() {
                   className={cn(
                     "w-full px-4 py-3 flex items-center justify-between min-h-[44px] text-left active:bg-gray-100 dark:active:bg-gray-700",
                     index < themeOptions.length - 1 &&
-                      theme !== "colorful" &&
+                      !(option.value === "colorful" && theme === "colorful") &&
                       "border-b border-gray-200/80 dark:border-gray-700/80",
-                    option.value === "colorful" &&
-                      theme === "colorful" &&
-                      "border-b-0",
                   )}>
                   <span className='text-[17px] text-gray-900 dark:text-white'>
                     {option.label}
