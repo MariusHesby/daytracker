@@ -66,22 +66,54 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         const savedScheme = localStorage.getItem("colorScheme") || "1";
         document.documentElement.classList.add(`colorful-${savedScheme}`);
 
+        // Default palettes
+        const defaultPalettes: Record<string, Record<string, string>> = {
+          "1": {
+            color1: "#c7a06a",
+            color2: "#ffffff",
+            color3: "#ff9500",
+            color4: "#ffffff",
+            color5: "#ffffff",
+          },
+          "2": {
+            color1: "#ff00ff",
+            color2: "#ff69b4",
+            color3: "#ffffff",
+            color4: "#ffffff",
+            color5: "#800080",
+          },
+          "3": {
+            color1: "#007aff",
+            color2: "#0a84ff",
+            color3: "#007aff",
+            color4: "#ffffff",
+            color5: "#0055cc",
+          },
+        };
+
         // Apply custom colors for the active scheme
         const slotKey = `colorSlot${savedScheme}`;
         const savedColors = localStorage.getItem(slotKey);
+        let colors: Record<string, string>;
+
         if (savedColors) {
           try {
-            const colors = JSON.parse(savedColors);
-            const root = document.documentElement;
-            root.style.setProperty("--custom-color-1", colors.color1);
-            root.style.setProperty("--custom-color-2", colors.color2);
-            root.style.setProperty("--custom-color-3", colors.color3);
-            root.style.setProperty("--custom-color-4", colors.color4);
-            root.style.setProperty("--custom-color-5", colors.color5);
+            colors = JSON.parse(savedColors);
           } catch {
-            // Invalid JSON, ignore
+            // Invalid JSON, use defaults
+            colors = defaultPalettes[savedScheme] || defaultPalettes["1"];
           }
+        } else {
+          // No saved colors, use defaults
+          colors = defaultPalettes[savedScheme] || defaultPalettes["1"];
         }
+
+        const root = document.documentElement;
+        root.style.setProperty("--custom-color-1", colors.color1);
+        root.style.setProperty("--custom-color-2", colors.color2);
+        root.style.setProperty("--custom-color-3", colors.color3);
+        root.style.setProperty("--custom-color-4", colors.color4);
+        root.style.setProperty("--custom-color-5", colors.color5);
       }
     };
 

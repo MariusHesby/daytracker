@@ -54,29 +54,29 @@ export default function SettingsPage() {
 
   // Default color palettes based on the gradient images
   const defaultPalettes = {
-    // Palette 1: Pink/Magenta/Orange/Yellow (top-left image)
+    // Palette 1: Tan/Orange/White theme
     slot1: {
-      color1: "#ff6b35", // Orange (bottom-left)
-      color2: "#f7931e", // Yellow-Orange (bottom-right)
-      color3: "#ff0099", // Magenta (top-right)
-      color4: "#cc0066", // Pink (top-left)
-      color5: "#ff3366", // Red-Pink (center)
+      color1: "#c7a06a", // Tan/Brown
+      color2: "#ffffff", // White
+      color3: "#ff9500", // Orange
+      color4: "#ffffff", // White
+      color5: "#ffffff", // White
     },
-    // Palette 2: Blue/Purple/Pink/Cyan (top-right image)
+    // Palette 2: Pink/Magenta/Purple theme
     slot2: {
-      color1: "#667eea", // Purple-Blue (bottom-left)
-      color2: "#ff6b9d", // Pink (bottom-right)
-      color3: "#00d4ff", // Cyan (top-right)
-      color4: "#4facfe", // Light Blue (top-left)
-      color5: "#a855f7", // Purple (center)
+      color1: "#ff00ff", // Magenta
+      color2: "#ff69b4", // Hot Pink
+      color3: "#ffffff", // White
+      color4: "#ffffff", // White
+      color5: "#800080", // Purple
     },
-    // Palette 3: Teal/Green/Yellow (bottom-left image)
+    // Palette 3: Blue theme
     slot3: {
-      color1: "#00c9a7", // Teal (bottom-left)
-      color2: "#a8e063", // Yellow-Green (bottom-right)
-      color3: "#11998e", // Dark Teal (top-right)
-      color4: "#38ef7d", // Bright Green (top-left)
-      color5: "#84fab0", // Light Green (center)
+      color1: "#007aff", // iOS Blue
+      color2: "#0a84ff", // Blue
+      color3: "#007aff", // Blue
+      color4: "#ffffff", // White
+      color5: "#0055cc", // Dark Blue
     },
   };
 

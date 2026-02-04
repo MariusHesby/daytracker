@@ -53,6 +53,7 @@ export function EntryForm({
 }: EntryFormProps) {
   const {
     activityTypes,
+    allActivityTypes,
     addEntry,
     getSuggestions,
     getWorkoutHistory,
@@ -154,6 +155,26 @@ export function EntryForm({
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
 
   const isLocked = isDayLocked(date);
+
+  // Track activities hidden for a specific day (when locked with no data)
+  const [dayHiddenActivities, setDayHiddenActivities] = useState<Set<string>>(
+    () => {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(`day-hidden-activities-${date}`);
+        return saved ? new Set(JSON.parse(saved)) : new Set();
+      }
+      return new Set();
+    },
+  );
+  const [showAddHiddenModal, setShowAddHiddenModal] = useState(false);
+
+  // Load day-hidden activities when date changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(`day-hidden-activities-${date}`);
+      setDayHiddenActivities(saved ? new Set(JSON.parse(saved)) : new Set());
+    }
+  }, [date]);
 
   // Wrapper to persist expandedTypeId to localStorage
   const setExpandedTypeId = useCallback(
@@ -335,7 +356,7 @@ export function EntryForm({
     return () => clearTimeout(timer);
   }, [showCelebration, createParticles]);
 
-  // Handle lock toggle - also saves workout data
+  // Handle lock toggle - also saves workout data and hides empty activities
   const handleLockToggle = async () => {
     if (isViewingOther) return;
 
@@ -348,10 +369,31 @@ export function EntryForm({
       await handleSaveAllWorkouts(workoutType.id, customExercises);
     }
 
+    const currentlyLocked = isDayLocked(date);
     const newLockedState = await toggleDayLock(date);
     setIsLocking(false);
 
     if (newLockedState) {
+      // When locking: hide activities that don't have any data for this day
+      const dateEntries = entries.filter(
+        (e) => e.date === date && !e.isWatchlist,
+      );
+      const activityIdsWithData = new Set(
+        dateEntries.map((e) => e.activityTypeId),
+      );
+
+      // Find activities without data and mark them as hidden for this day
+      const activitiesToHide = activityTypes
+        .filter((t) => !activityIdsWithData.has(t.id))
+        .map((t) => t.id);
+
+      const newHiddenSet = new Set(activitiesToHide);
+      setDayHiddenActivities(newHiddenSet);
+      localStorage.setItem(
+        `day-hidden-activities-${date}`,
+        JSON.stringify([...newHiddenSet]),
+      );
+
       // Clear workout localStorage since day is now locked
       localStorage.removeItem(`workout-data-${date}`);
       localStorage.removeItem(`workout-expanded-${date}`);
@@ -365,6 +407,10 @@ export function EntryForm({
       setSelectedRoutineId(null);
       setExpandedTypeIdState(null);
       setShowCelebration(true);
+    } else {
+      // When unlocking: clear day-hidden activities
+      setDayHiddenActivities(new Set());
+      localStorage.removeItem(`day-hidden-activities-${date}`);
     }
   };
 
@@ -1654,668 +1700,892 @@ export function EntryForm({
       {/* Icon Grid View */}
       {viewMode === "icons" && (
         <div className='grid grid-cols-4 gap-3'>
-          {activityTypes.map((type) => {
-            const typeSavedValues = savedValues[type.id] || [];
-            const hasSavedValues = typeSavedValues.length > 0;
-            const isCheckmark = type.valueType === "checkmark";
-            const isWorkout = type.valueType === "workout";
-            const isNutrition = type.valueType === "nutrition";
-            const isMood = type.valueType === "mood";
-            const isCounter = type.valueType === "counter";
+          {allActivityTypes
+            .filter((type) => {
+              // Don't show if hidden for this specific day
+              if (dayHiddenActivities.has(type.id)) return false;
+              // Show if not globally hidden
+              if (!type.hidden) return true;
+              // Show hidden activities if they have data for this day
+              const typeSavedValues = savedValues[type.id] || [];
+              return typeSavedValues.length > 0;
+            })
+            .map((type) => {
+              const typeSavedValues = savedValues[type.id] || [];
+              const hasSavedValues = typeSavedValues.length > 0;
+              const isCheckmark = type.valueType === "checkmark";
+              const isWorkout = type.valueType === "workout";
+              const isNutrition = type.valueType === "nutrition";
+              const isMood = type.valueType === "mood";
+              const isCounter = type.valueType === "counter";
 
-            // Check if workout has any data being entered
-            const workoutHasEnteredData =
-              isWorkout &&
-              Object.keys(workoutData).some((exerciseName) => {
-                const sets = workoutData[exerciseName] || [];
-                return sets.some(
-                  (set) =>
-                    set.reps || set.weight || set.distance || set.duration,
-                );
-              });
+              // Check if workout has any data being entered
+              const workoutHasEnteredData =
+                isWorkout &&
+                Object.keys(workoutData).some((exerciseName) => {
+                  const sets = workoutData[exerciseName] || [];
+                  return sets.some(
+                    (set) =>
+                      set.reps || set.weight || set.distance || set.duration,
+                  );
+                });
 
-            const hasValue = hasSavedValues || workoutHasEnteredData;
-            const isSkipped =
-              isCheckmark && typeSavedValues[0]?.value === "skipped";
-            const isChecked = isCheckmark && hasSavedValues && !isSkipped;
+              const hasValue = hasSavedValues || workoutHasEnteredData;
+              const isSkipped =
+                isCheckmark && typeSavedValues[0]?.value === "skipped";
+              const isChecked = isCheckmark && hasSavedValues && !isSkipped;
 
-            // Get display text for the icon
-            const getIconDisplayText = () => {
-              if (!hasValue || isSkipped) return null;
-              if (isCheckmark) return null; // Just show green icon
-              if (isMood && hasSavedValues) {
-                const val = typeSavedValues[0].value;
-                if (val === "happy") return "☺";
-                if (val === "neutral") return "—";
-                if (val === "sad") return "☹";
-              }
-              if (isCounter && hasSavedValues) {
-                return String(typeSavedValues[0].value);
-              }
-              if (isWorkout) {
-                // Count exercises
-                let count = 0;
-                if (hasSavedValues) {
-                  typeSavedValues.forEach((saved) => {
-                    const entry = entries.find((e) => e.id === saved.id);
-                    if (entry?.workoutData?.exercises) {
-                      count += entry.workoutData.exercises.length;
-                    }
-                  });
-                } else if (workoutHasEnteredData) {
-                  count = Object.keys(workoutData).filter((name) => {
-                    const sets = workoutData[name] || [];
-                    return sets.some(
-                      (s) => s.reps || s.weight || s.distance || s.duration,
-                    );
-                  }).length;
+              // Get display text for the icon
+              const getIconDisplayText = () => {
+                if (!hasValue || isSkipped) return null;
+                if (isCheckmark) return null; // Just show green icon
+                if (isMood && hasSavedValues) {
+                  const val = typeSavedValues[0].value;
+                  if (val === "happy") return "☺";
+                  if (val === "neutral") return "—";
+                  if (val === "sad") return "☹";
                 }
-                // Show count if exercises logged, or nothing if just quick-check (icon will show green)
-                return count > 0 ? `${count}` : null;
-              }
-              // For nutrition types with goals, show goals reached
-              if (isNutrition && type.nutritionGoal) {
-                const totals = getNutritionTotals(type.id);
-                const goal = type.nutritionGoal;
-                let goalsSet = 0;
-                let goalsReached = 0;
-                if (goal.protein) {
-                  goalsSet++;
-                  if (totals.protein >= goal.protein) goalsReached++;
+                if (isCounter && hasSavedValues) {
+                  return String(typeSavedValues[0].value);
                 }
-                if (goal.calories) {
-                  goalsSet++;
-                  if (totals.calories >= goal.calories) goalsReached++;
-                }
-                if (goal.carbs) {
-                  goalsSet++;
-                  if (totals.carbs >= goal.carbs) goalsReached++;
-                }
-                if (goal.fat) {
-                  goalsSet++;
-                  if (totals.fat >= goal.fat) goalsReached++;
-                }
-                if (goalsSet > 0) {
-                  return `${goalsReached}/${goalsSet}`;
-                }
-              }
-              // For nutrition without goals and text types, show the activity type name
-              if (hasSavedValues) {
-                return type.name;
-              }
-              return null;
-            };
-
-            const displayText = getIconDisplayText();
-
-            // Check if workout has a quick-check (value === true, no exercises)
-            const hasWorkoutQuickCheck =
-              isWorkout &&
-              typeSavedValues.some((saved) => {
-                const entry = entries.find((e) => e.id === saved.id);
-                return (
-                  saved.value === true && !entry?.workoutData?.exercises?.length
-                );
-              });
-
-            return (
-              <button
-                key={type.id}
-                onClick={() => {
-                  if (isCheckmark) {
-                    // For checkmark types, toggle directly without expanding
-                    handleCheckmarkToggle(type.id, typeSavedValues);
-                  } else if (isWorkout) {
-                    // For workout types, use double-click for quick-check
-                    handleWorkoutQuickCheck(type.id, typeSavedValues);
-                  } else {
-                    // For other types, toggle expansion
-                    setExpandedTypeId(
-                      expandedTypeId === type.id ? null : type.id,
-                    );
-                  }
-                }}
-                className={cn(
-                  "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 p-1 overflow-hidden relative",
-                  isSkipped
-                    ? "bg-gradient-to-br from-red-400/40 via-rose-500/30 to-pink-400/40 dark:from-red-500/50 dark:via-rose-600/40 dark:to-pink-500/50 ring-2 ring-ios-red/50"
-                    : "bg-gray-100/90 dark:bg-gray-800/90",
-                )}
-                style={
-                  hasValue && !isSkipped
-                    ? {
-                        background:
-                          "linear-gradient(135deg, rgba(52, 199, 89, 0.35) 0%, rgba(48, 209, 88, 0.25) 25%, rgba(100, 210, 130, 0.3) 50%, rgba(52, 199, 89, 0.35) 100%)",
-                        boxShadow:
-                          "inset 0 0 20px rgba(52, 199, 89, 0.15), 0 2px 8px rgba(52, 199, 89, 0.2)",
+                if (isWorkout) {
+                  // Count exercises
+                  let count = 0;
+                  if (hasSavedValues) {
+                    typeSavedValues.forEach((saved) => {
+                      const entry = entries.find((e) => e.id === saved.id);
+                      if (entry?.workoutData?.exercises) {
+                        count += entry.workoutData.exercises.length;
                       }
-                    : undefined
-                }>
-                {/* Checkmark indicator for checkmark and workout activity types */}
-                {(isCheckmark || isWorkout) && (
-                  <div className='absolute top-1 right-1'>
-                    <svg
-                      className={cn(
-                        "w-2.5 h-2.5",
-                        (hasValue && !isSkipped) || hasWorkoutQuickCheck
-                          ? "text-ios-green"
-                          : "text-gray-300 dark:text-gray-600",
-                      )}
-                      viewBox='0 0 24 24'
-                      fill='none'
-                      stroke='currentColor'
-                      strokeWidth='3'
-                      strokeLinecap='round'
-                      strokeLinejoin='round'>
-                      <polyline points='20 6 9 17 4 12' />
-                    </svg>
-                  </div>
-                )}
-                <div
+                    });
+                  } else if (workoutHasEnteredData) {
+                    count = Object.keys(workoutData).filter((name) => {
+                      const sets = workoutData[name] || [];
+                      return sets.some(
+                        (s) => s.reps || s.weight || s.distance || s.duration,
+                      );
+                    }).length;
+                  }
+                  // Show count if exercises logged, or nothing if just quick-check (icon will show green)
+                  return count > 0 ? `${count}` : null;
+                }
+                // For nutrition types with goals, show goals reached
+                if (isNutrition && type.nutritionGoal) {
+                  const totals = getNutritionTotals(type.id);
+                  const goal = type.nutritionGoal;
+                  let goalsSet = 0;
+                  let goalsReached = 0;
+                  if (goal.protein) {
+                    goalsSet++;
+                    if (totals.protein >= goal.protein) goalsReached++;
+                  }
+                  if (goal.calories) {
+                    goalsSet++;
+                    if (totals.calories >= goal.calories) goalsReached++;
+                  }
+                  if (goal.carbs) {
+                    goalsSet++;
+                    if (totals.carbs >= goal.carbs) goalsReached++;
+                  }
+                  if (goal.fat) {
+                    goalsSet++;
+                    if (totals.fat >= goal.fat) goalsReached++;
+                  }
+                  if (goalsSet > 0) {
+                    return `${goalsReached}/${goalsSet}`;
+                  }
+                }
+                // For nutrition without goals and text types, show the activity type name
+                if (hasSavedValues) {
+                  return type.name;
+                }
+                return null;
+              };
+
+              const displayText = getIconDisplayText();
+
+              // Check if workout has a quick-check (value === true, no exercises)
+              const hasWorkoutQuickCheck =
+                isWorkout &&
+                typeSavedValues.some((saved) => {
+                  const entry = entries.find((e) => e.id === saved.id);
+                  return (
+                    saved.value === true &&
+                    !entry?.workoutData?.exercises?.length
+                  );
+                });
+
+              return (
+                <button
+                  key={type.id}
+                  onClick={() => {
+                    if (isCheckmark) {
+                      // For checkmark types, toggle directly without expanding
+                      handleCheckmarkToggle(type.id, typeSavedValues);
+                    } else if (isWorkout) {
+                      // For workout types, use double-click for quick-check
+                      handleWorkoutQuickCheck(type.id, typeSavedValues);
+                    } else {
+                      // For other types, toggle expansion
+                      setExpandedTypeId(
+                        expandedTypeId === type.id ? null : type.id,
+                      );
+                    }
+                  }}
                   className={cn(
-                    "w-8 h-8 flex items-center justify-center shrink-0",
-                    hasValue && !isSkipped
-                      ? "text-green-600 dark:text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
-                      : isSkipped
-                        ? "text-ios-red"
-                        : "text-ios-blue",
-                  )}>
-                  {type.icon in icons ? (
-                    <Icon name={type.icon as IconName} className='w-7 h-7' />
-                  ) : (
-                    <span className='text-2xl'>{type.icon}</span>
+                    "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 p-1 overflow-hidden relative",
+                    isSkipped
+                      ? "bg-gradient-to-br from-red-400/40 via-rose-500/30 to-pink-400/40 dark:from-red-500/50 dark:via-rose-600/40 dark:to-pink-500/50 ring-2 ring-ios-red/50"
+                      : "bg-gray-100/90 dark:bg-gray-800/90",
                   )}
+                  style={
+                    hasValue && !isSkipped
+                      ? {
+                          background:
+                            "linear-gradient(135deg, rgba(52, 199, 89, 0.35) 0%, rgba(48, 209, 88, 0.25) 25%, rgba(100, 210, 130, 0.3) 50%, rgba(52, 199, 89, 0.35) 100%)",
+                          boxShadow:
+                            "inset 0 0 20px rgba(52, 199, 89, 0.15), 0 2px 8px rgba(52, 199, 89, 0.2)",
+                        }
+                      : undefined
+                  }>
+                  {/* Checkmark indicator for checkmark and workout activity types */}
+                  {(isCheckmark || isWorkout) && (
+                    <div className='absolute top-1 right-1'>
+                      <svg
+                        className={cn(
+                          "w-2.5 h-2.5",
+                          (hasValue && !isSkipped) || hasWorkoutQuickCheck
+                            ? "text-ios-green"
+                            : "text-gray-300 dark:text-gray-600",
+                        )}
+                        viewBox='0 0 24 24'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='3'
+                        strokeLinecap='round'
+                        strokeLinejoin='round'>
+                        <polyline points='20 6 9 17 4 12' />
+                      </svg>
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "w-8 h-8 flex items-center justify-center shrink-0",
+                      hasValue && !isSkipped
+                        ? "text-green-600 dark:text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
+                        : isSkipped
+                          ? "text-ios-red"
+                          : "text-ios-blue",
+                    )}>
+                    {type.icon in icons ? (
+                      <Icon name={type.icon as IconName} className='w-7 h-7' />
+                    ) : (
+                      <span className='text-2xl'>{type.icon}</span>
+                    )}
+                  </div>
+                  <span className='text-[9px] text-gray-900 dark:text-white text-center w-full px-0.5 line-clamp-2 leading-tight'>
+                    {isNutrition && type.nutritionGoal && displayText
+                      ? displayText
+                      : type.name}
+                  </span>
+                  {isSkipped && (
+                    <div className='w-1.5 h-1.5 rounded-full bg-ios-red' />
+                  )}
+                </button>
+              );
+            })}
+
+          {/* Add Hidden Activity Button - Icon Grid Version */}
+          {!isViewingOther &&
+            (dayHiddenActivities.size > 0 ||
+              allActivityTypes.some((t) => t.hidden)) && (
+              <button
+                onClick={() => setShowAddHiddenModal(true)}
+                className={cn(
+                  "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 p-1",
+                  "bg-gray-100/50 dark:bg-gray-800/30 border-2 border-dashed border-gray-300 dark:border-gray-600",
+                )}>
+                <div className='w-8 h-8 rounded-lg flex items-center justify-center'>
+                  <svg
+                    className='w-5 h-5 text-gray-400'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M12 4v16m8-8H4'
+                    />
+                  </svg>
                 </div>
-                <span className='text-[9px] text-gray-900 dark:text-white text-center w-full px-0.5 line-clamp-2 leading-tight'>
-                  {isNutrition && type.nutritionGoal && displayText
-                    ? displayText
-                    : type.name}
+                <span className='text-[9px] text-gray-400 font-medium leading-tight text-center px-0.5 line-clamp-2'>
+                  Add
                 </span>
-                {isSkipped && (
-                  <div className='w-1.5 h-1.5 rounded-full bg-ios-red' />
-                )}
               </button>
-            );
-          })}
+            )}
         </div>
       )}
 
       {/* List View */}
       {viewMode === "list" && (
         <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible'>
-          {activityTypes.map((type, index) => {
-            const typeSavedValues = savedValues[type.id] || [];
-            const hasSavedValues = typeSavedValues.length > 0;
-            const isExpanded = expandedTypeId === type.id;
-            const isLast = index === activityTypes.length - 1;
-            const isCheckmark = type.valueType === "checkmark";
-            const isCounter = type.valueType === "counter";
-            const isMood = type.valueType === "mood";
-            const isNutrition = type.valueType === "nutrition";
-            const isWorkout = type.valueType === "workout";
+          {allActivityTypes
+            .filter((type) => {
+              // Don't show if hidden for this specific day
+              if (dayHiddenActivities.has(type.id)) return false;
+              // Show if not globally hidden
+              if (!type.hidden) return true;
+              // Show hidden activities if they have data for this day
+              const typeSavedValues = savedValues[type.id] || [];
+              return typeSavedValues.length > 0;
+            })
+            .map((type, index, filteredTypes) => {
+              const typeSavedValues = savedValues[type.id] || [];
+              const hasSavedValues = typeSavedValues.length > 0;
+              const isExpanded = expandedTypeId === type.id;
+              const isLast = index === filteredTypes.length - 1;
+              const isCheckmark = type.valueType === "checkmark";
+              const isCounter = type.valueType === "counter";
+              const isMood = type.valueType === "mood";
+              const isNutrition = type.valueType === "nutrition";
+              const isWorkout = type.valueType === "workout";
 
-            // Check if workout has any data being entered (not yet saved)
-            const workoutHasEnteredData =
-              isWorkout &&
-              Object.keys(workoutData).some((exerciseName) => {
-                const sets = workoutData[exerciseName] || [];
-                return sets.some(
-                  (set) =>
-                    set.reps || set.weight || set.distance || set.duration,
-                );
-              });
-
-            // Count exercises with entered data
-            const workoutEnteredExerciseCount = isWorkout
-              ? Object.keys(workoutData).filter((exerciseName) => {
+              // Check if workout has any data being entered (not yet saved)
+              const workoutHasEnteredData =
+                isWorkout &&
+                Object.keys(workoutData).some((exerciseName) => {
                   const sets = workoutData[exerciseName] || [];
                   return sets.some(
                     (set) =>
                       set.reps || set.weight || set.distance || set.duration,
                   );
-                }).length
-              : 0;
+                });
 
-            // Get current counter value
-            const currentCounterValue =
-              isCounter && hasSavedValues
-                ? typeof typeSavedValues[0].value === "number"
-                  ? typeSavedValues[0].value
-                  : 0
+              // Count exercises with entered data
+              const workoutEnteredExerciseCount = isWorkout
+                ? Object.keys(workoutData).filter((exerciseName) => {
+                    const sets = workoutData[exerciseName] || [];
+                    return sets.some(
+                      (set) =>
+                        set.reps || set.weight || set.distance || set.duration,
+                    );
+                  }).length
                 : 0;
 
-            const handleCounterChange = (delta: number) => {
-              const newValue = Math.max(0, currentCounterValue + delta);
-              if (newValue === 0 && hasSavedValues) {
-                // Remove entry when counter reaches 0
-                deleteEntry(typeSavedValues[0].id);
-              } else if (newValue > 0) {
-                handleSaveValue(type.id, newValue);
-              }
-            };
+              // Get current counter value
+              const currentCounterValue =
+                isCounter && hasSavedValues
+                  ? typeof typeSavedValues[0].value === "number"
+                    ? typeSavedValues[0].value
+                    : 0
+                  : 0;
 
-            const handleRowClick = () => {
-              if (isCheckmark) {
-                const now = Date.now();
-                const lastClick = lastClickTime[type.id] || 0;
-                const isDoubleClick = now - lastClick < 400; // 400ms for double-click
-                setLastClickTime({ ...lastClickTime, [type.id]: now });
+              const handleCounterChange = (delta: number) => {
+                const newValue = Math.max(0, currentCounterValue + delta);
+                if (newValue === 0 && hasSavedValues) {
+                  // Remove entry when counter reaches 0
+                  deleteEntry(typeSavedValues[0].id);
+                } else if (newValue > 0) {
+                  handleSaveValue(type.id, newValue);
+                }
+              };
 
-                if (isDoubleClick) {
-                  // Double-click: set to "skipped" (red X)
-                  if (hasSavedValues) {
-                    // Delete existing and add skipped
-                    typeSavedValues.forEach((saved) => {
-                      deleteEntry(saved.id);
-                    });
-                  }
-                  handleSaveValue(type.id, "skipped");
-                } else {
-                  // Single click: toggle between checked and unchecked
-                  if (hasSavedValues) {
-                    const currentValue = typeSavedValues[0]?.value;
-                    if (currentValue === "skipped") {
-                      // If skipped, remove it
-                      typeSavedValues.forEach((saved) => {
-                        deleteEntry(saved.id);
-                      });
-                    } else {
-                      // If checked, remove the checkmark
+              const handleRowClick = () => {
+                if (isCheckmark) {
+                  const now = Date.now();
+                  const lastClick = lastClickTime[type.id] || 0;
+                  const isDoubleClick = now - lastClick < 400; // 400ms for double-click
+                  setLastClickTime({ ...lastClickTime, [type.id]: now });
+
+                  if (isDoubleClick) {
+                    // Double-click: set to "skipped" (red X)
+                    if (hasSavedValues) {
+                      // Delete existing and add skipped
                       typeSavedValues.forEach((saved) => {
                         deleteEntry(saved.id);
                       });
                     }
+                    handleSaveValue(type.id, "skipped");
                   } else {
-                    // Add the checkmark
-                    handleSaveValue(type.id, true);
+                    // Single click: toggle between checked and unchecked
+                    if (hasSavedValues) {
+                      const currentValue = typeSavedValues[0]?.value;
+                      if (currentValue === "skipped") {
+                        // If skipped, remove it
+                        typeSavedValues.forEach((saved) => {
+                          deleteEntry(saved.id);
+                        });
+                      } else {
+                        // If checked, remove the checkmark
+                        typeSavedValues.forEach((saved) => {
+                          deleteEntry(saved.id);
+                        });
+                      }
+                    } else {
+                      // Add the checkmark
+                      handleSaveValue(type.id, true);
+                    }
                   }
+                } else if (isCounter) {
+                  // For counter, tapping row resets to 0 if not already 0
+                  if (currentCounterValue > 0 && hasSavedValues) {
+                    deleteEntry(typeSavedValues[0].id);
+                  }
+                  // If already 0, do nothing
+                } else {
+                  toggleExpanded(type.id);
                 }
-              } else if (isCounter) {
-                // For counter, tapping row resets to 0 if not already 0
-                if (currentCounterValue > 0 && hasSavedValues) {
-                  deleteEntry(typeSavedValues[0].id);
-                }
-                // If already 0, do nothing
-              } else {
-                toggleExpanded(type.id);
-              }
-            };
+              };
 
-            return (
-              <div key={type.id}>
-                {/* Activity row */}
-                <div
-                  className={cn(
-                    "flex items-center min-h-[44px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
-                    isExpanded && "bg-gray-50 dark:bg-gray-800",
-                    isLocked && "pointer-events-none opacity-75",
-                    !isLast &&
-                      !isExpanded &&
-                      "border-b border-gray-200/80 dark:border-gray-700/80",
-                  )}
-                  onClick={handleRowClick}>
-                  {/* Icon */}
-                  {type.icon && (
-                    <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
-                      {type.icon in icons ? (
-                        <Icon
-                          name={type.icon as IconName}
-                          className={cn(
-                            "w-6 h-6",
-                            isLocked
-                              ? "text-ios-green"
-                              : hasSavedValues || workoutHasEnteredData
-                                ? "text-ios-green"
-                                : "text-ios-blue",
-                          )}
-                        />
-                      ) : (
-                        <span className='text-xl'>{type.icon}</span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Content and right-aligned controls */}
-                  <div className='flex-1 py-2 flex items-center min-w-0 overflow-hidden'>
-                    {/* Main label */}
-                    <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
-                      {type.name}
-                    </span>
-
-                    {/* Right-aligned values for all types */}
-                    <div className='flex items-center gap-2 ml-auto shrink-0'>
-                      {/* Text type values - right aligned */}
-                      {hasSavedValues &&
-                        !isExpanded &&
-                        type.valueType === "text" && (
-                          <span className='text-[15px] text-gray-500 dark:text-gray-400 truncate max-w-[180px]'>
-                            {typeSavedValues.map((saved, i) => (
-                              <span key={saved.id}>
-                                {formatValue(saved.value, type.id)}
-                                {i < typeSavedValues.length - 1 && ", "}
-                              </span>
-                            ))}
-                          </span>
-                        )}
-                      {/* Workout - show green checkmark if has workout */}
-                      {isWorkout &&
-                        (() => {
-                          // Check if there are any saved workout entries
-                          let hasWorkout = false;
-                          typeSavedValues.forEach((saved) => {
-                            const entry = entries.find(
-                              (e) => e.id === saved.id,
-                            );
-                            if (
-                              entry?.workoutData?.exercises?.length ||
-                              saved.value === true
-                            ) {
-                              hasWorkout = true;
-                            }
-                          });
-
-                          if (!hasWorkout && !workoutHasEnteredData) {
-                            return null;
-                          }
-
-                          // Has workout - show green checkmark
-                          return (
-                            <svg
-                              className='w-5 h-5 text-ios-green shrink-0'
-                              fill='none'
-                              stroke='currentColor'
-                              viewBox='0 0 24 24'
-                              strokeWidth={3}>
-                              <path
-                                strokeLinecap='round'
-                                strokeLinejoin='round'
-                                d='M5 13l4 4L19 7'
-                              />
-                            </svg>
-                          );
-                        })()}
-                      {/* Nutrition progress summary */}
-                      {isNutrition &&
-                        (() => {
-                          const totals = getNutritionTotals(type.id);
-                          const goal = type.nutritionGoal || {};
-                          const hasGoal =
-                            goal.protein ||
-                            goal.calories ||
-                            goal.carbs ||
-                            goal.fat;
-                          const hasEntries = hasSavedValues;
-
-                          if (!hasGoal && !hasEntries) return null;
-
-                          // Show primary goal progress (protein first, then calories)
-                          const primaryGoal = goal.protein
-                            ? "protein"
-                            : goal.calories
-                              ? "calories"
-                              : null;
-                          const totalValue =
-                            primaryGoal === "protein"
-                              ? totals.protein
-                              : totals.calories;
-                          const goalValue =
-                            primaryGoal === "protein"
-                              ? goal.protein
-                              : goal.calories;
-                          const isGoalReached =
-                            goalValue && totalValue >= goalValue;
-
-                          return (
-                            <span className='text-[15px] text-gray-500 dark:text-gray-400 truncate max-w-[180px]'>
-                              {primaryGoal === "protein" && goalValue ? (
-                                <>
-                                  {totals.protein}g / {goal.protein}g
-                                  {isGoalReached && (
-                                    <span className='text-ios-green ml-1'>
-                                      ✓
-                                    </span>
-                                  )}
-                                </>
-                              ) : primaryGoal === "calories" && goalValue ? (
-                                <>
-                                  {totals.calories} / {goal.calories} kcal
-                                  {isGoalReached && (
-                                    <span className='text-ios-green ml-1'>
-                                      ✓
-                                    </span>
-                                  )}
-                                </>
-                              ) : hasEntries ? (
-                                // Show food names instead of "x items"
-                                <>
-                                  {typeSavedValues
-                                    .map((saved) => {
-                                      const entry = entries.find(
-                                        (e) => e.id === saved.id,
-                                      );
-                                      return (
-                                        entry?.nutritionData?.foodName ||
-                                        String(saved.value)
-                                      );
-                                    })
-                                    .join(", ")}
-                                </>
-                              ) : null}
-                            </span>
-                          );
-                        })()}
-                      {/* Checkmark icon */}
-                      {isCheckmark && hasSavedValues && (
-                        <>
-                          {typeSavedValues[0]?.value === "skipped" ? (
-                            <svg
-                              className='w-5 h-5 text-ios-red shrink-0'
-                              fill='none'
-                              stroke='currentColor'
-                              viewBox='0 0 24 24'
-                              strokeWidth={3}>
-                              <path
-                                strokeLinecap='round'
-                                strokeLinejoin='round'
-                                d='M6 18L18 6M6 6l12 12'
-                              />
-                            </svg>
-                          ) : (
-                            <svg
-                              className='w-5 h-5 text-ios-green shrink-0'
-                              fill='none'
-                              stroke='currentColor'
-                              viewBox='0 0 24 24'
-                              strokeWidth={3}>
-                              <path
-                                strokeLinecap='round'
-                                strokeLinejoin='round'
-                                d='M5 13l4 4L19 7'
-                              />
-                            </svg>
-                          )}
-                        </>
-                      )}
-                      {/* Mood icon display */}
-                      {isMood && hasSavedValues && (
-                        <span className='shrink-0'>
-                          {typeSavedValues[0].value === "happy" && (
-                            <svg
-                              className='w-5 h-5 text-ios-green'
-                              viewBox='0 0 24 24'
-                              fill='none'
-                              stroke='currentColor'
-                              strokeWidth='2'
-                              strokeLinecap='round'
-                              strokeLinejoin='round'>
-                              <circle cx='12' cy='12' r='10' />
-                              <path d='M8 14s1.5 2 4 2 4-2 4-2' />
-                              <line
-                                x1='9'
-                                y1='9'
-                                x2='9.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                              <line
-                                x1='15'
-                                y1='9'
-                                x2='15.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                            </svg>
-                          )}
-                          {typeSavedValues[0].value === "neutral" && (
-                            <svg
-                              className='w-5 h-5 text-ios-orange'
-                              viewBox='0 0 24 24'
-                              fill='none'
-                              stroke='currentColor'
-                              strokeWidth='2'
-                              strokeLinecap='round'
-                              strokeLinejoin='round'>
-                              <circle cx='12' cy='12' r='10' />
-                              <line x1='8' y1='15' x2='16' y2='15' />
-                              <line
-                                x1='9'
-                                y1='9'
-                                x2='9.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                              <line
-                                x1='15'
-                                y1='9'
-                                x2='15.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                            </svg>
-                          )}
-                          {typeSavedValues[0].value === "sad" && (
-                            <svg
-                              className='w-5 h-5 text-ios-red'
-                              viewBox='0 0 24 24'
-                              fill='none'
-                              stroke='currentColor'
-                              strokeWidth='2'
-                              strokeLinecap='round'
-                              strokeLinejoin='round'>
-                              <circle cx='12' cy='12' r='10' />
-                              <path d='M16 16s-1.5-2-4-2-4 2-4 2' />
-                              <line
-                                x1='9'
-                                y1='9'
-                                x2='9.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                              <line
-                                x1='15'
-                                y1='9'
-                                x2='15.01'
-                                y2='9'
-                                strokeWidth='3'
-                              />
-                            </svg>
-                          )}
-                        </span>
-                      )}
-                      {/* Counter controls */}
-                      {isCounter && (
-                        <div
-                          className='flex items-center gap-x-2'
-                          onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCounterChange(-1);
-                            }}
-                            disabled={currentCounterValue === 0}
-                            className={cn(
-                              "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-gray-200 dark:border-gray-600",
-                              "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 shadow-none",
-                              "active:bg-gray-100 dark:active:bg-gray-700 active:scale-95 transition-transform",
-                              currentCounterValue === 0 && "opacity-30",
-                            )}>
-                            −
-                          </button>
-                          <span
-                            className={cn(
-                              "w-7 text-center text-[17px] font-semibold tabular-nums",
-                              currentCounterValue > 0
-                                ? "text-ios-green"
-                                : "text-gray-400 dark:text-gray-500",
-                            )}>
-                            {currentCounterValue}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCounterChange(1);
-                            }}
-                            className={cn(
-                              "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-ios-blue/20",
-                              "bg-ios-blue/5 text-ios-blue shadow-none",
-                              "active:bg-ios-blue/10 active:scale-95 transition-transform",
-                            )}>
-                            +
-                          </button>
-                        </div>
-                      )}
-                      {/* Boolean value display (show check or x if saved) */}
-                      {type.valueType === "boolean" && hasSavedValues && (
-                        <span
-                          className={cn(
-                            "w-5 h-5 flex items-center justify-center text-[17px] font-bold",
-                            typeSavedValues[0].value
-                              ? "text-ios-green"
-                              : "text-ios-red",
-                          )}>
-                          {typeSavedValues[0].value ? "✓" : "✗"}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expanded content - not for checkmark or counter types */}
-                {isExpanded && !isCheckmark && !isCounter && (
+              return (
+                <div key={type.id}>
+                  {/* Activity row */}
                   <div
                     className={cn(
-                      "px-4 pb-4 pt-2 bg-gray-50 dark:bg-gray-800/50",
+                      "flex items-center min-h-[44px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
+                      isExpanded && "bg-gray-50 dark:bg-gray-800",
+                      isLocked && "pointer-events-none opacity-75",
                       !isLast &&
+                        !isExpanded &&
                         "border-b border-gray-200/80 dark:border-gray-700/80",
-                    )}>
-                    {/* Saved values with delete option - not for mood or workout type */}
-                    {hasSavedValues && !isMood && !isWorkout && (
-                      <div className='flex flex-wrap gap-2 pt-1 pb-3'>
-                        {typeSavedValues.map((saved) => (
-                          <span
-                            key={saved.id}
-                            className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
-                            {formatValue(saved.value, type.id)}
-                            <button
-                              type='button'
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeSavedValue(type.id, saved.id);
-                              }}
-                              className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
-                              ×
-                            </button>
-                          </span>
-                        ))}
+                    )}
+                    onClick={handleRowClick}>
+                    {/* Icon */}
+                    {type.icon && (
+                      <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
+                        {type.icon in icons ? (
+                          <Icon
+                            name={type.icon as IconName}
+                            className={cn(
+                              "w-6 h-6",
+                              isLocked
+                                ? "text-ios-green"
+                                : hasSavedValues || workoutHasEnteredData
+                                  ? "text-ios-green"
+                                  : "text-ios-blue",
+                            )}
+                          />
+                        ) : (
+                          <span className='text-xl'>{type.icon}</span>
+                        )}
                       </div>
                     )}
 
-                    {renderExpandedInput(type)}
+                    {/* Content and right-aligned controls */}
+                    <div className='flex-1 py-2 flex items-center min-w-0 overflow-hidden'>
+                      {/* Main label */}
+                      <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
+                        {type.name}
+                      </span>
+
+                      {/* Right-aligned values for all types */}
+                      <div className='flex items-center gap-2 ml-auto shrink-0'>
+                        {/* Text type values - right aligned */}
+                        {hasSavedValues &&
+                          !isExpanded &&
+                          type.valueType === "text" && (
+                            <span className='text-[15px] text-gray-500 dark:text-gray-400 truncate max-w-[180px]'>
+                              {typeSavedValues.map((saved, i) => (
+                                <span key={saved.id}>
+                                  {formatValue(saved.value, type.id)}
+                                  {i < typeSavedValues.length - 1 && ", "}
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                        {/* Workout - show green checkmark if has workout */}
+                        {isWorkout &&
+                          (() => {
+                            // Check if there are any saved workout entries
+                            let hasWorkout = false;
+                            typeSavedValues.forEach((saved) => {
+                              const entry = entries.find(
+                                (e) => e.id === saved.id,
+                              );
+                              if (
+                                entry?.workoutData?.exercises?.length ||
+                                saved.value === true
+                              ) {
+                                hasWorkout = true;
+                              }
+                            });
+
+                            if (!hasWorkout && !workoutHasEnteredData) {
+                              return null;
+                            }
+
+                            // Has workout - show green checkmark
+                            return (
+                              <svg
+                                className='w-5 h-5 text-ios-green shrink-0'
+                                fill='none'
+                                stroke='currentColor'
+                                viewBox='0 0 24 24'
+                                strokeWidth={3}>
+                                <path
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'
+                                  d='M5 13l4 4L19 7'
+                                />
+                              </svg>
+                            );
+                          })()}
+                        {/* Nutrition progress summary */}
+                        {isNutrition &&
+                          (() => {
+                            const totals = getNutritionTotals(type.id);
+                            const goal = type.nutritionGoal || {};
+                            const hasGoal =
+                              goal.protein ||
+                              goal.calories ||
+                              goal.carbs ||
+                              goal.fat;
+                            const hasEntries = hasSavedValues;
+
+                            if (!hasGoal && !hasEntries) return null;
+
+                            // Show primary goal progress (protein first, then calories)
+                            const primaryGoal = goal.protein
+                              ? "protein"
+                              : goal.calories
+                                ? "calories"
+                                : null;
+                            const totalValue =
+                              primaryGoal === "protein"
+                                ? totals.protein
+                                : totals.calories;
+                            const goalValue =
+                              primaryGoal === "protein"
+                                ? goal.protein
+                                : goal.calories;
+                            const isGoalReached =
+                              goalValue && totalValue >= goalValue;
+
+                            return (
+                              <span className='text-[15px] text-gray-500 dark:text-gray-400 truncate max-w-[180px]'>
+                                {primaryGoal === "protein" && goalValue ? (
+                                  <>
+                                    {totals.protein}g / {goal.protein}g
+                                    {isGoalReached && (
+                                      <span className='text-ios-green ml-1'>
+                                        ✓
+                                      </span>
+                                    )}
+                                  </>
+                                ) : primaryGoal === "calories" && goalValue ? (
+                                  <>
+                                    {totals.calories} / {goal.calories} kcal
+                                    {isGoalReached && (
+                                      <span className='text-ios-green ml-1'>
+                                        ✓
+                                      </span>
+                                    )}
+                                  </>
+                                ) : hasEntries ? (
+                                  // Show food names instead of "x items"
+                                  <>
+                                    {typeSavedValues
+                                      .map((saved) => {
+                                        const entry = entries.find(
+                                          (e) => e.id === saved.id,
+                                        );
+                                        return (
+                                          entry?.nutritionData?.foodName ||
+                                          String(saved.value)
+                                        );
+                                      })
+                                      .join(", ")}
+                                  </>
+                                ) : null}
+                              </span>
+                            );
+                          })()}
+                        {/* Checkmark icon */}
+                        {isCheckmark && hasSavedValues && (
+                          <>
+                            {typeSavedValues[0]?.value === "skipped" ? (
+                              <svg
+                                className='w-5 h-5 text-ios-red shrink-0'
+                                fill='none'
+                                stroke='currentColor'
+                                viewBox='0 0 24 24'
+                                strokeWidth={3}>
+                                <path
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'
+                                  d='M6 18L18 6M6 6l12 12'
+                                />
+                              </svg>
+                            ) : (
+                              <svg
+                                className='w-5 h-5 text-ios-green shrink-0'
+                                fill='none'
+                                stroke='currentColor'
+                                viewBox='0 0 24 24'
+                                strokeWidth={3}>
+                                <path
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'
+                                  d='M5 13l4 4L19 7'
+                                />
+                              </svg>
+                            )}
+                          </>
+                        )}
+                        {/* Mood icon display */}
+                        {isMood && hasSavedValues && (
+                          <span className='shrink-0'>
+                            {typeSavedValues[0].value === "happy" && (
+                              <svg
+                                className='w-5 h-5 text-ios-green'
+                                viewBox='0 0 24 24'
+                                fill='none'
+                                stroke='currentColor'
+                                strokeWidth='2'
+                                strokeLinecap='round'
+                                strokeLinejoin='round'>
+                                <circle cx='12' cy='12' r='10' />
+                                <path d='M8 14s1.5 2 4 2 4-2 4-2' />
+                                <line
+                                  x1='9'
+                                  y1='9'
+                                  x2='9.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                                <line
+                                  x1='15'
+                                  y1='9'
+                                  x2='15.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                              </svg>
+                            )}
+                            {typeSavedValues[0].value === "neutral" && (
+                              <svg
+                                className='w-5 h-5 text-ios-orange'
+                                viewBox='0 0 24 24'
+                                fill='none'
+                                stroke='currentColor'
+                                strokeWidth='2'
+                                strokeLinecap='round'
+                                strokeLinejoin='round'>
+                                <circle cx='12' cy='12' r='10' />
+                                <line x1='8' y1='15' x2='16' y2='15' />
+                                <line
+                                  x1='9'
+                                  y1='9'
+                                  x2='9.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                                <line
+                                  x1='15'
+                                  y1='9'
+                                  x2='15.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                              </svg>
+                            )}
+                            {typeSavedValues[0].value === "sad" && (
+                              <svg
+                                className='w-5 h-5 text-ios-red'
+                                viewBox='0 0 24 24'
+                                fill='none'
+                                stroke='currentColor'
+                                strokeWidth='2'
+                                strokeLinecap='round'
+                                strokeLinejoin='round'>
+                                <circle cx='12' cy='12' r='10' />
+                                <path d='M16 16s-1.5-2-4-2-4 2-4 2' />
+                                <line
+                                  x1='9'
+                                  y1='9'
+                                  x2='9.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                                <line
+                                  x1='15'
+                                  y1='9'
+                                  x2='15.01'
+                                  y2='9'
+                                  strokeWidth='3'
+                                />
+                              </svg>
+                            )}
+                          </span>
+                        )}
+                        {/* Counter controls */}
+                        {isCounter && (
+                          <div
+                            className='flex items-center gap-x-2'
+                            onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCounterChange(-1);
+                              }}
+                              disabled={currentCounterValue === 0}
+                              className={cn(
+                                "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-gray-200 dark:border-gray-600",
+                                "bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 shadow-none",
+                                "active:bg-gray-100 dark:active:bg-gray-700 active:scale-95 transition-transform",
+                                currentCounterValue === 0 && "opacity-30",
+                              )}>
+                              −
+                            </button>
+                            <span
+                              className={cn(
+                                "w-7 text-center text-[17px] font-semibold tabular-nums",
+                                currentCounterValue > 0
+                                  ? "text-ios-green"
+                                  : "text-gray-400 dark:text-gray-500",
+                              )}>
+                              {currentCounterValue}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCounterChange(1);
+                              }}
+                              className={cn(
+                                "w-7 h-7 rounded-full flex items-center justify-center text-[18px] font-medium border border-ios-blue/20",
+                                "bg-ios-blue/5 text-ios-blue shadow-none",
+                                "active:bg-ios-blue/10 active:scale-95 transition-transform",
+                              )}>
+                              +
+                            </button>
+                          </div>
+                        )}
+                        {/* Boolean value display (show check or x if saved) */}
+                        {type.valueType === "boolean" && hasSavedValues && (
+                          <span
+                            className={cn(
+                              "w-5 h-5 flex items-center justify-center text-[17px] font-bold",
+                              typeSavedValues[0].value
+                                ? "text-ios-green"
+                                : "text-ios-red",
+                            )}>
+                            {typeSavedValues[0].value ? "✓" : "✗"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Expanded content - not for checkmark or counter types */}
+                  {isExpanded && !isCheckmark && !isCounter && (
+                    <div
+                      className={cn(
+                        "px-4 pb-4 pt-2 bg-gray-50 dark:bg-gray-800/50",
+                        !isLast &&
+                          "border-b border-gray-200/80 dark:border-gray-700/80",
+                      )}>
+                      {/* Saved values with delete option - not for mood or workout type */}
+                      {hasSavedValues && !isMood && !isWorkout && (
+                        <div className='flex flex-wrap gap-2 pt-1 pb-3'>
+                          {typeSavedValues.map((saved) => (
+                            <span
+                              key={saved.id}
+                              className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
+                              {formatValue(saved.value, type.id)}
+                              <button
+                                type='button'
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeSavedValue(type.id, saved.id);
+                                }}
+                                className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {renderExpandedInput(type)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+        </div>
+      )}
+
+      {/* Add Hidden Activity Button - List View Version */}
+      {!isViewingOther &&
+        viewMode === "list" &&
+        (dayHiddenActivities.size > 0 ||
+          allActivityTypes.some((t) => t.hidden)) && (
+          <button
+            onClick={() => setShowAddHiddenModal(true)}
+            className='mt-3 w-full py-3 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center gap-2 text-gray-400 hover:text-gray-500 hover:border-gray-400 transition-colors'>
+            <svg
+              className='w-5 h-5'
+              fill='none'
+              viewBox='0 0 24 24'
+              stroke='currentColor'
+              strokeWidth={2}>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M12 4v16m8-8H4'
+              />
+            </svg>
+            <span className='text-[14px] font-medium'>Add activity</span>
+          </button>
+        )}
+
+      {/* Add Hidden Activity Modal */}
+      {showAddHiddenModal && (
+        <div
+          className='fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-16'
+          onClick={() => setShowAddHiddenModal(false)}>
+          <div
+            className='w-full max-w-lg mx-4 bg-white dark:bg-gray-900 rounded-2xl max-h-[calc(100vh-140px)] overflow-hidden shadow-xl'
+            onClick={(e) => e.stopPropagation()}>
+            <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
+              <h3 className='text-[17px] font-semibold text-gray-900 dark:text-white'>
+                Add Activity
+              </h3>
+              <button
+                onClick={() => setShowAddHiddenModal(false)}
+                className='p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800'>
+                <svg
+                  className='w-6 h-6 text-gray-400'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    strokeWidth={2}
+                    d='M6 18L18 6M6 6l12 12'
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className='p-4 overflow-y-auto max-h-[calc(100vh-220px)]'>
+              {/* Activities hidden for this specific day (when locked) */}
+              {dayHiddenActivities.size > 0 && (
+                <div className='mb-4'>
+                  <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2'>
+                    Hidden for this day
+                  </p>
+                  <div className='space-y-2'>
+                    {activityTypes
+                      .filter((t) => dayHiddenActivities.has(t.id))
+                      .map((type) => (
+                        <button
+                          key={type.id}
+                          onClick={() => {
+                            // Remove from day-hidden list
+                            const newHidden = new Set(dayHiddenActivities);
+                            newHidden.delete(type.id);
+                            setDayHiddenActivities(newHidden);
+                            localStorage.setItem(
+                              `day-hidden-activities-${date}`,
+                              JSON.stringify([...newHidden]),
+                            );
+                            setShowAddHiddenModal(false);
+                          }}
+                          className='w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'>
+                          <div
+                            className='w-10 h-10 rounded-xl flex items-center justify-center'
+                            style={{
+                              backgroundColor: "rgba(0, 122, 255, 0.1)",
+                            }}>
+                            <Icon
+                              name={(type.icon as IconName) || "star"}
+                              className='w-5 h-5 text-ios-blue'
+                            />
+                          </div>
+                          <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                            {type.name}
+                          </span>
+                          <svg
+                            className='w-5 h-5 text-gray-400 ml-auto'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              strokeWidth={2}
+                              d='M12 4v16m8-8H4'
+                            />
+                          </svg>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Globally hidden activities (from settings) */}
+              {allActivityTypes.filter((t) => t.hidden).length > 0 && (
+                <div>
+                  <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2'>
+                    Hidden in settings
+                  </p>
+                  <div className='space-y-2'>
+                    {allActivityTypes
+                      .filter((t) => t.hidden)
+                      .map((type) => (
+                        <button
+                          key={type.id}
+                          onClick={async () => {
+                            // Unhide the activity type globally
+                            await updateActivityType({
+                              ...type,
+                              hidden: false,
+                            });
+                            setShowAddHiddenModal(false);
+                          }}
+                          className='w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'>
+                          <div
+                            className='w-10 h-10 rounded-xl flex items-center justify-center'
+                            style={{
+                              backgroundColor: "rgba(0, 122, 255, 0.1)",
+                            }}>
+                            <Icon
+                              name={(type.icon as IconName) || "star"}
+                              className='w-5 h-5 text-ios-blue'
+                            />
+                          </div>
+                          <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                            {type.name}
+                          </span>
+                          <svg
+                            className='w-5 h-5 text-gray-400 ml-auto'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              strokeWidth={2}
+                              d='M12 4v16m8-8H4'
+                            />
+                          </svg>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No hidden activities */}
+              {dayHiddenActivities.size === 0 &&
+                allActivityTypes.filter((t) => t.hidden).length === 0 && (
+                  <p className='text-center text-gray-500 dark:text-gray-400 py-8'>
+                    No hidden activities
+                  </p>
                 )}
-              </div>
-            );
-          })}
+            </div>
+          </div>
         </div>
       )}
 

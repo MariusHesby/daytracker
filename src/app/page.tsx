@@ -113,12 +113,6 @@ export default function HomePage() {
                 <div className='relative'>
                   {/* Blue border effect matching activity icons */}
                   <div
-                    className='absolute inset-0 rounded-full bg-ios-blue'
-                    style={{
-                      transform: "scale(1.05)",
-                    }}
-                  />
-                  <div
                     className={`relative rounded-full ${isViewingOther ? "ring-2 ring-pink-400/50" : ""}`}>
                     <Avatar
                       avatar={

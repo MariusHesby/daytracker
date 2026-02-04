@@ -315,27 +315,7 @@ function MediaCard({
                 <path d='M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z' />
               </svg>
             </div>
-            <p className='text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide'>
-              {`Added ${new Date(entry.date).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}`}
-            </p>
           </div>
-        )}
-        {/* Added date above the card - iOS style */}
-        {!isDraggable && (
-          <p className='text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5 px-0.5'>
-            {isWatchlistView
-              ? `Added ${new Date(entry.date).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}`
-              : new Date(entry.date).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}
-          </p>
         )}
         <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden shadow-sm flex'>
           <button
@@ -364,22 +344,38 @@ function MediaCard({
             )}
           </button>
           <div className='p-3 flex-1 flex flex-col justify-start min-w-0'>
-            {(() => {
-              const link = getMediaLink(entry.imdbId);
-              return link ? (
-                <a
-                  href={link}
-                  target='_blank'
-                  rel='noopener noreferrer'
-                  className='font-semibold text-gray-900 dark:text-white text-[15px] line-clamp-2 hover:text-ios-blue transition-colors'>
-                  {title}
-                </a>
-              ) : (
-                <h3 className='font-semibold text-gray-900 dark:text-white text-[15px] line-clamp-2'>
-                  {title}
-                </h3>
-              );
-            })()}
+            <div className='flex items-start justify-between gap-2'>
+              {(() => {
+                const link = getMediaLink(entry.imdbId);
+                return link ? (
+                  <a
+                    href={link}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='font-semibold text-gray-900 dark:text-white text-[15px] line-clamp-2 hover:text-ios-blue transition-colors flex-1'>
+                    {title}
+                  </a>
+                ) : (
+                  <h3 className='font-semibold text-gray-900 dark:text-white text-[15px] line-clamp-2 flex-1'>
+                    {title}
+                  </h3>
+                );
+              })()}
+              {/* Calendar badge */}
+              <div className='bg-white dark:bg-gray-700 rounded shadow overflow-hidden shrink-0'>
+                <div className='bg-ios-red h-1.5' />
+                <div className='px-1.5 text-center'>
+                  <span className='text-[11px] font-bold text-gray-900 dark:text-white leading-tight block'>
+                    {new Date(entry.date).getDate()}
+                  </span>
+                  <span className='text-[7px] text-gray-500 dark:text-gray-400 uppercase leading-tight block -mt-0.5'>
+                    {new Date(entry.date).toLocaleDateString("en-US", {
+                      month: "short",
+                    })}
+                  </span>
+                </div>
+              </div>
+            </div>
             <div className='flex items-center gap-3 mt-1.5'>
               {entry.imdbRating && (
                 <span className='text-[14px] text-amber-500'>
@@ -397,6 +393,36 @@ function MediaCard({
                     <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
                   </svg>
                   {entry.userRating}
+                </button>
+              ) : !isWatchlistView && !entry.userRating ? (
+                <button
+                  onClick={() => setShowRating(true)}
+                  className='text-ios-blue'
+                  title='Add rating'>
+                  <svg
+                    className='w-8 h-5'
+                    viewBox='0 0 32 20'
+                    fill='currentColor'>
+                    <circle cx='8' cy='4' r='3' />
+                    <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                    <rect
+                      x='18'
+                      y='2'
+                      width='12'
+                      height='9'
+                      rx='1'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='1.5'
+                    />
+                    <path
+                      d='M22 11v2h4v-2'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='1.5'
+                    />
+                    <path d='M22 5v4l3-2z' />
+                  </svg>
                 </button>
               ) : null}
             </div>
@@ -440,12 +466,6 @@ function MediaCard({
                   Cancel
                 </button>
               </div>
-            ) : !entry.userRating ? (
-              <button
-                onClick={() => setShowRating(true)}
-                className='mt-1 text-[13px] text-ios-blue text-left'>
-                Add rating
-              </button>
             ) : null}
           </div>
         </div>
@@ -460,125 +480,148 @@ function MediaCard({
   }
 
   return (
-    <div>
-      {/* Added date above the card - iOS style */}
-      <p className='text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1.5 px-0.5'>
-        {new Date(entry.date).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        })}
-      </p>
-      <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden shadow-sm h-full flex flex-col'>
-        <button
-          onClick={() => setShowPosterPicker(true)}
-          className='relative aspect-2/3 bg-gray-200 dark:bg-gray-800 group'>
-          {entry.poster ? (
-            <>
-              <img
-                src={entry.poster}
-                alt={title}
-                className='w-full h-full object-cover'
-              />
-              <div className='absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center'>
-                <span className='text-white opacity-0 group-hover:opacity-100 text-sm'>
-                  Change
-                </span>
-              </div>
-            </>
-          ) : (
-            <div className='w-full h-full flex flex-col items-center justify-center text-4xl hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors'>
-              🎬
-              <span className='text-[10px] text-gray-500 dark:text-gray-400 mt-1'>
-                Add poster
+    <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden shadow-sm h-full flex flex-col'>
+      <button
+        onClick={() => setShowPosterPicker(true)}
+        className='relative aspect-2/3 bg-gray-200 dark:bg-gray-800 group'>
+        {entry.poster ? (
+          <>
+            <img
+              src={entry.poster}
+              alt={title}
+              className='w-full h-full object-cover'
+            />
+            <div className='absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center'>
+              <span className='text-white opacity-0 group-hover:opacity-100 text-sm'>
+                Change
               </span>
             </div>
-          )}
-        </button>
-        <div className='p-2.5 flex flex-col flex-1'>
-          {(() => {
-            const link = getMediaLink(entry.imdbId);
-            return link ? (
-              <a
-                href={link}
-                target='_blank'
-                rel='noopener noreferrer'
-                className='font-semibold text-gray-900 dark:text-white text-[14px] line-clamp-2 hover:text-ios-blue transition-colors'>
-                {title}
-              </a>
-            ) : (
-              <h3 className='font-semibold text-gray-900 dark:text-white text-[14px] line-clamp-2'>
-                {title}
-              </h3>
-            );
-          })()}
-          <div className='flex items-center gap-3 mt-auto'>
-            {entry.imdbRating && (
-              <span className='text-[14px] text-amber-500'>
-                ⭐ {Math.round(parseFloat(entry.imdbRating))}
-              </span>
-            )}
-            {!isWatchlistView && entry.userRating ? (
-              <button
-                onClick={() => setShowRating(true)}
-                className='text-[14px] text-ios-blue flex items-center gap-1'>
-                <svg
-                  className='w-4 h-4'
-                  viewBox='0 0 24 24'
-                  fill='currentColor'>
-                  <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
-                </svg>
-                {entry.userRating}
-              </button>
-            ) : null}
+          </>
+        ) : (
+          <div className='w-full h-full flex flex-col items-center justify-center text-4xl hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors'>
+            🎬
+            <span className='text-[10px] text-gray-500 dark:text-gray-400 mt-1'>
+              Add poster
+            </span>
           </div>
-          {isWatchlistView ? (
-            <div className='mt-2 flex items-center gap-1.5'>
-              <button
-                onClick={() => onMarkAsWatched?.(entry.id)}
-                className='px-1.5 py-0.5 text-gray-500 dark:text-gray-400 text-[10px] hover:text-green-600 dark:hover:text-green-400 transition-colors'>
-                ✓ Watched
-              </button>
-              <button
-                onClick={() => onRemoveFromWatchlist?.(entry.id)}
-                className='p-1 text-gray-400 hover:text-red-500 transition-colors'>
-                <svg
-                  className='w-4 h-4'
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  strokeWidth={1.5}
-                  stroke='currentColor'>
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    d='M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0'
-                  />
-                </svg>
-              </button>
-            </div>
-          ) : showRating ? (
-            <div className='mt-2 space-y-1.5'>
-              <StarRating
-                rating={entry.userRating}
-                onRate={(r) => {
-                  onRate(entry.id, r);
-                  setShowRating(false);
-                }}
-                size='sm'
-              />
-              <button
-                onClick={() => setShowRating(false)}
-                className='text-[12px] text-gray-500'>
-                Cancel
-              </button>
-            </div>
-          ) : !entry.userRating ? (
+        )}
+      </button>
+      <div className='p-2.5 flex flex-col flex-1'>
+        {(() => {
+          const link = getMediaLink(entry.imdbId);
+          return link ? (
+            <a
+              href={link}
+              target='_blank'
+              rel='noopener noreferrer'
+              className='font-semibold text-gray-900 dark:text-white text-[14px] line-clamp-2 hover:text-ios-blue transition-colors'>
+              {title}
+            </a>
+          ) : (
+            <h3 className='font-semibold text-gray-900 dark:text-white text-[14px] line-clamp-2'>
+              {title}
+            </h3>
+          );
+        })()}
+        <div className='flex items-center gap-3 mt-auto'>
+          {entry.imdbRating && (
+            <span className='text-[14px] text-amber-500'>
+              ⭐ {Math.round(parseFloat(entry.imdbRating))}
+            </span>
+          )}
+          {!isWatchlistView && entry.userRating ? (
             <button
               onClick={() => setShowRating(true)}
-              className='mt-1 text-[13px] text-ios-blue text-left'>
-              Add rating
+              className='text-[14px] text-ios-blue flex items-center gap-1'>
+              <svg className='w-4 h-4' viewBox='0 0 24 24' fill='currentColor'>
+                <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
+              </svg>
+              {entry.userRating}
+            </button>
+          ) : !isWatchlistView && !entry.userRating ? (
+            <button
+              onClick={() => setShowRating(true)}
+              className='text-ios-blue'
+              title='Add rating'>
+              <svg className='w-8 h-5' viewBox='0 0 32 20' fill='currentColor'>
+                <circle cx='8' cy='4' r='3' />
+                <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                <rect
+                  x='18'
+                  y='2'
+                  width='12'
+                  height='9'
+                  rx='1'
+                  fill='none'
+                  stroke='currentColor'
+                  strokeWidth='1.5'
+                />
+                <path
+                  d='M22 11v2h4v-2'
+                  fill='none'
+                  stroke='currentColor'
+                  strokeWidth='1.5'
+                />
+                <path d='M22 5v4l3-2z' />
+              </svg>
             </button>
           ) : null}
+          {/* Calendar badge */}
+          <div className='bg-white dark:bg-gray-700 rounded shadow overflow-hidden ml-auto'>
+            <div className='bg-ios-red h-1.5' />
+            <div className='px-1.5 text-center'>
+              <span className='text-[11px] font-bold text-gray-900 dark:text-white leading-tight block'>
+                {new Date(entry.date).getDate()}
+              </span>
+              <span className='text-[7px] text-gray-500 dark:text-gray-400 uppercase leading-tight block -mt-0.5'>
+                {new Date(entry.date).toLocaleDateString("en-US", {
+                  month: "short",
+                })}
+              </span>
+            </div>
+          </div>
         </div>
+        {isWatchlistView ? (
+          <div className='mt-2 flex items-center gap-1.5'>
+            <button
+              onClick={() => onMarkAsWatched?.(entry.id)}
+              className='px-1.5 py-0.5 text-gray-500 dark:text-gray-400 text-[10px] hover:text-green-600 dark:hover:text-green-400 transition-colors'>
+              ✓ Watched
+            </button>
+            <button
+              onClick={() => onRemoveFromWatchlist?.(entry.id)}
+              className='p-1 text-gray-400 hover:text-red-500 transition-colors'>
+              <svg
+                className='w-4 h-4'
+                fill='none'
+                viewBox='0 0 24 24'
+                strokeWidth={1.5}
+                stroke='currentColor'>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0'
+                />
+              </svg>
+            </button>
+          </div>
+        ) : showRating ? (
+          <div className='mt-2 space-y-1.5'>
+            <StarRating
+              rating={entry.userRating}
+              onRate={(r) => {
+                onRate(entry.id, r);
+                setShowRating(false);
+              }}
+              size='sm'
+            />
+            <button
+              onClick={() => setShowRating(false)}
+              className='text-[12px] text-gray-500'>
+              Cancel
+            </button>
+          </div>
+        ) : null}
       </div>
       <PosterPickerModal
         isOpen={showPosterPicker}
@@ -1315,7 +1358,7 @@ export default function MoviesPage() {
             </p>
           </div>
         ) : viewMode === "grid" ? (
-          <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-8'>
+          <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2'>
             {mediaEntries.map((entry, index) => (
               <MediaCard
                 key={entry.id}

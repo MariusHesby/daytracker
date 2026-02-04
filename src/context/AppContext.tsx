@@ -262,6 +262,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setActivityTypes((prev) =>
           prev.map((t) => (t.id === id ? updated : t)),
         );
+        setOwnActivityTypes((prev) =>
+          prev.map((t) => (t.id === id ? updated : t)),
+        );
       }
     },
     [activityTypes, user],
