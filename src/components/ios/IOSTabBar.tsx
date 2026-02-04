@@ -29,7 +29,7 @@ export function IOSTabBar({ items, className }: IOSTabBarProps) {
         className,
       )}
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
-      <div className='flex items-center justify-around h-[49px]'>
+      <div className='flex items-center justify-around pt-2 pb-1.5'>
         {items.map((item) => {
           const isActive =
             pathname === item.href ||
@@ -40,7 +40,7 @@ export function IOSTabBar({ items, className }: IOSTabBarProps) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center flex-1 h-full",
+                "flex flex-col items-center justify-center flex-1",
                 "transition-colors",
               )}>
               <div
