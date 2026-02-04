@@ -7,6 +7,7 @@ export interface StarRatingProps {
   rating?: number;
   onRate?: (rating: number) => void;
   size?: "sm" | "md" | "lg";
+  wrap?: boolean;
 }
 
 const SIZE_CLASSES = { sm: "w-5 h-5", md: "w-6 h-6", lg: "w-7 h-7" };
@@ -15,7 +16,12 @@ const SIZE_CLASSES = { sm: "w-5 h-5", md: "w-6 h-6", lg: "w-7 h-7" };
  * A 10-star rating component with touch and mouse support.
  * Supports drag-to-rate on touch devices.
  */
-export function StarRating({ rating, onRate, size = "md" }: StarRatingProps) {
+export function StarRating({
+  rating,
+  onRate,
+  size = "md",
+  wrap = false,
+}: StarRatingProps) {
   const [hovered, setHovered] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -97,7 +103,10 @@ export function StarRating({ rating, onRate, size = "md" }: StarRatingProps) {
     <div
       ref={containerRef}
       data-no-swipe
-      className='flex gap-1 touch-none select-none'
+      className={cn(
+        "flex gap-1 touch-none select-none",
+        wrap && "flex-wrap justify-center",
+      )}
       style={{ touchAction: "none" }}>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
         <button

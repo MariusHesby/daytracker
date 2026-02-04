@@ -200,7 +200,7 @@ export default function StatsPage() {
   const {
     entries,
     loadEntriesForDateRange,
-    activityTypes,
+    allActivityTypes: activityTypes,
     viewingUser,
     setViewingUser,
     isViewingOther,

@@ -98,6 +98,7 @@ export interface DbLogEntry {
   is_watchlist: boolean | null;
   nutrition_data: Record<string, unknown> | null;
   workout_data: Record<string, unknown> | null;
+  checklist_data: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }

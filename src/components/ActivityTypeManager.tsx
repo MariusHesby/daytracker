@@ -19,7 +19,8 @@ type ValueType =
   | "counter"
   | "mood"
   | "nutrition"
-  | "workout";
+  | "workout"
+  | "checklist";
 
 const VALUE_TYPE_OPTIONS: {
   value: ValueType;
@@ -34,6 +35,11 @@ const VALUE_TYPE_OPTIONS: {
     description: "Tap once for ✓ or double tap for ✗",
   },
   { value: "mood", label: "Mood", description: "Happy, neutral, or sad" },
+  {
+    value: "checklist",
+    label: "Checklist",
+    description: "Todo list with checkable items",
+  },
   {
     value: "nutrition",
     label: "Nutrition",

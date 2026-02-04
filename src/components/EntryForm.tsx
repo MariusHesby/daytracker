@@ -13,6 +13,8 @@ import {
   WorkoutData,
   CustomExercise,
   WorkoutRoutine,
+  ChecklistItem,
+  ChecklistData,
   ROUTINE_COLORS,
   COMMON_EXERCISES,
 } from "@/types";
@@ -167,6 +169,9 @@ export function EntryForm({
     },
   );
   const [showAddHiddenModal, setShowAddHiddenModal] = useState(false);
+
+  // Checklist new item text input state
+  const [newChecklistItemText, setNewChecklistItemText] = useState("");
 
   // Load day-hidden activities when date changes
   useEffect(() => {
@@ -683,6 +688,7 @@ export function EntryForm({
       poster?: string;
       imdbRating?: string;
       year?: string;
+      userRating?: number;
     },
   ) => {
     // Don't allow editing when viewing another user's data
@@ -730,11 +736,18 @@ export function EntryForm({
         );
 
         if (existingEntry) {
+          // Also look for existing user rating from any entry with same imdbId
+          const entryWithRating = entries.find(
+            (e) =>
+              e.imdbId === existingEntry.imdbId && e.userRating !== undefined,
+          );
+
           entryMetadata = {
             imdbId: existingEntry.imdbId,
             poster: existingEntry.poster,
             imdbRating: existingEntry.imdbRating,
             year: existingEntry.year,
+            userRating: entryWithRating?.userRating,
           };
         }
       }
@@ -748,6 +761,7 @@ export function EntryForm({
           poster: entryMetadata.poster,
           imdbRating: entryMetadata.imdbRating,
           year: entryMetadata.year,
+          userRating: entryMetadata.userRating,
         }),
       });
 
@@ -830,11 +844,20 @@ export function EntryForm({
   ) => {
     // TMDb IDs start with "tmdb-", we use rating from the search result instead of fetching OMDB details
     const displayTitle = `${title} (${year})`;
+
+    // Look up existing user rating for this movie/TV series (by imdbId)
+    // This persists the rating across multiple viewings
+    const existingEntryWithRating = entries.find(
+      (e) => e.imdbId === imdbId && e.userRating !== undefined,
+    );
+    const existingUserRating = existingEntryWithRating?.userRating;
+
     await handleSaveValue(typeId, displayTitle, {
       imdbId,
       poster: poster !== "N/A" ? poster : undefined,
       imdbRating: rating && rating !== "N/A" ? rating : undefined,
       year,
+      userRating: existingUserRating,
     });
   };
 
@@ -1540,6 +1563,186 @@ export function EntryForm({
           </div>
         );
       }
+
+      case "checklist": {
+        const typeEntries = savedValues[type.id] || [];
+        // Get the checklist entry for this day (there should only be one per day)
+        const existingEntry = entries.find(
+          (e) =>
+            e.activityTypeId === type.id && e.date === date && e.checklistData,
+        );
+        const checklistItems = existingEntry?.checklistData?.items || [];
+        const completedCount = checklistItems.filter(
+          (item) => item.completed,
+        ).length;
+        const totalCount = checklistItems.length;
+
+        const handleAddItem = async () => {
+          if (!newChecklistItemText.trim()) return;
+
+          const newItem: ChecklistItem = {
+            id: crypto.randomUUID(),
+            text: newChecklistItemText.trim(),
+            completed: false,
+          };
+
+          const updatedItems = [...checklistItems, newItem];
+          const checklistData: ChecklistData = { items: updatedItems };
+
+          if (existingEntry) {
+            await updateEntry({
+              ...existingEntry,
+              checklistData,
+              value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
+            });
+          } else {
+            await addEntry({
+              date,
+              activityTypeId: type.id,
+              value: `0/${updatedItems.length}`,
+              checklistData,
+            });
+          }
+          setNewChecklistItemText("");
+        };
+
+        const handleToggleItem = async (itemId: string) => {
+          if (!existingEntry) return;
+
+          const updatedItems = checklistItems.map((item) =>
+            item.id === itemId ? { ...item, completed: !item.completed } : item,
+          );
+          const checklistData: ChecklistData = { items: updatedItems };
+
+          await updateEntry({
+            ...existingEntry,
+            checklistData,
+            value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
+          });
+        };
+
+        const handleDeleteItem = async (itemId: string) => {
+          if (!existingEntry) return;
+
+          const updatedItems = checklistItems.filter(
+            (item) => item.id !== itemId,
+          );
+
+          if (updatedItems.length === 0) {
+            // Delete the entry if no items left
+            await deleteEntry(existingEntry.id);
+          } else {
+            const checklistData: ChecklistData = { items: updatedItems };
+            await updateEntry({
+              ...existingEntry,
+              checklistData,
+              value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
+            });
+          }
+        };
+
+        return (
+          <div className='pt-3 space-y-3'>
+            {/* Progress */}
+            {totalCount > 0 && (
+              <div className='flex items-center gap-2 text-[13px] text-gray-500 dark:text-gray-400'>
+                <span>
+                  {completedCount}/{totalCount} completed
+                </span>
+                {completedCount === totalCount && totalCount > 0 && (
+                  <span className='text-ios-green'>✓ All done!</span>
+                )}
+              </div>
+            )}
+
+            {/* Checklist items */}
+            <div className='space-y-1'>
+              {checklistItems.map((item) => (
+                <div
+                  key={item.id}
+                  className='flex items-center gap-3 py-2 px-1 group'>
+                  <button
+                    onClick={() => handleToggleItem(item.id)}
+                    className={cn(
+                      "w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                      item.completed
+                        ? "bg-ios-green border-ios-green"
+                        : "border-gray-300 dark:border-gray-600",
+                    )}>
+                    {item.completed && (
+                      <svg
+                        className='w-4 h-4 text-white'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        stroke='currentColor'
+                        strokeWidth={3}>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M5 13l4 4L19 7'
+                        />
+                      </svg>
+                    )}
+                  </button>
+                  <span
+                    className={cn(
+                      "flex-1 text-[15px]",
+                      item.completed
+                        ? "text-gray-400 dark:text-gray-500 line-through"
+                        : "text-gray-900 dark:text-white",
+                    )}>
+                    {item.text}
+                  </span>
+                  <button
+                    onClick={() => handleDeleteItem(item.id)}
+                    className='w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-ios-red hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity'>
+                    <svg
+                      className='w-4 h-4'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M6 18L18 6M6 6l12 12'
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Add new item */}
+            <div className='flex items-center gap-2'>
+              <input
+                type='text'
+                value={newChecklistItemText}
+                onChange={(e) => setNewChecklistItemText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddItem();
+                  }
+                }}
+                placeholder='Add new item...'
+                className='flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-[15px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+              />
+              <button
+                onClick={handleAddItem}
+                disabled={!newChecklistItemText.trim()}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-[15px] font-medium transition-colors",
+                  newChecklistItemText.trim()
+                    ? "bg-ios-blue text-white"
+                    : "bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500",
+                )}>
+                Add
+              </button>
+            </div>
+          </div>
+        );
+      }
     }
   };
 
@@ -1632,6 +1835,7 @@ export function EntryForm({
           const isWorkout = type.valueType === "workout";
           const isCheckmark = type.valueType === "checkmark";
           const isCounter = type.valueType === "counter";
+          const isChecklist = type.valueType === "checklist";
 
           return (
             <div className='mb-4 bg-white dark:bg-ios-card-dark rounded-2xl shadow-lg shadow-black/5 dark:shadow-black/20 overflow-visible relative z-10'>
@@ -1665,12 +1869,13 @@ export function EntryForm({
 
               {/* Content */}
               <div className='px-4 pb-4'>
-                {/* Saved values with delete option - not for mood, workout, checkmark, or counter type */}
+                {/* Saved values with delete option - not for mood, workout, checkmark, counter, or checklist type */}
                 {hasSavedValues &&
                   !isMood &&
                   !isWorkout &&
                   !isCheckmark &&
-                  !isCounter && (
+                  !isCounter &&
+                  !isChecklist && (
                     <div className='flex flex-wrap gap-2 pt-1 pb-3'>
                       {typeSavedValues.map((saved) => (
                         <span
@@ -1704,6 +1909,8 @@ export function EntryForm({
             .filter((type) => {
               // Don't show if hidden for this specific day
               if (dayHiddenActivities.has(type.id)) return false;
+              // Show if currently expanded (user is adding data)
+              if (expandedTypeId === type.id) return true;
               // Show if not globally hidden
               if (!type.hidden) return true;
               // Show hidden activities if they have data for this day
@@ -1718,6 +1925,7 @@ export function EntryForm({
               const isNutrition = type.valueType === "nutrition";
               const isMood = type.valueType === "mood";
               const isCounter = type.valueType === "counter";
+              const isChecklist = type.valueType === "checklist";
 
               // Check if workout has any data being entered
               const workoutHasEnteredData =
@@ -1730,13 +1938,35 @@ export function EntryForm({
                   );
                 });
 
-              const hasValue = hasSavedValues || workoutHasEnteredData;
+              // Check checklist completion
+              const checklistEntry = isChecklist
+                ? entries.find(
+                    (e) =>
+                      e.activityTypeId === type.id &&
+                      e.date === date &&
+                      e.checklistData,
+                  )
+                : null;
+              const checklistItems = checklistEntry?.checklistData?.items || [];
+              const checklistCompleted =
+                checklistItems.length > 0 &&
+                checklistItems.every((i) => i.completed);
+              const checklistHasItems = checklistItems.length > 0;
+
+              const hasValue =
+                hasSavedValues || workoutHasEnteredData || checklistHasItems;
               const isSkipped =
                 isCheckmark && typeSavedValues[0]?.value === "skipped";
               const isChecked = isCheckmark && hasSavedValues && !isSkipped;
 
               // Get display text for the icon
               const getIconDisplayText = () => {
+                if (isChecklist && checklistHasItems) {
+                  const completed = checklistItems.filter(
+                    (i) => i.completed,
+                  ).length;
+                  return `${completed}/${checklistItems.length}`;
+                }
                 if (!hasValue || isSkipped) return null;
                 if (isCheckmark) return null; // Just show green icon
                 if (isMood && hasSavedValues) {
@@ -1839,14 +2069,31 @@ export function EntryForm({
                       : "bg-gray-100/90 dark:bg-gray-800/90",
                   )}
                   style={
-                    hasValue && !isSkipped
-                      ? {
-                          background:
-                            "linear-gradient(135deg, rgba(52, 199, 89, 0.35) 0%, rgba(48, 209, 88, 0.25) 25%, rgba(100, 210, 130, 0.3) 50%, rgba(52, 199, 89, 0.35) 100%)",
-                          boxShadow:
-                            "inset 0 0 20px rgba(52, 199, 89, 0.15), 0 2px 8px rgba(52, 199, 89, 0.2)",
-                        }
-                      : undefined
+                    // For checklist, show green only when all items completed
+                    isChecklist
+                      ? checklistCompleted
+                        ? {
+                            background:
+                              "linear-gradient(135deg, rgba(52, 199, 89, 0.35) 0%, rgba(48, 209, 88, 0.25) 25%, rgba(100, 210, 130, 0.3) 50%, rgba(52, 199, 89, 0.35) 100%)",
+                            boxShadow:
+                              "inset 0 0 20px rgba(52, 199, 89, 0.15), 0 2px 8px rgba(52, 199, 89, 0.2)",
+                          }
+                        : checklistHasItems
+                          ? {
+                              background:
+                                "linear-gradient(135deg, rgba(255, 149, 0, 0.25) 0%, rgba(255, 159, 10, 0.2) 50%, rgba(255, 149, 0, 0.25) 100%)",
+                              boxShadow:
+                                "inset 0 0 20px rgba(255, 149, 0, 0.1), 0 2px 8px rgba(255, 149, 0, 0.15)",
+                            }
+                          : undefined
+                      : hasValue && !isSkipped
+                        ? {
+                            background:
+                              "linear-gradient(135deg, rgba(52, 199, 89, 0.35) 0%, rgba(48, 209, 88, 0.25) 25%, rgba(100, 210, 130, 0.3) 50%, rgba(52, 199, 89, 0.35) 100%)",
+                            boxShadow:
+                              "inset 0 0 20px rgba(52, 199, 89, 0.15), 0 2px 8px rgba(52, 199, 89, 0.2)",
+                          }
+                        : undefined
                   }>
                   {/* Checkmark indicator for checkmark and workout activity types */}
                   {(isCheckmark || isWorkout) && (
@@ -1871,11 +2118,17 @@ export function EntryForm({
                   <div
                     className={cn(
                       "w-8 h-8 flex items-center justify-center shrink-0",
-                      hasValue && !isSkipped
-                        ? "text-green-600 dark:text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
-                        : isSkipped
-                          ? "text-ios-red"
-                          : "text-ios-blue",
+                      isChecklist
+                        ? checklistCompleted
+                          ? "text-green-600 dark:text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
+                          : checklistHasItems
+                            ? "text-ios-orange drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
+                            : "text-ios-blue"
+                        : hasValue && !isSkipped
+                          ? "text-green-600 dark:text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
+                          : isSkipped
+                            ? "text-ios-red"
+                            : "text-ios-blue",
                     )}>
                     {type.icon in icons ? (
                       <Icon name={type.icon as IconName} className='w-7 h-7' />
@@ -1884,9 +2137,11 @@ export function EntryForm({
                     )}
                   </div>
                   <span className='text-[9px] text-gray-900 dark:text-white text-center w-full px-0.5 line-clamp-2 leading-tight'>
-                    {isNutrition && type.nutritionGoal && displayText
+                    {isChecklist && displayText
                       ? displayText
-                      : type.name}
+                      : isNutrition && type.nutritionGoal && displayText
+                        ? displayText
+                        : type.name}
                   </span>
                   {isSkipped && (
                     <div className='w-1.5 h-1.5 rounded-full bg-ios-red' />
@@ -1934,6 +2189,8 @@ export function EntryForm({
             .filter((type) => {
               // Don't show if hidden for this specific day
               if (dayHiddenActivities.has(type.id)) return false;
+              // Show if currently expanded (user is adding data)
+              if (expandedTypeId === type.id) return true;
               // Show if not globally hidden
               if (!type.hidden) return true;
               // Show hidden activities if they have data for this day
@@ -1950,6 +2207,7 @@ export function EntryForm({
               const isMood = type.valueType === "mood";
               const isNutrition = type.valueType === "nutrition";
               const isWorkout = type.valueType === "workout";
+              const isChecklist = type.valueType === "checklist";
 
               // Check if workout has any data being entered (not yet saved)
               const workoutHasEnteredData =
@@ -1961,6 +2219,21 @@ export function EntryForm({
                       set.reps || set.weight || set.distance || set.duration,
                   );
                 });
+
+              // Check checklist items
+              const checklistEntry = isChecklist
+                ? entries.find(
+                    (e) =>
+                      e.activityTypeId === type.id &&
+                      e.date === date &&
+                      e.checklistData,
+                  )
+                : null;
+              const checklistItems = checklistEntry?.checklistData?.items || [];
+              const checklistCompleted =
+                checklistItems.length > 0 &&
+                checklistItems.every((i) => i.completed);
+              const checklistHasItems = checklistItems.length > 0;
 
               // Count exercises with entered data
               const workoutEnteredExerciseCount = isWorkout
@@ -2061,9 +2334,15 @@ export function EntryForm({
                               "w-6 h-6",
                               isLocked
                                 ? "text-ios-green"
-                                : hasSavedValues || workoutHasEnteredData
-                                  ? "text-ios-green"
-                                  : "text-ios-blue",
+                                : isChecklist
+                                  ? checklistCompleted
+                                    ? "text-ios-green"
+                                    : checklistHasItems
+                                      ? "text-ios-orange"
+                                      : "text-ios-blue"
+                                  : hasSavedValues || workoutHasEnteredData
+                                    ? "text-ios-green"
+                                    : "text-ios-blue",
                             )}
                           />
                         ) : (
@@ -2073,7 +2352,7 @@ export function EntryForm({
                     )}
 
                     {/* Content and right-aligned controls */}
-                    <div className='flex-1 py-2 flex items-center min-w-0 overflow-hidden'>
+                    <div className='flex-1 py-2 flex items-center min-w-0 overflow-hidden gap-2'>
                       {/* Main label */}
                       <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
                         {type.name}
@@ -2094,6 +2373,20 @@ export function EntryForm({
                               ))}
                             </span>
                           )}
+                        {/* Checklist - show progress */}
+                        {isChecklist && checklistHasItems && (
+                          <span
+                            className={cn(
+                              "text-[15px] shrink-0",
+                              checklistCompleted
+                                ? "text-ios-green"
+                                : "text-gray-500 dark:text-gray-400",
+                            )}>
+                            {checklistItems.filter((i) => i.completed).length}/
+                            {checklistItems.length}
+                            {checklistCompleted && " ✓"}
+                          </span>
+                        )}
                         {/* Workout - show green checkmark if has workout */}
                         {isWorkout &&
                           (() => {
@@ -2385,27 +2678,30 @@ export function EntryForm({
                         !isLast &&
                           "border-b border-gray-200/80 dark:border-gray-700/80",
                       )}>
-                      {/* Saved values with delete option - not for mood or workout type */}
-                      {hasSavedValues && !isMood && !isWorkout && (
-                        <div className='flex flex-wrap gap-2 pt-1 pb-3'>
-                          {typeSavedValues.map((saved) => (
-                            <span
-                              key={saved.id}
-                              className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
-                              {formatValue(saved.value, type.id)}
-                              <button
-                                type='button'
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeSavedValue(type.id, saved.id);
-                                }}
-                                className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      {/* Saved values with delete option - not for mood, workout, or checklist type */}
+                      {hasSavedValues &&
+                        !isMood &&
+                        !isWorkout &&
+                        !isChecklist && (
+                          <div className='flex flex-wrap gap-2 pt-1 pb-3'>
+                            {typeSavedValues.map((saved) => (
+                              <span
+                                key={saved.id}
+                                className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
+                                {formatValue(saved.value, type.id)}
+                                <button
+                                  type='button'
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeSavedValue(type.id, saved.id);
+                                  }}
+                                  className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
 
                       {renderExpandedInput(type)}
                     </div>
@@ -2537,12 +2833,10 @@ export function EntryForm({
                       .map((type) => (
                         <button
                           key={type.id}
-                          onClick={async () => {
-                            // Unhide the activity type globally
-                            await updateActivityType({
-                              ...type,
-                              hidden: false,
-                            });
+                          onClick={() => {
+                            // Just expand the activity to let user add data
+                            // Don't unhide globally - it will show once it has data
+                            setExpandedTypeId(type.id);
                             setShowAddHiddenModal(false);
                           }}
                           className='w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'>

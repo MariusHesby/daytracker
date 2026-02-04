@@ -40,6 +40,7 @@ function dbToLogEntry(db: DbLogEntry): LogEntry {
     isWatchlist: db.is_watchlist || undefined,
     nutritionData: db.nutrition_data ? (db.nutrition_data as unknown as LogEntry['nutritionData']) : undefined,
     workoutData: db.workout_data ? (db.workout_data as unknown as LogEntry['workoutData']) : undefined,
+    checklistData: db.checklist_data ? (db.checklist_data as unknown as LogEntry['checklistData']) : undefined,
     createdAt: new Date(db.created_at),
     updatedAt: new Date(db.updated_at),
   };
@@ -194,6 +195,7 @@ export async function addEntryToSupabase(
       is_watchlist: entry.isWatchlist || null,
       nutrition_data: entry.nutritionData || null,
       workout_data: entry.workoutData || null,
+      checklist_data: entry.checklistData || null,
     })
     .select()
     .single();
@@ -218,6 +220,7 @@ export async function updateEntryInSupabase(entry: LogEntry): Promise<LogEntry> 
       is_watchlist: entry.isWatchlist || null,
       nutrition_data: entry.nutritionData || null,
       workout_data: entry.workoutData || null,
+      checklist_data: entry.checklistData || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', entry.id)

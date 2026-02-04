@@ -344,7 +344,7 @@ function MediaCard({
             )}
           </button>
           <div className='p-3 flex-1 flex flex-col justify-start min-w-0'>
-            <div className='flex items-start justify-between gap-2'>
+            <div className='flex items-start justify-between gap-3'>
               {(() => {
                 const link = getMediaLink(entry.imdbId);
                 return link ? (
@@ -361,22 +361,23 @@ function MediaCard({
                   </h3>
                 );
               })()}
-              {/* Calendar badge */}
-              <div className='bg-white dark:bg-gray-700 rounded shadow overflow-hidden shrink-0'>
-                <div className='bg-ios-red h-1.5' />
-                <div className='px-1.5 text-center'>
-                  <span className='text-[11px] font-bold text-gray-900 dark:text-white leading-tight block'>
-                    {new Date(entry.date).getDate()}
-                  </span>
-                  <span className='text-[7px] text-gray-500 dark:text-gray-400 uppercase leading-tight block -mt-0.5'>
+              {/* Calendar badge - iOS style */}
+              <div className='rounded-lg overflow-hidden shrink-0 w-[32px] opacity-60 border-l border-b border-gray-300 dark:border-gray-600'>
+                <div className='bg-gray-400 dark:bg-gray-500 h-[11px] flex items-center justify-center'>
+                  <span className='text-[7px] font-semibold text-white uppercase'>
                     {new Date(entry.date).toLocaleDateString("en-US", {
                       month: "short",
                     })}
                   </span>
                 </div>
+                <div className='bg-gray-100 dark:bg-gray-700 h-[21px] flex items-center justify-center'>
+                  <span className='text-[14px] font-semibold text-gray-600 dark:text-gray-300 leading-none'>
+                    {new Date(entry.date).getDate()}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className='flex items-center gap-3 mt-1.5'>
+            <div className='flex items-center gap-3 mt-4'>
               {entry.imdbRating && (
                 <span className='text-[14px] text-amber-500'>
                   ⭐ {Math.round(parseFloat(entry.imdbRating))}
@@ -523,7 +524,7 @@ function MediaCard({
             </h3>
           );
         })()}
-        <div className='flex items-center gap-3 mt-auto'>
+        <div className='flex items-center gap-3 mt-auto pt-2'>
           {entry.imdbRating && (
             <span className='text-[14px] text-amber-500'>
               ⭐ {Math.round(parseFloat(entry.imdbRating))}
@@ -566,23 +567,24 @@ function MediaCard({
               </svg>
             </button>
           ) : null}
-          {/* Calendar badge */}
-          <div className='bg-white dark:bg-gray-700 rounded shadow overflow-hidden ml-auto'>
-            <div className='bg-ios-red h-1.5' />
-            <div className='px-1.5 text-center'>
-              <span className='text-[11px] font-bold text-gray-900 dark:text-white leading-tight block'>
-                {new Date(entry.date).getDate()}
-              </span>
-              <span className='text-[7px] text-gray-500 dark:text-gray-400 uppercase leading-tight block -mt-0.5'>
+          {/* Calendar badge - iOS style */}
+          <div className='rounded-lg overflow-hidden ml-auto w-[32px] opacity-60 border-l border-b border-gray-300 dark:border-gray-600'>
+            <div className='bg-gray-400 dark:bg-gray-500 h-[11px] flex items-center justify-center'>
+              <span className='text-[7px] font-semibold text-white uppercase'>
                 {new Date(entry.date).toLocaleDateString("en-US", {
                   month: "short",
                 })}
               </span>
             </div>
+            <div className='bg-gray-100 dark:bg-gray-700 h-[21px] flex items-center justify-center'>
+              <span className='text-[14px] font-semibold text-gray-600 dark:text-gray-300 leading-none'>
+                {new Date(entry.date).getDate()}
+              </span>
+            </div>
           </div>
         </div>
         {isWatchlistView ? (
-          <div className='mt-2 flex items-center gap-1.5'>
+          <div className='mt-3 flex items-center gap-1.5'>
             <button
               onClick={() => onMarkAsWatched?.(entry.id)}
               className='px-1.5 py-0.5 text-gray-500 dark:text-gray-400 text-[10px] hover:text-green-600 dark:hover:text-green-400 transition-colors'>
@@ -606,7 +608,7 @@ function MediaCard({
             </button>
           </div>
         ) : showRating ? (
-          <div className='mt-2 space-y-1.5'>
+          <div className='mt-3 space-y-1.5'>
             <StarRating
               rating={entry.userRating}
               onRate={(r) => {
@@ -614,6 +616,7 @@ function MediaCard({
                 setShowRating(false);
               }}
               size='sm'
+              wrap
             />
             <button
               onClick={() => setShowRating(false)}

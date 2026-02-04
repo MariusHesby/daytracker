@@ -84,11 +84,23 @@ export const ROUTINE_COLORS = [
   '#FF3B30', // iOS Red
 ];
 
+// Checklist item for bullet list type
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+// Checklist data for bullet list entries
+export interface ChecklistData {
+  items: ChecklistItem[];
+}
+
 export interface ActivityType {
   id: string;
   name: string;
   icon?: string;
-  valueType: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood' | 'nutrition' | 'workout';
+  valueType: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood' | 'nutrition' | 'workout' | 'checklist';
   unit?: string; // e.g., "km", "minutes", "glasses"
   order?: number; // For custom ordering
   isDefault?: boolean; // True for built-in activity types that can't be deleted
@@ -116,6 +128,8 @@ export interface LogEntry {
   nutritionData?: NutritionData;
   // Workout data
   workoutData?: WorkoutData;
+  // Checklist data
+  checklistData?: ChecklistData;
   createdAt: Date;
   updatedAt: Date;
 }

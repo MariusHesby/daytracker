@@ -29,6 +29,9 @@ function dbToLogEntry(db: DbLogEntry): LogEntry {
     imdbRating: db.imdb_rating || undefined,
     year: db.year || undefined,
     userRating: db.user_rating || undefined,
+    nutritionData: db.nutrition_data ? (db.nutrition_data as unknown as LogEntry['nutritionData']) : undefined,
+    workoutData: db.workout_data ? (db.workout_data as unknown as LogEntry['workoutData']) : undefined,
+    checklistData: db.checklist_data ? (db.checklist_data as unknown as LogEntry['checklistData']) : undefined,
     createdAt: new Date(db.created_at),
     updatedAt: new Date(db.updated_at),
   };

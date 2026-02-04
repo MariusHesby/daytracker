@@ -30,6 +30,7 @@ import {
   Scale,
   Flame,
   Target,
+  ListTodo,
   type LucideIcon,
 } from "lucide-react";
 
@@ -63,6 +64,7 @@ const lucideIcons: Record<string, LucideIcon> = {
   scale: Scale,
   fire: Flame,
   target: Target,
+  checklist: ListTodo,
 };
 
 // Legacy icons object for backwards compatibility
@@ -70,7 +72,7 @@ export const icons = Object.fromEntries(
   Object.entries(lucideIcons).map(([name, LucideComponent]) => [
     name,
     <LucideComponent key={name} className='w-6 h-6' strokeWidth={2} />,
-  ])
+  ]),
 ) as Record<string, ReactNode>;
 
 export type IconName = keyof typeof lucideIcons;
