@@ -120,13 +120,13 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className='p-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors'>
+        className='w-9 h-9 rounded-full bg-gray-100/80 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center active:scale-95'>
         <svg
-          className='w-5 h-5'
+          className='w-[18px] h-[18px]'
           fill='none'
           viewBox='0 0 24 24'
           stroke='currentColor'
-          strokeWidth={2}>
+          strokeWidth={2.5}>
           <path
             strokeLinecap='round'
             strokeLinejoin='round'
@@ -139,101 +139,18 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
 
   return (
     <div
-      className='fixed inset-0 z-50 bg-black/50'
+      className='fixed inset-0 z-50 bg-black/40 backdrop-blur-sm'
       onClick={() => setIsOpen(false)}>
       <div
-        className='bg-white dark:bg-gray-900 w-full max-h-[80vh] overflow-hidden flex flex-col'
+        className='bg-gray-100/95 dark:bg-gray-900/95 backdrop-blur-xl w-full max-h-[85vh] overflow-hidden flex flex-col rounded-b-3xl shadow-2xl'
+        style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
         onClick={(e) => e.stopPropagation()}>
         {/* Search Input */}
-        <div className='pt-14 pb-4 px-4 border-b border-gray-200 dark:border-gray-700'>
+        <div className='pt-6 pb-3 px-4'>
           <div className='flex items-center gap-3'>
-            <svg
-              className='w-5 h-5 text-gray-400 shrink-0'
-              fill='none'
-              viewBox='0 0 24 24'
-              stroke='currentColor'
-              strokeWidth={2}>
-              <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
-              />
-            </svg>
-            <input
-              ref={inputRef}
-              type='text'
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder='Search activities, movies, meals...'
-              className='flex-1 text-[17px] bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none'
-              autoComplete='off'
-            />
-            <button
-              onClick={() => setIsOpen(false)}
-              className='text-ios-blue text-[17px] font-medium'>
-              Cancel
-            </button>
-          </div>
-        </div>
-
-        {/* Results */}
-        <div className='flex-1 overflow-y-auto'>
-          {query.trim() && results.length === 0 && (
-            <div className='p-8 text-center text-gray-500'>
-              No results found for &quot;{query}&quot;
-            </div>
-          )}
-          {results.map((entry) => (
-            <button
-              key={entry.id}
-              onClick={() => handleSelect(entry)}
-              className='w-full px-4 py-3 flex items-center gap-3 text-left border-b border-gray-100 dark:border-gray-800 active:bg-gray-50 dark:active:bg-gray-800'>
-              {/* Icon */}
-              {entry.activityType?.icon && (
-                <div className='w-10 h-10 rounded-lg bg-ios-blue/10 flex items-center justify-center shrink-0'>
-                  {entry.activityType.icon in icons ? (
-                    <Icon
-                      name={entry.activityType.icon as IconName}
-                      className='w-5 h-5 text-ios-blue'
-                    />
-                  ) : (
-                    <span className='text-lg'>{entry.activityType.icon}</span>
-                  )}
-                </div>
-              )}
-              {/* Content */}
-              <div className='flex-1 min-w-0'>
-                <div className='flex items-center gap-2'>
-                  <span className='font-medium text-gray-900 dark:text-white'>
-                    {entry.activityType?.name || "Unknown"}
-                  </span>
-                  <span className='text-sm text-gray-400'>
-                    {formatDate(entry.date)}
-                  </span>
-                </div>
-                {entry.activityType?.valueType === "text" &&
-                  typeof entry.value === "string" && (
-                    <p className='text-sm text-gray-500 dark:text-gray-400 truncate'>
-                      {entry.value}
-                    </p>
-                  )}
-                {entry.activityType?.valueType !== "text" && (
-                  <p className='text-sm text-gray-500 dark:text-gray-400'>
-                    {formatValue(entry)}
-                  </p>
-                )}
-              </div>
-              {/* Poster for media */}
-              {entry.poster && (
-                <img
-                  src={entry.poster}
-                  alt=''
-                  className='w-10 h-14 object-cover rounded shrink-0'
-                />
-              )}
-              {/* Arrow */}
+            <div className='flex-1 flex items-center gap-2.5 pl-4 pr-3 py-2.5 bg-white/80 dark:bg-gray-800/80 rounded-xl border border-gray-200/50 dark:border-gray-700/50'>
               <svg
-                className='w-4 h-4 text-gray-300 shrink-0'
+                className='w-5 h-5 text-gray-400 shrink-0'
                 fill='none'
                 viewBox='0 0 24 24'
                 stroke='currentColor'
@@ -241,15 +158,161 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
                 <path
                   strokeLinecap='round'
                   strokeLinejoin='round'
-                  d='M9 5l7 7-7 7'
+                  d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
                 />
               </svg>
+              <input
+                ref={inputRef}
+                type='text'
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder='Search activities, movies, meals...'
+                className='flex-1 text-[17px] bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none pl-1'
+                autoComplete='off'
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery("")}
+                  className='w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center'>
+                  <svg
+                    className='w-3 h-3 text-white'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={3}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M6 18L18 6M6 6l12 12'
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => setIsOpen(false)}
+              className='text-ios-blue text-[17px] font-medium shrink-0'>
+              Cancel
             </button>
-          ))}
+          </div>
+        </div>
+
+        {/* Results */}
+        <div className='flex-1 overflow-y-auto px-4 pb-4'>
+          {query.trim() && results.length === 0 && (
+            <div className='py-12 text-center'>
+              <div className='w-16 h-16 mx-auto mb-4 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center'>
+                <svg
+                  className='w-8 h-8 text-gray-400'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={1.5}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
+                  />
+                </svg>
+              </div>
+              <p className='text-gray-500 dark:text-gray-400'>
+                No results for &quot;{query}&quot;
+              </p>
+            </div>
+          )}
+          {results.length > 0 && (
+            <div className='bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm'>
+              {results.map((entry, index) => (
+                <button
+                  key={entry.id}
+                  onClick={() => handleSelect(entry)}
+                  className={cn(
+                    "w-full px-4 py-3 flex items-center gap-3 text-left active:bg-gray-50 dark:active:bg-gray-700/50 transition-colors",
+                    index !== results.length - 1 &&
+                      "border-b border-gray-100 dark:border-gray-700/50",
+                  )}>
+                  {/* Icon */}
+                  {entry.activityType?.icon && (
+                    <div className='w-10 h-10 rounded-xl bg-ios-blue/10 flex items-center justify-center shrink-0'>
+                      {entry.activityType.icon in icons ? (
+                        <Icon
+                          name={entry.activityType.icon as IconName}
+                          className='w-5 h-5 text-ios-blue'
+                        />
+                      ) : (
+                        <span className='text-lg'>
+                          {entry.activityType.icon}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {/* Content */}
+                  <div className='flex-1 min-w-0'>
+                    <div className='flex items-center gap-2'>
+                      <span className='font-medium text-[15px] text-gray-900 dark:text-white'>
+                        {entry.activityType?.name || "Unknown"}
+                      </span>
+                      <span className='text-[13px] text-gray-400'>
+                        {formatDate(entry.date)}
+                      </span>
+                    </div>
+                    {entry.activityType?.valueType === "text" &&
+                      typeof entry.value === "string" && (
+                        <p className='text-[13px] text-gray-500 dark:text-gray-400 truncate'>
+                          {entry.value}
+                        </p>
+                      )}
+                    {entry.activityType?.valueType !== "text" && (
+                      <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                        {formatValue(entry)}
+                      </p>
+                    )}
+                  </div>
+                  {/* Poster for media */}
+                  {entry.poster && (
+                    <img
+                      src={entry.poster}
+                      alt=''
+                      className='w-10 h-14 object-cover rounded-lg shrink-0'
+                    />
+                  )}
+                  {/* Arrow */}
+                  <svg
+                    className='w-4 h-4 text-gray-300 dark:text-gray-600 shrink-0'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M9 5l7 7-7 7'
+                    />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          )}
           {!query.trim() && (
-            <div className='p-8 text-center text-gray-400'>
-              <p className='text-sm'>Search your entries</p>
-              <p className='text-xs mt-1'>
+            <div className='py-16 text-center'>
+              <div className='w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-ios-blue/20 to-ios-blue/5 flex items-center justify-center'>
+                <svg
+                  className='w-10 h-10 text-ios-blue'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={1.5}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
+                  />
+                </svg>
+              </div>
+              <p className='text-[17px] font-medium text-gray-900 dark:text-white mb-1'>
+                Search your entries
+              </p>
+              <p className='text-[15px] text-gray-500 dark:text-gray-400'>
                 Find movies, meals, workouts, and more
               </p>
             </div>
