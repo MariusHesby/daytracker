@@ -566,6 +566,70 @@ export default function StatsPage() {
     return selectedType?.valueType === "workout";
   }, [selectedStat, activityTypes]);
 
+  // Check if selected activity is checklist type
+  const isChecklistType = useMemo(() => {
+    if (!selectedStat) return false;
+    const selectedType = getActivityType(selectedStat.activityTypeId);
+    return selectedType?.valueType === "checklist";
+  }, [selectedStat, activityTypes]);
+
+  // Calculate checklist stats for the period
+  const checklistStats = useMemo(() => {
+    if (!selectedStat || !isChecklistType) return null;
+
+    // Collect all checklist items from all entries
+    const itemCounts = new Map<string, { total: number; completed: number }>();
+    let totalItems = 0;
+    let totalCompleted = 0;
+
+    selectedStat.entries.forEach((entry) => {
+      if (entry.checklistData?.items) {
+        entry.checklistData.items.forEach((item) => {
+          const text = item.text.trim();
+          totalItems++;
+          if (item.completed) totalCompleted++;
+
+          const existing = itemCounts.get(text) || { total: 0, completed: 0 };
+          existing.total++;
+          if (item.completed) existing.completed++;
+          itemCounts.set(text, existing);
+        });
+      }
+    });
+
+    // Sort by total occurrences descending
+    const topItems = Array.from(itemCounts.entries())
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 20)
+      .map(([text, data]) => ({
+        text,
+        total: data.total,
+        completed: data.completed,
+        completionRate: Math.round((data.completed / data.total) * 100),
+      }));
+
+    const daysWithChecklists = selectedStat.entries.filter(
+      (e) => e.checklistData?.items && e.checklistData.items.length > 0,
+    ).length;
+
+    const daysFullyCompleted = selectedStat.entries.filter((e) => {
+      if (!e.checklistData?.items || e.checklistData.items.length === 0)
+        return false;
+      return e.checklistData.items.every((item) => item.completed);
+    }).length;
+
+    return {
+      totalItems,
+      totalCompleted,
+      completionRate:
+        totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0,
+      daysWithChecklists,
+      daysFullyCompleted,
+      topItems,
+      uniqueItems: itemCounts.size,
+    };
+  }, [selectedStat, isChecklistType]);
+
   // Calculate workout stats for the period
   const workoutStats = useMemo(() => {
     if (!selectedStat || !isWorkoutType) return null;
@@ -1671,8 +1735,86 @@ export default function StatsPage() {
               </div>
             )}
 
-            {/* Value List with Bars - Show for non-workout types (including nutrition) */}
-            {!isWorkoutType && (
+            {/* Checklist Stats View */}
+            {isChecklistType && checklistStats && (
+              <div className='p-4'>
+                {/* Summary Stats */}
+                <div className='grid grid-cols-2 gap-3 mb-4'>
+                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
+                    <div className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      Total Items
+                    </div>
+                    <div className='text-[20px] font-bold text-gray-900 dark:text-white'>
+                      {checklistStats.totalItems}
+                    </div>
+                  </div>
+                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
+                    <div className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      Completed
+                    </div>
+                    <div className='text-[20px] font-bold text-ios-green'>
+                      {checklistStats.totalCompleted} (
+                      {checklistStats.completionRate}%)
+                    </div>
+                  </div>
+                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
+                    <div className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      Days with Lists
+                    </div>
+                    <div className='text-[20px] font-bold text-gray-900 dark:text-white'>
+                      {checklistStats.daysWithChecklists}
+                    </div>
+                  </div>
+                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
+                    <div className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      Days All Done
+                    </div>
+                    <div className='text-[20px] font-bold text-ios-green'>
+                      {checklistStats.daysFullyCompleted}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Items */}
+                {checklistStats.topItems.length > 0 && (
+                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
+                    <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
+                      Most Common Items ({checklistStats.uniqueItems} unique)
+                    </h4>
+                    <div className='space-y-2'>
+                      {checklistStats.topItems.map((item, index) => (
+                        <div
+                          key={item.text}
+                          className='flex items-center gap-2'>
+                          <span className='text-[13px] text-gray-400 w-5'>
+                            {index + 1}.
+                          </span>
+                          <div className='flex-1 min-w-0'>
+                            <div className='flex items-center justify-between mb-1'>
+                              <span className='text-[14px] text-gray-900 dark:text-white truncate'>
+                                {item.text}
+                              </span>
+                              <span className='text-[13px] text-gray-500 shrink-0 ml-2'>
+                                {item.completed}/{item.total}
+                              </span>
+                            </div>
+                            <div className='h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                              <div
+                                className='h-full bg-ios-green rounded-full transition-all'
+                                style={{ width: `${item.completionRate}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Value List with Bars - Show for non-workout and non-checklist types (including nutrition) */}
+            {!isWorkoutType && !isChecklistType && (
               <div className='p-4'>
                 <h4 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 mb-3'>
                   Tap to see dates

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
@@ -18,7 +24,7 @@ import {
   ROUTINE_COLORS,
   COMMON_EXERCISES,
 } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, addDays } from "@/lib/utils";
 import { Icon, icons, IconName } from "./Icons";
 import { MediaSearch } from "./MediaSearch";
 
@@ -172,6 +178,27 @@ export function EntryForm({
 
   // Checklist new item text input state
   const [newChecklistItemText, setNewChecklistItemText] = useState("");
+  const [showChecklistDropdown, setShowChecklistDropdown] = useState(false);
+
+  // Get checklist suggestions from all entries with checklist data
+  const checklistSuggestions = useMemo(() => {
+    const itemCounts = new Map<string, number>();
+    entries.forEach((entry) => {
+      if (entry.checklistData?.items) {
+        entry.checklistData.items.forEach((item) => {
+          const text = item.text.trim();
+          if (text) {
+            itemCounts.set(text, (itemCounts.get(text) || 0) + 1);
+          }
+        });
+      }
+    });
+    // Sort by count descending and return top 10
+    return Array.from(itemCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([text, count]) => ({ value: text, count }));
+  }, [entries]);
 
   // Load day-hidden activities when date changes
   useEffect(() => {
@@ -386,6 +413,72 @@ export function EntryForm({
       const activityIdsWithData = new Set(
         dateEntries.map((e) => e.activityTypeId),
       );
+
+      // Move uncompleted checklist items to the next day (use allActivityTypes to include hidden ones)
+      const nextDay = addDays(date, 1);
+      const checklistTypes = allActivityTypes.filter(
+        (t) => t.valueType === "checklist",
+      );
+
+      for (const checklistType of checklistTypes) {
+        const checklistEntry = dateEntries.find(
+          (e) =>
+            e.activityTypeId === checklistType.id && e.checklistData?.items,
+        );
+
+        if (checklistEntry?.checklistData?.items) {
+          const uncompletedItems = checklistEntry.checklistData.items.filter(
+            (item) => !item.completed,
+          );
+
+          if (uncompletedItems.length > 0) {
+            // Check if there's already a checklist entry for the next day
+            const nextDayEntries = entries.filter((e) => e.date === nextDay);
+            const existingNextDayEntry = nextDayEntries.find(
+              (e) =>
+                e.activityTypeId === checklistType.id && e.checklistData?.items,
+            );
+
+            // Reset the uncompleted items (set completed to false) for the new day
+            const itemsForNextDay: ChecklistItem[] = uncompletedItems.map(
+              (item) => ({
+                id: crypto.randomUUID(),
+                text: item.text,
+                completed: false,
+              }),
+            );
+
+            if (existingNextDayEntry) {
+              // Merge with existing items, avoiding duplicates
+              const existingTexts = new Set(
+                existingNextDayEntry.checklistData?.items?.map((i) => i.text) ||
+                  [],
+              );
+              const newItems = itemsForNextDay.filter(
+                (item) => !existingTexts.has(item.text),
+              );
+              const mergedItems = [
+                ...(existingNextDayEntry.checklistData?.items || []),
+                ...newItems,
+              ];
+
+              await updateEntry({
+                ...existingNextDayEntry,
+                checklistData: { items: mergedItems },
+                value: `${mergedItems.filter((i) => i.completed).length}/${mergedItems.length}`,
+              });
+            } else {
+              // Create new entry for next day
+              await addEntry({
+                date: nextDay,
+                activityTypeId: checklistType.id,
+                value: `0/${itemsForNextDay.length}`,
+                checklistData: { items: itemsForNextDay },
+              });
+            }
+          }
+        }
+      }
 
       // Find activities without data and mark them as hidden for this day
       const activitiesToHide = activityTypes
@@ -1643,8 +1736,8 @@ export function EntryForm({
 
         return (
           <div className='pt-3 space-y-3'>
-            {/* Progress */}
-            {totalCount > 0 && (
+            {/* Progress - only show when there are completed items */}
+            {completedCount > 0 && (
               <div className='flex items-center gap-2 text-[13px] text-gray-500 dark:text-gray-400'>
                 <span>
                   {completedCount}/{totalCount} completed
@@ -1713,32 +1806,89 @@ export function EntryForm({
               ))}
             </div>
 
-            {/* Add new item */}
-            <div className='flex items-center gap-2'>
-              <input
-                type='text'
-                value={newChecklistItemText}
-                onChange={(e) => setNewChecklistItemText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddItem();
+            {/* Add new item with autocomplete */}
+            <div className='relative'>
+              <div className='flex items-center gap-2'>
+                <input
+                  type='text'
+                  value={newChecklistItemText}
+                  onChange={(e) => {
+                    setNewChecklistItemText(e.target.value);
+                    setShowChecklistDropdown(true);
+                  }}
+                  onFocus={() => setShowChecklistDropdown(true)}
+                  onBlur={() =>
+                    setTimeout(() => setShowChecklistDropdown(false), 200)
                   }
-                }}
-                placeholder='Add new item...'
-                className='flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-[15px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-              />
-              <button
-                onClick={handleAddItem}
-                disabled={!newChecklistItemText.trim()}
-                className={cn(
-                  "px-4 py-2 rounded-lg text-[15px] font-medium transition-colors",
-                  newChecklistItemText.trim()
-                    ? "bg-ios-blue text-white"
-                    : "bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500",
-                )}>
-                Add
-              </button>
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddItem();
+                      setShowChecklistDropdown(false);
+                    }
+                    if (e.key === "Escape") {
+                      setShowChecklistDropdown(false);
+                    }
+                  }}
+                  placeholder='Add new item...'
+                  className='flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-[15px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                />
+                <button
+                  onClick={() => {
+                    handleAddItem();
+                    setShowChecklistDropdown(false);
+                  }}
+                  disabled={!newChecklistItemText.trim()}
+                  className={cn(
+                    "px-4 py-2 rounded-lg text-[15px] font-medium transition-colors",
+                    newChecklistItemText.trim()
+                      ? "bg-ios-blue text-white"
+                      : "bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500",
+                  )}>
+                  Add
+                </button>
+              </div>
+              {/* Autocomplete dropdown */}
+              {showChecklistDropdown &&
+                (() => {
+                  // Filter suggestions based on what the user is typing
+                  const filteredSuggestions = newChecklistItemText.trim()
+                    ? checklistSuggestions.filter((sugg) =>
+                        sugg.value
+                          .toLowerCase()
+                          .includes(newChecklistItemText.toLowerCase()),
+                      )
+                    : checklistSuggestions;
+                  // Don't show if exact match or no suggestions
+                  const showDropdown =
+                    filteredSuggestions.length > 0 &&
+                    !filteredSuggestions.some(
+                      (s) =>
+                        s.value.toLowerCase() ===
+                        newChecklistItemText.toLowerCase().trim(),
+                    );
+
+                  if (!showDropdown) return null;
+
+                  return (
+                    <div className='absolute left-0 right-12 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50 max-h-48 overflow-y-auto'>
+                      {filteredSuggestions.slice(0, 10).map((sugg) => (
+                        <button
+                          key={sugg.value}
+                          onClick={() => {
+                            setNewChecklistItemText(sugg.value);
+                            setShowChecklistDropdown(false);
+                          }}
+                          className='w-full px-3 py-2.5 text-left text-[15px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center justify-between'>
+                          <span>{sugg.value}</span>
+                          <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                            ({sugg.count}×)
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
             </div>
           </div>
         );

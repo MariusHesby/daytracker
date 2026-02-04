@@ -169,4 +169,5 @@ export const DEFAULT_ACTIVITY_TYPES: Omit<ActivityType, 'id' | 'createdAt'>[] = 
   { name: 'Event', icon: 'event', valueType: 'text', isDefault: true, order: 6 },
   { name: 'Period', icon: 'period', valueType: 'mood', isDefault: true, order: 7 },
   { name: 'Sleep', icon: 'sleep', valueType: 'mood', isDefault: true, order: 8 },
+  { name: 'Todo', icon: 'checklist', valueType: 'checklist', isDefault: true, order: 9 },
 ];
