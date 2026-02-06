@@ -57,6 +57,7 @@ export default function SettingsPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [colorScheme, setColorScheme] = useState<1 | 2 | 3>(1);
+  const [nutritionMergeExpanded, setNutritionMergeExpanded] = useState(false);
 
   // Default color palettes based on the gradient images
   const defaultPalettes = {
@@ -802,31 +803,30 @@ export default function SettingsPage() {
           const nutritionTypes = allActivityTypes.filter(
             (t) => t.valueType === "nutrition",
           );
-          if (nutritionTypes.length < 2) return null;
 
-          // Find which types are currently merged
+          // Find which types are currently selected for merging (primary has mergedNutritionTypeIds array)
           const primaryType = nutritionTypes.find(
-            (t) =>
-              t.mergedNutritionTypeIds && t.mergedNutritionTypeIds.length > 0,
+            (t) => t.mergedNutritionTypeIds !== undefined,
           );
           const mergedIds = primaryType?.mergedNutritionTypeIds || [];
 
-          // Check if a type is part of the merge group
-          const isTypeMerged = (typeId: string) => {
+          // Check if merge is actually active (primary + at least one other)
+          const isMergeActive = primaryType && mergedIds.length > 0;
+
+          // Check if a type is selected for merge
+          const isTypeSelected = (typeId: string) => {
             return typeId === primaryType?.id || mergedIds.includes(typeId);
           };
 
           // Toggle merge for a type
           const toggleMerge = (type: (typeof nutritionTypes)[0]) => {
             if (!primaryType) {
-              // No merge group exists - start one with the first two nutrition types
-              const otherType = nutritionTypes.find((t) => t.id !== type.id);
-              if (otherType) {
-                updateActivityType({
-                  ...type,
-                  mergedNutritionTypeIds: [otherType.id],
-                });
-              }
+              // No merge group exists - make this type the primary with empty merge list
+              // (needs at least one more to actually merge)
+              updateActivityType({
+                ...type,
+                mergedNutritionTypeIds: [],
+              });
             } else if (type.id === primaryType.id) {
               // Clicking on primary - remove all merge settings
               updateActivityType({
@@ -837,19 +837,10 @@ export default function SettingsPage() {
             } else if (mergedIds.includes(type.id)) {
               // Remove this type from merge
               const newMergedIds = mergedIds.filter((id) => id !== type.id);
-              if (newMergedIds.length === 0) {
-                // No more merged types, clear everything
-                updateActivityType({
-                  ...primaryType,
-                  mergedNutritionTypeIds: undefined,
-                  mergedNutritionGoal: undefined,
-                });
-              } else {
-                updateActivityType({
-                  ...primaryType,
-                  mergedNutritionTypeIds: newMergedIds,
-                });
-              }
+              updateActivityType({
+                ...primaryType,
+                mergedNutritionTypeIds: newMergedIds,
+              });
             } else {
               // Add this type to merge
               updateActivityType({
@@ -865,55 +856,83 @@ export default function SettingsPage() {
                 Nutrition
               </h2>
               <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
-                <div className='px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
-                  <p className='text-[15px] text-gray-600 dark:text-gray-400'>
-                    Merge nutrition activities to track combined progress. All
-                    merged activities turn green when total reaches 100%.
-                  </p>
-                </div>
-                {nutritionTypes.map((type, index) => {
-                  const isMerged = isTypeMerged(type.id);
-                  return (
-                    <button
-                      key={type.id}
-                      onClick={() => toggleMerge(type)}
-                      className={cn(
-                        "w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700",
-                        index < nutritionTypes.length - 1 &&
-                          "border-b border-gray-200/80 dark:border-gray-700/80",
-                      )}>
-                      <div className='flex items-center gap-3'>
-                        {type.icon && (
-                          <span className='text-xl'>{type.icon}</span>
-                        )}
-                        <span className='text-[17px] text-gray-900 dark:text-white'>
-                          {type.name}
-                        </span>
-                      </div>
-                      {isMerged && (
-                        <svg
-                          className='w-5 h-5 text-ios-blue'
-                          fill='none'
-                          viewBox='0 0 24 24'
-                          strokeWidth={2.5}
-                          stroke='currentColor'>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            d='M4.5 12.75l6 6 9-13.5'
-                          />
-                        </svg>
-                      )}
-                    </button>
-                  );
-                })}
+                <button
+                  onClick={() =>
+                    setNutritionMergeExpanded(!nutritionMergeExpanded)
+                  }
+                  className='w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
+                  <div>
+                    <span className='text-[17px] text-gray-900 dark:text-white'>
+                      Merge Activities
+                    </span>
+                    {isMergeActive && (
+                      <span className='text-[13px] text-gray-500 dark:text-gray-400 ml-2'>
+                        ({mergedIds.length + 1} merged)
+                      </span>
+                    )}
+                  </div>
+                  <svg
+                    className={cn(
+                      "w-5 h-5 text-gray-400 transition-transform duration-200",
+                      nutritionMergeExpanded && "rotate-180",
+                    )}
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    strokeWidth={2}
+                    stroke='currentColor'>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M19.5 8.25l-7.5 7.5-7.5-7.5'
+                    />
+                  </svg>
+                </button>
+                {nutritionMergeExpanded && (
+                  <>
+                    <div className='px-4 py-3 border-t border-gray-200/80 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-800/30'>
+                      <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                        {nutritionTypes.length < 2
+                          ? "You need at least 2 activities with the Nutrition value type to merge them."
+                          : "Tap activities to merge. All merged activities turn green when combined total reaches 100%."}
+                      </p>
+                    </div>
+                    {nutritionTypes.length >= 2 &&
+                      nutritionTypes.map((type, index) => {
+                        const isSelected = isTypeSelected(type.id);
+                        return (
+                          <button
+                            key={type.id}
+                            onClick={() => toggleMerge(type)}
+                            className={cn(
+                              "w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700",
+                              index < nutritionTypes.length - 1 &&
+                                "border-b border-gray-200/80 dark:border-gray-700/80",
+                            )}>
+                            <div className='flex items-center gap-3'>
+                              <span className='text-[17px] text-gray-900 dark:text-white'>
+                                {type.name}
+                              </span>
+                            </div>
+                            {isSelected && (
+                              <svg
+                                className='w-5 h-5 text-ios-blue'
+                                fill='none'
+                                viewBox='0 0 24 24'
+                                strokeWidth={2.5}
+                                stroke='currentColor'>
+                                <path
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'
+                                  d='M4.5 12.75l6 6 9-13.5'
+                                />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
+                  </>
+                )}
               </div>
-              {primaryType && (
-                <p className='text-[13px] text-gray-500 dark:text-gray-400 px-4 mt-2'>
-                  Selected activities share progress. Each shows its own
-                  percentage, but all turn green together.
-                </p>
-              )}
             </section>
           );
         })()}

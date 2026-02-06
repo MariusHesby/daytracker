@@ -2367,7 +2367,8 @@ export function EntryForm({
                 if (
                   isNutrition &&
                   type.nutritionGoal &&
-                  nutritionGoalProgress.hasGoals
+                  nutritionGoalProgress.hasGoals &&
+                  nutritionGoalProgress.hasData
                 ) {
                   if (nutritionGoalProgress.isMerged) {
                     return `${nutritionGoalProgress.ownPercentage}% (${nutritionGoalProgress.combinedPercentage}%)`;
@@ -2872,7 +2873,8 @@ export function EntryForm({
                                       : "text-gray-500 dark:text-gray-400"
                                     : "text-gray-500 dark:text-gray-400",
                                 )}>
-                                {nutritionGoalProgress.hasGoals ? (
+                                {nutritionGoalProgress.hasGoals &&
+                                nutritionGoalProgress.hasData ? (
                                   <>
                                     {nutritionGoalProgress.isMerged
                                       ? `${nutritionGoalProgress.ownPercentage}% (${nutritionGoalProgress.combinedPercentage}%)`
