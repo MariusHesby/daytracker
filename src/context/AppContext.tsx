@@ -82,7 +82,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
   const [ownActivityTypes, setOwnActivityTypes] = useState<ActivityType[]>([]);
   const [entries, setEntries] = useState<LogEntry[]>([]);
@@ -109,6 +109,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Initialize database and load data
   useEffect(() => {
+    // Wait for auth to finish loading before initializing
+    if (authLoading) return;
+
     async function init() {
       try {
         setIsLoading(true);
@@ -137,20 +140,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const locked = await getLockedDays(user.id);
           setLockedDays(locked);
         } else {
-          // Not logged in - use local IndexedDB
-          await db.initDB();
-          await db.initializeDefaultData();
-          const types = await db.getActivityTypes();
-          const sortedTypes = types.sort((a, b) => {
-            const orderA = a.order ?? Infinity;
-            const orderB = b.order ?? Infinity;
-            if (orderA !== orderB) return orderA - orderB;
-            return (
-              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            );
-          });
-          setActivityTypes(sortedTypes);
-          setOwnActivityTypes(sortedTypes);
+          // Not logged in - use local IndexedDB with timeout
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("IndexedDB timeout")), 5000),
+          );
+
+          try {
+            await Promise.race([db.initDB(), timeoutPromise]);
+            await Promise.race([db.initializeDefaultData(), timeoutPromise]);
+            const types = await Promise.race([
+              db.getActivityTypes(),
+              timeoutPromise,
+            ]);
+            const sortedTypes = types.sort((a, b) => {
+              const orderA = a.order ?? Infinity;
+              const orderB = b.order ?? Infinity;
+              if (orderA !== orderB) return orderA - orderB;
+              return (
+                new Date(a.createdAt).getTime() -
+                new Date(b.createdAt).getTime()
+              );
+            });
+            setActivityTypes(sortedTypes);
+            setOwnActivityTypes(sortedTypes);
+          } catch (dbError) {
+            console.warn("IndexedDB failed, using empty state:", dbError);
+            // Fall back to empty state if IndexedDB fails (e.g., in incognito)
+            setActivityTypes([]);
+            setOwnActivityTypes([]);
+          }
           setLockedDays([]);
         }
 
@@ -162,7 +180,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }
     init();
-  }, [user]);
+  }, [user, authLoading]);
 
   // Reload entries when user changes and we have a date range
   useEffect(() => {

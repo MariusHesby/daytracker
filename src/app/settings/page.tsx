@@ -15,7 +15,13 @@ import {
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
-  const { isLoading, syncToCloud, isSyncing } = useApp();
+  const {
+    isLoading,
+    syncToCloud,
+    isSyncing,
+    allActivityTypes,
+    updateActivityType,
+  } = useApp();
   const { theme, setTheme } = useTheme();
   const { t } = useLanguage();
   const { triggerTestAlert } = usePeriodAlert();
@@ -791,6 +797,127 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Nutrition Settings Section */}
+        {(() => {
+          const nutritionTypes = allActivityTypes.filter(
+            (t) => t.valueType === "nutrition",
+          );
+          if (nutritionTypes.length < 2) return null;
+
+          // Find which types are currently merged
+          const primaryType = nutritionTypes.find(
+            (t) =>
+              t.mergedNutritionTypeIds && t.mergedNutritionTypeIds.length > 0,
+          );
+          const mergedIds = primaryType?.mergedNutritionTypeIds || [];
+
+          // Check if a type is part of the merge group
+          const isTypeMerged = (typeId: string) => {
+            return typeId === primaryType?.id || mergedIds.includes(typeId);
+          };
+
+          // Toggle merge for a type
+          const toggleMerge = (type: (typeof nutritionTypes)[0]) => {
+            if (!primaryType) {
+              // No merge group exists - start one with the first two nutrition types
+              const otherType = nutritionTypes.find((t) => t.id !== type.id);
+              if (otherType) {
+                updateActivityType({
+                  ...type,
+                  mergedNutritionTypeIds: [otherType.id],
+                });
+              }
+            } else if (type.id === primaryType.id) {
+              // Clicking on primary - remove all merge settings
+              updateActivityType({
+                ...primaryType,
+                mergedNutritionTypeIds: undefined,
+                mergedNutritionGoal: undefined,
+              });
+            } else if (mergedIds.includes(type.id)) {
+              // Remove this type from merge
+              const newMergedIds = mergedIds.filter((id) => id !== type.id);
+              if (newMergedIds.length === 0) {
+                // No more merged types, clear everything
+                updateActivityType({
+                  ...primaryType,
+                  mergedNutritionTypeIds: undefined,
+                  mergedNutritionGoal: undefined,
+                });
+              } else {
+                updateActivityType({
+                  ...primaryType,
+                  mergedNutritionTypeIds: newMergedIds,
+                });
+              }
+            } else {
+              // Add this type to merge
+              updateActivityType({
+                ...primaryType,
+                mergedNutritionTypeIds: [...mergedIds, type.id],
+              });
+            }
+          };
+
+          return (
+            <section>
+              <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
+                Nutrition
+              </h2>
+              <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+                <div className='px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+                  <p className='text-[15px] text-gray-600 dark:text-gray-400'>
+                    Merge nutrition activities to track combined progress. All
+                    merged activities turn green when total reaches 100%.
+                  </p>
+                </div>
+                {nutritionTypes.map((type, index) => {
+                  const isMerged = isTypeMerged(type.id);
+                  return (
+                    <button
+                      key={type.id}
+                      onClick={() => toggleMerge(type)}
+                      className={cn(
+                        "w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700",
+                        index < nutritionTypes.length - 1 &&
+                          "border-b border-gray-200/80 dark:border-gray-700/80",
+                      )}>
+                      <div className='flex items-center gap-3'>
+                        {type.icon && (
+                          <span className='text-xl'>{type.icon}</span>
+                        )}
+                        <span className='text-[17px] text-gray-900 dark:text-white'>
+                          {type.name}
+                        </span>
+                      </div>
+                      {isMerged && (
+                        <svg
+                          className='w-5 h-5 text-ios-blue'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          strokeWidth={2.5}
+                          stroke='currentColor'>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            d='M4.5 12.75l6 6 9-13.5'
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {primaryType && (
+                <p className='text-[13px] text-gray-500 dark:text-gray-400 px-4 mt-2'>
+                  Selected activities share progress. Each shows its own
+                  percentage, but all turn green together.
+                </p>
+              )}
+            </section>
+          );
+        })()}
+
         {/* About Section */}
         <section>
           <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
@@ -887,7 +1014,7 @@ export default function SettingsPage() {
         <div className='fixed inset-0 z-50 flex items-center justify-center px-4'>
           <div
             className='absolute inset-0 bg-black/50'
-            onClick={() => setShowDeleteAllDataModal(false)}
+            onClick={() => !isDeleting && setShowDeleteAllDataModal(false)}
           />
           <div className='relative w-full max-w-sm bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden animate-scale-in'>
             <div className='p-6 text-center'>
@@ -901,23 +1028,52 @@ export default function SettingsPage() {
             <div className='border-t border-gray-200 dark:border-gray-700 flex'>
               <button
                 onClick={() => setShowDeleteAllDataModal(false)}
-                className='flex-1 py-3.5 text-[17px] font-medium text-ios-blue border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800'>
+                disabled={isDeleting}
+                className='flex-1 py-3.5 text-[17px] font-medium text-ios-blue border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800 disabled:opacity-50'>
                 {t("settings.cancel")}
               </button>
               <button
+                disabled={isDeleting}
                 onClick={async () => {
-                  if (user) {
-                    // Delete from Supabase if logged in
-                    await deleteAllData();
-                  } else {
-                    // Just clear local data if not logged in
-                    indexedDB.deleteDatabase("daytracker-db");
-                    localStorage.clear();
+                  setIsDeleting(true);
+                  try {
+                    if (user) {
+                      // Delete from Supabase if logged in
+                      await deleteAllData();
+                    } else {
+                      // Just clear local data if not logged in
+                      indexedDB.deleteDatabase("daytracker-db");
+                      localStorage.clear();
+                    }
+                    window.location.reload();
+                  } finally {
+                    setIsDeleting(false);
                   }
-                  window.location.reload();
                 }}
-                className='flex-1 py-3.5 text-[17px] font-medium text-ios-red active:bg-gray-100 dark:active:bg-gray-800'>
-                {t("settings.delete")}
+                className='flex-1 py-3.5 text-[17px] font-medium text-ios-red active:bg-gray-100 dark:active:bg-gray-800 disabled:opacity-50'>
+                {isDeleting ? (
+                  <span className='flex items-center justify-center gap-2'>
+                    <svg className='animate-spin h-4 w-4' viewBox='0 0 24 24'>
+                      <circle
+                        className='opacity-25'
+                        cx='12'
+                        cy='12'
+                        r='10'
+                        stroke='currentColor'
+                        strokeWidth='4'
+                        fill='none'
+                      />
+                      <path
+                        className='opacity-75'
+                        fill='currentColor'
+                        d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                      />
+                    </svg>
+                    {t("settings.delete")}...
+                  </span>
+                ) : (
+                  t("settings.delete")
+                )}
               </button>
             </div>
           </div>

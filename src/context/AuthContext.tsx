@@ -221,26 +221,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userId = user.id;
 
-      // Delete all user data from Supabase tables in order
-      // 1. Delete shares (both as owner and viewer)
-      await supabase.from("shares").delete().eq("owner_id", userId);
-      await supabase.from("shares").delete().eq("viewer_id", userId);
-
-      // 2. Delete share requests (both sent and received)
-      await supabase.from("share_requests").delete().eq("from_user_id", userId);
-      await supabase.from("share_requests").delete().eq("to_user_id", userId);
-
-      // 3. Delete locked days
-      await supabase.from("locked_days").delete().eq("user_id", userId);
-
-      // 4. Delete suggestions
-      await supabase.from("suggestions").delete().eq("user_id", userId);
-
-      // 5. Delete log entries
-      await supabase.from("log_entries").delete().eq("user_id", userId);
-
-      // 6. Delete activity types
-      await supabase.from("activity_types").delete().eq("user_id", userId);
+      // Delete all user data from Supabase tables in parallel for faster execution
+      await Promise.all([
+        supabase.from("shares").delete().eq("owner_id", userId),
+        supabase.from("shares").delete().eq("viewer_id", userId),
+        supabase.from("share_requests").delete().eq("from_user_id", userId),
+        supabase.from("share_requests").delete().eq("to_user_id", userId),
+        supabase.from("locked_days").delete().eq("user_id", userId),
+        supabase.from("suggestions").delete().eq("user_id", userId),
+        supabase.from("log_entries").delete().eq("user_id", userId),
+        supabase.from("activity_types").delete().eq("user_id", userId),
+      ]);
 
       // Clear local storage (but preserve auth tokens)
       if (typeof window !== "undefined") {
@@ -281,31 +272,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userId = user.id;
 
-      // Delete all user data from Supabase tables in order
-      // 1. Delete shares (both as owner and viewer)
-      await supabase.from("shares").delete().eq("owner_id", userId);
-      await supabase.from("shares").delete().eq("viewer_id", userId);
+      // Delete all user data from Supabase tables in parallel for faster execution
+      await Promise.all([
+        supabase.from("shares").delete().eq("owner_id", userId),
+        supabase.from("shares").delete().eq("viewer_id", userId),
+        supabase.from("share_requests").delete().eq("from_user_id", userId),
+        supabase.from("share_requests").delete().eq("to_user_id", userId),
+        supabase.from("locked_days").delete().eq("user_id", userId),
+        supabase.from("suggestions").delete().eq("user_id", userId),
+        supabase.from("log_entries").delete().eq("user_id", userId),
+        supabase.from("activity_types").delete().eq("user_id", userId),
+        supabase.from("profiles").delete().eq("user_id", userId),
+      ]);
 
-      // 2. Delete share requests (both sent and received)
-      await supabase.from("share_requests").delete().eq("from_user_id", userId);
-      await supabase.from("share_requests").delete().eq("to_user_id", userId);
-
-      // 3. Delete locked days
-      await supabase.from("locked_days").delete().eq("user_id", userId);
-
-      // 4. Delete suggestions
-      await supabase.from("suggestions").delete().eq("user_id", userId);
-
-      // 5. Delete log entries
-      await supabase.from("log_entries").delete().eq("user_id", userId);
-
-      // 6. Delete activity types
-      await supabase.from("activity_types").delete().eq("user_id", userId);
-
-      // 7. Delete profile
-      await supabase.from("profiles").delete().eq("user_id", userId);
-
-      // 8. Delete the auth user account using RPC function
+      // Delete the auth user account using RPC function
       // Note: This requires creating the following function in Supabase SQL Editor:
       /*
         CREATE OR REPLACE FUNCTION delete_user_account()

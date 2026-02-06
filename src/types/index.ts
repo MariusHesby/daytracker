@@ -106,6 +106,8 @@ export interface ActivityType {
   isDefault?: boolean; // True for built-in activity types that can't be deleted
   hidden?: boolean; // True if the activity type is hidden from the main UI
   nutritionGoal?: NutritionGoal; // Goal for nutrition type
+  mergedNutritionTypeIds?: string[]; // IDs of other nutrition types to merge progress with
+  mergedNutritionGoal?: NutritionGoal; // Common goal for all merged nutrition activities
   customExercises?: CustomExercise[]; // Custom exercises for workout type
   workoutRoutines?: WorkoutRoutine[]; // Workout routines/groups for organizing exercises
   createdAt: Date;

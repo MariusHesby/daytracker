@@ -574,6 +574,123 @@ export function EntryForm({
     [savedValues],
   );
 
+  // Get combined nutrition totals and goals for a specific type and its merged types
+  const getMergedNutritionData = useCallback(
+    (typeId: string) => {
+      const currentType = allActivityTypes.find((t) => t.id === typeId);
+      if (!currentType || currentType.valueType !== "nutrition") {
+        return {
+          totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+          goals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+          hasData: false,
+          isMerged: false,
+        };
+      }
+
+      // Find the primary type - either this type has mergedNutritionTypeIds,
+      // or another nutrition type includes this one in its mergedNutritionTypeIds
+      let primaryType: typeof currentType | undefined;
+      let mergedIds: string[] = [];
+
+      // First check if this type is the primary (has non-empty mergedNutritionTypeIds)
+      if (
+        currentType.mergedNutritionTypeIds &&
+        currentType.mergedNutritionTypeIds.length > 0
+      ) {
+        primaryType = currentType;
+        mergedIds = currentType.mergedNutritionTypeIds;
+      } else {
+        // Search for a nutrition type that includes this type in its merge list
+        const parentType = allActivityTypes.find(
+          (t) =>
+            t.valueType === "nutrition" &&
+            t.id !== typeId &&
+            t.mergedNutritionTypeIds &&
+            t.mergedNutritionTypeIds.length > 0 &&
+            t.mergedNutritionTypeIds.includes(typeId),
+        );
+        if (parentType) {
+          primaryType = parentType;
+          mergedIds = parentType.mergedNutritionTypeIds || [];
+        }
+      }
+
+      // If no merge settings found, return just this type's data
+      if (!primaryType) {
+        const totals = getNutritionTotals(typeId);
+        const goal = currentType.nutritionGoal || {};
+        return {
+          totals,
+          goals: {
+            calories: goal.calories || 0,
+            protein: goal.protein || 0,
+            carbs: goal.carbs || 0,
+            fat: goal.fat || 0,
+          },
+          hasData: !!(
+            totals.calories ||
+            totals.protein ||
+            totals.carbs ||
+            totals.fat
+          ),
+          isMerged: false,
+          hasCommonGoal: false,
+        };
+      }
+
+      // Get the type IDs to include (primary type + merged types)
+      const typeIdsToInclude = [primaryType.id, ...mergedIds];
+
+      // Combine all totals from the included types
+      const combinedTotals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      let hasAnyData = false;
+
+      typeIdsToInclude.forEach((id) => {
+        const totals = getNutritionTotals(id);
+        combinedTotals.calories += totals.calories;
+        combinedTotals.protein += totals.protein;
+        combinedTotals.carbs += totals.carbs;
+        combinedTotals.fat += totals.fat;
+        if (totals.calories || totals.protein || totals.carbs || totals.fat) {
+          hasAnyData = true;
+        }
+      });
+
+      // Use mergedNutritionGoal if set, otherwise combine individual goals
+      let combinedGoals = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+
+      if (primaryType.mergedNutritionGoal) {
+        // Use the common goal for merged activities
+        combinedGoals = {
+          calories: primaryType.mergedNutritionGoal.calories || 0,
+          protein: primaryType.mergedNutritionGoal.protein || 0,
+          carbs: primaryType.mergedNutritionGoal.carbs || 0,
+          fat: primaryType.mergedNutritionGoal.fat || 0,
+        };
+      } else {
+        // Combine all goals from the included types
+        typeIdsToInclude.forEach((id) => {
+          const type = allActivityTypes.find((t) => t.id === id);
+          if (type?.nutritionGoal) {
+            combinedGoals.calories += type.nutritionGoal.calories || 0;
+            combinedGoals.protein += type.nutritionGoal.protein || 0;
+            combinedGoals.carbs += type.nutritionGoal.carbs || 0;
+            combinedGoals.fat += type.nutritionGoal.fat || 0;
+          }
+        });
+      }
+
+      return {
+        totals: combinedTotals,
+        goals: combinedGoals,
+        hasData: hasAnyData,
+        isMerged: mergedIds.length > 0,
+        hasCommonGoal: !!primaryType.mergedNutritionGoal,
+      };
+    },
+    [allActivityTypes, getNutritionTotals],
+  );
+
   // Check if nutrition goal is reached
   const checkNutritionGoalReached = useCallback(
     (
@@ -1013,7 +1130,6 @@ export function EntryForm({
                   }
                   placeholder='Enter value...'
                   className='flex-1 px-3 py-2 rounded-lg text-[17px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                  autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && customValue.trim()) {
                       handleSaveValue(type.id, customValue.trim());
@@ -1212,19 +1328,23 @@ export function EntryForm({
         );
 
       case "nutrition": {
-        const totals = getNutritionTotals(type.id);
-        const goal = type.nutritionGoal || {};
+        // Get THIS activity's own totals and goals for the Daily Progress section
+        const ownTotals = getNutritionTotals(type.id);
+        const ownGoal = type.nutritionGoal || {};
         const typeEntries = savedValues[type.id] || [];
 
         return (
           <div className='pt-3 space-y-4'>
-            {/* Progress bars */}
-            {(goal.protein || goal.calories || goal.carbs || goal.fat) && (
+            {/* Progress bars - show this activity's own progress */}
+            {(ownGoal.protein ||
+              ownGoal.calories ||
+              ownGoal.carbs ||
+              ownGoal.fat) && (
               <div className='space-y-2 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
                 <p className='text-[13px] font-medium text-gray-500 mb-2'>
                   Daily Progress
                 </p>
-                {goal.protein && (
+                {ownGoal.protein && (
                   <div>
                     <div className='flex justify-between text-[13px] mb-1'>
                       <span className='text-gray-600 dark:text-gray-400'>
@@ -1233,33 +1353,33 @@ export function EntryForm({
                       <span
                         className={cn(
                           "font-medium",
-                          totals.protein >= goal.protein
+                          ownTotals.protein >= ownGoal.protein
                             ? "text-ios-green"
                             : "text-gray-600 dark:text-gray-400",
                         )}>
-                        {totals.protein}g / {goal.protein}g
-                        {totals.protein >= goal.protein && " ✓"}
+                        {ownTotals.protein}g / {ownGoal.protein}g
+                        {ownTotals.protein >= ownGoal.protein && " ✓"}
                       </span>
                     </div>
                     <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
-                          totals.protein >= goal.protein
+                          ownTotals.protein >= ownGoal.protein
                             ? "bg-ios-green"
                             : "bg-ios-blue",
                         )}
                         style={{
                           width: `${Math.min(
                             100,
-                            (totals.protein / goal.protein) * 100,
+                            (ownTotals.protein / ownGoal.protein) * 100,
                           )}%`,
                         }}
                       />
                     </div>
                   </div>
                 )}
-                {goal.calories && (
+                {ownGoal.calories && (
                   <div>
                     <div className='flex justify-between text-[13px] mb-1'>
                       <span className='text-gray-600 dark:text-gray-400'>
@@ -1268,33 +1388,33 @@ export function EntryForm({
                       <span
                         className={cn(
                           "font-medium",
-                          totals.calories >= goal.calories
+                          ownTotals.calories >= ownGoal.calories
                             ? "text-ios-green"
                             : "text-gray-600 dark:text-gray-400",
                         )}>
-                        {totals.calories} / {goal.calories} kcal
-                        {totals.calories >= goal.calories && " ✓"}
+                        {ownTotals.calories} / {ownGoal.calories} kcal
+                        {ownTotals.calories >= ownGoal.calories && " ✓"}
                       </span>
                     </div>
                     <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
-                          totals.calories >= goal.calories
+                          ownTotals.calories >= ownGoal.calories
                             ? "bg-ios-green"
                             : "bg-ios-orange",
                         )}
                         style={{
                           width: `${Math.min(
                             100,
-                            (totals.calories / goal.calories) * 100,
+                            (ownTotals.calories / ownGoal.calories) * 100,
                           )}%`,
                         }}
                       />
                     </div>
                   </div>
                 )}
-                {goal.carbs && (
+                {ownGoal.carbs && (
                   <div>
                     <div className='flex justify-between text-[13px] mb-1'>
                       <span className='text-gray-600 dark:text-gray-400'>
@@ -1303,33 +1423,33 @@ export function EntryForm({
                       <span
                         className={cn(
                           "font-medium",
-                          totals.carbs >= goal.carbs
+                          ownTotals.carbs >= ownGoal.carbs
                             ? "text-ios-green"
                             : "text-gray-600 dark:text-gray-400",
                         )}>
-                        {totals.carbs}g / {goal.carbs}g
-                        {totals.carbs >= goal.carbs && " ✓"}
+                        {ownTotals.carbs}g / {ownGoal.carbs}g
+                        {ownTotals.carbs >= ownGoal.carbs && " ✓"}
                       </span>
                     </div>
                     <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
-                          totals.carbs >= goal.carbs
+                          ownTotals.carbs >= ownGoal.carbs
                             ? "bg-ios-green"
                             : "bg-amber-500",
                         )}
                         style={{
                           width: `${Math.min(
                             100,
-                            (totals.carbs / goal.carbs) * 100,
+                            (ownTotals.carbs / ownGoal.carbs) * 100,
                           )}%`,
                         }}
                       />
                     </div>
                   </div>
                 )}
-                {goal.fat && (
+                {ownGoal.fat && (
                   <div>
                     <div className='flex justify-between text-[13px] mb-1'>
                       <span className='text-gray-600 dark:text-gray-400'>
@@ -1338,26 +1458,26 @@ export function EntryForm({
                       <span
                         className={cn(
                           "font-medium",
-                          totals.fat >= goal.fat
+                          ownTotals.fat >= ownGoal.fat
                             ? "text-ios-green"
                             : "text-gray-600 dark:text-gray-400",
                         )}>
-                        {totals.fat}g / {goal.fat}g
-                        {totals.fat >= goal.fat && " ✓"}
+                        {ownTotals.fat}g / {ownGoal.fat}g
+                        {ownTotals.fat >= ownGoal.fat && " ✓"}
                       </span>
                     </div>
                     <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
-                          totals.fat >= goal.fat
+                          ownTotals.fat >= ownGoal.fat
                             ? "bg-ios-green"
                             : "bg-purple-500",
                         )}
                         style={{
                           width: `${Math.min(
                             100,
-                            (totals.fat / goal.fat) * 100,
+                            (ownTotals.fat / ownGoal.fat) * 100,
                           )}%`,
                         }}
                       />
@@ -1409,7 +1529,6 @@ export function EntryForm({
                       }
                       placeholder='What did you eat?'
                       className='w-full px-3 py-2 rounded-lg text-[17px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                      autoFocus
                     />
                     {/* Autocomplete dropdown - shows recent suggestions */}
                     {showDropdown && (
@@ -2103,6 +2222,101 @@ export function EntryForm({
                 checklistItems.every((i) => i.completed);
               const checklistHasItems = checklistItems.length > 0;
 
+              // Calculate nutrition goal progress (use merged types if configured)
+              const nutritionGoalProgress = (() => {
+                if (!isNutrition || !type.nutritionGoal)
+                  return {
+                    hasGoals: false,
+                    allGoalsReached: false,
+                    hasData: false,
+                    percentage: 0,
+                    ownPercentage: 0,
+                    combinedPercentage: 0,
+                    isMerged: false,
+                  };
+
+                // Always use merged data - it handles both merged and non-merged cases
+                const merged = getMergedNutritionData(type.id);
+                const { totals, goals, isMerged } = merged;
+
+                // Calculate this activity's own percentage (can exceed 100%)
+                const ownTotals = getNutritionTotals(type.id);
+                const ownGoal = type.nutritionGoal;
+                let ownGoalsSet = 0;
+                let ownTotalPercentage = 0;
+                if (ownGoal.protein) {
+                  ownGoalsSet++;
+                  ownTotalPercentage +=
+                    (ownTotals.protein / ownGoal.protein) * 100;
+                }
+                if (ownGoal.calories) {
+                  ownGoalsSet++;
+                  ownTotalPercentage +=
+                    (ownTotals.calories / ownGoal.calories) * 100;
+                }
+                if (ownGoal.carbs) {
+                  ownGoalsSet++;
+                  ownTotalPercentage += (ownTotals.carbs / ownGoal.carbs) * 100;
+                }
+                if (ownGoal.fat) {
+                  ownGoalsSet++;
+                  ownTotalPercentage += (ownTotals.fat / ownGoal.fat) * 100;
+                }
+                const ownPercentage =
+                  ownGoalsSet > 0
+                    ? Math.round(ownTotalPercentage / ownGoalsSet)
+                    : 0;
+
+                // Calculate combined percentage (capped at 100%)
+                let goalsSet = 0;
+                let totalPercentage = 0;
+                let goalsReached = 0;
+                if (goals.protein) {
+                  goalsSet++;
+                  totalPercentage += Math.min(
+                    100,
+                    (totals.protein / goals.protein) * 100,
+                  );
+                  if (totals.protein >= goals.protein) goalsReached++;
+                }
+                if (goals.calories) {
+                  goalsSet++;
+                  totalPercentage += Math.min(
+                    100,
+                    (totals.calories / goals.calories) * 100,
+                  );
+                  if (totals.calories >= goals.calories) goalsReached++;
+                }
+                if (goals.carbs) {
+                  goalsSet++;
+                  totalPercentage += Math.min(
+                    100,
+                    (totals.carbs / goals.carbs) * 100,
+                  );
+                  if (totals.carbs >= goals.carbs) goalsReached++;
+                }
+                if (goals.fat) {
+                  goalsSet++;
+                  totalPercentage += Math.min(
+                    100,
+                    (totals.fat / goals.fat) * 100,
+                  );
+                  if (totals.fat >= goals.fat) goalsReached++;
+                }
+                const combinedPercentage =
+                  goalsSet > 0 ? Math.round(totalPercentage / goalsSet) : 0;
+
+                return {
+                  hasGoals: ownGoalsSet > 0,
+                  allGoalsReached: goalsReached === goalsSet && goalsSet > 0,
+                  hasData: merged.hasData,
+                  percentage: ownPercentage, // Use own percentage as main display
+                  ownPercentage,
+                  combinedPercentage,
+                  isMerged,
+                };
+              })();
+
               const hasValue =
                 hasSavedValues || workoutHasEnteredData || checklistHasItems;
               const isSkipped =
@@ -2149,31 +2363,16 @@ export function EntryForm({
                   // Show count if exercises logged, or nothing if just quick-check (icon will show green)
                   return count > 0 ? `${count}` : null;
                 }
-                // For nutrition types with goals, show goals reached
-                if (isNutrition && type.nutritionGoal) {
-                  const totals = getNutritionTotals(type.id);
-                  const goal = type.nutritionGoal;
-                  let goalsSet = 0;
-                  let goalsReached = 0;
-                  if (goal.protein) {
-                    goalsSet++;
-                    if (totals.protein >= goal.protein) goalsReached++;
+                // For nutrition types with goals, show percentage progress (use combined if merge is enabled)
+                if (
+                  isNutrition &&
+                  type.nutritionGoal &&
+                  nutritionGoalProgress.hasGoals
+                ) {
+                  if (nutritionGoalProgress.isMerged) {
+                    return `${nutritionGoalProgress.ownPercentage}% (${nutritionGoalProgress.combinedPercentage}%)`;
                   }
-                  if (goal.calories) {
-                    goalsSet++;
-                    if (totals.calories >= goal.calories) goalsReached++;
-                  }
-                  if (goal.carbs) {
-                    goalsSet++;
-                    if (totals.carbs >= goal.carbs) goalsReached++;
-                  }
-                  if (goal.fat) {
-                    goalsSet++;
-                    if (totals.fat >= goal.fat) goalsReached++;
-                  }
-                  if (goalsSet > 0) {
-                    return `${goalsReached}/${goalsSet}`;
-                  }
+                  return `${nutritionGoalProgress.percentage}%`;
                 }
                 // For nutrition without goals and text types, show the activity type name
                 if (hasSavedValues) {
@@ -2217,34 +2416,7 @@ export function EntryForm({
                     isSkipped
                       ? "bg-gradient-to-br from-red-400/40 via-rose-500/30 to-pink-400/40 dark:from-red-500/50 dark:via-rose-600/40 dark:to-pink-500/50 ring-2 ring-ios-red/50"
                       : "bg-gray-100/90 dark:bg-gray-800/90",
-                  )}
-                  style={
-                    // For checklist, show green only when all items completed
-                    isChecklist
-                      ? checklistCompleted
-                        ? {
-                            background:
-                              "linear-gradient(135deg, rgba(52, 199, 89, 0.35) 0%, rgba(48, 209, 88, 0.25) 25%, rgba(100, 210, 130, 0.3) 50%, rgba(52, 199, 89, 0.35) 100%)",
-                            boxShadow:
-                              "inset 0 0 20px rgba(52, 199, 89, 0.15), 0 2px 8px rgba(52, 199, 89, 0.2)",
-                          }
-                        : checklistHasItems
-                          ? {
-                              background:
-                                "linear-gradient(135deg, rgba(255, 149, 0, 0.25) 0%, rgba(255, 159, 10, 0.2) 50%, rgba(255, 149, 0, 0.25) 100%)",
-                              boxShadow:
-                                "inset 0 0 20px rgba(255, 149, 0, 0.1), 0 2px 8px rgba(255, 149, 0, 0.15)",
-                            }
-                          : undefined
-                      : hasValue && !isSkipped
-                        ? {
-                            background:
-                              "linear-gradient(135deg, rgba(52, 199, 89, 0.35) 0%, rgba(48, 209, 88, 0.25) 25%, rgba(100, 210, 130, 0.3) 50%, rgba(52, 199, 89, 0.35) 100%)",
-                            boxShadow:
-                              "inset 0 0 20px rgba(52, 199, 89, 0.15), 0 2px 8px rgba(52, 199, 89, 0.2)",
-                          }
-                        : undefined
-                  }>
+                  )}>
                   {/* Checkmark indicator for checkmark and workout activity types */}
                   {(isCheckmark || isWorkout) && (
                     <div className='absolute top-1 right-1'>
@@ -2274,11 +2446,17 @@ export function EntryForm({
                           : checklistHasItems
                             ? "text-ios-orange drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
                             : "text-ios-blue"
-                        : hasValue && !isSkipped
-                          ? "text-green-600 dark:text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
-                          : isSkipped
-                            ? "text-ios-red"
-                            : "text-ios-blue",
+                        : isNutrition && nutritionGoalProgress.hasGoals
+                          ? nutritionGoalProgress.allGoalsReached
+                            ? "text-green-600 dark:text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
+                            : nutritionGoalProgress.hasData
+                              ? "text-ios-orange drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
+                              : "text-ios-blue"
+                          : hasValue && !isSkipped
+                            ? "text-green-600 dark:text-green-400 drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]"
+                            : isSkipped
+                              ? "text-ios-red"
+                              : "text-ios-blue",
                     )}>
                     {type.icon in icons ? (
                       <Icon name={type.icon as IconName} className='w-7 h-7' />
@@ -2396,6 +2574,101 @@ export function EntryForm({
                   }).length
                 : 0;
 
+              // Calculate nutrition goal progress for list view (use merged types if configured)
+              const nutritionGoalProgress = (() => {
+                if (!isNutrition || !type.nutritionGoal)
+                  return {
+                    hasGoals: false,
+                    allGoalsReached: false,
+                    hasData: false,
+                    percentage: 0,
+                    ownPercentage: 0,
+                    combinedPercentage: 0,
+                    isMerged: false,
+                  };
+
+                // Always use merged data - it handles both merged and non-merged cases
+                const merged = getMergedNutritionData(type.id);
+                const { totals, goals, isMerged } = merged;
+
+                // Calculate this activity's own percentage (can exceed 100%)
+                const ownTotals = getNutritionTotals(type.id);
+                const ownGoal = type.nutritionGoal;
+                let ownGoalsSet = 0;
+                let ownTotalPercentage = 0;
+                if (ownGoal.protein) {
+                  ownGoalsSet++;
+                  ownTotalPercentage +=
+                    (ownTotals.protein / ownGoal.protein) * 100;
+                }
+                if (ownGoal.calories) {
+                  ownGoalsSet++;
+                  ownTotalPercentage +=
+                    (ownTotals.calories / ownGoal.calories) * 100;
+                }
+                if (ownGoal.carbs) {
+                  ownGoalsSet++;
+                  ownTotalPercentage += (ownTotals.carbs / ownGoal.carbs) * 100;
+                }
+                if (ownGoal.fat) {
+                  ownGoalsSet++;
+                  ownTotalPercentage += (ownTotals.fat / ownGoal.fat) * 100;
+                }
+                const ownPercentage =
+                  ownGoalsSet > 0
+                    ? Math.round(ownTotalPercentage / ownGoalsSet)
+                    : 0;
+
+                // Calculate combined percentage (capped at 100%)
+                let goalsSet = 0;
+                let totalPercentage = 0;
+                let goalsReached = 0;
+                if (goals.protein) {
+                  goalsSet++;
+                  totalPercentage += Math.min(
+                    100,
+                    (totals.protein / goals.protein) * 100,
+                  );
+                  if (totals.protein >= goals.protein) goalsReached++;
+                }
+                if (goals.calories) {
+                  goalsSet++;
+                  totalPercentage += Math.min(
+                    100,
+                    (totals.calories / goals.calories) * 100,
+                  );
+                  if (totals.calories >= goals.calories) goalsReached++;
+                }
+                if (goals.carbs) {
+                  goalsSet++;
+                  totalPercentage += Math.min(
+                    100,
+                    (totals.carbs / goals.carbs) * 100,
+                  );
+                  if (totals.carbs >= goals.carbs) goalsReached++;
+                }
+                if (goals.fat) {
+                  goalsSet++;
+                  totalPercentage += Math.min(
+                    100,
+                    (totals.fat / goals.fat) * 100,
+                  );
+                  if (totals.fat >= goals.fat) goalsReached++;
+                }
+                const combinedPercentage =
+                  goalsSet > 0 ? Math.round(totalPercentage / goalsSet) : 0;
+
+                return {
+                  hasGoals: ownGoalsSet > 0,
+                  allGoalsReached: goalsReached === goalsSet && goalsSet > 0,
+                  hasData: merged.hasData,
+                  percentage: ownPercentage,
+                  ownPercentage,
+                  combinedPercentage,
+                  isMerged,
+                };
+              })();
+
               // Get current counter value
               const currentCounterValue =
                 isCounter && hasSavedValues
@@ -2490,9 +2763,16 @@ export function EntryForm({
                                     : checklistHasItems
                                       ? "text-ios-orange"
                                       : "text-ios-blue"
-                                  : hasSavedValues || workoutHasEnteredData
-                                    ? "text-ios-green"
-                                    : "text-ios-blue",
+                                  : isNutrition &&
+                                      nutritionGoalProgress.hasGoals
+                                    ? nutritionGoalProgress.allGoalsReached
+                                      ? "text-ios-green"
+                                      : nutritionGoalProgress.hasData
+                                        ? "text-ios-orange"
+                                        : "text-ios-blue"
+                                    : hasSavedValues || workoutHasEnteredData
+                                      ? "text-ios-green"
+                                      : "text-ios-blue",
                             )}
                           />
                         ) : (
@@ -2577,53 +2857,26 @@ export function EntryForm({
                         {/* Nutrition progress summary */}
                         {isNutrition &&
                           (() => {
-                            const totals = getNutritionTotals(type.id);
-                            const goal = type.nutritionGoal || {};
-                            const hasGoal =
-                              goal.protein ||
-                              goal.calories ||
-                              goal.carbs ||
-                              goal.fat;
                             const hasEntries = hasSavedValues;
 
-                            if (!hasGoal && !hasEntries) return null;
-
-                            // Show primary goal progress (protein first, then calories)
-                            const primaryGoal = goal.protein
-                              ? "protein"
-                              : goal.calories
-                                ? "calories"
-                                : null;
-                            const totalValue =
-                              primaryGoal === "protein"
-                                ? totals.protein
-                                : totals.calories;
-                            const goalValue =
-                              primaryGoal === "protein"
-                                ? goal.protein
-                                : goal.calories;
-                            const isGoalReached =
-                              goalValue && totalValue >= goalValue;
+                            if (!nutritionGoalProgress.hasGoals && !hasEntries)
+                              return null;
 
                             return (
-                              <span className='text-[15px] text-gray-500 dark:text-gray-400 truncate max-w-[180px]'>
-                                {primaryGoal === "protein" && goalValue ? (
+                              <span
+                                className={cn(
+                                  "text-[15px] truncate max-w-[180px]",
+                                  nutritionGoalProgress.hasGoals
+                                    ? nutritionGoalProgress.allGoalsReached
+                                      ? "text-ios-green"
+                                      : "text-gray-500 dark:text-gray-400"
+                                    : "text-gray-500 dark:text-gray-400",
+                                )}>
+                                {nutritionGoalProgress.hasGoals ? (
                                   <>
-                                    {totals.protein}g / {goal.protein}g
-                                    {isGoalReached && (
-                                      <span className='text-ios-green ml-1'>
-                                        ✓
-                                      </span>
-                                    )}
-                                  </>
-                                ) : primaryGoal === "calories" && goalValue ? (
-                                  <>
-                                    {totals.calories} / {goal.calories} kcal
-                                    {isGoalReached && (
-                                      <span className='text-ios-green ml-1'>
-                                        ✓
-                                      </span>
-                                    )}
+                                    {nutritionGoalProgress.isMerged
+                                      ? `${nutritionGoalProgress.ownPercentage}% (${nutritionGoalProgress.combinedPercentage}%)`
+                                      : `${nutritionGoalProgress.percentage}%`}
                                   </>
                                 ) : hasEntries ? (
                                   // Show food names instead of "x items"
