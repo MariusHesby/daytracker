@@ -292,6 +292,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const reorderActivityTypes = useCallback(
     async (reorderedTypes: ActivityType[]) => {
       setActivityTypes(reorderedTypes);
+      setOwnActivityTypes(reorderedTypes);
       if (user) {
         await cloudDb.reorderActivityTypesInSupabase(reorderedTypes);
       } else {

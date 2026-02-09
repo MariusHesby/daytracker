@@ -128,7 +128,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     (friendId: string, activityId: string) => {
       // Don't allow subscribing to own activities
       if (user && friendId === user.id) return;
-      
+
       setSubscriptions((prev) => {
         const exists = prev.some(
           (s) => s.friendId === friendId && s.activityId === activityId,
