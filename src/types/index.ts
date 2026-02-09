@@ -158,18 +158,15 @@ export type TimeRange = 'week' | 'month' | 'year' | 'all';
 
 // Version number for default activity types - increment this when defaults change
 // This will reset local IndexedDB to new defaults for non-logged-in users
-export const DEFAULT_ACTIVITY_TYPES_VERSION = 5;
+export const DEFAULT_ACTIVITY_TYPES_VERSION = 6;
 
 // Default activity types to start with (using icon names from Icons.tsx)
+// isDefault: true means it cannot be deleted
 export const DEFAULT_ACTIVITY_TYPES: Omit<ActivityType, 'id' | 'createdAt'>[] = [
-  { name: 'TV Series', icon: 'tv', valueType: 'text', isDefault: true, order: 0 },
-  { name: 'Movie', icon: 'movie', valueType: 'text', isDefault: true, order: 1 },
-  { name: 'Lunch', icon: 'meal', valueType: 'nutrition', isDefault: true, order: 2 },
-  { name: 'Dinner', icon: 'meal', valueType: 'nutrition', isDefault: true, order: 3 },
-  { name: 'Alcohol', icon: 'alcohol', valueType: 'checkmark', isDefault: true, order: 4 },
-  { name: 'Workout', icon: 'workout', valueType: 'workout', isDefault: true, order: 5 },
-  { name: 'Event', icon: 'event', valueType: 'text', isDefault: true, order: 6 },
-  { name: 'Period', icon: 'period', valueType: 'mood', isDefault: true, order: 7 },
-  { name: 'Sleep', icon: 'sleep', valueType: 'mood', isDefault: true, order: 8 },
-  { name: 'Todo', icon: 'checklist', valueType: 'checklist', isDefault: true, order: 9 },
+  { name: 'Movie', icon: 'movie', valueType: 'text', isDefault: true, order: 0 },
+  { name: 'TV Series', icon: 'tv', valueType: 'text', isDefault: true, order: 1 },
+  { name: 'Nutrition', icon: 'meal', valueType: 'nutrition', isDefault: false, order: 2 },
+  { name: 'Sleep', icon: 'sleep', valueType: 'mood', isDefault: false, hidden: true, order: 3 },
+  { name: 'Workout', icon: 'workout', valueType: 'workout', isDefault: true, order: 4 },
+  { name: 'Todo', icon: 'checklist', valueType: 'checklist', isDefault: true, order: 5 },
 ];
