@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, ReactNode, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useLanguage } from "@/context/LanguageContext";
 import { supabase } from "@/lib/supabase";
 
 // iOS-style gradient avatars with SF Symbols-inspired icons
@@ -92,7 +91,6 @@ function ImageCropper({
   onCropComplete,
   onCancel,
 }: ImageCropperProps) {
-  const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -278,15 +276,15 @@ function ImageCropper({
         <button
           onClick={onCancel}
           className='text-white text-[17px] px-3 py-2 -ml-1 active:opacity-60 min-h-[44px] flex items-center'>
-          {t("common.cancel")}
+          Cancel
         </button>
         <span className='text-white text-[17px] font-semibold'>
-          {t("profile.adjustPhoto") || "Adjust Photo"}
+          Adjust Photo
         </span>
         <button
           onClick={handleCrop}
           className='text-ios-blue text-[17px] font-semibold px-3 py-2 -mr-1 active:opacity-60 min-h-[44px] flex items-center'>
-          {t("profile.choose") || "Choose"}
+          Choose
         </button>
       </div>
 
@@ -343,7 +341,7 @@ function ImageCropper({
         }}>
         {/* Pinch hint */}
         <p className='text-white/40 text-xs text-center mb-4'>
-          {t("profile.pinchToZoom") || "Pinch to zoom • Drag to move"}
+          Pinch to zoom • Drag to move
         </p>
         <div className='flex items-center gap-3'>
           <button
@@ -466,7 +464,6 @@ interface EditProfileModalProps {
 
 export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
   const { profile, user, updateProfile } = useAuth();
-  const { t } = useLanguage();
   const [fullName, setFullName] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
@@ -504,7 +501,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
 
     // Validate file type
     if (!file.type.startsWith("image/")) {
-      setError(t("profile.invalidImage"));
+      setError("Please select an image file");
       return;
     }
 
@@ -523,7 +520,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
       setShowCropper(true);
     } catch (err) {
       console.error("Image processing error:", err);
-      setError(t("profile.uploadFailed"));
+      setError("Failed to upload image");
     }
 
     // Reset input so same file can be selected again
@@ -561,7 +558,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
       setSelectedAvatar(null);
     } catch (err) {
       console.error("Upload error:", err);
-      setError(t("profile.uploadFailed"));
+      setError("Failed to upload image");
     } finally {
       setIsUploading(false);
     }
@@ -577,7 +574,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
 
   const handleSubmit = async () => {
     if (!fullName.trim()) {
-      setError(t("profile.nameRequired"));
+      setError("Name is required");
       return;
     }
 
@@ -624,23 +621,23 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
             <button
               onClick={onClose}
               className='text-ios-blue text-[17px] active:opacity-60'>
-              {t("common.cancel")}
+              Cancel
             </button>
             <h2 className='text-[17px] font-semibold text-gray-900 dark:text-white'>
-              {t("profile.editProfile")}
+              Edit Profile
             </h2>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting || !fullName.trim()}
               className='text-ios-blue text-[17px] font-semibold disabled:opacity-50 active:opacity-60'>
-              {isSubmitting ? t("profile.saving") : t("profile.save")}
+              {isSubmitting ? "Saving..." : "Save"}
             </button>
           </div>
 
           {/* Avatar Selection */}
           <div>
             <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
-              {t("profile.chooseAvatar")}
+              Choose Avatar
             </label>
 
             {/* Custom Image Upload - larger and more prominent */}
@@ -710,9 +707,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
                 className='text-ios-blue text-[15px] font-medium active:opacity-60'>
-                {customImageUrl
-                  ? t("profile.changePhoto")
-                  : t("profile.upload")}
+                {customImageUrl ? "Change Photo" : "Upload"}
               </button>
               <input
                 ref={fileInputRef}
@@ -751,13 +746,13 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
           {/* Full Name Input */}
           <div>
             <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-              {t("profile.fullName")}
+              Full Name
             </label>
             <input
               type='text'
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder={t("profile.fullNamePlaceholder")}
+              placeholder='Enter your full name'
               className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl text-[17px] text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue'
             />
           </div>
@@ -765,7 +760,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
           {/* Email (Read-only) */}
           <div>
             <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-              {t("settings.email")}
+              Email
             </label>
             <input
               type='email'
@@ -774,7 +769,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
               className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl text-[17px] text-gray-500 dark:text-gray-400 outline-none cursor-not-allowed'
             />
             <p className='text-[12px] text-gray-400 mt-1 px-1'>
-              {t("settings.emailCannotChange")}
+              Email cannot be changed
             </p>
           </div>
 
@@ -782,7 +777,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
 
           {success && (
             <p className='text-sm text-green-600 text-center'>
-              {t("settings.profileUpdated")}
+              Profile updated!
             </p>
           )}
         </div>

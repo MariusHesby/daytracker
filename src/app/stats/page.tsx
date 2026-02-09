@@ -578,57 +578,233 @@ export default function StatsPage() {
     if (!selectedStat || !isChecklistType) return null;
 
     // Collect all checklist items from all entries
-    const itemCounts = new Map<string, { total: number; completed: number }>();
-    let totalItems = 0;
+    // Only track items that were completed and when they were completed
+    const itemData = new Map<
+      string,
+      {
+        completedCount: number;
+        completedDates: Set<string>; // Only dates where this item was marked done
+      }
+    >();
     let totalCompleted = 0;
 
     selectedStat.entries.forEach((entry) => {
-      if (entry.checklistData?.items) {
+      if (entry.checklistData?.items && entry.checklistData.items.length > 0) {
         entry.checklistData.items.forEach((item) => {
-          const text = item.text.trim();
-          totalItems++;
-          if (item.completed) totalCompleted++;
+          // Only count completed items
+          if (item.completed) {
+            const text = item.text.trim();
+            totalCompleted++;
 
-          const existing = itemCounts.get(text) || { total: 0, completed: 0 };
-          existing.total++;
-          if (item.completed) existing.completed++;
-          itemCounts.set(text, existing);
+            const existing = itemData.get(text) || {
+              completedCount: 0,
+              completedDates: new Set<string>(),
+            };
+            existing.completedCount++;
+            existing.completedDates.add(entry.date);
+            itemData.set(text, existing);
+          }
         });
       }
     });
 
-    // Sort by total occurrences descending
-    const topItems = Array.from(itemCounts.entries())
-      .sort((a, b) => b[1].total - a[1].total)
-      .slice(0, 20)
+    // Sort by completed count descending - only include items that have been completed at least once
+    const allItems = Array.from(itemData.entries())
+      .sort((a, b) => b[1].completedCount - a[1].completedCount)
       .map(([text, data]) => ({
         text,
-        total: data.total,
-        completed: data.completed,
-        completionRate: Math.round((data.completed / data.total) * 100),
+        count: data.completedCount,
+        dates: data.completedDates,
       }));
 
-    const daysWithChecklists = selectedStat.entries.filter(
-      (e) => e.checklistData?.items && e.checklistData.items.length > 0,
-    ).length;
-
-    const daysFullyCompleted = selectedStat.entries.filter((e) => {
-      if (!e.checklistData?.items || e.checklistData.items.length === 0)
-        return false;
-      return e.checklistData.items.every((item) => item.completed);
-    }).length;
-
     return {
-      totalItems,
       totalCompleted,
-      completionRate:
-        totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0,
-      daysWithChecklists,
-      daysFullyCompleted,
-      topItems,
-      uniqueItems: itemCounts.size,
+      allItems,
+      topItems: allItems.slice(0, 10), // Show top 10 by default
+      uniqueItems: itemData.size,
+      maxCount: allItems.length > 0 ? allItems[0].count : 1,
     };
   }, [selectedStat, isChecklistType]);
+
+  // State for showing all checklist items
+  const [showAllChecklistItems, setShowAllChecklistItems] = useState(false);
+
+  // State for selected checklist item (to show calendar)
+  const [selectedChecklistItem, setSelectedChecklistItem] = useState<
+    string | null
+  >(null);
+
+  // Get dates for selected checklist item
+  const datesForSelectedChecklistItem = useMemo(() => {
+    if (!selectedChecklistItem || !checklistStats) return new Set<string>();
+    const item = checklistStats.allItems.find(
+      (i) => i.text === selectedChecklistItem,
+    );
+    return item?.dates || new Set<string>();
+  }, [selectedChecklistItem, checklistStats]);
+
+  // Checklist calendar data for selected item
+  const checklistItemCalendarData = useMemo(() => {
+    if (!selectedChecklistItem || datesForSelectedChecklistItem.size === 0)
+      return null;
+
+    const datesToShow = datesForSelectedChecklistItem;
+    const startDate = new Date(currentRange.start + "T12:00:00");
+    const endDate = new Date(currentRange.end + "T12:00:00");
+
+    if (timeRange === "week") {
+      const days: {
+        date: string;
+        dayName: string;
+        dayNum: number;
+        month: string;
+        isMarked: boolean;
+        isToday: boolean;
+      }[] = [];
+      const current = new Date(startDate);
+
+      while (current <= endDate) {
+        const dateStr = toDateStr(current);
+        days.push({
+          date: dateStr,
+          dayName: current.toLocaleDateString("en-US", { weekday: "short" }),
+          dayNum: current.getDate(),
+          month: current.toLocaleDateString("en-US", { month: "short" }),
+          isMarked: datesToShow.has(dateStr),
+          isToday: dateStr === toDateStr(new Date()),
+        });
+        current.setDate(current.getDate() + 1);
+      }
+
+      const weekNum = getWeekNumber(startDate);
+      const weekRange = `Week ${weekNum}, ${startDate.getFullYear()}`;
+
+      return { type: "week" as const, days, weekRange };
+    } else if (timeRange === "month") {
+      const weeks: {
+        date: string;
+        dayNum: number;
+        isMarked: boolean;
+        isToday: boolean;
+        isCurrentMonth: boolean;
+      }[][] = [];
+
+      const monthStart = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        1,
+        12,
+        0,
+        0,
+      );
+      const monthEnd = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth() + 1,
+        0,
+        12,
+        0,
+        0,
+      );
+
+      const firstDayOfWeek = (monthStart.getDay() + 6) % 7;
+      const calendarStart = new Date(monthStart);
+      calendarStart.setDate(calendarStart.getDate() - firstDayOfWeek);
+
+      const current = new Date(calendarStart);
+
+      for (let week = 0; week < 6; week++) {
+        const weekDays: (typeof weeks)[0] = [];
+        for (let day = 0; day < 7; day++) {
+          const dateStr = toDateStr(current);
+          weekDays.push({
+            date: dateStr,
+            dayNum: current.getDate(),
+            isMarked: datesToShow.has(dateStr),
+            isToday: dateStr === toDateStr(new Date()),
+            isCurrentMonth: current.getMonth() === monthStart.getMonth(),
+          });
+          current.setDate(current.getDate() + 1);
+        }
+        weeks.push(weekDays);
+
+        if (current > monthEnd && current.getDay() === 1) break;
+      }
+
+      return {
+        type: "month" as const,
+        weeks,
+        monthName: monthStart.toLocaleDateString("en-US", {
+          month: "long",
+          year: "numeric",
+        }),
+      };
+    } else {
+      const today = new Date();
+      today.setHours(12, 0, 0, 0);
+      const targetYear = parseInt(currentRange.label);
+
+      const months: {
+        name: string;
+        shortName: string;
+        year: number;
+        days: {
+          date: string;
+          dayNum: number;
+          isMarked: boolean;
+          isToday: boolean;
+          isFuture: boolean;
+        }[];
+      }[] = [];
+
+      for (let month = 0; month < 12; month++) {
+        const monthStart = new Date(targetYear, month, 1, 12, 0, 0);
+        const monthEnd = new Date(targetYear, month + 1, 0, 12, 0, 0);
+        const daysInMonth = monthEnd.getDate();
+
+        const days: (typeof months)[0]["days"] = [];
+
+        for (let day = 1; day <= daysInMonth; day++) {
+          const current = new Date(targetYear, month, day, 12, 0, 0);
+          const dateStr = toDateStr(current);
+          const isFuture = current > today;
+
+          days.push({
+            date: dateStr,
+            dayNum: day,
+            isMarked: datesToShow.has(dateStr),
+            isToday: dateStr === toDateStr(today),
+            isFuture,
+          });
+        }
+
+        months.push({
+          name: monthStart.toLocaleDateString("en-US", { month: "long" }),
+          shortName: monthStart
+            .toLocaleDateString("en-US", { month: "short" })
+            .substring(0, 3),
+          year: targetYear,
+          days,
+        });
+      }
+
+      return {
+        type: "year" as const,
+        months,
+        year: targetYear,
+      };
+    }
+  }, [
+    selectedChecklistItem,
+    datesForSelectedChecklistItem,
+    timeRange,
+    currentRange,
+  ]);
+
+  // Reset checklist item selection when activity changes
+  useEffect(() => {
+    setShowAllChecklistItems(false);
+    setSelectedChecklistItem(null);
+  }, [timeRange, selectedActivityId]);
 
   // Calculate workout stats for the period
   const workoutStats = useMemo(() => {
@@ -1020,49 +1196,56 @@ export default function StatsPage() {
         {/* Activity Type Selector */}
         <div className='mb-4'>
           <div className='flex flex-wrap gap-2'>
-            {activityTypes.map((type, index) => {
-              const stat = statistics.find((s) => s.activityTypeId === type.id);
-              const entryCount = stat?.totalEntries || 0;
-              const isSelected = selectedActivityId === type.id;
+            {activityTypes
+              .filter((type) => {
+                const stat = statistics.find(
+                  (s) => s.activityTypeId === type.id,
+                );
+                return (stat?.totalEntries || 0) > 0;
+              })
+              .map((type, index) => {
+                const stat = statistics.find(
+                  (s) => s.activityTypeId === type.id,
+                );
+                const entryCount = stat?.totalEntries || 0;
+                const isSelected = selectedActivityId === type.id;
 
-              return (
-                <button
-                  key={type.id}
-                  onClick={() =>
-                    setSelectedActivityId(isSelected ? null : type.id)
-                  }
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-xl transition-all",
-                    isSelected
-                      ? "bg-ios-blue text-white"
-                      : entryCount > 0
-                        ? "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300"
-                        : "bg-gray-200 dark:bg-gray-800 text-gray-400",
-                  )}>
-                  {type.icon && (
-                    <span
-                      className={cn(
-                        "text-lg",
-                        isSelected ? "opacity-100" : "opacity-70",
-                      )}>
-                      {renderIcon(type.icon, "w-5 h-5")}
-                    </span>
-                  )}
-                  <span className='text-[15px] font-medium'>{type.name}</span>
-                  {entryCount > 0 && (
-                    <span
-                      className={cn(
-                        "text-[13px] px-2 py-0.5 rounded-full font-medium",
-                        isSelected
-                          ? "bg-white/20"
-                          : "bg-gray-100 dark:bg-gray-700",
-                      )}>
-                      {entryCount}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={type.id}
+                    onClick={() =>
+                      setSelectedActivityId(isSelected ? null : type.id)
+                    }
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-xl transition-all",
+                      isSelected
+                        ? "bg-ios-blue text-white"
+                        : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300",
+                    )}>
+                    {type.icon && (
+                      <span
+                        className={cn(
+                          "text-lg",
+                          isSelected ? "opacity-100" : "opacity-70",
+                        )}>
+                        {renderIcon(type.icon, "w-5 h-5")}
+                      </span>
+                    )}
+                    <span className='text-[15px] font-medium'>{type.name}</span>
+                    {entryCount > 0 && (
+                      <span
+                        className={cn(
+                          "text-[13px] px-2 py-0.5 rounded-full font-medium",
+                          isSelected
+                            ? "bg-white/20"
+                            : "bg-gray-100 dark:bg-gray-700",
+                        )}>
+                        {entryCount}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
           </div>
         </div>
 
@@ -1519,57 +1702,191 @@ export default function StatsPage() {
 
             {/* Workout Stats View */}
             {isWorkoutType && workoutStats && (
-              <div className='p-4'>
+              <div className='p-4 space-y-4'>
+                {/* Summary Cards */}
+                <div className='grid grid-cols-2 gap-3'>
+                  <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
+                    <div className='text-[13px] text-gray-500 dark:text-gray-400 mb-1'>
+                      Workout Days
+                    </div>
+                    <div className='text-[24px] font-bold text-gray-900 dark:text-white'>
+                      {workoutStats.workoutDays}
+                    </div>
+                  </div>
+                  <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
+                    <div className='text-[13px] text-gray-500 dark:text-gray-400 mb-1'>
+                      Total Exercises
+                    </div>
+                    <div className='text-[24px] font-bold text-ios-blue'>
+                      {workoutStats.totalExercises}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Workout Calendar */}
+                {calendarData && (
+                  <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
+                    <h4 className='text-[13px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3'>
+                      Workout Days
+                    </h4>
+                    {calendarData.type === "week" && (
+                      <div>
+                        <CalendarNavHeader
+                          label={calendarData.weekRange}
+                          onPrev={() => setOffset(offset - 1)}
+                          onNext={() => setOffset(offset + 1)}
+                          canGoPrev={canGoBack}
+                          canGoNext={canGoForward}
+                          onToday={() => setOffset(0)}
+                          showToday={offset !== 0}
+                        />
+                        <div className='flex justify-between gap-1'>
+                          {calendarData.days.map((day) => (
+                            <div
+                              key={day.date}
+                              className={cn(
+                                "flex-1 text-center py-2 px-1 rounded-xl transition-all",
+                                day.isMarked
+                                  ? "bg-ios-green text-white shadow-sm"
+                                  : day.isToday
+                                    ? "bg-ios-green/10 text-ios-green ring-1 ring-ios-green/30"
+                                    : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
+                              )}>
+                              <div className='text-[10px] uppercase font-medium opacity-80'>
+                                {day.dayName}
+                              </div>
+                              <div
+                                className={cn(
+                                  "text-lg font-bold",
+                                  day.isMarked && "text-white",
+                                )}>
+                                {day.dayNum}
+                              </div>
+                              {day.isMarked && (
+                                <div className='text-[10px]'>💪</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {calendarData.type === "month" && (
+                      <div>
+                        <CalendarNavHeader
+                          label={calendarData.monthName}
+                          onPrev={() => setOffset(offset - 1)}
+                          onNext={() => setOffset(offset + 1)}
+                          canGoPrev={canGoBack}
+                          canGoNext={canGoForward}
+                          onToday={() => setOffset(0)}
+                          showToday={offset !== 0}
+                        />
+                        <div className='grid grid-cols-7 gap-1 text-center text-[10px] text-gray-500 mb-1'>
+                          <div>Mo</div>
+                          <div>Tu</div>
+                          <div>We</div>
+                          <div>Th</div>
+                          <div>Fr</div>
+                          <div>Sa</div>
+                          <div>Su</div>
+                        </div>
+                        {calendarData.weeks.map((week, weekIdx) => (
+                          <div key={weekIdx} className='grid grid-cols-7 gap-1'>
+                            {week.map((day) => (
+                              <div
+                                key={day.date}
+                                className={cn(
+                                  "aspect-square flex items-center justify-center text-[13px] rounded-lg",
+                                  !day.isCurrentMonth && "opacity-30",
+                                  day.isMarked
+                                    ? "bg-ios-green text-white font-bold"
+                                    : day.isToday
+                                      ? "bg-ios-green/10 text-ios-green font-medium"
+                                      : "text-gray-600 dark:text-gray-400",
+                                )}>
+                                {day.dayNum}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {calendarData.type === "year" && (
+                      <div className='space-y-2'>
+                        <CalendarNavHeader
+                          label={String(calendarData.year)}
+                          onPrev={() => setOffset(offset - 1)}
+                          onNext={() => setOffset(offset + 1)}
+                          canGoPrev={canGoBack}
+                          canGoNext={canGoForward}
+                          onToday={() => setOffset(0)}
+                          showToday={offset !== 0}
+                        />
+                        <div className='grid grid-cols-4 gap-2'>
+                          {calendarData.months.map((month, idx) => {
+                            const markedCount = month.days.filter((d) =>
+                              allDatesForActivity.has(d.date),
+                            ).length;
+                            return (
+                              <div
+                                key={idx}
+                                className='text-center p-2 rounded-xl bg-gray-50 dark:bg-gray-700/50'>
+                                <div className='text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1'>
+                                  {month.name}
+                                </div>
+                                <div
+                                  className={cn(
+                                    "text-[18px] font-bold",
+                                    markedCount > 0
+                                      ? "text-ios-green"
+                                      : "text-gray-300 dark:text-gray-600",
+                                  )}>
+                                  {markedCount}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Category Breakdown */}
                 {workoutStats.categoryBreakdown.length > 0 && (
-                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800 mb-4'>
-                    <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
-                      Exercise Categories
+                  <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
+                    <h4 className='text-[13px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3'>
+                      Categories
                     </h4>
-                    <div className='space-y-2'>
+                    <div className='space-y-3'>
                       {workoutStats.categoryBreakdown
                         .sort((a, b) => b[1] - a[1])
                         .map(([category, count]) => {
                           const total = workoutStats.totalExercises;
                           const percent = Math.round((count / total) * 100);
-                          const categoryColors: Record<
-                            string,
-                            { bg: string; bar: string }
-                          > = {
-                            strength: {
-                              bg: "bg-ios-blue/10",
-                              bar: "bg-ios-blue",
-                            },
-                            cardio: {
-                              bg: "bg-ios-orange/10",
-                              bar: "bg-ios-orange",
-                            },
-                            flexibility: {
-                              bg: "bg-ios-purple/10",
-                              bar: "bg-purple-500",
-                            },
-                            other: {
-                              bg: "bg-gray-100 dark:bg-gray-700",
-                              bar: "bg-gray-400",
-                            },
+                          const categoryColors: Record<string, string> = {
+                            strength: "bg-ios-blue",
+                            cardio: "bg-ios-orange",
+                            flexibility: "bg-purple-500",
+                            other: "bg-gray-400",
                           };
-                          const colors =
+                          const barColor =
                             categoryColors[category] || categoryColors.other;
                           return (
                             <div key={category}>
-                              <div className='flex items-center justify-between text-[14px] mb-1'>
-                                <span className='capitalize text-gray-700 dark:text-gray-300'>
+                              <div className='flex items-center justify-between text-[15px] mb-2'>
+                                <span className='capitalize font-medium text-gray-900 dark:text-white'>
                                   {category}
                                 </span>
-                                <span className='text-gray-500'>
+                                <span className='text-[13px] text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full'>
                                   {count} ({percent}%)
                                 </span>
                               </div>
-                              <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                              <div className='h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden'>
                                 <div
                                   className={cn(
                                     "h-full rounded-full transition-all",
-                                    colors.bar,
+                                    barColor,
                                   )}
                                   style={{ width: `${percent}%` }}
                                 />
@@ -1583,24 +1900,32 @@ export default function StatsPage() {
 
                 {/* Top Exercises */}
                 {workoutStats.topExercises.length > 0 && (
-                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800 mb-4'>
-                    <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
-                      Most Frequent Exercises
-                    </h4>
-                    <div className='space-y-2'>
+                  <div className='bg-white/80 dark:bg-gray-800 rounded-2xl overflow-hidden'>
+                    <div className='px-4 pt-4 pb-2'>
+                      <h4 className='text-[13px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400'>
+                        Top Exercises
+                      </h4>
+                    </div>
+                    <div>
                       {workoutStats.topExercises.map(([name, data], index) => (
                         <div
                           key={name}
-                          className='flex items-center justify-between py-1'>
-                          <div className='flex items-center gap-2'>
-                            <span className='text-[13px] text-gray-400 w-5'>
-                              #{index + 1}
-                            </span>
-                            <span className='text-[15px] text-gray-900 dark:text-white'>
+                          className={cn(
+                            "flex items-center justify-between px-4 py-3",
+                            index < workoutStats.topExercises.length - 1 &&
+                              "border-b border-gray-100 dark:border-gray-700",
+                          )}>
+                          <div className='flex items-center gap-3'>
+                            <div className='w-8 h-8 rounded-full bg-ios-blue/10 flex items-center justify-center'>
+                              <span className='text-[13px] font-bold text-ios-blue'>
+                                {index + 1}
+                              </span>
+                            </div>
+                            <span className='text-[17px] text-gray-900 dark:text-white'>
                               {name}
                             </span>
                           </div>
-                          <span className='text-[13px] text-gray-500'>
+                          <span className='text-[15px] font-medium text-gray-500'>
                             {data.count}×
                           </span>
                         </div>
@@ -1611,59 +1936,79 @@ export default function StatsPage() {
 
                 {/* Weight Progress Charts */}
                 {workoutStats.exercisesWithWeightProgress.length > 0 && (
-                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800 mb-4'>
-                    <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
+                  <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
+                    <h4 className='text-[13px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-4'>
                       Weight Progress
                     </h4>
-                    <div className='space-y-4'>
+                    <div className='space-y-6'>
                       {workoutStats.exercisesWithWeightProgress.map(
                         ({ name, data, maxWeight, latestWeight }) => (
-                          <div key={name}>
-                            <div className='flex items-center justify-between mb-2'>
-                              <span className='text-[14px] font-medium text-gray-900 dark:text-white'>
+                          <div key={name} className='space-y-3'>
+                            <div className='flex items-center justify-between'>
+                              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
                                 {name}
                               </span>
                               <div className='flex items-center gap-2'>
-                                <span className='text-[13px] text-gray-500'>
-                                  Max:
+                                <span className='text-[13px] text-gray-400'>
+                                  PR
                                 </span>
-                                <span className='text-[15px] font-bold text-ios-blue'>
+                                <span className='text-[17px] font-bold text-ios-green'>
                                   {maxWeight}kg
                                 </span>
                               </div>
                             </div>
-                            {/* Progress bar chart */}
-                            <div className='flex items-end gap-1 h-10'>
-                              {data.slice(-10).map((d, i) => {
-                                const heightPercent =
-                                  maxWeight > 0
-                                    ? ((d.weight || 0) / maxWeight) * 100
-                                    : 0;
-                                return (
-                                  <div
-                                    key={`${d.date}-${i}`}
-                                    className='flex-1 flex flex-col items-center'
-                                    title={`${d.date}: ${d.weight}kg`}>
+                            {/* Progress chart */}
+                            <div className='bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3'>
+                              <div className='flex items-end gap-1.5 h-20'>
+                                {data.slice(-12).map((d, i) => {
+                                  const heightPercent =
+                                    maxWeight > 0
+                                      ? ((d.weight || 0) / maxWeight) * 100
+                                      : 0;
+                                  const isMax = d.weight === maxWeight;
+                                  return (
                                     <div
-                                      className='w-full relative'
-                                      style={{ height: "32px" }}>
+                                      key={`${d.date}-${i}`}
+                                      className='flex-1 flex flex-col items-center'
+                                      title={`${d.date}: ${d.weight}kg`}>
                                       <div
-                                        className={cn(
-                                          "absolute bottom-0 left-0 right-0 rounded-t transition-all",
-                                          d.weight === maxWeight
-                                            ? "bg-ios-green"
-                                            : "bg-ios-blue",
-                                        )}
-                                        style={{ height: `${heightPercent}%` }}
-                                      />
+                                        className='w-full relative'
+                                        style={{ height: "60px" }}>
+                                        <div
+                                          className={cn(
+                                            "absolute bottom-0 left-0 right-0 rounded-t-md transition-all",
+                                            isMax
+                                              ? "bg-ios-green"
+                                              : "bg-ios-blue/70",
+                                          )}
+                                          style={{
+                                            height: `${Math.max(heightPercent, 8)}%`,
+                                          }}
+                                        />
+                                      </div>
+                                      <div className='text-[9px] text-gray-400 mt-1.5 font-medium'>
+                                        {
+                                          new Date(d.date + "T12:00:00")
+                                            .toLocaleDateString("en-US", {
+                                              day: "numeric",
+                                              month: "short",
+                                            })
+                                            .split(" ")[1]
+                                        }
+                                      </div>
                                     </div>
-                                    <div className='text-[8px] text-gray-400 mt-1'>
-                                      {new Date(d.date).getDate()}
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
+                            {latestWeight > 0 && (
+                              <div className='text-[13px] text-gray-500 text-center'>
+                                Latest:{" "}
+                                <span className='font-medium text-gray-700 dark:text-gray-300'>
+                                  {latestWeight}kg
+                                </span>
+                              </div>
+                            )}
                           </div>
                         ),
                       )}
@@ -1673,16 +2018,16 @@ export default function StatsPage() {
 
                 {/* Distance Progress Charts */}
                 {workoutStats.exercisesWithDistanceProgress.length > 0 && (
-                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
-                    <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
-                      🏃 Distance Progress
+                  <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
+                    <h4 className='text-[13px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-4'>
+                      Distance Progress
                     </h4>
-                    <div className='space-y-4'>
+                    <div className='space-y-6'>
                       {workoutStats.exercisesWithDistanceProgress.map(
                         ({ name, data, maxDistance, totalDistance }) => (
-                          <div key={name}>
-                            <div className='flex items-center justify-between mb-2'>
-                              <span className='text-[14px] font-medium text-gray-900 dark:text-white'>
+                          <div key={name} className='space-y-3'>
+                            <div className='flex items-center justify-between'>
+                              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
                                 {name}
                               </span>
                               <div className='flex items-center gap-3'>
@@ -1694,37 +2039,49 @@ export default function StatsPage() {
                                 </span>
                               </div>
                             </div>
-                            {/* Progress bar chart */}
-                            <div className='flex items-end gap-1 h-16'>
-                              {data.slice(-10).map((d, i) => {
-                                const heightPercent =
-                                  maxDistance > 0
-                                    ? ((d.distance || 0) / maxDistance) * 100
-                                    : 0;
-                                return (
-                                  <div
-                                    key={`${d.date}-${i}`}
-                                    className='flex-1 flex flex-col items-center'
-                                    title={`${d.date}: ${d.distance}km`}>
+                            {/* Progress chart */}
+                            <div className='bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3'>
+                              <div className='flex items-end gap-1.5 h-20'>
+                                {data.slice(-12).map((d, i) => {
+                                  const heightPercent =
+                                    maxDistance > 0
+                                      ? ((d.distance || 0) / maxDistance) * 100
+                                      : 0;
+                                  const isMax = d.distance === maxDistance;
+                                  return (
                                     <div
-                                      className='w-full relative'
-                                      style={{ height: "48px" }}>
+                                      key={`${d.date}-${i}`}
+                                      className='flex-1 flex flex-col items-center'
+                                      title={`${d.date}: ${d.distance}km`}>
                                       <div
-                                        className={cn(
-                                          "absolute bottom-0 left-0 right-0 rounded-t transition-all",
-                                          d.distance === maxDistance
-                                            ? "bg-ios-green"
-                                            : "bg-ios-orange",
-                                        )}
-                                        style={{ height: `${heightPercent}%` }}
-                                      />
+                                        className='w-full relative'
+                                        style={{ height: "60px" }}>
+                                        <div
+                                          className={cn(
+                                            "absolute bottom-0 left-0 right-0 rounded-t-md transition-all",
+                                            isMax
+                                              ? "bg-ios-green"
+                                              : "bg-ios-orange/70",
+                                          )}
+                                          style={{
+                                            height: `${Math.max(heightPercent, 8)}%`,
+                                          }}
+                                        />
+                                      </div>
+                                      <div className='text-[9px] text-gray-400 mt-1.5 font-medium'>
+                                        {
+                                          new Date(d.date + "T12:00:00")
+                                            .toLocaleDateString("en-US", {
+                                              day: "numeric",
+                                              month: "short",
+                                            })
+                                            .split(" ")[1]
+                                        }
+                                      </div>
                                     </div>
-                                    <div className='text-[8px] text-gray-400 mt-1'>
-                                      {new Date(d.date).getDate()}
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
                         ),
@@ -1738,77 +2095,264 @@ export default function StatsPage() {
             {/* Checklist Stats View */}
             {isChecklistType && checklistStats && (
               <div className='p-4'>
-                {/* Summary Stats */}
-                <div className='grid grid-cols-2 gap-3 mb-4'>
-                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
-                    <div className='text-[13px] text-gray-500 dark:text-gray-400'>
-                      Total Items
-                    </div>
-                    <div className='text-[20px] font-bold text-gray-900 dark:text-white'>
-                      {checklistStats.totalItems}
-                    </div>
-                  </div>
-                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
-                    <div className='text-[13px] text-gray-500 dark:text-gray-400'>
-                      Completed
-                    </div>
-                    <div className='text-[20px] font-bold text-ios-green'>
-                      {checklistStats.totalCompleted} (
-                      {checklistStats.completionRate}%)
-                    </div>
-                  </div>
-                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
-                    <div className='text-[13px] text-gray-500 dark:text-gray-400'>
-                      Days with Lists
-                    </div>
-                    <div className='text-[20px] font-bold text-gray-900 dark:text-white'>
-                      {checklistStats.daysWithChecklists}
-                    </div>
-                  </div>
-                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
-                    <div className='text-[13px] text-gray-500 dark:text-gray-400'>
-                      Days All Done
-                    </div>
-                    <div className='text-[20px] font-bold text-ios-green'>
-                      {checklistStats.daysFullyCompleted}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Top Items */}
-                {checklistStats.topItems.length > 0 && (
-                  <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800'>
-                    <h4 className='text-[13px] font-medium text-gray-500 mb-3'>
-                      Most Common Items ({checklistStats.uniqueItems} unique)
-                    </h4>
-                    <div className='space-y-2'>
-                      {checklistStats.topItems.map((item, index) => (
-                        <div
-                          key={item.text}
-                          className='flex items-center gap-2'>
-                          <span className='text-[13px] text-gray-400 w-5'>
-                            {index + 1}.
-                          </span>
-                          <div className='flex-1 min-w-0'>
-                            <div className='flex items-center justify-between mb-1'>
-                              <span className='text-[14px] text-gray-900 dark:text-white truncate'>
-                                {item.text}
+                <h4 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 mb-3'>
+                  Tap to see dates
+                </h4>
+                <div className='space-y-3'>
+                  {(showAllChecklistItems
+                    ? checklistStats.allItems
+                    : checklistStats.topItems
+                  ).map((item, index) => {
+                    const isSelected = selectedChecklistItem === item.text;
+                    const itemBarColor = barColors[index % barColors.length];
+                    return (
+                      <div key={item.text}>
+                        <button
+                          onClick={() =>
+                            setSelectedChecklistItem(
+                              isSelected ? null : item.text,
+                            )
+                          }
+                          className={cn(
+                            "w-full text-left space-y-1 p-2 -m-2 rounded-lg transition-all",
+                            isSelected
+                              ? "bg-ios-blue/5 dark:bg-ios-blue/10"
+                              : "active:bg-gray-100 dark:active:bg-gray-800",
+                          )}>
+                          <div className='flex items-center justify-between text-[15px]'>
+                            <span
+                              className={cn(
+                                "truncate mr-2",
+                                isSelected
+                                  ? "text-ios-blue font-medium"
+                                  : "text-gray-700 dark:text-gray-300",
+                              )}>
+                              {item.text}
+                            </span>
+                            <div className='flex items-center gap-2'>
+                              <span className='text-[13px] text-gray-600 dark:text-gray-400 font-medium shrink-0 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full'>
+                                {item.count}
                               </span>
-                              <span className='text-[13px] text-gray-500 shrink-0 ml-2'>
-                                {item.completed}/{item.total}
+                              <span
+                                className={cn(
+                                  "text-[13px] text-gray-400 transition-transform",
+                                  isSelected ? "rotate-180" : "",
+                                )}>
+                                ▼
                               </span>
-                            </div>
-                            <div className='h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
-                              <div
-                                className='h-full bg-ios-green rounded-full transition-all'
-                                style={{ width: `${item.completionRate}%` }}
-                              />
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                          <div className='h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden'>
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                itemBarColor,
+                              )}
+                              style={{
+                                width: `${(item.count / checklistStats.maxCount) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        </button>
+
+                        {/* Calendar view when selected */}
+                        {isSelected && checklistItemCalendarData && (
+                          <div
+                            className='mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl'
+                            onClick={(e) => e.stopPropagation()}>
+                            {checklistItemCalendarData.type === "week" && (
+                              <div>
+                                <CalendarNavHeader
+                                  label={checklistItemCalendarData.weekRange}
+                                  onPrev={() => setOffset(offset - 1)}
+                                  onNext={() => setOffset(offset + 1)}
+                                  canGoPrev={canGoBack}
+                                  canGoNext={canGoForward}
+                                  onToday={() => setOffset(0)}
+                                  showToday={offset !== 0}
+                                />
+                                <div className='flex justify-between gap-1'>
+                                  {checklistItemCalendarData.days.map((day) => (
+                                    <div
+                                      key={day.date}
+                                      className={cn(
+                                        "flex-1 text-center py-2 px-1 rounded-lg",
+                                        day.isMarked
+                                          ? `${itemBarColor} text-white`
+                                          : day.isToday
+                                            ? "bg-ios-blue/10 text-ios-blue"
+                                            : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400",
+                                      )}>
+                                      <div className='text-[10px] uppercase font-medium'>
+                                        {day.dayName}
+                                      </div>
+                                      <div
+                                        className={cn(
+                                          "text-lg font-bold",
+                                          day.isMarked && "text-white",
+                                        )}>
+                                        {day.dayNum}
+                                      </div>
+                                      <div className='text-[9px] opacity-70'>
+                                        {day.month}
+                                      </div>
+                                      {day.isMarked && (
+                                        <div className='text-[10px]'>✓</div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {checklistItemCalendarData.type === "month" && (
+                              <div>
+                                <CalendarNavHeader
+                                  label={checklistItemCalendarData.monthName}
+                                  onPrev={() => setOffset(offset - 1)}
+                                  onNext={() => setOffset(offset + 1)}
+                                  canGoPrev={canGoBack}
+                                  canGoNext={canGoForward}
+                                  onToday={() => setOffset(0)}
+                                  showToday={offset !== 0}
+                                />
+                                <div className='grid grid-cols-7 gap-1 text-center text-[10px] text-gray-500 mb-1'>
+                                  <div>Mo</div>
+                                  <div>Tu</div>
+                                  <div>We</div>
+                                  <div>Th</div>
+                                  <div>Fr</div>
+                                  <div>Sa</div>
+                                  <div>Su</div>
+                                </div>
+                                {checklistItemCalendarData.weeks.map(
+                                  (week, weekIdx) => (
+                                    <div
+                                      key={weekIdx}
+                                      className='grid grid-cols-7 gap-1'>
+                                      {week.map((day) => (
+                                        <div
+                                          key={day.date}
+                                          className={cn(
+                                            "aspect-square flex items-center justify-center text-[13px] rounded-lg",
+                                            !day.isCurrentMonth && "opacity-30",
+                                            day.isMarked
+                                              ? `${itemBarColor} text-white font-bold`
+                                              : day.isToday
+                                                ? "bg-ios-blue/10 text-ios-blue font-medium"
+                                                : "text-gray-600 dark:text-gray-400",
+                                          )}>
+                                          {day.dayNum}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            )}
+
+                            {checklistItemCalendarData.type === "year" && (
+                              <div className='space-y-2'>
+                                <CalendarNavHeader
+                                  label={String(checklistItemCalendarData.year)}
+                                  onPrev={() => setOffset(offset - 1)}
+                                  onNext={() => setOffset(offset + 1)}
+                                  canGoPrev={canGoBack}
+                                  canGoNext={canGoForward}
+                                  onToday={() => setOffset(0)}
+                                  showToday={offset !== 0}
+                                />
+                                <div className='grid grid-cols-2 gap-4'>
+                                  {checklistItemCalendarData.months.map(
+                                    (month, idx) => (
+                                      <div key={idx} className='text-center'>
+                                        <div className='text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1.5'>
+                                          {month.name}
+                                        </div>
+                                        <div className='grid grid-cols-7 gap-0.5 text-[8px] text-gray-400 mb-0.5'>
+                                          <div>M</div>
+                                          <div>T</div>
+                                          <div>W</div>
+                                          <div>T</div>
+                                          <div>F</div>
+                                          <div>S</div>
+                                          <div>S</div>
+                                        </div>
+                                        <div className='grid grid-cols-7 gap-0.5'>
+                                          {(() => {
+                                            const firstDay = new Date(
+                                              month.year,
+                                              idx,
+                                              1,
+                                            );
+                                            const startDay =
+                                              (firstDay.getDay() + 6) % 7;
+                                            const emptyCells = [];
+                                            for (let i = 0; i < startDay; i++) {
+                                              emptyCells.push(
+                                                <div
+                                                  key={`empty-${i}`}
+                                                  className='w-4 h-4'
+                                                />,
+                                              );
+                                            }
+                                            return emptyCells;
+                                          })()}
+                                          {month.days.map((day) => (
+                                            <div
+                                              key={day.date}
+                                              className={cn(
+                                                "w-4 h-4 rounded-sm flex items-center justify-center text-[9px]",
+                                                day.isFuture
+                                                  ? "bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600"
+                                                  : day.isMarked
+                                                    ? `${itemBarColor} text-white font-bold`
+                                                    : day.isToday
+                                                      ? "bg-ios-blue/30 text-ios-blue font-medium"
+                                                      : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
+                                              )}
+                                              title={`${day.dayNum}. ${month.name}${
+                                                day.isMarked ? " ✓" : ""
+                                              }`}>
+                                              {day.dayNum}
+                                            </div>
+                                          ))}
+                                        </div>
+                                        <div className='mt-1 text-[10px] text-gray-500 dark:text-gray-400'>
+                                          {month.days.filter((d) => d.isMarked)
+                                            .length > 0 && (
+                                            <span className='text-ios-blue font-medium'>
+                                              {
+                                                month.days.filter(
+                                                  (d) => d.isMarked,
+                                                ).length
+                                              }{" "}
+                                              days
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ),
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {checklistStats.allItems.length > 10 && (
+                  <button
+                    onClick={() =>
+                      setShowAllChecklistItems(!showAllChecklistItems)
+                    }
+                    className='mt-4 w-full text-center text-[13px] text-ios-blue font-medium py-2'>
+                    {showAllChecklistItems
+                      ? "Show Less"
+                      : `Show All (${checklistStats.uniqueItems})`}
+                  </button>
                 )}
               </div>
             )}

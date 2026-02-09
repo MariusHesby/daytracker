@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
-import { useLanguage } from "@/context/LanguageContext";
 import {
   EntryForm,
   DateNavigator,
   SearchEntries,
   LoadingState,
   Avatar,
+  NotificationBell,
 } from "@/components";
 import { addDays, formatDate } from "@/lib/utils";
 
@@ -25,7 +25,6 @@ export default function HomePage() {
     isViewingOther,
   } = useApp();
   const { user, profile } = useAuth();
-  const { t } = useLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // View mode state
@@ -89,7 +88,7 @@ export default function HomePage() {
       {isViewingOther && viewingUser && (
         <div className='bg-ios-blue text-white px-4 py-3 flex items-center justify-between'>
           <div>
-            <p className='text-sm font-medium'>{t("friends.viewingData")}</p>
+            <p className='text-sm font-medium'>Viewing their data</p>
             <p className='text-xs opacity-80'>
               {viewingUser.fullName || viewingUser.email}
             </p>
@@ -97,7 +96,7 @@ export default function HomePage() {
           <button
             onClick={() => setViewingUser(null)}
             className='px-3 py-1.5 bg-white/20 rounded-full text-[13px] font-medium hover:bg-white/30 transition-colors'>
-            {t("friends.backToMyData")}
+            Back to my data
           </button>
         </div>
       )}
@@ -147,6 +146,8 @@ export default function HomePage() {
             </div>
           )}
           <div className='flex items-center gap-2'>
+            {/* Notification Bell */}
+            {user && <NotificationBell />}
             {/* View Mode Toggle */}
             <button
               onClick={() =>

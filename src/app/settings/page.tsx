@@ -3,9 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/context/ThemeContext";
-import { useLanguage } from "@/context/LanguageContext";
 import { useAuth } from "@/context/AuthContext";
-import { usePeriodAlert } from "@/context/PeriodAlertContext";
 import {
   ActivityTypeManager,
   ActivityTypeManagerRef,
@@ -13,6 +11,12 @@ import {
   EditProfileModal,
 } from "@/components";
 import { cn } from "@/lib/utils";
+import {
+  FunFactCategory,
+  CATEGORY_LABELS,
+  getSelectedCategories,
+  setSelectedCategories,
+} from "@/lib/funfacts";
 
 export default function SettingsPage() {
   const {
@@ -23,8 +27,6 @@ export default function SettingsPage() {
     updateActivityType,
   } = useApp();
   const { theme, setTheme } = useTheme();
-  const { t } = useLanguage();
-  const { triggerTestAlert } = usePeriodAlert();
   const {
     user,
     profile,
@@ -58,6 +60,27 @@ export default function SettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [colorScheme, setColorScheme] = useState<1 | 2 | 3>(1);
   const [nutritionMergeExpanded, setNutritionMergeExpanded] = useState(false);
+
+  // Fun Facts categories state
+  const [funFactCategories, setFunFactCategories] = useState<FunFactCategory[]>(
+    [],
+  );
+  const [funFactsExpanded, setFunFactsExpanded] = useState(false);
+
+  // Load fun fact categories on mount
+  useEffect(() => {
+    setFunFactCategories(getSelectedCategories());
+  }, []);
+
+  // Toggle a fun fact category
+  const toggleFunFactCategory = (category: FunFactCategory) => {
+    const newCategories = funFactCategories.includes(category)
+      ? funFactCategories.filter((c) => c !== category)
+      : [...funFactCategories, category];
+
+    setFunFactCategories(newCategories);
+    setSelectedCategories(newCategories);
+  };
 
   // Default color palettes based on the gradient images
   const defaultPalettes = {
@@ -250,12 +273,12 @@ export default function SettingsPage() {
 
   const handleAuth = async () => {
     if (!email.trim()) {
-      setAuthMessage(t("settings.enterEmail"));
+      setAuthMessage("Please enter your email");
       setAuthMessageType("error");
       return;
     }
     if (!password.trim() || password.length < 6) {
-      setAuthMessage(t("settings.passwordMin"));
+      setAuthMessage("Password must be at least 6 characters");
       setAuthMessageType("error");
       return;
     }
@@ -270,10 +293,12 @@ export default function SettingsPage() {
         setAuthMessage(error.message);
         setAuthMessageType("error");
       } else if (needsConfirmation) {
-        setAuthMessage(t("settings.checkEmailConfirm"));
+        setAuthMessage(
+          "Check your email to confirm your account, then sign in.",
+        );
         setAuthMessageType("info");
       } else {
-        setAuthMessage(t("settings.accountCreated"));
+        setAuthMessage("Account created! You are now logged in.");
         setAuthMessageType("info");
       }
     } else {
@@ -281,7 +306,7 @@ export default function SettingsPage() {
       if (error) {
         // Make error messages more user-friendly
         if (error.message.includes("Invalid login credentials")) {
-          setAuthMessage(t("settings.invalidCredentials"));
+          setAuthMessage("Invalid email or password. Please try again.");
         } else {
           setAuthMessage(error.message);
         }
@@ -292,7 +317,7 @@ export default function SettingsPage() {
 
   const handleResetPassword = async () => {
     if (!email.trim()) {
-      setAuthMessage(t("settings.enterEmail"));
+      setAuthMessage("Please enter your email");
       setAuthMessageType("error");
       return;
     }
@@ -330,9 +355,9 @@ export default function SettingsPage() {
     setIsSyncingData(true);
     try {
       await syncToCloud();
-      setAuthMessage(t("settings.syncComplete"));
+      setAuthMessage("Data synced successfully!");
     } catch {
-      setAuthMessage(t("settings.syncFailed"));
+      setAuthMessage("Sync failed. Please try again.");
     } finally {
       setIsSyncingData(false);
     }
@@ -347,10 +372,10 @@ export default function SettingsPage() {
   }
 
   const themeOptions = [
-    { value: "light", label: t("settings.light") },
-    { value: "dark", label: t("settings.dark") },
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" },
     { value: "colorful", label: "Colorful" },
-    { value: "system", label: t("settings.system") },
+    { value: "system", label: "System" },
   ] as const;
 
   return (
@@ -365,7 +390,7 @@ export default function SettingsPage() {
         {/* Account Section */}
         <section>
           <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
-            {t("settings.account")}
+            Account
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             {user ? (
@@ -377,7 +402,7 @@ export default function SettingsPage() {
                     <Avatar avatar={profile?.avatar || null} size='md' />
                     <div className='flex-1 text-left'>
                       <p className='text-[17px] text-gray-900 dark:text-white'>
-                        {profile?.fullName || t("settings.loggedIn")}
+                        {profile?.fullName || "Logged in"}
                       </p>
                       <p className='text-[14px] text-gray-500'>{user.email}</p>
                     </div>
@@ -403,21 +428,21 @@ export default function SettingsPage() {
                   }}
                   disabled={authLoading}
                   className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 cursor-pointer'>
-                  {t("settings.signOut")}
+                  Sign Out
                 </button>
               </>
             ) : (
               <div className='p-4 space-y-3'>
                 <p className='text-[15px] text-gray-500 dark:text-gray-400 text-center'>
                   {isResetPassword
-                    ? t("settings.resetPasswordDesc")
-                    : t("settings.signInDesc")}
+                    ? "Enter your email to receive a password reset link."
+                    : "Sign in to sync your data across devices"}
                 </p>
                 <input
                   type='email'
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t("settings.emailPlaceholder")}
+                  placeholder='Enter your email'
                   autoCapitalize='none'
                   autoCorrect='off'
                   className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-lg text-[17px] text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue'
@@ -428,7 +453,7 @@ export default function SettingsPage() {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder={t("settings.passwordPlaceholder")}
+                      placeholder='Enter password (min 6 characters)'
                       className='w-full px-4 py-3 pr-12 bg-gray-100 dark:bg-gray-700 rounded-lg text-[17px] text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue'
                     />
                     <button
@@ -480,10 +505,10 @@ export default function SettingsPage() {
                         resetLinkSent ? "bg-green-600" : "bg-ios-blue",
                       )}>
                       {authLoading
-                        ? t("settings.loading")
+                        ? "Loading..."
                         : resetLinkSent
-                          ? t("settings.resetLinkSent")
-                          : t("settings.sendResetLink")}
+                          ? "Link sent to your e-mail"
+                          : "Send Reset Link"}
                     </button>
                     <button
                       onClick={() => {
@@ -492,7 +517,7 @@ export default function SettingsPage() {
                         setAuthMessage(null);
                       }}
                       className='w-full py-2 text-[15px] text-ios-blue'>
-                      {t("settings.backToSignIn")}
+                      Back to Sign In
                     </button>
                   </>
                 ) : (
@@ -502,10 +527,10 @@ export default function SettingsPage() {
                       disabled={authLoading}
                       className='w-full px-4 py-3 bg-ios-blue text-white rounded-full text-[15px] font-medium shadow-lg shadow-ios-blue/30 active:opacity-80 disabled:opacity-50'>
                       {authLoading
-                        ? t("settings.loading")
+                        ? "Loading..."
                         : isSignUp
-                          ? t("settings.createAccount")
-                          : t("settings.signIn")}
+                          ? "Create Account"
+                          : "Sign In"}
                     </button>
                     {!isSignUp && (
                       <button
@@ -514,7 +539,7 @@ export default function SettingsPage() {
                           setAuthMessage(null);
                         }}
                         className='w-full py-1 text-[14px] text-gray-500'>
-                        {t("settings.forgotPassword")}
+                        Forgot password?
                       </button>
                     )}
                     <button
@@ -524,8 +549,8 @@ export default function SettingsPage() {
                       }}
                       className='w-full py-2 text-[15px] text-ios-blue'>
                       {isSignUp
-                        ? t("settings.haveAccount")
-                        : t("settings.noAccount")}
+                        ? "Already have an account? Sign in"
+                        : "Don't have an account? Create one"}
                     </button>
                   </>
                 )}
@@ -544,14 +569,14 @@ export default function SettingsPage() {
             </p>
           )}
           <p className='text-[13px] text-gray-500 dark:text-gray-400 px-4 mt-2'>
-            {t("settings.cloudSyncDesc")}
+            Sign in to keep your data safe in the cloud and sync across devices.
           </p>
         </section>
 
         {/* Theme Section */}
         <section>
           <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
-            {t("settings.theme")}
+            Theme
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             {themeOptions.map((option, index) => (
@@ -780,7 +805,7 @@ export default function SettingsPage() {
         <section>
           <div className='flex items-center justify-between px-4 mb-2'>
             <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
-              {t("settings.activityTypes")}
+              Activity Types
             </h2>
             {!isAddingActivity && (
               <button
@@ -937,30 +962,106 @@ export default function SettingsPage() {
           );
         })()}
 
+        {/* Fun Facts Section */}
+        <section>
+          <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
+            Fun Facts
+          </h2>
+          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+            <button
+              onClick={() => setFunFactsExpanded(!funFactsExpanded)}
+              className='w-full px-4 py-3 flex items-center justify-between min-h-[44px] active:bg-gray-100 dark:active:bg-gray-700'>
+              <div className='flex-1'>
+                <span className='text-[17px] text-gray-900 dark:text-white'>
+                  Categories
+                </span>
+                <p className='text-[13px] text-gray-500 dark:text-gray-400 mt-0.5'>
+                  {funFactCategories.length === 0
+                    ? "Disabled"
+                    : `${funFactCategories.length} selected`}
+                </p>
+              </div>
+              <svg
+                className={cn(
+                  "w-5 h-5 text-gray-400 transition-transform",
+                  funFactsExpanded && "rotate-180",
+                )}
+                fill='none'
+                viewBox='0 0 24 24'
+                strokeWidth={2}
+                stroke='currentColor'>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M19.5 8.25l-7.5 7.5-7.5-7.5'
+                />
+              </svg>
+            </button>
+            {funFactsExpanded && (
+              <>
+                {(Object.keys(CATEGORY_LABELS) as FunFactCategory[]).map(
+                  (category, index, arr) => {
+                    const isSelected = funFactCategories.includes(category);
+                    return (
+                      <button
+                        key={category}
+                        onClick={() => toggleFunFactCategory(category)}
+                        className='w-full px-4 py-3 flex items-center justify-between border-t border-gray-200/80 dark:border-gray-700/80 active:bg-gray-100 dark:active:bg-gray-700'>
+                        <span className='text-[17px] text-gray-900 dark:text-white'>
+                          {CATEGORY_LABELS[category]}
+                        </span>
+                        {isSelected && (
+                          <svg
+                            className='w-5 h-5 text-ios-blue'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            strokeWidth={2.5}
+                            stroke='currentColor'>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              d='M4.5 12.75l6 6 9-13.5'
+                            />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  },
+                )}
+              </>
+            )}
+          </div>
+          <p className='text-[13px] text-gray-500 dark:text-gray-400 px-4 mt-2'>
+            Select categories for fun facts shown when locking your day.
+          </p>
+        </section>
+
         {/* About Section */}
         <section>
           <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
-            {t("settings.about")}
+            About
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl'>
             <div className='px-4 py-3 flex items-center justify-between min-h-[44px] border-b border-gray-200/80 dark:border-gray-700/80'>
               <span className='text-[17px] text-gray-900 dark:text-white'>
-                {t("settings.app")}
+                App
               </span>
               <span className='text-[17px] text-gray-500'>DayTracker</span>
             </div>
             <div className='px-4 py-3 flex items-center justify-between min-h-[44px] border-b border-gray-200/80 dark:border-gray-700/80'>
               <span className='text-[17px] text-gray-900 dark:text-white'>
-                {t("settings.version")}
+                Version
               </span>
               <span className='text-[17px] text-gray-500'>1.0.0</span>
             </div>
             <div className='px-4 py-3 min-h-[44px]'>
               <span className='text-[17px] text-gray-900 dark:text-white'>
-                {t("settings.dataStorage")}
+                Data storage
               </span>
               <p className='text-[15px] text-gray-500 mt-1'>
-                {t("settings.dataStorageDesc")}
+                When signed in, your data is stored securely in the cloud and
+                syncs across devices. When not signed in, data is stored locally
+                on your device.
               </p>
             </div>
           </div>
@@ -969,25 +1070,25 @@ export default function SettingsPage() {
         {/* Data Management */}
         <section>
           <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
-            {t("settings.data")}
+            Data
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             <button
               onClick={() => setShowDeleteAllDataModal(true)}
               className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 border-b border-gray-200/80 dark:border-gray-700/80'>
-              {t("settings.deleteAllData")}
+              Delete all data
             </button>
             {user && (
               <button
                 onClick={() => setShowDeleteAccountModal(true)}
                 disabled={authLoading}
                 className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 cursor-pointer'>
-                {t("settings.deleteAccount")}
+                Delete Account
               </button>
             )}
           </div>
           <p className='text-[13px] text-gray-500 dark:text-gray-400 px-4 mt-2'>
-            {t("settings.deleteAllDesc")}
+            This will delete all logged data and all activity types.
           </p>
         </section>
 
@@ -1038,10 +1139,10 @@ export default function SettingsPage() {
           <div className='relative w-full max-w-sm bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden animate-scale-in'>
             <div className='p-6 text-center'>
               <h3 className='text-[17px] font-semibold text-gray-900 dark:text-white mb-2'>
-                {t("settings.deleteAllData")}?
+                Delete all data?
               </h3>
               <p className='text-[15px] text-gray-500 dark:text-gray-400'>
-                {t("settings.deleteAllConfirm")}
+                Are you sure you want to delete all data? This cannot be undone.
               </p>
             </div>
             <div className='border-t border-gray-200 dark:border-gray-700 flex'>
@@ -1049,7 +1150,7 @@ export default function SettingsPage() {
                 onClick={() => setShowDeleteAllDataModal(false)}
                 disabled={isDeleting}
                 className='flex-1 py-3.5 text-[17px] font-medium text-ios-blue border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800 disabled:opacity-50'>
-                {t("settings.cancel")}
+                Cancel
               </button>
               <button
                 disabled={isDeleting}
@@ -1088,10 +1189,10 @@ export default function SettingsPage() {
                         d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
                       />
                     </svg>
-                    {t("settings.delete")}...
+                    Delete...
                   </span>
                 ) : (
-                  t("settings.delete")
+                  "Delete"
                 )}
               </button>
             </div>
@@ -1113,17 +1214,19 @@ export default function SettingsPage() {
           />
           <div className='relative bg-white dark:bg-gray-800 rounded-2xl p-6 mx-4 max-w-sm w-full shadow-xl'>
             <h3 className='text-xl font-bold text-gray-900 dark:text-white mb-2'>
-              {t("settings.deleteAccount")}
+              Delete Account
             </h3>
             <p className='text-[15px] text-gray-600 dark:text-gray-400 mb-4'>
-              {t("settings.deleteAccountConfirm")}
+              Are you sure you want to delete your account? This will
+              permanently delete all your data and cannot be undone.
             </p>
             <p className='text-[13px] text-ios-red mb-4'>
-              ⚠️ {t("settings.deleteAccountWarning")}
+              ⚠️ This action is irreversible. All your activities, entries,
+              shares, and profile will be permanently deleted.
             </p>
             <div className='mb-4'>
               <label className='text-[13px] text-gray-500 dark:text-gray-400 mb-1 block'>
-                {t("settings.typeToConfirm")}
+                Type DELETE to confirm
               </label>
               <input
                 type='text'
@@ -1142,7 +1245,7 @@ export default function SettingsPage() {
                 }}
                 disabled={isDeleting}
                 className='flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg text-[17px] font-medium disabled:opacity-50'>
-                {t("settings.cancel")}
+                Cancel
               </button>
               <button
                 onClick={async () => {
@@ -1160,9 +1263,7 @@ export default function SettingsPage() {
                 }}
                 disabled={isDeleting || deleteConfirmText !== "DELETE"}
                 className='flex-1 px-4 py-3 bg-ios-red text-white rounded-lg text-[17px] font-medium disabled:opacity-50'>
-                {isDeleting
-                  ? t("settings.deleting")
-                  : t("settings.deleteAccount")}
+                {isDeleting ? "Deleting..." : "Delete Account"}
               </button>
             </div>
           </div>

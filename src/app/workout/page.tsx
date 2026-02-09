@@ -11,7 +11,6 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
-import { useLanguage } from "@/context/LanguageContext";
 import { cn, toDateStr } from "@/lib/utils";
 import {
   CustomExercise,
@@ -64,7 +63,6 @@ function WorkoutPageContent() {
     selectedDate,
   } = useApp();
   const { user } = useAuth();
-  const { t } = useLanguage();
 
   // View settings - persist to localStorage (hydrate after mount to avoid SSR mismatch)
   const [compactView, setCompactView] = useState(true);
@@ -539,7 +537,7 @@ function WorkoutPageContent() {
         <div className='flex items-center justify-between'>
           <div>
             <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
-              {t("workout.title")}
+              Workout
             </h1>
             {exercisesWithData > 0 && (
               <p className='text-sm text-ios-green font-medium mt-0.5'>

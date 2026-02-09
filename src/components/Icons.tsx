@@ -31,6 +31,9 @@ import {
   Flame,
   Target,
   ListTodo,
+  Utensils,
+  Circle,
+  Rabbit,
   type LucideIcon,
 } from "lucide-react";
 
@@ -65,6 +68,9 @@ const lucideIcons: Record<string, LucideIcon> = {
   fire: Flame,
   target: Target,
   checklist: ListTodo,
+  restaurant: Utensils,
+  run: Rabbit,
+  ball: Circle,
 };
 
 // Legacy icons object for backwards compatibility

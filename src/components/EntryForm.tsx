@@ -27,6 +27,11 @@ import {
 import { cn, addDays } from "@/lib/utils";
 import { Icon, icons, IconName } from "./Icons";
 import { MediaSearch } from "./MediaSearch";
+import {
+  fetchRandomFunFact,
+  getSelectedCategories,
+  FunFact,
+} from "@/lib/funfacts";
 
 interface EntryFormProps {
   date: string;
@@ -100,6 +105,9 @@ export function EntryForm({
   const [isLocking, setIsLocking] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
+  const [showFunFact, setShowFunFact] = useState(false);
+  const [funFact, setFunFact] = useState<FunFact | null>(null);
+  const [showAnswer, setShowAnswer] = useState(false);
 
   // View mode: 'list' or 'icons' - use external state if provided
   const [internalViewMode, setInternalViewMode] = useState<"list" | "icons">(
@@ -505,6 +513,20 @@ export function EntryForm({
       setSelectedRoutineId(null);
       setExpandedTypeIdState(null);
       setShowCelebration(true);
+
+      // Fetch fun fact if categories are selected
+      const categories = getSelectedCategories();
+      if (categories.length > 0) {
+        fetchRandomFunFact().then((fact) => {
+          if (fact) {
+            setFunFact(fact);
+            // Show fun fact modal after celebration finishes (1.5s)
+            setTimeout(() => {
+              setShowFunFact(true);
+            }, 1500);
+          }
+        });
+      }
     } else {
       // When unlocking: clear day-hidden activities
       setDayHiddenActivities(new Set());
@@ -2815,7 +2837,6 @@ export function EntryForm({
                             )}>
                             {checklistItems.filter((i) => i.completed).length}/
                             {checklistItems.length}
-                            {checklistCompleted && " ✓"}
                           </span>
                         )}
                         {/* Workout - show green checkmark if has workout */}
@@ -3370,6 +3391,102 @@ export function EntryForm({
                   : "Lock Day"}
             </span>
           </button>
+        </div>
+      )}
+
+      {/* Fun Fact Modal */}
+      {showFunFact && funFact && (
+        <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
+          {/* Backdrop */}
+          <div
+            className='absolute inset-0 bg-black/50 backdrop-blur-sm'
+            onClick={() => {
+              setShowFunFact(false);
+              setShowAnswer(false);
+            }}
+          />
+          {/* Modal */}
+          <div className='relative bg-white dark:bg-ios-card-dark rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95 duration-200'>
+            {/* Light bulb icon */}
+            <div className='flex justify-center mb-4'>
+              <div className='w-14 h-14 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center'>
+                <svg
+                  className='w-8 h-8 text-yellow-500'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  strokeWidth={1.5}
+                  stroke='currentColor'>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18'
+                  />
+                </svg>
+              </div>
+            </div>
+            {/* Title */}
+            <h3 className='text-lg font-semibold text-center text-gray-900 dark:text-white mb-3'>
+              {funFact.answer ? "Trivia Time!" : "Did You Know?"}
+            </h3>
+            {/* Fun fact text */}
+            <p className='text-gray-600 dark:text-gray-300 text-center text-[15px] leading-relaxed mb-4'>
+              {funFact.fact}
+            </p>
+            {/* Multiple choice options */}
+            {funFact.choices && funFact.choices.length > 0 && (
+              <div className='mb-4 space-y-2'>
+                {funFact.choices.map((choice, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setShowAnswer(true)}
+                    disabled={showAnswer}
+                    className={cn(
+                      "w-full py-2.5 px-4 rounded-xl text-[15px] text-left transition-all",
+                      showAnswer
+                        ? choice === funFact.answer
+                          ? "bg-ios-green/20 dark:bg-ios-green/30 text-ios-green font-semibold ring-2 ring-ios-green"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
+                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-600",
+                    )}>
+                    <span className='font-medium mr-2'>
+                      {String.fromCharCode(65 + index)}.
+                    </span>
+                    {choice}
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* Answer section for trivia without choices */}
+            {funFact.answer && !funFact.choices && (
+              <div className='mb-4'>
+                {showAnswer ? (
+                  <div className='bg-ios-green/10 dark:bg-ios-green/20 rounded-xl p-3'>
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400 text-center mb-1'>
+                      Answer:
+                    </p>
+                    <p className='text-ios-green font-semibold text-center text-[16px]'>
+                      {funFact.answer}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowAnswer(true)}
+                    className='w-full py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium rounded-xl active:opacity-80 transition-opacity text-[15px]'>
+                    Reveal Answer
+                  </button>
+                )}
+              </div>
+            )}
+            {/* Close button */}
+            <button
+              onClick={() => {
+                setShowFunFact(false);
+                setShowAnswer(false);
+              }}
+              className='w-full py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
+              {funFact.answer ? "Got It!" : "Awesome!"}
+            </button>
+          </div>
         </div>
       )}
     </>

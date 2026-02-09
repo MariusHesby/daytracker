@@ -12,7 +12,7 @@ export { AppShell } from './AppShell';
 export { ProfileSetup, Avatar } from './ProfileSetup';
 export { ProfileSetupWrapper } from './ProfileSetupWrapper';
 export { EditProfileModal } from './EditProfileModal';
-export { PeriodAlertPopup } from './PeriodAlertPopup';
+export { NotificationBell } from './NotificationBell';
 export { SearchEntries } from './SearchEntries';
 export { StarRating } from './StarRating';
 export type { StarRatingProps } from './StarRating';

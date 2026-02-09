@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { AppProvider } from "@/context/AppContext";
 import { ThemeProvider } from "@/context/ThemeContext";
-import { LanguageProvider } from "@/context/LanguageContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { PeriodAlertProvider } from "@/context/PeriodAlertContext";
-import { AppShell, ProfileSetupWrapper, PeriodAlertPopup } from "@/components";
+import { NotificationProvider } from "@/context/NotificationContext";
+import { AppShell, ProfileSetupWrapper } from "@/components";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -51,17 +50,14 @@ export default function RootLayout({
       </head>
       <body className='antialiased bg-ios-bg dark:bg-ios-bg-dark'>
         <AuthProvider>
-          <LanguageProvider>
-            <ThemeProvider>
-              <AppProvider>
-                <PeriodAlertProvider>
-                  <ProfileSetupWrapper />
-                  <PeriodAlertPopup />
-                  <AppShell>{children}</AppShell>
-                </PeriodAlertProvider>
-              </AppProvider>
-            </ThemeProvider>
-          </LanguageProvider>
+          <ThemeProvider>
+            <AppProvider>
+              <NotificationProvider>
+                <ProfileSetupWrapper />
+                <AppShell>{children}</AppShell>
+              </NotificationProvider>
+            </AppProvider>
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

@@ -74,7 +74,6 @@ Always use `@/` alias: `import { useApp } from "@/context/AppContext"`
 ```tsx
 const { entries, addEntry, selectedDate } = useApp();
 const { user, profile } = useAuth();
-const { t } = useLanguage(); // t("settings.title") for translations
 ```
 
 ### Adding New Activity Value Types

@@ -3,7 +3,6 @@
 import { ReactNode, useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { IOSTabBar } from "./ios";
-import { useLanguage } from "@/context/LanguageContext";
 import { SplashScreen } from "./SplashScreen";
 import {
   Clock,
@@ -289,7 +288,6 @@ interface AppShellProps {
 const TABS = ["/", "/movies-tv", "/friends", "/stats", "/settings"];
 
 export function AppShell({ children }: AppShellProps) {
-  const { t } = useLanguage();
   const router = useRouter();
   const pathname = usePathname();
   const [showSplash, setShowSplash] = useState(true);
@@ -507,31 +505,31 @@ export function AppShell({ children }: AppShellProps) {
   const tabItems = [
     {
       href: "/",
-      label: t("tab.today"),
+      label: "Today",
       icon: <TodayIcon />,
       activeIcon: <TodayIcon filled />,
     },
     {
       href: "/movies-tv",
-      label: t("tab.moviesTv"),
+      label: "Movies & TV",
       icon: <MoviesIcon />,
       activeIcon: <MoviesIcon filled />,
     },
     {
       href: "/friends",
-      label: t("tab.friends"),
+      label: "Friends",
       icon: <FriendsIcon />,
       activeIcon: <FriendsIcon filled />,
     },
     {
       href: "/stats",
-      label: t("tab.statistics"),
+      label: "Statistics",
       icon: <StatsIcon />,
       activeIcon: <StatsIcon filled />,
     },
     {
       href: "/settings",
-      label: t("tab.settings"),
+      label: "Settings",
       icon: <SettingsIcon />,
       activeIcon: <SettingsIcon filled />,
     },

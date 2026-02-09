@@ -2,7 +2,6 @@
 
 import { useState, useRef, ReactNode, useCallback, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useLanguage } from "@/context/LanguageContext";
 import { supabase } from "@/lib/supabase";
 
 // iOS-style gradient avatars with SF Symbols-inspired icons
@@ -92,7 +91,6 @@ function ImageCropper({
   onCropComplete,
   onCancel,
 }: ImageCropperProps) {
-  const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -252,15 +250,15 @@ function ImageCropper({
         <button
           onClick={onCancel}
           className='text-white text-[17px] px-3 py-2 -ml-1 active:opacity-60 min-h-[44px] flex items-center'>
-          {t("common.cancel")}
+          Cancel
         </button>
         <span className='text-white text-[17px] font-semibold'>
-          {t("profile.adjustPhoto") || "Adjust Photo"}
+          Adjust Photo
         </span>
         <button
           onClick={handleCrop}
           className='text-ios-blue text-[17px] font-semibold px-3 py-2 -mr-1 active:opacity-60 min-h-[44px] flex items-center'>
-          {t("profile.choose") || "Choose"}
+          Choose
         </button>
       </div>
       <div className='flex-1 flex items-center justify-center bg-black overflow-hidden'>
@@ -311,7 +309,7 @@ function ImageCropper({
         }}>
         {/* Pinch hint */}
         <p className='text-white/40 text-xs text-center mb-4'>
-          {t("profile.pinchToZoom") || "Pinch to zoom • Drag to move"}
+          Pinch to zoom • Drag to move
         </p>
         <div className='flex items-center gap-3'>
           <button
@@ -420,7 +418,6 @@ async function compressImage(
 
 export function ProfileSetup() {
   const { createProfile, user } = useAuth();
-  const { t } = useLanguage();
   const [fullName, setFullName] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [customImageUrl, setCustomImageUrl] = useState<string | null>(null);
@@ -438,7 +435,7 @@ export function ProfileSetup() {
     if (!file || !user) return;
 
     if (!file.type.startsWith("image/")) {
-      setError(t("profile.invalidImage"));
+      setError("Please select an image file");
       return;
     }
 
@@ -455,7 +452,7 @@ export function ProfileSetup() {
       setShowCropper(true);
     } catch (err) {
       console.error("Image processing error:", err);
-      setError(t("profile.uploadFailed"));
+      setError("Failed to upload image");
     }
 
     if (fileInputRef.current) {
@@ -490,7 +487,7 @@ export function ProfileSetup() {
       setSelectedAvatar(null);
     } catch (err) {
       console.error("Upload error:", err);
-      setError(t("profile.uploadFailed"));
+      setError("Failed to upload image");
     } finally {
       setIsUploading(false);
     }
@@ -504,7 +501,7 @@ export function ProfileSetup() {
 
   const handleSubmit = async () => {
     if (!fullName.trim()) {
-      setError(t("profile.nameRequired"));
+      setError("Please enter your name");
       return;
     }
 
@@ -540,15 +537,15 @@ export function ProfileSetup() {
         <div className='w-full max-w-md bg-white dark:bg-ios-card-dark rounded-2xl p-6 space-y-6 shadow-xl'>
           <div className='text-center'>
             <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
-              {t("profile.setupTitle")}
+              Complete Your Profile
             </h1>
-            <p className='text-gray-500 mt-2'>{t("profile.setupDesc")}</p>
+            <p className='text-gray-500 mt-2'>Tell us a bit about yourself</p>
           </div>
 
           {/* Avatar Selection */}
           <div>
             <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3'>
-              {t("profile.chooseAvatar")}
+              Choose an avatar
             </label>
 
             {/* Custom Image Upload */}
@@ -589,7 +586,7 @@ export function ProfileSetup() {
                       />
                     </svg>
                     <span className='text-[10px] text-gray-400 mt-1 block'>
-                      {t("profile.upload")}
+                      Upload Photo
                     </span>
                   </div>
                 )}
@@ -631,13 +628,13 @@ export function ProfileSetup() {
           {/* Full Name Input */}
           <div>
             <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-              {t("profile.fullName")}
+              Full Name
             </label>
             <input
               type='text'
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder={t("profile.fullNamePlaceholder")}
+              placeholder='Enter your full name'
               className='w-full px-4 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl text-[17px] text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue'
               autoFocus
             />
@@ -652,10 +649,10 @@ export function ProfileSetup() {
             {isSubmitting ? (
               <span className='flex items-center justify-center gap-2'>
                 <div className='w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin' />
-                {t("profile.saving")}
+                Saving...
               </span>
             ) : (
-              t("profile.continue")
+              "Continue"
             )}
           </button>
         </div>
