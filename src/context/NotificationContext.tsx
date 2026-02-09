@@ -126,6 +126,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const addSubscription = useCallback(
     (friendId: string, activityId: string) => {
+      // Don't allow subscribing to own activities
+      if (user && friendId === user.id) return;
+      
       setSubscriptions((prev) => {
         const exists = prev.some(
           (s) => s.friendId === friendId && s.activityId === activityId,
@@ -134,7 +137,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         return [...prev, { friendId, activityId }];
       });
     },
-    [],
+    [user],
   );
 
   const removeSubscription = useCallback(
@@ -180,17 +183,22 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (!user || subscriptions.length === 0) return;
 
     try {
-      // Group subscriptions by friend
-      const subscriptionsByFriend = subscriptions.reduce(
-        (acc, sub) => {
-          if (!acc[sub.friendId]) {
-            acc[sub.friendId] = [];
-          }
-          acc[sub.friendId].push(sub.activityId);
-          return acc;
-        },
-        {} as Record<string, string[]>,
-      );
+      // Group subscriptions by friend, excluding self
+      const subscriptionsByFriend = subscriptions
+        .filter((sub) => sub.friendId !== user.id) // Don't check own activities
+        .reduce(
+          (acc, sub) => {
+            if (!acc[sub.friendId]) {
+              acc[sub.friendId] = [];
+            }
+            acc[sub.friendId].push(sub.activityId);
+            return acc;
+          },
+          {} as Record<string, string[]>,
+        );
+
+      // If no subscriptions after filtering self, exit early
+      if (Object.keys(subscriptionsByFriend).length === 0) return;
 
       const today = new Date().toISOString().split("T")[0];
       const thirtyDaysAgo = new Date();
