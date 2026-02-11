@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
@@ -459,10 +460,13 @@ export default function AdminPage() {
                         userStats.avatar.length > 0 ? (
                           userStats.avatar.startsWith("http") ||
                           userStats.avatar.startsWith("/") ? (
-                            <img
+                            <Image
                               src={userStats.avatar}
                               alt={userStats.fullName}
-                              className='w-full h-full object-cover'
+                              width={40}
+                              height={40}
+                              className='object-cover'
+                              unoptimized
                             />
                           ) : (
                             <span className='text-xl'>{userStats.avatar}</span>

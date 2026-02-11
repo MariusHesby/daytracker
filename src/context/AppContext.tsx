@@ -14,6 +14,9 @@ import * as cloudDb from "@/lib/supabase-sync";
 import { getLockedDays, lockDay, unlockDay } from "@/lib/supabase";
 import { useAuth } from "./AuthContext";
 
+// Local storage key for locked days when not signed in
+const LOCAL_LOCKED_DAYS_KEY = "daytracker_locked_days";
+
 interface AppContextType {
   // Activity Types
   activityTypes: ActivityType[];
@@ -169,7 +172,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setActivityTypes([]);
             setOwnActivityTypes([]);
           }
-          setLockedDays([]);
+          // Load locked days from localStorage when not signed in
+          try {
+            const savedLockedDays = localStorage.getItem(LOCAL_LOCKED_DAYS_KEY);
+            if (savedLockedDays) {
+              setLockedDays(JSON.parse(savedLockedDays));
+            } else {
+              setLockedDays([]);
+            }
+          } catch {
+            setLockedDays([]);
+          }
         }
 
         setIsLoading(false);
@@ -523,22 +536,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const toggleDayLock = useCallback(
     async (date: string): Promise<boolean> => {
-      if (!user) return false;
-
       const isLocked = lockedDays.includes(date);
 
-      if (isLocked) {
-        const success = await unlockDay(user.id, date);
-        if (success) {
-          setLockedDays((prev) => prev.filter((d) => d !== date));
+      if (user) {
+        // User is signed in - use Supabase
+        if (isLocked) {
+          const success = await unlockDay(user.id, date);
+          if (success) {
+            setLockedDays((prev) => prev.filter((d) => d !== date));
+          }
+          return !isLocked;
+        } else {
+          const success = await lockDay(user.id, date);
+          if (success) {
+            setLockedDays((prev) => [...prev, date]);
+          }
+          return !isLocked;
         }
-        return !isLocked; // Return new state (unlocked = false)
       } else {
-        const success = await lockDay(user.id, date);
-        if (success) {
-          setLockedDays((prev) => [...prev, date]);
+        // User is not signed in - use localStorage
+        let newLockedDays: string[];
+        if (isLocked) {
+          newLockedDays = lockedDays.filter((d) => d !== date);
+        } else {
+          newLockedDays = [...lockedDays, date];
         }
-        return !isLocked; // Return new state (locked = true)
+        setLockedDays(newLockedDays);
+        try {
+          localStorage.setItem(
+            LOCAL_LOCKED_DAYS_KEY,
+            JSON.stringify(newLockedDays),
+          );
+        } catch (e) {
+          console.warn("Failed to save locked days to localStorage:", e);
+        }
+        return !isLocked;
       }
     },
     [user, lockedDays],

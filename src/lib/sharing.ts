@@ -1,41 +1,7 @@
 // Sharing functions for DayTracker
 import { supabase, DbShareRequest, DbShare, DbActivityType, DbLogEntry, DbProfile } from './supabase';
+import { dbToActivityType, dbToLogEntry } from './supabase-sync';
 import { ActivityType, LogEntry } from '@/types';
-
-// Convert DB types to app types
-function dbToActivityType(db: DbActivityType): ActivityType {
-  return {
-    id: db.id,
-    name: db.name,
-    icon: db.icon || undefined,
-    valueType: db.value_type,
-    unit: db.unit || undefined,
-    order: db.sort_order || undefined,
-    isDefault: db.is_default,
-    hidden: db.hidden,
-    createdAt: new Date(db.created_at),
-  };
-}
-
-function dbToLogEntry(db: DbLogEntry): LogEntry {
-  return {
-    id: db.id,
-    date: db.date,
-    activityTypeId: db.activity_type_id,
-    value: db.value,
-    note: db.note || undefined,
-    imdbId: db.imdb_id || undefined,
-    poster: db.poster || undefined,
-    imdbRating: db.imdb_rating || undefined,
-    year: db.year || undefined,
-    userRating: db.user_rating || undefined,
-    nutritionData: db.nutrition_data ? (db.nutrition_data as unknown as LogEntry['nutritionData']) : undefined,
-    workoutData: db.workout_data ? (db.workout_data as unknown as LogEntry['workoutData']) : undefined,
-    checklistData: db.checklist_data ? (db.checklist_data as unknown as LogEntry['checklistData']) : undefined,
-    createdAt: new Date(db.created_at),
-    updatedAt: new Date(db.updated_at),
-  };
-}
 
 export interface UserProfile {
   fullName: string;
@@ -223,6 +189,7 @@ export async function sendShareRequest(
 }
 
 // Send a share request to another user by their user ID (from search results)
+// This now creates an INSTANT mutual friendship - no acceptance needed
 export async function sendShareRequestByUserId(
   fromUserId: string,
   fromEmail: string,
@@ -267,41 +234,66 @@ export async function sendShareRequestByUserId(
       targetEmail = `user_${toUserId}@daytracker.local`;
     }
 
-    // Check if request already exists (by user ID - more reliable)
-    const { data: existing } = await supabase
-      .from('share_requests')
-      .select('id, status')
-      .eq('from_user_id', fromUserId)
-      .eq('to_user_id', toUserId)
-      .maybeSingle();
+    // Check if friendship already exists (either direction)
+    const { data: existingShare } = await supabase
+      .from('shares')
+      .select('id')
+      .or(`and(owner_id.eq.${fromUserId},viewer_id.eq.${toUserId}),and(owner_id.eq.${toUserId},viewer_id.eq.${fromUserId})`)
+      .limit(1);
 
-    if (existing) {
-      if (existing.status === 'pending') {
-        return { error: new Error('Request already sent') };
-      }
-      // Update existing rejected request to pending
-      const { error } = await supabase
-        .from('share_requests')
-        .update({ status: 'pending', updated_at: new Date().toISOString() })
-        .eq('id', existing.id);
-      if (error) {
-        return { error: new Error(error.message) };
-      }
-      return { error: null };
+    if (existingShare && existingShare.length > 0) {
+      return { error: new Error('You are already friends with this user') };
     }
 
-    const { error } = await supabase
+    // Create a share_request record for history (marked as accepted immediately)
+    const { error: requestError } = await supabase
       .from('share_requests')
       .insert({
         from_user_id: fromUserId,
         from_email: fromEmail,
         to_email: targetEmail,
         to_user_id: toUserId,
+        status: 'accepted',
       });
 
-    if (error) {
-      return { error: new Error(error.message) };
+    if (requestError) {
+      console.error('Failed to create share request record:', requestError);
+      // Continue anyway - the share is more important
     }
+
+    // Create mutual shares - both users can see each other's data
+    // Share 1: fromUser shares with toUser (toUser can view fromUser's data)
+    const { error: share1Error } = await supabase
+      .from('shares')
+      .upsert({
+        owner_id: fromUserId,
+        viewer_id: toUserId,
+        activity_type_ids: [], // Empty initially - they can configure what to share
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'owner_id,viewer_id',
+      });
+
+    if (share1Error) {
+      return { error: new Error(share1Error.message) };
+    }
+
+    // Share 2: toUser shares with fromUser (fromUser can view toUser's data)
+    const { error: share2Error } = await supabase
+      .from('shares')
+      .upsert({
+        owner_id: toUserId,
+        viewer_id: fromUserId,
+        activity_type_ids: [], // Empty initially - they can configure what to share
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'owner_id,viewer_id',
+      });
+
+    if (share2Error) {
+      return { error: new Error(share2Error.message) };
+    }
+
     return { error: null };
   } catch (e) {
     console.error('sendShareRequestByUserId error:', e);
@@ -497,7 +489,7 @@ export async function removeShare(shareId: string): Promise<{ error: Error | nul
   return { error: error as Error | null };
 }
 
-// Remove a shared connection (stop viewing someone's data)
+// Remove a shared connection (stop viewing someone's data) - ONE DIRECTION ONLY
 export async function removeSharedConnection(ownerId: string, viewerId: string): Promise<{ error: Error | null }> {
   const { error } = await supabase
     .from('shares')
@@ -508,16 +500,34 @@ export async function removeSharedConnection(ownerId: string, viewerId: string):
   return { error: error as Error | null };
 }
 
+// Remove a friendship completely (both directions)
+export async function removeFriendship(userId1: string, userId2: string): Promise<{ error: Error | null }> {
+  // Delete both share directions
+  const { error: error1 } = await supabase
+    .from('shares')
+    .delete()
+    .eq('owner_id', userId1)
+    .eq('viewer_id', userId2);
+
+  if (error1) {
+    return { error: error1 as Error };
+  }
+
+  const { error: error2 } = await supabase
+    .from('shares')
+    .delete()
+    .eq('owner_id', userId2)
+    .eq('viewer_id', userId1);
+
+  return { error: error2 as Error | null };
+}
+
 // Get users who share with me (I can view their data)
 export async function getSharedWithMe(viewerId: string): Promise<SharedUser[]> {
   const { data: shares, error: sharesError } = await supabase
     .from('shares')
     .select('*')
     .eq('viewer_id', viewerId);
-
-  console.log('getSharedWithMe - viewerId:', viewerId);
-  console.log('getSharedWithMe - shares:', shares);
-  console.log('getSharedWithMe - error:', sharesError);
 
   if (sharesError) throw new Error(sharesError.message || 'Failed to get shared users');
   if (!shares || shares.length === 0) return [];
@@ -536,16 +546,12 @@ export async function getSharedWithMe(viewerId: string): Promise<SharedUser[]> {
       .eq('from_user_id', viewerId)
       .eq('status', 'accepted');
 
-    console.log('Requests sent by us:', sentByUs);
-
     // Second try: Check requests where owner sent to us (we're the to_email)
     const { data: sentByOwner } = await supabase
       .from('share_requests')
       .select('from_email, from_user_id')
       .eq('from_user_id', share.owner_id)
       .eq('status', 'accepted');
-
-    console.log('Requests sent by owner:', sentByOwner);
 
     // Get email from either source
     if (sentByOwner && sentByOwner.length > 0) {

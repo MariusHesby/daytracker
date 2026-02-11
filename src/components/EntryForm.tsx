@@ -108,6 +108,10 @@ export function EntryForm({
   const [showFunFact, setShowFunFact] = useState(false);
   const [funFact, setFunFact] = useState<FunFact | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [showAnswerAnimation, setShowAnswerAnimation] = useState<
+    "correct" | "wrong" | null
+  >(null);
 
   // View mode: 'list' or 'icons' - use external state if provided
   const [internalViewMode, setInternalViewMode] = useState<"list" | "icons">(
@@ -565,7 +569,8 @@ export function EntryForm({
   useEffect(() => {
     async function loadAllSuggestions() {
       const newSuggestions: Record<string, Suggestion[]> = {};
-      for (const type of activityTypes) {
+      // Load suggestions for all activity types including hidden ones
+      for (const type of allActivityTypes) {
         if (type.valueType === "text" || type.valueType === "nutrition") {
           const sugg = await getSuggestions(type.id);
           newSuggestions[type.id] = sugg;
@@ -574,7 +579,7 @@ export function EntryForm({
       setSuggestions(newSuggestions);
     }
     loadAllSuggestions();
-  }, [activityTypes, getSuggestions]);
+  }, [allActivityTypes, getSuggestions]);
 
   // Calculate nutrition totals for a type
   const getNutritionTotals = useCallback(
@@ -738,7 +743,8 @@ export function EntryForm({
     if (isViewingOther) return;
     if (!nutritionInput.foodName.trim()) return;
 
-    const type = activityTypes.find((t) => t.id === typeId);
+    // Use allActivityTypes to support hidden activities
+    const type = allActivityTypes.find((t) => t.id === typeId);
     if (!type) return;
 
     try {
@@ -926,7 +932,8 @@ export function EntryForm({
     // Don't allow editing when viewing another user's data
     if (isViewingOther) return;
 
-    const type = activityTypes.find((t) => t.id === typeId);
+    // Use allActivityTypes to support hidden activities
+    const type = allActivityTypes.find((t) => t.id === typeId);
     if (!type) return;
 
     try {
@@ -1027,7 +1034,8 @@ export function EntryForm({
     value: string | number | boolean,
     typeId?: string,
   ): string => {
-    const type = typeId ? activityTypes.find((t) => t.id === typeId) : null;
+    // Use allActivityTypes to support hidden activities
+    const type = typeId ? allActivityTypes.find((t) => t.id === typeId) : null;
     if (type?.valueType === "checkmark" && value === true) return "✓";
     if (type?.valueType === "checkmark" && value === "skipped") return "✗";
     if (type?.valueType === "mood") {
@@ -2117,7 +2125,8 @@ export function EntryForm({
       {viewMode === "icons" &&
         expandedTypeId &&
         (() => {
-          const type = activityTypes.find((t) => t.id === expandedTypeId);
+          // Use allActivityTypes to support hidden activities
+          const type = allActivityTypes.find((t) => t.id === expandedTypeId);
           if (!type) return null;
 
           const typeSavedValues = savedValues[type.id] || [];
@@ -3438,14 +3447,36 @@ export function EntryForm({
                 {funFact.choices.map((choice, index) => (
                   <button
                     key={index}
-                    onClick={() => setShowAnswer(true)}
+                    onClick={() => {
+                      setSelectedAnswer(choice);
+                      setShowAnswer(true);
+                      const isCorrect = choice === funFact.answer;
+                      setShowAnswerAnimation(isCorrect ? "correct" : "wrong");
+                      // Track trivia correct date in localStorage
+                      if (isCorrect && typeof window !== "undefined") {
+                        const today = new Date().toISOString().split("T")[0];
+                        localStorage.setItem("triviaCorrectDate", today);
+                        // Dispatch event for live UI updates
+                        window.dispatchEvent(new Event("triviaCountUpdated"));
+                        // Auto-close after correct animation
+                        setTimeout(() => {
+                          setShowFunFact(false);
+                          setShowAnswer(false);
+                          setSelectedAnswer(null);
+                        }, 1500);
+                      }
+                      // Clear animation after it finishes
+                      setTimeout(() => setShowAnswerAnimation(null), 1500);
+                    }}
                     disabled={showAnswer}
                     className={cn(
                       "w-full py-2.5 px-4 rounded-xl text-[15px] text-left transition-all",
                       showAnswer
                         ? choice === funFact.answer
                           ? "bg-ios-green/20 dark:bg-ios-green/30 text-ios-green font-semibold ring-2 ring-ios-green"
-                          : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
+                          : choice === selectedAnswer
+                            ? "bg-ios-red/20 dark:bg-ios-red/30 text-ios-red ring-2 ring-ios-red"
+                            : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
                         : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-600",
                     )}>
                     <span className='font-medium mr-2'>
@@ -3477,18 +3508,179 @@ export function EntryForm({
                 )}
               </div>
             )}
-            {/* Close button */}
-            <button
-              onClick={() => {
-                setShowFunFact(false);
-                setShowAnswer(false);
-              }}
-              className='w-full py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
-              {funFact.answer ? "Got It!" : "Awesome!"}
-            </button>
+
+            {/* Button for quotes/fun facts (no trivia) */}
+            {!funFact.answer && !funFact.choices && (
+              <button
+                onClick={() => {
+                  setShowFunFact(false);
+                }}
+                className='w-full py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
+                Good to know
+              </button>
+            )}
+
+            {/* Button before answering trivia: "I don't wanna play" */}
+            {funFact.choices && !showAnswer && (
+              <button
+                onClick={() => {
+                  setShowFunFact(false);
+                  setShowAnswer(false);
+                  setSelectedAnswer(null);
+                }}
+                className='w-full py-3 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium rounded-xl active:opacity-80 transition-opacity'>
+                I don&apos;t wanna play
+              </button>
+            )}
+
+            {/* Buttons after wrong answer */}
+            {funFact.choices &&
+              showAnswer &&
+              selectedAnswer !== funFact.answer && (
+                <div className='flex gap-2'>
+                  <button
+                    onClick={() => {
+                      // Reset state and fetch a new fun fact
+                      setShowAnswer(false);
+                      setSelectedAnswer(null);
+                      setShowAnswerAnimation(null);
+                      fetchRandomFunFact().then((fact) => {
+                        if (fact) {
+                          setFunFact(fact);
+                        }
+                      });
+                    }}
+                    className='flex-1 py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
+                    Try again
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowFunFact(false);
+                      setShowAnswer(false);
+                      setSelectedAnswer(null);
+                    }}
+                    className='flex-1 py-3 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium rounded-xl active:opacity-80 transition-opacity'>
+                    D&apos;oh! I&apos;m out
+                  </button>
+                </div>
+              )}
           </div>
+
+          {/* Answer Animation Overlay */}
+          {showAnswerAnimation && (
+            <div className='absolute inset-0 flex items-center justify-center pointer-events-none z-10'>
+              <div
+                className={cn(
+                  "answer-animation-text",
+                  showAnswerAnimation === "correct"
+                    ? "correct-animation"
+                    : "wrong-animation",
+                )}>
+                {showAnswerAnimation === "correct" ? "CORRECT!" : "WRONG!"}
+              </div>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Answer Animation Styles */}
+      <style jsx>{`
+        .answer-animation-text {
+          font-size: 3rem;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          animation-fill-mode: forwards;
+        }
+
+        .correct-animation {
+          color: #22c55e;
+          text-shadow:
+            0 0 10px rgba(34, 197, 94, 0.8),
+            0 0 20px rgba(34, 197, 94, 0.6),
+            0 0 40px rgba(34, 197, 94, 0.4),
+            0 0 80px rgba(34, 197, 94, 0.2);
+          animation: correctBurst 1.5s ease-out forwards;
+        }
+
+        .wrong-animation {
+          color: #ef4444;
+          text-shadow:
+            0 0 10px rgba(239, 68, 68, 0.8),
+            0 0 20px rgba(239, 68, 68, 0.6),
+            0 0 40px rgba(239, 68, 68, 0.4),
+            0 0 80px rgba(239, 68, 68, 0.2);
+          animation: wrongShatter 1.5s ease-out forwards;
+        }
+
+        @keyframes correctBurst {
+          0% {
+            transform: scale(0.3) translateZ(0);
+            opacity: 0;
+            filter: blur(10px);
+          }
+          20% {
+            transform: scale(1.3) translateZ(100px);
+            opacity: 1;
+            filter: blur(0);
+          }
+          40% {
+            transform: scale(1.1) translateZ(150px);
+            opacity: 1;
+          }
+          60% {
+            transform: scale(1.2) translateZ(200px);
+            opacity: 0.9;
+            filter: blur(1px);
+          }
+          100% {
+            transform: scale(2.5) translateZ(500px);
+            opacity: 0;
+            filter: blur(20px);
+          }
+        }
+
+        @keyframes wrongShatter {
+          0% {
+            transform: scale(0.3) rotate(0deg) translateZ(0);
+            opacity: 0;
+            filter: blur(10px);
+          }
+          15% {
+            transform: scale(1.4) rotate(-3deg) translateZ(80px);
+            opacity: 1;
+            filter: blur(0);
+          }
+          25% {
+            transform: scale(1.3) rotate(3deg) translateZ(100px);
+          }
+          35% {
+            transform: scale(1.35) rotate(-2deg) translateZ(120px);
+          }
+          45% {
+            transform: scale(1.3) rotate(2deg) translateZ(140px);
+          }
+          55% {
+            transform: scale(1.4) rotate(0deg) translateZ(180px);
+            opacity: 1;
+          }
+          70% {
+            transform: scale(1.8) rotate(5deg) translateZ(250px);
+            opacity: 0.7;
+            filter: blur(3px);
+          }
+          85% {
+            transform: scale(2.5) rotate(-8deg) translateZ(400px);
+            opacity: 0.3;
+            filter: blur(10px);
+          }
+          100% {
+            transform: scale(4) rotate(15deg) translateZ(600px);
+            opacity: 0;
+            filter: blur(30px);
+          }
+        }
+      `}</style>
     </>
   );
 }

@@ -7,8 +7,8 @@ function throwError(error: { message?: string; code?: string } | null, fallbackM
   throw new Error(error?.message || fallbackMessage);
 }
 
-// Convert DB types to app types
-function dbToActivityType(db: DbActivityType): ActivityType {
+// Convert DB types to app types - exported for use in sharing.ts
+export function dbToActivityType(db: DbActivityType): ActivityType {
   return {
     id: db.id,
     name: db.name,
@@ -25,7 +25,7 @@ function dbToActivityType(db: DbActivityType): ActivityType {
   };
 }
 
-function dbToLogEntry(db: DbLogEntry): LogEntry {
+export function dbToLogEntry(db: DbLogEntry): LogEntry {
   return {
     id: db.id,
     date: db.date,

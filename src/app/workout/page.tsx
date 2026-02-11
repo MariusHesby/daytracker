@@ -64,16 +64,12 @@ function WorkoutPageContent() {
   } = useApp();
   const { user } = useAuth();
 
-  // View settings - persist to localStorage (hydrate after mount to avoid SSR mismatch)
-  const [compactView, setCompactView] = useState(true);
-
-  // Hydrate compactView from localStorage after mount
-  useEffect(() => {
+  // View settings - persist to localStorage with lazy initialization
+  const [compactView, setCompactView] = useState(() => {
+    if (typeof window === "undefined") return true;
     const saved = localStorage.getItem("workout-compact-view");
-    if (saved !== null) {
-      setCompactView(saved !== "false");
-    }
-  }, []);
+    return saved !== null ? saved !== "false" : true;
+  });
 
   // Modal states
   const [showAddExercise, setShowAddExercise] = useState(false);
@@ -141,12 +137,15 @@ function WorkoutPageContent() {
       );
 
       if (savedData) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setWorkoutData(JSON.parse(savedData));
       }
       if (savedExpanded) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setExpandedExercises(new Set(JSON.parse(savedExpanded)));
       }
       if (savedRoutine) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedRoutineId(savedRoutine);
       }
     }
@@ -243,6 +242,7 @@ function WorkoutPageContent() {
   const savedExercises = savedWorkoutEntry?.workoutData?.exercises || [];
 
   // Load saved data on mount (only when editing)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isEditing && savedExercises.length > 0) {
       const newData: typeof workoutData = {};
@@ -258,8 +258,10 @@ function WorkoutPageContent() {
           }));
         }
       });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWorkoutData(newData);
       // Keep exercises closed when editing
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setExpandedExercises(new Set());
     }
   }, [savedWorkoutEntry?.id, isEditing]);
@@ -425,13 +427,10 @@ function WorkoutPageContent() {
   // Save workout
   const saveWorkout = useCallback(async () => {
     if (!workoutType) {
-      console.log("No workout type found");
       return;
     }
 
     const exercisesToSave: WorkoutExercise[] = [];
-
-    console.log("workoutData:", workoutData);
 
     for (const exerciseName of Object.keys(workoutData)) {
       const sets = workoutData[exerciseName];
@@ -447,7 +446,6 @@ function WorkoutPageContent() {
       const validSets = sets.filter(
         (s) => s.reps || s.weight || s.distance || s.duration,
       );
-      console.log(`Exercise ${exerciseName}: ${validSets.length} valid sets`);
       if (validSets.length === 0) continue;
 
       exercisesToSave.push({
@@ -469,16 +467,12 @@ function WorkoutPageContent() {
       });
     }
 
-    console.log("Exercises to save:", exercisesToSave.length);
-
     if (exercisesToSave.length === 0) {
-      console.log("No exercises to save");
       return;
     }
 
     if (isEditing && savedWorkoutEntry) {
       // Update existing workout entry
-      console.log("Updating existing entry");
       await updateEntry({
         ...savedWorkoutEntry,
         value: `${exercisesToSave.length} exercise${exercisesToSave.length !== 1 ? "s" : ""}`,
@@ -486,7 +480,6 @@ function WorkoutPageContent() {
       });
     } else {
       // Always create a new workout entry
-      console.log("Creating new entry");
       await addEntry({
         date: selectedDate,
         activityTypeId: workoutType.id,
@@ -494,7 +487,6 @@ function WorkoutPageContent() {
         workoutData: { exercises: exercisesToSave },
       });
     }
-    console.log("Save complete");
   }, [
     workoutType,
     workoutData,

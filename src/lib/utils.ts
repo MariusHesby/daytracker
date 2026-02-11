@@ -25,45 +25,6 @@ export function isToday(date: string): boolean {
   return date === formatDate(new Date());
 }
 
-export function getDateRange(range: TimeRange): { start: string; end: string } {
-  const end = new Date();
-  const start = new Date();
-
-  switch (range) {
-    case 'week':
-      start.setDate(end.getDate() - 7);
-      break;
-    case 'month':
-      start.setMonth(end.getMonth() - 1);
-      break;
-    case 'year':
-      start.setFullYear(end.getFullYear() - 1);
-      break;
-    case 'all':
-      start.setFullYear(2000); // Far enough back
-      break;
-  }
-
-  return {
-    start: formatDate(start),
-    end: formatDate(end),
-  };
-}
-
-// Get consecutive dates
-export function getDatesBetween(start: string, end: string): string[] {
-  const dates: string[] = [];
-  const current = new Date(start + 'T00:00:00');
-  const endDate = new Date(end + 'T00:00:00');
-
-  while (current <= endDate) {
-    dates.push(formatDate(current));
-    current.setDate(current.getDate() + 1);
-  }
-
-  return dates;
-}
-
 // Statistics calculations
 export function calculateStatistics(
   entries: LogEntry[],

@@ -1,62 +1,88 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate, addDays, cn } from "@/lib/utils";
 import { LogEntry } from "@/types";
 import { IOSSegmentedControl } from "@/components/ios";
-import { IOSModal } from "@/components/ios";
 import { MediaSearch, StarRating } from "@/components";
-import { searchMedia } from "@/lib/omdb";
 import { getSharedWithMe, SharedUser } from "@/lib/sharing";
 import { supabase } from "@/lib/supabase";
 import { getMediaLink } from "@/lib/tmdb";
 
 const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
 
-// Search for movie posters using both OMDB and TMDb APIs
-async function searchPosters(title: string): Promise<string[]> {
+// Search for all available posters for a specific movie/TV show using TMDb
+async function searchPosters(
+  title: string,
+  imdbId?: string,
+): Promise<string[]> {
   const posters: string[] = [];
 
-  // Try OMDB first
-  try {
-    const omdbResults = await searchMedia(title);
-    for (const result of omdbResults) {
-      if (result.Poster && result.Poster !== "N/A") {
-        posters.push(result.Poster);
-      }
-      if (posters.length >= 3) break;
-    }
-  } catch (error) {
-    console.error("OMDB poster search error:", error);
-  }
+  if (!TMDB_API_KEY) return posters;
 
-  // If we don't have enough posters, try TMDb
-  if (posters.length < 3 && TMDB_API_KEY) {
-    try {
-      const tmdbSearchUrl = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(
-        title,
-      )}`;
-      const response = await fetch(tmdbSearchUrl);
-      if (response.ok) {
-        const data = await response.json();
-        for (const result of data.results || []) {
-          if (result.poster_path) {
-            const posterUrl = `https://image.tmdb.org/t/p/w500${result.poster_path}`;
-            if (!posters.includes(posterUrl)) {
-              posters.push(posterUrl);
-            }
-          }
-          if (posters.length >= 6) break;
+  try {
+    let tmdbId: number | null = null;
+    let mediaType: "movie" | "tv" = "movie";
+
+    // If we have an IMDB ID, use it to find the exact movie/show
+    if (imdbId && imdbId.startsWith("tt")) {
+      const findUrl = `https://api.themoviedb.org/3/find/${imdbId}?api_key=${TMDB_API_KEY}&external_source=imdb_id`;
+      const findResponse = await fetch(findUrl);
+      if (findResponse.ok) {
+        const findData = await findResponse.json();
+        if (findData.movie_results?.length > 0) {
+          tmdbId = findData.movie_results[0].id;
+          mediaType = "movie";
+        } else if (findData.tv_results?.length > 0) {
+          tmdbId = findData.tv_results[0].id;
+          mediaType = "tv";
         }
       }
-    } catch (error) {
-      console.error("TMDb poster search error:", error);
     }
+
+    // If no IMDB ID or find failed, search by title
+    if (!tmdbId) {
+      const searchUrl = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}`;
+      const searchResponse = await fetch(searchUrl);
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json();
+        const firstResult = searchData.results?.[0];
+        if (firstResult) {
+          tmdbId = firstResult.id;
+          mediaType = firstResult.media_type === "tv" ? "tv" : "movie";
+        }
+      }
+    }
+
+    // Now fetch all posters for this specific movie/show
+    if (tmdbId) {
+      const imagesUrl = `https://api.themoviedb.org/3/${mediaType}/${tmdbId}/images?api_key=${TMDB_API_KEY}`;
+      const imagesResponse = await fetch(imagesUrl);
+      if (imagesResponse.ok) {
+        const imagesData = await imagesResponse.json();
+        // Get posters sorted by vote_average (quality)
+        const sortedPosters = (imagesData.posters || [])
+          .sort(
+            (a: { vote_average: number }, b: { vote_average: number }) =>
+              b.vote_average - a.vote_average,
+          )
+          .slice(0, 12);
+
+        for (const poster of sortedPosters) {
+          if (poster.file_path) {
+            posters.push(`https://image.tmdb.org/t/p/w500${poster.file_path}`);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("TMDb poster search error:", error);
   }
 
-  return posters.slice(0, 6);
+  return posters;
 }
 
 function PosterPickerModal({
@@ -72,81 +98,225 @@ function PosterPickerModal({
 }) {
   const [posters, setPosters] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [customUrl, setCustomUrl] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const title = typeof entry.value === "string" ? entry.value : "";
 
+  // Reset state when modal opens and fetch posters
+  const loadPosters = useCallback(async () => {
+    if (!title) return;
+    setLoading(true);
+    setSelectedIndex(null);
+    const results = await searchPosters(title, entry.imdbId);
+    setPosters(results);
+    setLoading(false);
+  }, [title, entry.imdbId]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    if (isOpen && title) {
-      setLoading(true);
-      searchPosters(title).then((results) => {
-        setPosters(results);
-        setLoading(false);
-      });
+    if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadPosters();
     }
-  }, [isOpen, title]);
+  }, [isOpen, loadPosters]);
+
+  const handleSelect = (poster: string, index: number) => {
+    setSelectedIndex(index);
+    onSelectPoster(poster);
+    // Brief delay to show selection before closing
+    setTimeout(() => onClose(), 150);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (dataUrl) {
+          onSelectPoster(dataUrl);
+          onClose();
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <IOSModal isOpen={isOpen} onClose={onClose} title='Choose Poster'>
-      <div className='space-y-4'>
-        <p className='text-sm text-gray-500 dark:text-gray-400'>
-          Select a poster for &quot;{title}&quot;
-        </p>
+    <div
+      className='fixed inset-0 z-50 flex items-end justify-center sm:items-center'
+      onClick={onClose}>
+      {/* Backdrop */}
+      <div className='absolute inset-0 bg-black/60 backdrop-blur-sm' />
 
-        {loading ? (
-          <div className='flex justify-center py-8'>
-            <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-ios-blue'></div>
-          </div>
-        ) : posters.length > 0 ? (
-          <div className='grid grid-cols-3 gap-3'>
-            {posters.map((poster, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  onSelectPoster(poster);
-                  onClose();
-                }}
-                className='aspect-2/3 rounded-lg overflow-hidden border-2 border-transparent hover:border-ios-blue transition-all'>
-                <img
-                  src={poster}
-                  alt={`Poster option ${index + 1}`}
-                  className='w-full h-full object-cover'
-                />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className='text-center text-gray-500 py-4'>
-            No posters found. Try adding a custom URL below.
-          </p>
-        )}
-
-        <div className='pt-2 border-t border-gray-200 dark:border-gray-700'>
-          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-            Or enter a custom poster URL
-          </label>
-          <div className='flex gap-2'>
-            <input
-              type='url'
-              value={customUrl}
-              onChange={(e) => setCustomUrl(e.target.value)}
-              placeholder='https://...'
-              className='flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white text-sm'
-            />
-            <button
-              onClick={() => {
-                if (customUrl) {
-                  onSelectPoster(customUrl);
-                  onClose();
-                }
-              }}
-              disabled={!customUrl}
-              className='px-5 py-2.5 bg-ios-blue text-white rounded-full text-[14px] font-medium shadow-lg shadow-ios-blue/30 disabled:opacity-50'>
-              Use
-            </button>
-          </div>
+      {/* Modal */}
+      <div
+        className='relative w-full max-w-md mx-auto mb-20 sm:mb-0 bg-white dark:bg-gray-900 rounded-3xl sm:rounded-2xl overflow-hidden animate-in slide-in-from-bottom duration-300 max-h-[70vh] flex flex-col'
+        onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className='flex items-center justify-between px-5 py-4 border-b border-gray-200/80 dark:border-gray-700/80'>
+          <button
+            onClick={onClose}
+            className='text-[17px] text-ios-blue active:opacity-60'>
+            Cancel
+          </button>
+          <h2 className='text-[17px] font-semibold text-gray-900 dark:text-white'>
+            Choose Poster
+          </h2>
+          <div className='w-[60px]' /> {/* Spacer for centering */}
         </div>
+
+        {/* Title info */}
+        <div className='px-5 py-3 bg-gray-50 dark:bg-gray-800/50'>
+          <p className='text-[15px] text-gray-600 dark:text-gray-400 text-center'>
+            {title}
+          </p>
+        </div>
+
+        {/* Content */}
+        <div className='flex-1 overflow-y-auto overscroll-contain p-4'>
+          <input
+            ref={fileInputRef}
+            type='file'
+            accept='image/*'
+            onChange={handleFileSelect}
+            className='hidden'
+          />
+
+          {loading ? (
+            <div className='flex flex-col items-center justify-center py-12'>
+              <div className='w-10 h-10 border-3 border-ios-blue/30 border-t-ios-blue rounded-full animate-spin' />
+              <p className='mt-4 text-[15px] text-gray-500 dark:text-gray-400'>
+                Finding posters...
+              </p>
+            </div>
+          ) : posters.length > 0 ? (
+            <div className='grid grid-cols-3 gap-3'>
+              {posters.map((poster, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSelect(poster, index)}
+                  className={cn(
+                    "relative aspect-[2/3] rounded-xl overflow-hidden transition-all duration-200",
+                    "active:scale-95",
+                    selectedIndex === index
+                      ? "ring-3 ring-ios-blue ring-offset-2 ring-offset-white dark:ring-offset-gray-900 scale-[0.98]"
+                      : "ring-1 ring-gray-200 dark:ring-gray-700",
+                  )}>
+                  <Image
+                    src={poster}
+                    alt={`Poster ${index + 1}`}
+                    fill
+                    className='object-cover'
+                    sizes='(max-width: 768px) 33vw, 200px'
+                    unoptimized={poster.startsWith("data:")}
+                  />
+                  {selectedIndex === index && (
+                    <div className='absolute inset-0 bg-ios-blue/20 flex items-center justify-center'>
+                      <div className='w-8 h-8 rounded-full bg-ios-blue flex items-center justify-center'>
+                        <svg
+                          className='w-5 h-5 text-white'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          strokeWidth={3}
+                          stroke='currentColor'>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            d='M4.5 12.75l6 6 9-13.5'
+                          />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className='flex flex-col items-center justify-center py-8'>
+              <div className='w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3'>
+                <svg
+                  className='w-7 h-7 text-gray-400'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  strokeWidth={1.5}
+                  stroke='currentColor'>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'
+                  />
+                </svg>
+              </div>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white mb-1'>
+                No Online Posters Found
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400 text-center px-6'>
+                Use the photo library option below to add your own
+              </p>
+            </div>
+          )}
+
+          {/* Divider */}
+          {!loading && (
+            <div className='flex items-center gap-3 my-4'>
+              <div className='flex-1 h-px bg-gray-200 dark:bg-gray-700' />
+              <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                or
+              </span>
+              <div className='flex-1 h-px bg-gray-200 dark:bg-gray-700' />
+            </div>
+          )}
+
+          {/* Photo Library Button */}
+          {!loading && (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className='w-full flex items-center gap-3 p-4 rounded-xl bg-gray-100 dark:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors'>
+              <div className='w-10 h-10 rounded-full bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 flex items-center justify-center'>
+                <svg
+                  className='w-5 h-5 text-white'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  strokeWidth={2}
+                  stroke='currentColor'>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z'
+                  />
+                </svg>
+              </div>
+              <div className='flex-1 text-left'>
+                <p className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                  Choose from Photo Library
+                </p>
+                <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                  Select an image from your device
+                </p>
+              </div>
+              <svg
+                className='w-5 h-5 text-gray-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                strokeWidth={2}
+                stroke='currentColor'>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M8.25 4.5l7.5 7.5-7.5 7.5'
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Bottom padding */}
+        <div className='h-4' />
       </div>
-    </IOSModal>
+    </div>
   );
 }
 
@@ -210,11 +380,15 @@ function MinRatingFilter({
   }, [getRatingFromPosition]);
 
   // Save rating when dragging ends with a hovered value
+  const prevDraggingRef = useRef(isDragging);
   useEffect(() => {
-    if (!isDragging && hovered !== null) {
+    // Only trigger when transitioning from dragging to not dragging
+    if (prevDraggingRef.current && !isDragging && hovered !== null) {
       onChange(hovered);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHovered(null);
     }
+    prevDraggingRef.current = isDragging;
   }, [isDragging, hovered, onChange]);
 
   return (
@@ -323,10 +497,13 @@ function MediaCard({
             className='relative w-20 h-28 shrink-0 bg-gray-200 dark:bg-gray-800 group'>
             {entry.poster ? (
               <>
-                <img
+                <Image
                   src={entry.poster}
                   alt={title}
-                  className='w-full h-full object-cover'
+                  fill
+                  className='object-cover'
+                  sizes='80px'
+                  unoptimized={entry.poster.startsWith("data:")}
                 />
                 <div className='absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center'>
                   <span className='text-white opacity-0 group-hover:opacity-100 text-xs'>
@@ -487,10 +664,13 @@ function MediaCard({
         className='relative aspect-2/3 bg-gray-200 dark:bg-gray-800 group'>
         {entry.poster ? (
           <>
-            <img
+            <Image
               src={entry.poster}
               alt={title}
-              className='w-full h-full object-cover'
+              fill
+              className='object-cover'
+              sizes='(max-width: 768px) 50vw, 300px'
+              unoptimized={entry.poster.startsWith("data:")}
             />
             <div className='absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center'>
               <span className='text-white opacity-0 group-hover:opacity-100 text-sm'>

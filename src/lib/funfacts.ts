@@ -89,8 +89,8 @@ export async function fetchRandomFunFact(): Promise<FunFact | null> {
   }
 }
 
-// Fetch fact by specific category
-async function fetchFactByCategory(category: FunFactCategory): Promise<FunFact> {
+// Fetch fact by specific category (exported for testing in settings)
+export async function fetchFactByCategory(category: FunFactCategory): Promise<FunFact> {
   switch (category) {
     case "cats":
       return fetchCatFact();

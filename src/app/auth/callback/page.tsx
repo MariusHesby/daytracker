@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
 export default function AuthCallbackPage() {
@@ -17,7 +18,7 @@ export default function AuthCallbackPage() {
       try {
         // Get the hash fragment from URL (Supabase puts tokens here)
         const hashParams = new URLSearchParams(
-          window.location.hash.substring(1)
+          window.location.hash.substring(1),
         );
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
@@ -218,11 +219,11 @@ export default function AuthCallbackPage() {
             <p className='text-[17px] text-gray-900 dark:text-white mb-4'>
               {message}
             </p>
-            <a
+            <Link
               href='/'
               className='inline-block px-6 py-3 bg-ios-blue text-white rounded-xl text-[17px] font-medium'>
               Go to App
-            </a>
+            </Link>
           </>
         )}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { Icon, icons, IconName } from "@/components";
@@ -397,8 +397,10 @@ export default function StatsPage() {
     return null;
   }, [statistics, selectedActivityId, activityTypes]);
 
-  const getActivityType = (id: string) =>
-    activityTypes.find((t) => t.id === id);
+  const getActivityType = useCallback(
+    (id: string) => activityTypes.find((t) => t.id === id),
+    [activityTypes],
+  );
 
   // Count values for the selected activity
   const valueCounts = useMemo(() => {
@@ -443,21 +445,21 @@ export default function StatsPage() {
       map.set(entry.date, String(entry.value).toLowerCase());
     });
     return map;
-  }, [selectedStat, activityTypes]);
+  }, [selectedStat, getActivityType]);
 
   // Check if selected activity is mood type
   const isMoodType = useMemo(() => {
     if (!selectedStat) return false;
     const selectedType = getActivityType(selectedStat.activityTypeId);
     return selectedType?.valueType === "mood";
-  }, [selectedStat, activityTypes]);
+  }, [selectedStat, getActivityType]);
 
   // Check if selected activity is nutrition type
   const isNutritionType = useMemo(() => {
     if (!selectedStat) return false;
     const selectedType = getActivityType(selectedStat.activityTypeId);
     return selectedType?.valueType === "nutrition";
-  }, [selectedStat, activityTypes]);
+  }, [selectedStat, getActivityType]);
 
   // Calculate nutrition stats for the period
   const nutritionStats = useMemo(() => {
@@ -557,21 +559,21 @@ export default function StatsPage() {
         : 0,
       dailyTotals,
     };
-  }, [selectedStat, isNutritionType, activityTypes]);
+  }, [selectedStat, isNutritionType, getActivityType]);
 
   // Check if selected activity is workout type
   const isWorkoutType = useMemo(() => {
     if (!selectedStat) return false;
     const selectedType = getActivityType(selectedStat.activityTypeId);
     return selectedType?.valueType === "workout";
-  }, [selectedStat, activityTypes]);
+  }, [selectedStat, getActivityType]);
 
   // Check if selected activity is checklist type
   const isChecklistType = useMemo(() => {
     if (!selectedStat) return false;
     const selectedType = getActivityType(selectedStat.activityTypeId);
     return selectedType?.valueType === "checklist";
-  }, [selectedStat, activityTypes]);
+  }, [selectedStat, getActivityType]);
 
   // Calculate checklist stats for the period
   const checklistStats = useMemo(() => {
