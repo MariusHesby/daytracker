@@ -195,72 +195,71 @@ export default function HomePage() {
         )}
 
         {/* Action buttons row */}
-        <div className='px-4 flex items-center gap-2'>
-          {/* Unlocked days and Trivia indicators on left */}
+        <div className='px-4 flex items-center justify-around'>
+          {/* Unlocked days button */}
           {user && !isViewingOther && (
-            <div className='flex items-center gap-3 mr-auto'>
-              {/* Unlocked days button */}
-              <button
-                onClick={() => {
-                  setUnlockedPage(0);
-                  setShowStreakPopup(true);
-                }}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
-                  unlockedDays.length > 0
-                    ? "text-ios-orange"
-                    : "text-gray-400 dark:text-gray-500"
-                }`}
-                title={`${unlockedDays.length} unlocked ${unlockedDays.length === 1 ? "day" : "days"}`}>
+            <button
+              onClick={() => {
+                setUnlockedPage(0);
+                setShowStreakPopup(true);
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+                unlockedDays.length > 0
+                  ? "text-ios-orange"
+                  : "text-gray-400 dark:text-gray-500"
+              }`}
+              title={`${unlockedDays.length} unlocked ${unlockedDays.length === 1 ? "day" : "days"}`}>
+              <svg
+                className='w-5 h-5'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z'
+                />
+              </svg>
+              <span className='text-[15px] font-semibold'>
+                {unlockedDays.length}
+              </span>
+            </button>
+          )}
+          {/* Trivia indicator - shows if answered correctly today */}
+          {user && !isViewingOther && (
+            <div
+              className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all ${
+                triviaCorrectToday
+                  ? "bg-amber-100 dark:bg-amber-900/40"
+                  : "bg-gray-100 dark:bg-gray-800"
+              }`}
+              title={
+                triviaCorrectToday
+                  ? "You got it right today! 🎉"
+                  : "Answer a trivia correctly today"
+              }>
+              {triviaCorrectToday ? (
                 <svg
-                  className='w-5 h-5'
+                  className='w-5 h-5 text-amber-500'
+                  fill='currentColor'
+                  viewBox='0 0 24 24'>
+                  <path d='M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z' />
+                </svg>
+              ) : (
+                <svg
+                  className='w-5 h-5 text-gray-400 dark:text-gray-500'
                   fill='none'
                   viewBox='0 0 24 24'
                   stroke='currentColor'
-                  strokeWidth={2}>
+                  strokeWidth={1.5}>
                   <path
                     strokeLinecap='round'
                     strokeLinejoin='round'
-                    d='M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z'
+                    d='M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z'
                   />
                 </svg>
-                <span className='text-[15px] font-semibold'>
-                  {unlockedDays.length}
-                </span>
-              </button>
-              {/* Trivia indicator - shows if answered correctly today */}
-              <div
-                className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all ${
-                  triviaCorrectToday
-                    ? "bg-amber-100 dark:bg-amber-900/40"
-                    : "bg-gray-100 dark:bg-gray-800"
-                }`}
-                title={
-                  triviaCorrectToday
-                    ? "You got it right today! 🎉"
-                    : "Answer a trivia correctly today"
-                }>
-                {triviaCorrectToday ? (
-                  <svg
-                    className='w-5 h-5 text-amber-500'
-                    fill='currentColor'
-                    viewBox='0 0 24 24'>
-                    <path d='M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z' />
-                  </svg>
-                ) : (
-                  <svg
-                    className='w-5 h-5 text-gray-400 dark:text-gray-500'
-                    fill='none'
-                    viewBox='0 0 24 24'
-                    stroke='currentColor'
-                    strokeWidth={1.5}>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      d='M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z'
-                    />
-                  </svg>
-                )}
-              </div>
+              )}
             </div>
           )}
           {/* Notification Bell */}
