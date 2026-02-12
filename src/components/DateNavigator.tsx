@@ -51,20 +51,20 @@ export function DateNavigator({ date, onChange }: DateNavigatorProps) {
   const today = isToday(date);
 
   return (
-    <div className='flex items-center justify-between bg-white/80 dark:bg-ios-card-dark rounded-xl'>
+    <div className='flex items-center justify-between bg-gray-100/50 dark:bg-gray-800/30 rounded-xl border border-gray-200/50 dark:border-gray-700/30'>
       <button
         onClick={handlePrevDay}
         className={cn(
-          "p-2.5 rounded-lg transition-all",
-          "text-ios-blue active:bg-gray-100 dark:active:bg-gray-700"
+          "p-3 transition-opacity active:opacity-50",
+          "text-gray-400 dark:text-gray-500",
         )}
         title='Previous day'>
         <svg
-          className='w-5 h-5'
+          className='w-6 h-6'
           fill='none'
           stroke='currentColor'
           viewBox='0 0 24 24'
-          strokeWidth={2.5}>
+          strokeWidth={2}>
           <path
             strokeLinecap='round'
             strokeLinejoin='round'
@@ -75,19 +75,16 @@ export function DateNavigator({ date, onChange }: DateNavigatorProps) {
 
       <button
         onClick={handleToday}
-        className={cn(
-          "flex-1 py-2 px-4 rounded-lg transition-all",
-          "active:bg-gray-100 dark:active:bg-gray-700"
-        )}>
+        className={cn("flex-1 py-2 px-4 transition-opacity active:opacity-50")}>
         <span
           className={cn(
             "font-semibold text-[17px]",
-            today ? "text-ios-blue" : "text-gray-900 dark:text-white"
+            today ? "text-ios-blue" : "text-gray-600 dark:text-gray-300",
           )}>
           {today ? "Today" : formatDisplayDate(date)}
         </span>
         {!today && showHint && (
-          <p className='text-[13px] text-gray-500 dark:text-gray-400 mt-0.5'>
+          <p className='text-[12px] text-gray-400 dark:text-gray-500 mt-0.5'>
             Tap to go to today
           </p>
         )}
@@ -96,16 +93,16 @@ export function DateNavigator({ date, onChange }: DateNavigatorProps) {
       <button
         onClick={handleNextDay}
         className={cn(
-          "p-2.5 rounded-lg transition-all",
-          "text-ios-blue active:bg-gray-100 dark:active:bg-gray-700"
+          "p-3 transition-opacity active:opacity-50",
+          "text-gray-400 dark:text-gray-500",
         )}
         title='Next day'>
         <svg
-          className='w-5 h-5'
+          className='w-6 h-6'
           fill='none'
           stroke='currentColor'
           viewBox='0 0 24 24'
-          strokeWidth={2.5}>
+          strokeWidth={2}>
           <path strokeLinecap='round' strokeLinejoin='round' d='M9 5l7 7-7 7' />
         </svg>
       </button>

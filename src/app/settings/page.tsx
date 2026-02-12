@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { useApp } from "@/context/AppContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuth } from "@/context/AuthContext";
@@ -20,6 +20,14 @@ import {
   fetchRandomFunFact,
   FunFact,
 } from "@/lib/funfacts";
+import {
+  getStoredLocation,
+  setStoredLocation,
+  clearStoredLocation,
+  searchLocation,
+  GeocodingResult,
+  StoredLocation,
+} from "@/lib/weather";
 
 export default function SettingsPage() {
   const {
@@ -63,6 +71,60 @@ export default function SettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [colorScheme, setColorScheme] = useState<1 | 2 | 3>(1);
   const [nutritionMergeExpanded, setNutritionMergeExpanded] = useState(false);
+
+  // Location/Weather state
+  const [locationExpanded, setLocationExpanded] = useState(false);
+  const [storedLocation, setStoredLocationState] =
+    useState<StoredLocation | null>(null);
+  const [locationSearch, setLocationSearch] = useState("");
+  const [locationResults, setLocationResults] = useState<GeocodingResult[]>([]);
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+
+  // Load stored location on mount
+  useEffect(() => {
+    setStoredLocationState(getStoredLocation());
+  }, []);
+
+  // Debounced location search
+  const searchLocationDebounced = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setLocationResults([]);
+      return;
+    }
+    setIsSearchingLocation(true);
+    const results = await searchLocation(query);
+    setLocationResults(results);
+    setIsSearchingLocation(false);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchLocationDebounced(locationSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [locationSearch, searchLocationDebounced]);
+
+  const handleSelectLocation = (result: GeocodingResult) => {
+    const location: StoredLocation = {
+      latitude: result.latitude,
+      longitude: result.longitude,
+      name: result.admin1
+        ? `${result.name}, ${result.admin1}`
+        : `${result.name}, ${result.country}`,
+    };
+    setStoredLocation(location);
+    setStoredLocationState(location);
+    setLocationSearch("");
+    setLocationResults([]);
+    // Dispatch event to update weather on home page
+    window.dispatchEvent(new Event("locationUpdated"));
+  };
+
+  const handleClearLocation = () => {
+    clearStoredLocation();
+    setStoredLocationState(null);
+    window.dispatchEvent(new Event("locationUpdated"));
+  };
 
   // Fun Facts categories state
   const [funFactCategories, setFunFactCategories] = useState<FunFactCategory[]>(
@@ -991,6 +1053,162 @@ export default function SettingsPage() {
             </section>
           );
         })()}
+
+        {/* Location/Weather Section */}
+        <section className='mb-6'>
+          <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
+            Weather
+          </h2>
+          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+            <button
+              onClick={() => setLocationExpanded(!locationExpanded)}
+              className='w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
+              <div className='flex items-center gap-3'>
+                <div className='w-8 h-8 rounded-lg bg-cyan-500 flex items-center justify-center'>
+                  <svg
+                    className='w-5 h-5 text-white'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z'
+                    />
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M15 11a3 3 0 11-6 0 3 3 0 016 0z'
+                    />
+                  </svg>
+                </div>
+                <div className='text-left'>
+                  <span className='text-[17px] text-gray-900 dark:text-white'>
+                    Location
+                  </span>
+                  {storedLocation && (
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      {storedLocation.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <svg
+                className={cn(
+                  "w-5 h-5 text-gray-400 transition-transform",
+                  locationExpanded && "rotate-90",
+                )}
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M9 5l7 7-7 7'
+                />
+              </svg>
+            </button>
+
+            {locationExpanded && (
+              <div className='border-t border-gray-200/80 dark:border-gray-700/80'>
+                <div className='px-4 py-3'>
+                  <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-3'>
+                    Set your location to see weather on the home screen.
+                  </p>
+
+                  {/* Current location display */}
+                  {storedLocation && (
+                    <div className='flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3 mb-3'>
+                      <div>
+                        <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                          {storedLocation.name}
+                        </p>
+                        <p className='text-[12px] text-gray-500 dark:text-gray-400'>
+                          {storedLocation.latitude.toFixed(2)}°,{" "}
+                          {storedLocation.longitude.toFixed(2)}°
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleClearLocation}
+                        className='text-ios-red text-[15px] font-medium'>
+                        Remove
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Search input */}
+                  <div className='relative'>
+                    <input
+                      type='text'
+                      value={locationSearch}
+                      onChange={(e) => setLocationSearch(e.target.value)}
+                      placeholder='Search for a city...'
+                      className='w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-[15px] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                    />
+                    {isSearchingLocation && (
+                      <div className='absolute right-3 top-1/2 -translate-y-1/2'>
+                        <svg
+                          className='w-5 h-5 text-gray-400 animate-spin'
+                          fill='none'
+                          viewBox='0 0 24 24'>
+                          <circle
+                            className='opacity-25'
+                            cx='12'
+                            cy='12'
+                            r='10'
+                            stroke='currentColor'
+                            strokeWidth='4'
+                          />
+                          <path
+                            className='opacity-75'
+                            fill='currentColor'
+                            d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Search results */}
+                  {locationResults.length > 0 && (
+                    <div className='mt-2 bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden'>
+                      {locationResults.map((result, index) => (
+                        <button
+                          key={`${result.latitude}-${result.longitude}-${index}`}
+                          onClick={() => handleSelectLocation(result)}
+                          className='w-full px-4 py-3 text-left flex items-center justify-between hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors border-b border-gray-200 dark:border-gray-700 last:border-0'>
+                          <div>
+                            <p className='text-[15px] text-gray-900 dark:text-white'>
+                              {result.name}
+                            </p>
+                            <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                              {result.admin1 ? `${result.admin1}, ` : ""}
+                              {result.country}
+                            </p>
+                          </div>
+                          <svg
+                            className='w-5 h-5 text-gray-400'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'
+                            strokeWidth={2}>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              d='M12 4v16m8-8H4'
+                            />
+                          </svg>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* Fun Facts Section */}
         <section>

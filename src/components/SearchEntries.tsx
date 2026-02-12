@@ -120,7 +120,7 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className='w-9 h-9 rounded-full bg-gray-100/80 dark:bg-gray-800/80 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-center active:scale-95'>
+        className='w-9 h-9 text-gray-500 dark:text-gray-400 flex items-center justify-center active:opacity-60 transition-opacity'>
         <svg
           className='w-[18px] h-[18px]'
           fill='none'
