@@ -196,7 +196,7 @@ export default function HomePage() {
           <div className='px-4 mb-3'>
             <div
               onClick={() => setShowFullName((prev) => !prev)}
-              className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-5 border border-gray-200/50 dark:border-gray-700/50 cursor-pointer active:opacity-90 transition-opacity'>
+              className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-black dark:from-gray-800 dark:to-black p-5 border border-gray-200/50 dark:border-gray-700/50 cursor-pointer active:opacity-90 transition-opacity'>
               {/* Subtle decorative elements */}
               <div className='absolute -top-12 -right-12 w-32 h-32 bg-ios-blue/5 rounded-full blur-2xl' />
               <div className='absolute -bottom-8 -left-8 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl' />
@@ -343,20 +343,20 @@ export default function HomePage() {
           )}
           {/* Spacer when not logged in */}
           {(!user || isViewingOther) && <div />}
-          {/* Right side - Bell, View Mode, Search */}
-          <div className='flex items-center gap-1'>
+          {/* Right side - Bell, View Mode, Search (with background) */}
+          <div className='flex items-center gap-2'>
             {user && <NotificationBell />}
             <button
               onClick={() =>
                 handleViewModeChange(viewMode === "list" ? "icons" : "list")
               }
-              className='p-2 active:opacity-60 transition-opacity'
+              className='p-2 rounded-xl bg-gray-100 dark:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors'
               title={
                 viewMode === "list" ? "Switch to icons" : "Switch to list"
               }>
               {viewMode === "list" ? (
                 <svg
-                  className='w-5 h-5 text-gray-500 dark:text-gray-400'
+                  className='w-5 h-5 text-gray-600 dark:text-gray-400'
                   fill='none'
                   viewBox='0 0 24 24'
                   strokeWidth={1.5}
@@ -369,7 +369,7 @@ export default function HomePage() {
                 </svg>
               ) : (
                 <svg
-                  className='w-5 h-5 text-gray-500 dark:text-gray-400'
+                  className='w-5 h-5 text-gray-600 dark:text-gray-400'
                   fill='none'
                   viewBox='0 0 24 24'
                   strokeWidth={1.5}
