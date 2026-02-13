@@ -72,6 +72,65 @@ export async function fetchWeather(latitude: number, longitude: number): Promise
   }
 }
 
+// Hourly forecast for today
+export interface HourlyForecast {
+  time: string; // ISO string
+  temperature: number;
+  weatherCode: number;
+  isDay: boolean;
+}
+
+// Daily forecast
+export interface DailyForecast {
+  date: string; // YYYY-MM-DD
+  tempMax: number;
+  tempMin: number;
+  weatherCode: number;
+  precipitationProbability: number;
+}
+
+export interface ForecastData {
+  hourly: HourlyForecast[];
+  daily: DailyForecast[];
+}
+
+export async function fetchForecast(latitude: number, longitude: number): Promise<ForecastData | null> {
+  try {
+    const response = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
+      `&hourly=temperature_2m,weather_code,is_day` +
+      `&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max` +
+      `&timezone=auto&forecast_days=8`
+    );
+
+    if (!response.ok) {
+      throw new Error('Forecast API request failed');
+    }
+
+    const data = await response.json();
+
+    const hourly: HourlyForecast[] = data.hourly.time.map((t: string, i: number) => ({
+      time: t,
+      temperature: Math.round(data.hourly.temperature_2m[i]),
+      weatherCode: data.hourly.weather_code[i],
+      isDay: data.hourly.is_day[i] === 1,
+    }));
+
+    const daily: DailyForecast[] = data.daily.time.map((d: string, i: number) => ({
+      date: d,
+      tempMax: Math.round(data.daily.temperature_2m_max[i]),
+      tempMin: Math.round(data.daily.temperature_2m_min[i]),
+      weatherCode: data.daily.weather_code[i],
+      precipitationProbability: data.daily.precipitation_probability_max[i] ?? 0,
+    }));
+
+    return { hourly, daily };
+  } catch (error) {
+    console.error('Failed to fetch forecast:', error);
+    return null;
+  }
+}
+
 // Location storage helpers
 const LOCATION_KEY = 'daytracker_location';
 

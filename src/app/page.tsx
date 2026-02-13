@@ -13,6 +13,7 @@ import {
 } from "@/components";
 import { addDays, formatDate } from "@/lib/utils";
 import { IOSModal } from "@/components/ios";
+import { WeatherForecastPopup } from "@/components/WeatherForecastPopup";
 import {
   fetchWeather,
   getStoredLocation,
@@ -75,6 +76,7 @@ export default function HomePage() {
   // Weather state
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationName, setLocationName] = useState<string | null>(null);
+  const [showForecast, setShowForecast] = useState(false);
 
   // Fetch weather on mount and when location changes
   useEffect(() => {
@@ -203,16 +205,21 @@ export default function HomePage() {
       )}
 
       {/* Header with Search */}
-      <div className='pt-8 pb-4'>
+      <div className={user ? "pt-8 pb-4" : "pt-6 pb-4"}>
         {/* Full-width greeting header - iOS style */}
         {user && (
           <div className='px-4 mb-3'>
             <div
               onClick={() => setShowFullName((prev) => !prev)}
               className='relative overflow-hidden rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
-              {/* Weather display - top right */}
+              {/* Weather display - top right (tap to open forecast) */}
               {weather && !isViewingOther && locationName && (
-                <div className='absolute top-2 right-3 flex flex-col items-end z-10'>
+                <div
+                  className='absolute top-1 right-3 flex flex-col items-end z-10 cursor-pointer active:opacity-60 transition-opacity'
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowForecast(true);
+                  }}>
                   <div className='flex items-center gap-1.5'>
                     <span className='text-[11px] text-gray-400 dark:text-gray-500 font-medium'>
                       {locationName}
@@ -224,7 +231,7 @@ export default function HomePage() {
                       }
                     </span>
                   </div>
-                  <span className='text-[26px] font-semibold text-gray-500 dark:text-gray-400'>
+                  <span className='text-[26px] font-semibold text-gray-500 dark:text-gray-400 -mt-0.5 leading-none'>
                     {weather.temperature}°
                   </span>
                 </div>
@@ -252,7 +259,7 @@ export default function HomePage() {
                     {isViewingOther ? "Viewing" : getGreeting()}
                   </p>
                   <h1
-                    className={`text-[22px] font-bold text-gray-900 dark:text-white leading-tight ${
+                    className={`text-[19px] font-bold text-gray-900 dark:text-white leading-tight mt-0.5 ${
                       showFullName ? "" : "truncate"
                     }`}>
                     {isViewingOther
@@ -270,16 +277,6 @@ export default function HomePage() {
             </div>
           </div>
         )}
-        {!user && (
-          <div className='px-4 mb-4'>
-            <div className='relative overflow-hidden rounded-2xl liquid-glass p-5'>
-              <h1 className='relative text-2xl font-bold text-gray-900 dark:text-white'>
-                DayTracker
-              </h1>
-            </div>
-          </div>
-        )}
-
         {/* Action buttons row */}
         <div className='px-4 flex items-center justify-between'>
           {/* Left side - Unlocked days and Trivia (no background) */}
@@ -345,8 +342,13 @@ export default function HomePage() {
               </div>
             </div>
           )}
-          {/* Spacer when not logged in */}
-          {(!user || isViewingOther) && <div />}
+          {/* Title or spacer when not logged in / viewing other */}
+          {!user && (
+            <h1 className='text-2xl font-bold text-gray-900 dark:text-white ml-1'>
+              DayTracker
+            </h1>
+          )}
+          {user && isViewingOther && <div />}
           {/* Right side - Bell, View Mode, Search */}
           <div className='flex items-center gap-1'>
             {user && <NotificationBell />}
@@ -516,6 +518,15 @@ export default function HomePage() {
           )}
         </div>
       </IOSModal>
+
+      {/* Weather Forecast Popup */}
+      {locationName && (
+        <WeatherForecastPopup
+          isOpen={showForecast}
+          onClose={() => setShowForecast(false)}
+          locationName={locationName}
+        />
+      )}
     </div>
   );
 }
