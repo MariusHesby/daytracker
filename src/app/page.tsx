@@ -209,7 +209,7 @@ export default function HomePage() {
           <div className='px-4 mb-3'>
             <div
               onClick={() => setShowFullName((prev) => !prev)}
-              className='relative overflow-hidden rounded-2xl bg-gradient-to-r from-white via-white/60 to-transparent dark:from-gray-950 dark:via-gray-950/60 dark:to-transparent p-5 border border-gray-200/50 dark:border-gray-700/50 cursor-pointer active:opacity-90 transition-opacity backdrop-blur-sm'>
+              className='relative overflow-hidden rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
               {/* Weather display - top right */}
               {weather && !isViewingOther && locationName && (
                 <div className='absolute top-2 right-3 flex flex-col items-end z-10'>
@@ -265,18 +265,14 @@ export default function HomePage() {
                   </h1>
                 </div>
               </div>
-              {/* Weather gradient overlay */}
-              {weather && !isViewingOther && (
-                <div
-                  className={`absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l ${getWeatherCondition(weather.weatherCode, weather.isDay).gradient} to-transparent pointer-events-none`}
-                />
-              )}
+              {/* Glass highlight — subtle shimmer across the top edge */}
+              <div className='absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/80 to-transparent pointer-events-none' />
             </div>
           </div>
         )}
         {!user && (
           <div className='px-4 mb-4'>
-            <div className='relative overflow-hidden rounded-2xl bg-gradient-to-r from-white via-white/60 to-transparent dark:from-gray-950 dark:via-gray-950/60 dark:to-transparent p-5 border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-sm'>
+            <div className='relative overflow-hidden rounded-2xl liquid-glass p-5'>
               <h1 className='relative text-2xl font-bold text-gray-900 dark:text-white'>
                 DayTracker
               </h1>

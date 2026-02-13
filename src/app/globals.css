@@ -167,6 +167,76 @@
   background: transparent !important;
 }
 
+/* Liquid Glass effect for header card — iOS 26 inspired */
+.liquid-glass,
+.liquid-glass.liquid-glass {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.65) 0%,
+      rgba(255, 255, 255, 0.35) 40%,
+      rgba(255, 255, 255, 0.15) 100%
+    ) !important;
+  backdrop-filter: blur(50px) saturate(200%) brightness(1.1) !important;
+  -webkit-backdrop-filter: blur(50px) saturate(200%) brightness(1.1) !important;
+  border: none !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.7) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.4) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.8),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.05),
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+.dark .liquid-glass,
+.dark .liquid-glass.liquid-glass {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.12) 0%,
+      rgba(255, 255, 255, 0.06) 40%,
+      rgba(255, 255, 255, 0.02) 100%
+    ) !important;
+  backdrop-filter: blur(50px) saturate(180%) brightness(0.85) !important;
+  -webkit-backdrop-filter: blur(50px) saturate(180%) brightness(0.85) !important;
+  border: none !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.03) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.08),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.colorful .liquid-glass,
+.colorful .liquid-glass.liquid-glass {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.2) 40%,
+      rgba(255, 255, 255, 0.05) 100%
+    ) !important;
+  backdrop-filter: blur(50px) saturate(220%) brightness(1.15) !important;
+  -webkit-backdrop-filter: blur(50px) saturate(220%) brightness(1.15) !important;
+  border: none !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.6) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.6),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.02),
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
 /* Colorful cards - frosted glass with gradient tint */
 .colorful .bg-white,
 .colorful .bg-white\/80 {
