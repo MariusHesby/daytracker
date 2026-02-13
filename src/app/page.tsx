@@ -209,11 +209,7 @@ export default function HomePage() {
           <div className='px-4 mb-3'>
             <div
               onClick={() => setShowFullName((prev) => !prev)}
-              className='relative overflow-hidden rounded-2xl bg-gradient-to-r from-white via-white/80 to-ios-blue/10 dark:from-gray-950 dark:to-gray-700 p-5 border border-gray-200/50 dark:border-gray-700/50 cursor-pointer active:opacity-90 transition-opacity'>
-              {/* Subtle decorative elements - only in light mode */}
-              <div className='absolute -top-12 -right-12 w-32 h-32 bg-ios-blue/5 dark:bg-transparent rounded-full blur-2xl' />
-              <div className='absolute -bottom-8 -left-8 w-24 h-24 bg-transparent rounded-full blur-xl' />
-
+              className='relative overflow-hidden rounded-2xl bg-gradient-to-r from-white via-white/60 to-transparent dark:from-gray-950 dark:via-gray-950/60 dark:to-transparent p-5 border border-gray-200/50 dark:border-gray-700/50 cursor-pointer active:opacity-90 transition-opacity backdrop-blur-sm'>
               {/* Weather display - top right */}
               {weather && !isViewingOther && locationName && (
                 <div className='absolute top-2 right-3 flex flex-col items-end z-10'>
@@ -280,8 +276,7 @@ export default function HomePage() {
         )}
         {!user && (
           <div className='px-4 mb-4'>
-            <div className='relative overflow-hidden rounded-2xl bg-gradient-to-r from-white to-ios-blue/10 dark:from-gray-950 dark:to-gray-700 p-5 border border-gray-200/50 dark:border-gray-700/50'>
-              <div className='absolute -top-12 -right-12 w-32 h-32 bg-ios-blue/5 rounded-full blur-2xl' />
+            <div className='relative overflow-hidden rounded-2xl bg-gradient-to-r from-white via-white/60 to-transparent dark:from-gray-950 dark:via-gray-950/60 dark:to-transparent p-5 border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-sm'>
               <h1 className='relative text-2xl font-bold text-gray-900 dark:text-white'>
                 DayTracker
               </h1>
