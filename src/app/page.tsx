@@ -70,8 +70,29 @@ export default function HomePage() {
   const [unlockedPage, setUnlockedPage] = useState(0);
   const UNLOCKED_PER_PAGE = 5;
 
-  // Show full name in header card
-  const [showFullName, setShowFullName] = useState(false);
+  // Name display variant for header card
+  const [nameVariant, setNameVariant] = useState(0);
+
+  // Generate name combinations: first only, first+last, first+2nd, first+3rd, etc., then full
+  function getNameVariants(fullName: string): string[] {
+    const parts = fullName.split(" ");
+    if (parts.length <= 1) return [fullName];
+    const variants: string[] = [parts[0]]; // first name only
+    if (parts.length === 2) {
+      variants.push(fullName); // first + last (= full)
+      return variants;
+    }
+    // 3+ names: first+last, first+2nd, first+3rd, ..., first+2nd+last, full
+    variants.push(`${parts[0]} ${parts[parts.length - 1]}`); // first + last
+    for (let i = 1; i < parts.length - 1; i++) {
+      variants.push(`${parts[0]} ${parts[i]}`); // first + middle
+    }
+    if (parts.length >= 4) {
+      variants.push(`${parts[0]} ${parts[1]} ${parts[parts.length - 1]}`); // first + 2nd + last
+    }
+    variants.push(fullName); // full name
+    return variants;
+  }
 
   // Weather state
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -210,7 +231,13 @@ export default function HomePage() {
         {user && (
           <div className='px-4 mb-3'>
             <div
-              onClick={() => setShowFullName((prev) => !prev)}
+              onClick={() => {
+                const fullName = isViewingOther
+                  ? viewingUser?.fullName || ""
+                  : profile?.fullName || "";
+                const variants = getNameVariants(fullName);
+                setNameVariant((prev) => (prev + 1) % variants.length);
+              }}
               className='relative overflow-hidden rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
               {/* Weather display - top right (tap to open forecast) */}
               {weather && !isViewingOther && locationName && (
@@ -231,7 +258,7 @@ export default function HomePage() {
                       }
                     </span>
                   </div>
-                  <span className='text-[26px] font-semibold text-gray-500 dark:text-gray-400 -mt-0.5 leading-none'>
+                  <span className='text-[26px] font-semibold text-gray-500 dark:text-gray-400 mt-0.5 leading-none'>
                     {weather.temperature}°
                   </span>
                 </div>
@@ -258,17 +285,14 @@ export default function HomePage() {
                   <p className='text-gray-500 dark:text-gray-400 text-[13px] font-medium tracking-wide'>
                     {isViewingOther ? "Viewing" : getGreeting()}
                   </p>
-                  <h1
-                    className={`text-[19px] font-bold text-gray-900 dark:text-white leading-tight mt-0.5 ${
-                      showFullName ? "" : "truncate"
-                    }`}>
-                    {isViewingOther
-                      ? showFullName
+                  <h1 className='text-[19px] font-bold text-gray-900 dark:text-white leading-tight mt-0.5 truncate'>
+                    {(() => {
+                      const fullName = isViewingOther
                         ? viewingUser?.fullName || "User"
-                        : viewingUser?.fullName?.split(" ")[0] || "User"
-                      : showFullName
-                        ? profile?.fullName || "Welcome"
-                        : profile?.fullName?.split(" ")[0] || "Welcome"}
+                        : profile?.fullName || "Welcome";
+                      const variants = getNameVariants(fullName);
+                      return variants[nameVariant % variants.length];
+                    })()}
                   </h1>
                 </div>
               </div>

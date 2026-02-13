@@ -58,12 +58,17 @@ export function WeatherForecastPopup({
   const targetStr = targetDate.toISOString().split("T")[0];
 
   // Get hours for the selected day
+  const currentHour = new Date().getHours();
   const dayHours: HourlyForecast[] = (forecast?.hourly ?? []).filter((h) => {
     const hDate = h.time.split("T")[0];
-    return hDate === targetStr;
+    if (hDate !== targetStr) return false;
+    const hHour = parseInt(h.time.split("T")[1].split(":")[0]);
+    // Today: start from current hour. Future days: start from 06:00
+    if (dayOffset === 0) return hHour >= currentHour;
+    return hHour >= 6;
   });
 
-  // Show every 2 hours for compactness (12 slots for a full day)
+  // Show every 2 hours for compactness
   const displayHours = dayHours.filter((_, i) => i % 2 === 0);
 
   // Get the daily summary for the selected day
@@ -177,7 +182,10 @@ export function WeatherForecastPopup({
               )}
 
               {/* Hourly scroll */}
-              <div className='flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide'>
+              <div
+                data-no-swipe
+                className='flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide'
+                style={{ touchAction: "pan-x" }}>
                 {displayHours.map((h, i) => {
                   const condition = getWeatherCondition(h.weatherCode, h.isDay);
                   const now = new Date();
