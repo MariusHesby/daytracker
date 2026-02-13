@@ -234,38 +234,12 @@ export async function sendShareRequestByUserId(
       targetEmail = `user_${toUserId}@daytracker.local`;
     }
 
-    // Check if friendship already exists (either direction)
-    const { data: existingShare } = await supabase
+    // Clean up any old shares and share_requests between these users first
+    // This handles cases where a user was deleted and re-created, or stale records remain
+    await supabase
       .from('shares')
-      .select('id')
-      .or(`and(owner_id.eq.${fromUserId},viewer_id.eq.${toUserId}),and(owner_id.eq.${toUserId},viewer_id.eq.${fromUserId})`)
-      .limit(1);
-
-    if (existingShare && existingShare.length > 0) {
-      // Verify the other user still exists (their profile exists)
-      const { data: otherProfile } = await supabase
-        .from('profiles')
-        .select('user_id')
-        .eq('user_id', toUserId)
-        .maybeSingle();
-
-      if (!otherProfile) {
-        // The other user was deleted — clean up stale shares and share_requests
-        await supabase
-          .from('shares')
-          .delete()
-          .or(`and(owner_id.eq.${fromUserId},viewer_id.eq.${toUserId}),and(owner_id.eq.${toUserId},viewer_id.eq.${fromUserId})`);
-        await supabase
-          .from('share_requests')
-          .delete()
-          .or(`and(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),and(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`);
-        // Fall through to create the new friendship below
-      } else {
-        return { error: new Error('You are already friends with this user') };
-      }
-    }
-
-    // Also clean up any old share_requests between these users (e.g. previously accepted/rejected)
+      .delete()
+      .or(`and(owner_id.eq.${fromUserId},viewer_id.eq.${toUserId}),and(owner_id.eq.${toUserId},viewer_id.eq.${fromUserId})`);
     await supabase
       .from('share_requests')
       .delete()
