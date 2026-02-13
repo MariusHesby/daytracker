@@ -188,8 +188,8 @@ export async function sendShareRequest(
   return { error: error as Error | null };
 }
 
-// Send a share request to another user by their user ID (from search results)
-// This now creates an INSTANT mutual friendship - no acceptance needed
+// Send a friend request to another user by their user ID (from search results)
+// This creates a PENDING request that the other user must accept
 export async function sendShareRequestByUserId(
   fromUserId: string,
   fromEmail: string,
@@ -197,12 +197,42 @@ export async function sendShareRequestByUserId(
   toEmail?: string
 ): Promise<{ error: Error | null }> {
   try {
+    // Check if already friends (share exists in either direction)
+    const { data: existingShare } = await supabase
+      .from('shares')
+      .select('id')
+      .or(`and(owner_id.eq.${fromUserId},viewer_id.eq.${toUserId}),and(owner_id.eq.${toUserId},viewer_id.eq.${fromUserId})`)
+      .limit(1);
+
+    if (existingShare && existingShare.length > 0) {
+      return { error: new Error('You are already friends with this user') };
+    }
+
+    // Check if there's already a pending request in either direction
+    const { data: existingRequest } = await supabase
+      .from('share_requests')
+      .select('id, from_user_id, status')
+      .or(`and(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),and(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`)
+      .eq('status', 'pending')
+      .limit(1);
+
+    if (existingRequest && existingRequest.length > 0) {
+      // If the OTHER user already sent us a request, auto-accept it
+      if (existingRequest[0].from_user_id === toUserId) {
+        return await acceptShareRequest(
+          existingRequest[0].id,
+          toUserId,    // the person who sent the request (owner of the request)
+          fromUserId,  // us (the viewer/acceptor)
+          []           // empty activity types initially
+        );
+      }
+      return { error: new Error('Friend request already sent') };
+    }
+
     // We need the target user's email for the share_requests table
-    // If not provided, try to get it from their profile or existing requests
     let targetEmail = toEmail;
     
     if (!targetEmail) {
-      // Try to get email from profile
       const { data: profileData } = await supabase
         .from('profiles')
         .select('email')
@@ -215,7 +245,6 @@ export async function sendShareRequestByUserId(
     }
     
     if (!targetEmail) {
-      // Try to get email from share_requests where they were the sender
       const { data: reqData } = await supabase
         .from('share_requests')
         .select('from_email')
@@ -229,23 +258,17 @@ export async function sendShareRequestByUserId(
     }
     
     if (!targetEmail) {
-      // As a last resort, use a placeholder with user ID
-      // The target user can still see and accept the request based on their user ID
       targetEmail = `user_${toUserId}@daytracker.local`;
     }
 
-    // Clean up any old shares and share_requests between these users first
-    // This handles cases where a user was deleted and re-created, or stale records remain
-    await supabase
-      .from('shares')
-      .delete()
-      .or(`and(owner_id.eq.${fromUserId},viewer_id.eq.${toUserId}),and(owner_id.eq.${toUserId},viewer_id.eq.${fromUserId})`);
+    // Clean up any old rejected/accepted requests between these users
     await supabase
       .from('share_requests')
       .delete()
-      .or(`and(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),and(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`);
+      .or(`and(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),and(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`)
+      .neq('status', 'pending');
 
-    // Create a share_request record for history (marked as accepted immediately)
+    // Create a pending share request
     const { error: requestError } = await supabase
       .from('share_requests')
       .insert({
@@ -253,45 +276,11 @@ export async function sendShareRequestByUserId(
         from_email: fromEmail,
         to_email: targetEmail,
         to_user_id: toUserId,
-        status: 'accepted',
+        status: 'pending',
       });
 
     if (requestError) {
-      console.error('Failed to create share request record:', requestError);
-      // Continue anyway - the share is more important
-    }
-
-    // Create mutual shares - both users can see each other's data
-    // Share 1: fromUser shares with toUser (toUser can view fromUser's data)
-    const { error: share1Error } = await supabase
-      .from('shares')
-      .upsert({
-        owner_id: fromUserId,
-        viewer_id: toUserId,
-        activity_type_ids: [], // Empty initially - they can configure what to share
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'owner_id,viewer_id',
-      });
-
-    if (share1Error) {
-      return { error: new Error(share1Error.message) };
-    }
-
-    // Share 2: toUser shares with fromUser (fromUser can view toUser's data)
-    const { error: share2Error } = await supabase
-      .from('shares')
-      .upsert({
-        owner_id: toUserId,
-        viewer_id: fromUserId,
-        activity_type_ids: [], // Empty initially - they can configure what to share
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'owner_id,viewer_id',
-      });
-
-    if (share2Error) {
-      return { error: new Error(share2Error.message) };
+      return { error: new Error(requestError.message) };
     }
 
     return { error: null };
@@ -404,6 +393,7 @@ export async function getOutgoingRequests(userId: string): Promise<ShareRequest[
 }
 
 // Accept a share request with selected activity types
+// Creates MUTUAL shares - both users can see each other
 export async function acceptShareRequest(
   requestId: string,
   ownerId: string,
@@ -418,8 +408,9 @@ export async function acceptShareRequest(
 
   if (updateError) return { error: updateError as Error };
 
-  // Create or update share
-  const { error: upsertError } = await supabase
+  // Create mutual shares - both users can see each other's data
+  // Share 1: The requester (ownerId) shares with the acceptor (viewerUserId)
+  const { error: share1Error } = await supabase
     .from('shares')
     .upsert({
       owner_id: ownerId,
@@ -430,7 +421,23 @@ export async function acceptShareRequest(
       onConflict: 'owner_id,viewer_id',
     });
 
-  return { error: upsertError as Error | null };
+  if (share1Error) return { error: new Error(share1Error.message) };
+
+  // Share 2: The acceptor (viewerUserId) shares with the requester (ownerId)
+  const { error: share2Error } = await supabase
+    .from('shares')
+    .upsert({
+      owner_id: viewerUserId,
+      viewer_id: ownerId,
+      activity_type_ids: [],
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'owner_id,viewer_id',
+    });
+
+  if (share2Error) return { error: new Error(share2Error.message) };
+
+  return { error: null };
 }
 
 // Reject a share request

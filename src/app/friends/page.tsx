@@ -10,11 +10,17 @@ import {
   sendShareRequestByUserId,
   getSharedWithMe,
   getMyShares,
+  getIncomingRequests,
+  getOutgoingRequests,
+  acceptShareRequest,
+  rejectShareRequest,
+  cancelShareRequest,
   removeFriendship,
   updateSharePermissions,
   searchUsers,
   SharedUser,
   Share,
+  ShareRequest,
   UserProfile,
   SearchResult,
 } from "@/lib/sharing";
@@ -33,6 +39,8 @@ export default function FriendsPage() {
   const [myShares, setMyShares] = useState<
     { share: Share; viewerEmail: string; viewerProfile?: UserProfile }[]
   >([]);
+  const [incomingRequests, setIncomingRequests] = useState<ShareRequest[]>([]);
+  const [outgoingRequests, setOutgoingRequests] = useState<ShareRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal states
@@ -132,7 +140,7 @@ export default function FriendsPage() {
 
     try {
       // Load all data in parallel for faster loading
-      const [shared, shares] = await Promise.all([
+      const [shared, shares, incoming, outgoing] = await Promise.all([
         getSharedWithMe(user.id).catch((e: unknown) => {
           const err = e as {
             message?: string;
@@ -157,10 +165,20 @@ export default function FriendsPage() {
           );
           return [] as { share: Share; viewerEmail: string }[];
         }),
+        getIncomingRequests(user.email, user.id).catch((e: unknown) => {
+          console.error("Failed to load incoming requests:", e);
+          return [] as ShareRequest[];
+        }),
+        getOutgoingRequests(user.id).catch((e: unknown) => {
+          console.error("Failed to load outgoing requests:", e);
+          return [] as ShareRequest[];
+        }),
       ]);
 
       setSharedWithMe(shared);
       setMyShares(shares);
+      setIncomingRequests(incoming.filter(r => r.status === 'pending'));
+      setOutgoingRequests(outgoing.filter(r => r.status === 'pending'));
 
       // Cache the data for instant loading next time
       if (typeof window !== "undefined") {
@@ -219,10 +237,40 @@ export default function FriendsPage() {
     if (error) {
       setMessage(error.message);
     } else {
-      setMessage("Friend added!");
+      setMessage("Friend request sent!");
       setSearchQuery("");
       setSearchResults([]);
       setShowSendRequest(false);
+      loadData();
+    }
+  };
+
+  const handleAcceptRequest = async (request: ShareRequest) => {
+    if (!user) return;
+    const { error } = await acceptShareRequest(
+      request.id,
+      request.fromUserId,
+      user.id,
+      [],
+    );
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage(`You are now friends with ${request.profile?.fullName || request.fromEmail}!`);
+      loadData();
+    }
+  };
+
+  const handleRejectRequest = async (request: ShareRequest) => {
+    const { error } = await rejectShareRequest(request.id);
+    if (!error) {
+      loadData();
+    }
+  };
+
+  const handleCancelRequest = async (request: ShareRequest) => {
+    const { error } = await cancelShareRequest(request.id);
+    if (!error) {
       loadData();
     }
   };
@@ -311,8 +359,13 @@ export default function FriendsPage() {
           </h1>
           <button
             onClick={() => setShowSendRequest(true)}
-            className='px-4 py-2.5 bg-ios-blue text-white rounded-full text-[14px] font-medium shadow-lg shadow-ios-blue/30'>
+            className='relative px-4 py-2.5 bg-ios-blue text-white rounded-full text-[14px] font-medium shadow-lg shadow-ios-blue/30'>
             + Add Friend
+            {incomingRequests.length > 0 && (
+              <span className='absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center'>
+                {incomingRequests.length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -320,6 +373,83 @@ export default function FriendsPage() {
           <div className='p-3 bg-ios-blue/10 rounded-lg'>
             <p className='text-sm text-ios-blue'>{message}</p>
           </div>
+        )}
+
+        {/* Incoming Friend Requests */}
+        {incomingRequests.length > 0 && (
+          <>
+            <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-1'>
+              Friend Requests
+            </h2>
+            <div className='space-y-2'>
+              {incomingRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl'>
+                  <div className='flex items-center gap-3'>
+                    <Avatar
+                      avatar={request.profile?.avatar || null}
+                      size='md'
+                    />
+                    <div className='min-w-0 flex-1'>
+                      <p className='font-medium text-gray-900 dark:text-white truncate'>
+                        {request.profile?.fullName || request.fromEmail.split("@")[0]}
+                      </p>
+                      <p className='text-sm text-gray-500 truncate'>
+                        {request.fromEmail}
+                      </p>
+                    </div>
+                  </div>
+                  <div className='flex gap-2 mt-3'>
+                    <button
+                      onClick={() => handleAcceptRequest(request)}
+                      className='flex-1 py-2 rounded-full bg-ios-blue text-white text-[14px] font-medium shadow-lg shadow-ios-blue/30'>
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleRejectRequest(request)}
+                      className='flex-1 py-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-[14px] font-medium'>
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* Outgoing Pending Requests */}
+        {outgoingRequests.length > 0 && (
+          <>
+            <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-1'>
+              Pending Requests
+            </h2>
+            <div className='space-y-2'>
+              {outgoingRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className='p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl'>
+                  <div className='flex items-center gap-3'>
+                    <Avatar
+                      avatar={request.toProfile?.avatar || null}
+                      size='md'
+                    />
+                    <div className='min-w-0 flex-1'>
+                      <p className='font-medium text-gray-900 dark:text-white truncate'>
+                        {request.toProfile?.fullName || request.toEmail.split("@")[0]}
+                      </p>
+                      <p className='text-xs text-gray-400'>Waiting for approval</p>
+                    </div>
+                    <button
+                      onClick={() => handleCancelRequest(request)}
+                      className='px-3 py-1.5 text-red-500 text-[13px] font-medium'>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* My Friends Section Header */}
@@ -565,28 +695,53 @@ export default function FriendsPage() {
 
           {!isSearching && searchResults.length > 0 && (
             <div className='space-y-2 max-h-64 overflow-y-auto'>
-              {searchResults.map((result) => (
-                <div
-                  key={result.userId}
-                  className='flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg'>
-                  <Avatar avatar={result.avatar} size='sm' />
-                  <div className='flex-1 min-w-0'>
-                    <p className='font-medium text-gray-900 dark:text-white truncate'>
-                      {result.fullName}
-                    </p>
-                    {result.email && (
-                      <p className='text-xs text-gray-500 truncate'>
-                        {result.email}
+              {searchResults.map((result) => {
+                const isFriend = sharedWithMe.some(s => s.id === result.userId);
+                const isPending = outgoingRequests.some(r => r.toUserId === result.userId);
+                const hasIncoming = incomingRequests.some(r => r.fromUserId === result.userId);
+
+                return (
+                  <div
+                    key={result.userId}
+                    className='flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg'>
+                    <Avatar avatar={result.avatar} size='sm' />
+                    <div className='flex-1 min-w-0'>
+                      <p className='font-medium text-gray-900 dark:text-white truncate'>
+                        {result.fullName}
                       </p>
+                      {result.email && (
+                        <p className='text-xs text-gray-500 truncate'>
+                          {result.email}
+                        </p>
+                      )}
+                    </div>
+                    {isFriend ? (
+                      <span className='px-3 py-1.5 text-gray-400 text-[13px] font-medium'>
+                        Friends
+                      </span>
+                    ) : isPending ? (
+                      <span className='px-3 py-1.5 text-orange-500 text-[13px] font-medium'>
+                        Pending
+                      </span>
+                    ) : hasIncoming ? (
+                      <button
+                        onClick={() => {
+                          const req = incomingRequests.find(r => r.fromUserId === result.userId);
+                          if (req) handleAcceptRequest(req);
+                        }}
+                        className='px-3 py-1.5 bg-ios-green text-white rounded-full text-[13px] font-medium'>
+                        Accept
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleSendRequestToUser(result)}
+                        className='px-3 py-1.5 bg-ios-blue text-white rounded-full text-[13px] font-medium shadow-md shadow-ios-blue/30'>
+                        Add
+                      </button>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleSendRequestToUser(result)}
-                    className='px-3 py-1.5 bg-ios-blue text-white rounded-full text-[13px] font-medium shadow-md shadow-ios-blue/30'>
-                    Add
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
