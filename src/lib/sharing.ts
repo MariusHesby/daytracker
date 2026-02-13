@@ -242,8 +242,34 @@ export async function sendShareRequestByUserId(
       .limit(1);
 
     if (existingShare && existingShare.length > 0) {
-      return { error: new Error('You are already friends with this user') };
+      // Verify the other user still exists (their profile exists)
+      const { data: otherProfile } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('user_id', toUserId)
+        .maybeSingle();
+
+      if (!otherProfile) {
+        // The other user was deleted — clean up stale shares and share_requests
+        await supabase
+          .from('shares')
+          .delete()
+          .or(`and(owner_id.eq.${fromUserId},viewer_id.eq.${toUserId}),and(owner_id.eq.${toUserId},viewer_id.eq.${fromUserId})`);
+        await supabase
+          .from('share_requests')
+          .delete()
+          .or(`and(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),and(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`);
+        // Fall through to create the new friendship below
+      } else {
+        return { error: new Error('You are already friends with this user') };
+      }
     }
+
+    // Also clean up any old share_requests between these users (e.g. previously accepted/rejected)
+    await supabase
+      .from('share_requests')
+      .delete()
+      .or(`and(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),and(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`);
 
     // Create a share_request record for history (marked as accepted immediately)
     const { error: requestError } = await supabase
@@ -519,7 +545,17 @@ export async function removeFriendship(userId1: string, userId2: string): Promis
     .eq('owner_id', userId2)
     .eq('viewer_id', userId1);
 
-  return { error: error2 as Error | null };
+  if (error2) {
+    return { error: error2 as Error };
+  }
+
+  // Also clean up share_requests between these users
+  await supabase
+    .from('share_requests')
+    .delete()
+    .or(`and(from_user_id.eq.${userId1},to_user_id.eq.${userId2}),and(from_user_id.eq.${userId2},to_user_id.eq.${userId1})`);
+
+  return { error: null };
 }
 
 // Get users who share with me (I can view their data)
