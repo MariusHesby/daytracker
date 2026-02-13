@@ -173,20 +173,20 @@
   background:
     linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.4) 0%,
-      rgba(255, 255, 255, 0.2) 40%,
-      rgba(255, 255, 255, 0.08) 100%
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(255, 255, 255, 0.75) 40%,
+      rgba(255, 255, 255, 0.65) 100%
     ) !important;
-  -webkit-backdrop-filter: blur(50px) saturate(200%) brightness(1.1) !important;
-  backdrop-filter: blur(50px) saturate(200%) brightness(1.1) !important;
-  border: 1px solid rgba(255, 255, 255, 0.45) !important;
-  border-top-color: rgba(255, 255, 255, 0.7) !important;
-  border-left-color: rgba(255, 255, 255, 0.5) !important;
+  -webkit-backdrop-filter: blur(40px) !important;
+  backdrop-filter: blur(40px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  border-top-color: rgba(255, 255, 255, 0.9) !important;
+  border-left-color: rgba(255, 255, 255, 0.7) !important;
   box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.7),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.05),
-    0 8px 32px rgba(0, 0, 0, 0.08),
-    0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    inset 0 1px 2px rgba(255, 255, 255, 0.8),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.1),
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    0 1px 6px rgba(0, 0, 0, 0.03) !important;
 }
 
 .dark .liquid-glass,
@@ -194,20 +194,20 @@
   background:
     linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.1) 0%,
-      rgba(255, 255, 255, 0.05) 40%,
-      rgba(255, 255, 255, 0.02) 100%
+      rgba(30, 30, 35, 0.85) 0%,
+      rgba(25, 25, 30, 0.8) 40%,
+      rgba(20, 20, 25, 0.75) 100%
     ) !important;
-  -webkit-backdrop-filter: blur(50px) saturate(180%) brightness(0.85) !important;
-  backdrop-filter: blur(50px) saturate(180%) brightness(0.85) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-top-color: rgba(255, 255, 255, 0.18) !important;
-  border-left-color: rgba(255, 255, 255, 0.12) !important;
+  -webkit-backdrop-filter: blur(40px) !important;
+  backdrop-filter: blur(40px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-top-color: rgba(255, 255, 255, 0.15) !important;
+  border-left-color: rgba(255, 255, 255, 0.1) !important;
   box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.08),
-    inset 0 -1px 2px rgba(0, 0, 0, 0.3),
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    inset 0 1px 1px rgba(255, 255, 255, 0.06),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.2),
+    0 4px 24px rgba(0, 0, 0, 0.3),
+    0 1px 6px rgba(0, 0, 0, 0.2) !important;
 }
 
 .colorful .liquid-glass,
@@ -215,20 +215,20 @@
   background:
     linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.25) 0%,
-      rgba(255, 255, 255, 0.12) 40%,
-      rgba(255, 255, 255, 0.03) 100%
+      rgba(255, 255, 255, 0.82) 0%,
+      rgba(255, 255, 255, 0.72) 40%,
+      rgba(255, 255, 255, 0.62) 100%
     ) !important;
-  -webkit-backdrop-filter: blur(50px) saturate(220%) brightness(1.15) !important;
-  backdrop-filter: blur(50px) saturate(220%) brightness(1.15) !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-  border-top-color: rgba(255, 255, 255, 0.55) !important;
-  border-left-color: rgba(255, 255, 255, 0.4) !important;
+  -webkit-backdrop-filter: blur(40px) !important;
+  backdrop-filter: blur(40px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-top-color: rgba(255, 255, 255, 0.85) !important;
+  border-left-color: rgba(255, 255, 255, 0.65) !important;
   box-shadow:
-    inset 0 1px 2px rgba(255, 255, 255, 0.5),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.02),
-    0 8px 32px rgba(0, 0, 0, 0.1),
-    0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    inset 0 1px 2px rgba(255, 255, 255, 0.7),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.05),
+    0 4px 24px rgba(0, 0, 0, 0.08),
+    0 1px 6px rgba(0, 0, 0, 0.04) !important;
 }
 
 /* Colorful cards - frosted glass with gradient tint */
