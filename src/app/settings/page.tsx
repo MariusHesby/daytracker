@@ -108,9 +108,7 @@ export default function SettingsPage() {
     const location: StoredLocation = {
       latitude: result.latitude,
       longitude: result.longitude,
-      name: result.admin1
-        ? `${result.name}, ${result.admin1}`
-        : `${result.name}, ${result.country}`,
+      name: result.name,
     };
     setStoredLocation(location);
     setStoredLocationState(location);

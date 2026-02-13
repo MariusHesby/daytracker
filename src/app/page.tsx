@@ -20,6 +20,19 @@ import {
   WeatherData,
 } from "@/lib/weather";
 
+// Get time-based greeting
+function getGreeting(): string {
+  const hour = new Date().getHours();
+
+  if (hour >= 5 && hour < 9) return "Good morning,";
+  if (hour >= 9 && hour < 12) return "Good day,";
+  if (hour >= 12 && hour < 14) return "Good afternoon,";
+  if (hour >= 14 && hour < 17) return "Hey there,";
+  if (hour >= 17 && hour < 20) return "Good evening,";
+  if (hour >= 20 && hour < 23) return "Evening,";
+  return "Good night,"; // 23:00 - 04:59
+}
+
 export default function HomePage() {
   const {
     selectedDate,
@@ -196,28 +209,28 @@ export default function HomePage() {
           <div className='px-4 mb-3'>
             <div
               onClick={() => setShowFullName((prev) => !prev)}
-              className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-black dark:from-gray-800 dark:to-black p-5 border border-gray-200/50 dark:border-gray-700/50 cursor-pointer active:opacity-90 transition-opacity'>
-              {/* Subtle decorative elements */}
-              <div className='absolute -top-12 -right-12 w-32 h-32 bg-ios-blue/5 rounded-full blur-2xl' />
-              <div className='absolute -bottom-8 -left-8 w-24 h-24 bg-indigo-500/5 rounded-full blur-xl' />
+              className='relative overflow-hidden rounded-2xl bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-700 p-5 border border-gray-200/50 dark:border-gray-700/50 cursor-pointer active:opacity-90 transition-opacity'>
+              {/* Subtle decorative elements - only in light mode */}
+              <div className='absolute -top-12 -right-12 w-32 h-32 bg-ios-blue/5 dark:bg-transparent rounded-full blur-2xl' />
+              <div className='absolute -bottom-8 -left-8 w-24 h-24 bg-indigo-500/5 dark:bg-transparent rounded-full blur-xl' />
 
               {/* Weather display - top right */}
               {weather && !isViewingOther && locationName && (
                 <div className='absolute top-2 right-3 flex flex-col items-end z-10'>
-                  <span className='text-[11px] text-gray-400 dark:text-gray-500 font-medium'>
-                    {locationName}
-                  </span>
-                  <div className='flex items-center gap-1'>
-                    <span className='text-base leading-none'>
+                  <div className='flex items-center gap-1.5'>
+                    <span className='text-[11px] text-gray-400 dark:text-gray-500 font-medium'>
+                      {locationName}
+                    </span>
+                    <span className='text-sm leading-none'>
                       {
                         getWeatherCondition(weather.weatherCode, weather.isDay)
                           .icon
                       }
                     </span>
-                    <span className='text-[13px] font-semibold text-gray-500 dark:text-gray-400'>
-                      {weather.temperature}°
-                    </span>
                   </div>
+                  <span className='text-[26px] font-semibold text-gray-500 dark:text-gray-400'>
+                    {weather.temperature}°
+                  </span>
                 </div>
               )}
 
@@ -240,7 +253,7 @@ export default function HomePage() {
                 </div>
                 <div className='flex-1 min-w-0'>
                   <p className='text-gray-500 dark:text-gray-400 text-[13px] font-medium tracking-wide'>
-                    {isViewingOther ? "Viewing" : "Good day,"}
+                    {isViewingOther ? "Viewing" : getGreeting()}
                   </p>
                   <h1
                     className={`text-[22px] font-bold text-gray-900 dark:text-white leading-tight ${
@@ -267,7 +280,7 @@ export default function HomePage() {
         )}
         {!user && (
           <div className='px-4 mb-4'>
-            <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 p-5 border border-gray-200/50 dark:border-gray-700/50'>
+            <div className='relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-black dark:to-gray-800 p-5 border border-gray-200/50 dark:border-gray-700/50'>
               <div className='absolute -top-12 -right-12 w-32 h-32 bg-ios-blue/5 rounded-full blur-2xl' />
               <h1 className='relative text-2xl font-bold text-gray-900 dark:text-white'>
                 DayTracker
@@ -343,20 +356,20 @@ export default function HomePage() {
           )}
           {/* Spacer when not logged in */}
           {(!user || isViewingOther) && <div />}
-          {/* Right side - Bell, View Mode, Search (with background) */}
-          <div className='flex items-center gap-2'>
+          {/* Right side - Bell, View Mode, Search */}
+          <div className='flex items-center gap-1'>
             {user && <NotificationBell />}
             <button
               onClick={() =>
                 handleViewModeChange(viewMode === "list" ? "icons" : "list")
               }
-              className='p-2 rounded-xl bg-gray-100 dark:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors'
+              className='p-2 active:opacity-60 transition-opacity'
               title={
                 viewMode === "list" ? "Switch to icons" : "Switch to list"
               }>
               {viewMode === "list" ? (
                 <svg
-                  className='w-5 h-5 text-gray-600 dark:text-gray-400'
+                  className='w-5 h-5 text-gray-500 dark:text-gray-400'
                   fill='none'
                   viewBox='0 0 24 24'
                   strokeWidth={1.5}
@@ -369,7 +382,7 @@ export default function HomePage() {
                 </svg>
               ) : (
                 <svg
-                  className='w-5 h-5 text-gray-600 dark:text-gray-400'
+                  className='w-5 h-5 text-gray-500 dark:text-gray-400'
                   fill='none'
                   viewBox='0 0 24 24'
                   strokeWidth={1.5}

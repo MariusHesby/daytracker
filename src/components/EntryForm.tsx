@@ -1937,13 +1937,13 @@ export function EntryForm({
                   </span>
                   <button
                     onClick={() => handleDeleteItem(item.id)}
-                    className='w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-ios-red hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity'>
+                    className='w-6 h-6 rounded-full flex items-center justify-center text-gray-200 dark:text-gray-700 active:text-ios-red transition-colors'>
                     <svg
-                      className='w-4 h-4'
+                      className='w-3 h-3'
                       fill='none'
                       viewBox='0 0 24 24'
                       stroke='currentColor'
-                      strokeWidth={2}>
+                      strokeWidth={1.5}>
                       <path
                         strokeLinecap='round'
                         strokeLinejoin='round'
