@@ -1,36 +1,45 @@
-// Football API integration using API-Football (api-sports.io)
-// Free tier: 100 requests/day — we cache aggressively
+// Football API integration using football-data.org (v4)
+// Free tier: 10 requests/minute, no daily cap, current season data!
+// Covers: Premier League, Championship, Champions League, and more
 
-const API_BASE = 'https://v3.football.api-sports.io';
+const API_BASE = 'https://api.football-data.org/v4';
 const STORAGE_PREFIX = 'football_';
 
-// League IDs in API-Football
+// Competition codes in football-data.org
 export const LEAGUES = {
-  PREMIER_LEAGUE: { id: 39, name: 'Premier League', country: 'England' },
-  CHAMPIONSHIP: { id: 40, name: 'Championship', country: 'England' },
-  LEAGUE_ONE: { id: 41, name: 'League One', country: 'England' },
-  LEAGUE_TWO: { id: 42, name: 'League Two', country: 'England' },
-  CHAMPIONS_LEAGUE: { id: 2, name: 'Champions League', country: 'Europe' },
+  PREMIER_LEAGUE: { id: 2021, code: 'PL', name: 'Premier League', country: 'England' },
+  CHAMPIONSHIP: { id: 2016, code: 'ELC', name: 'Championship', country: 'England' },
+  CHAMPIONS_LEAGUE: { id: 2001, code: 'CL', name: 'Champions League', country: 'Europe' },
+  BUNDESLIGA: { id: 2002, code: 'BL1', name: 'Bundesliga', country: 'Germany' },
+  LA_LIGA: { id: 2014, code: 'PD', name: 'La Liga', country: 'Spain' },
+  SERIE_A: { id: 2019, code: 'SA', name: 'Serie A', country: 'Italy' },
+  LIGUE_1: { id: 2015, code: 'FL1', name: 'Ligue 1', country: 'France' },
+  EREDIVISIE: { id: 2003, code: 'DED', name: 'Eredivisie', country: 'Netherlands' },
+  PRIMEIRA_LIGA: { id: 2017, code: 'PPL', name: 'Primeira Liga', country: 'Portugal' },
 } as const;
 
 export type LeagueKey = keyof typeof LEAGUES;
 
-// Types
+// ─── Types (normalized to match UI expectations) ──────────────────────
+
 export interface FootballTeam {
   id: number;
   name: string;
+  shortName: string;
+  tla: string;
+  crest: string;
+  logo: string; // alias for crest, for backward compat
   code: string;
   country: string;
-  logo: string;
 }
 
 export interface FootballFixture {
   id: number;
   date: string;
   timestamp: number;
-  venue: { name: string; city: string } | null;
+  venue: string | null;
   status: {
-    short: string; // NS, 1H, HT, 2H, FT, etc.
+    short: string;
     long: string;
     elapsed: number | null;
   };
@@ -69,19 +78,10 @@ export interface StandingEntry {
   };
 }
 
-export interface FixtureStatistic {
-  type: string;
-  value: number | string | null;
-}
-
-export interface FixtureStats {
-  team: { id: number; name: string; logo: string };
-  statistics: FixtureStatistic[];
-}
-
 export interface FavoriteTeamConfig {
   team: FootballTeam;
   leagueId: number;
+  leagueCode: string;
   leagueName: string;
 }
 
@@ -113,7 +113,6 @@ export function getFavoriteTeam(): FavoriteTeamConfig | null {
 export function setFavoriteTeam(config: FavoriteTeamConfig): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(`${STORAGE_PREFIX}favorite_team`, JSON.stringify(config));
-  // Clear cached data when team changes
   clearCache();
   window.dispatchEvent(new Event('favoriteTeamUpdated'));
 }
@@ -130,7 +129,7 @@ export function clearFavoriteTeam(): void {
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
-  ttl: number; // in ms
+  ttl: number;
 }
 
 function getCache<T>(key: string): T | null {
@@ -159,7 +158,7 @@ function setCache<T>(key: string, data: T, ttlMinutes: number): void {
   try {
     localStorage.setItem(`${STORAGE_PREFIX}cache_${key}`, JSON.stringify(entry));
   } catch {
-    // localStorage full, ignore
+    // localStorage full
   }
 }
 
@@ -188,33 +187,195 @@ async function apiFetch<T>(endpoint: string, params: Record<string, string | num
     const res = await fetch(url.toString(), {
       method: 'GET',
       headers: {
-        'x-apisports-key': apiKey,
+        'X-Auth-Token': apiKey,
       },
     });
 
-    if (!res.ok) return null;
-
-    const json = await res.json();
-    if (json.errors && Object.keys(json.errors).length > 0) {
-      console.error('API-Football errors:', json.errors);
+    if (res.status === 429) {
+      console.warn('football-data.org: rate limit hit, try again in a minute');
       return null;
     }
 
-    return json.response as T;
+    if (!res.ok) {
+      console.error('football-data.org error:', res.status, res.statusText);
+      return null;
+    }
+
+    return await res.json() as T;
   } catch (err) {
-    console.error('API-Football fetch error:', err);
+    console.error('football-data.org fetch error:', err);
     return null;
   }
 }
 
-// ─── Get current season year ──────────────────────────────────────────
+// ─── Normalize API responses ──────────────────────────────────────────
 
-function getCurrentSeason(): number {
-  const now = new Date();
-  const month = now.getMonth(); // 0-indexed
-  // Football seasons typically start in August
-  // If we're before August, the season started last year
-  return month >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+interface FDTeamRaw {
+  id: number;
+  name: string;
+  shortName: string;
+  tla: string;
+  crest: string;
+  area?: { name: string };
+}
+
+interface FDMatchRaw {
+  id: number;
+  utcDate: string;
+  status: string;
+  minute?: number | null;
+  matchday: number | null;
+  stage: string | null;
+  group: string | null;
+  homeTeam: { id: number; name: string; shortName: string; tla: string; crest: string };
+  awayTeam: { id: number; name: string; shortName: string; tla: string; crest: string };
+  score: {
+    winner: string | null;
+    duration: string;
+    fullTime: { home: number | null; away: number | null };
+    halfTime: { home: number | null; away: number | null };
+  };
+  competition: {
+    id: number;
+    name: string;
+    emblem: string;
+    code: string;
+  };
+  venue?: string;
+}
+
+interface FDStandingRaw {
+  position: number;
+  team: { id: number; name: string; shortName: string; tla: string; crest: string };
+  playedGames: number;
+  won: number;
+  draw: number;
+  lost: number;
+  points: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  form: string | null;
+}
+
+function normalizeTeam(raw: FDTeamRaw): FootballTeam {
+  return {
+    id: raw.id,
+    name: raw.shortName || raw.name,
+    shortName: raw.shortName || raw.name,
+    tla: raw.tla || '',
+    crest: raw.crest || '',
+    logo: raw.crest || '',
+    code: raw.tla || '',
+    country: raw.area?.name || '',
+  };
+}
+
+function mapStatus(status: string, minute?: number | null): { short: string; long: string; elapsed: number | null } {
+  const statusMap: Record<string, string> = {
+    SCHEDULED: 'NS',
+    TIMED: 'NS',
+    IN_PLAY: '2H',
+    PAUSED: 'HT',
+    FINISHED: 'FT',
+    SUSPENDED: 'SUSP',
+    POSTPONED: 'PST',
+    CANCELLED: 'CANC',
+    AWARDED: 'AWD',
+    EXTRA_TIME: 'ET',
+    PENALTY_SHOOTOUT: 'PEN',
+  };
+
+  return {
+    short: statusMap[status] || status,
+    long: status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()),
+    elapsed: minute ?? null,
+  };
+}
+
+function normalizeMatch(raw: FDMatchRaw): FootballFixture {
+  const homeWinner = raw.score.winner === 'HOME_TEAM' ? true : raw.score.winner === 'AWAY_TEAM' ? false : raw.score.winner === 'DRAW' ? null : null;
+  const awayWinner = raw.score.winner === 'AWAY_TEAM' ? true : raw.score.winner === 'HOME_TEAM' ? false : raw.score.winner === 'DRAW' ? null : null;
+
+  const round = raw.stage
+    ? raw.matchday
+      ? `Matchday ${raw.matchday}`
+      : raw.stage.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+    : raw.matchday
+      ? `Matchday ${raw.matchday}`
+      : '';
+
+  return {
+    id: raw.id,
+    date: raw.utcDate,
+    timestamp: new Date(raw.utcDate).getTime() / 1000,
+    venue: raw.venue || null,
+    status: mapStatus(raw.status, raw.minute),
+    league: {
+      id: raw.competition.id,
+      name: raw.competition.name,
+      logo: raw.competition.emblem || '',
+      round,
+    },
+    teams: {
+      home: {
+        id: raw.homeTeam.id,
+        name: raw.homeTeam.shortName || raw.homeTeam.name,
+        logo: raw.homeTeam.crest || '',
+        winner: homeWinner,
+      },
+      away: {
+        id: raw.awayTeam.id,
+        name: raw.awayTeam.shortName || raw.awayTeam.name,
+        logo: raw.awayTeam.crest || '',
+        winner: awayWinner,
+      },
+    },
+    goals: {
+      home: raw.score.fullTime.home,
+      away: raw.score.fullTime.away,
+    },
+    score: {
+      halftime: { home: raw.score.halfTime.home, away: raw.score.halfTime.away },
+      fulltime: { home: raw.score.fullTime.home, away: raw.score.fullTime.away },
+    },
+  };
+}
+
+function normalizeStanding(raw: FDStandingRaw): StandingEntry {
+  return {
+    rank: raw.position,
+    team: {
+      id: raw.team.id,
+      name: raw.team.shortName || raw.team.name,
+      logo: raw.team.crest || '',
+    },
+    points: raw.points,
+    goalsDiff: raw.goalDifference,
+    form: raw.form,
+    all: {
+      played: raw.playedGames,
+      win: raw.won,
+      draw: raw.draw,
+      lose: raw.lost,
+      goals: { for: raw.goalsFor, against: raw.goalsAgainst },
+    },
+  };
+}
+
+// ─── Get Teams in a League ────────────────────────────────────────────
+
+export async function getTeamsInLeague(leagueCode: string): Promise<FootballTeam[]> {
+  const cacheKey = `league_teams_${leagueCode}`;
+  const cached = getCache<FootballTeam[]>(cacheKey);
+  if (cached) return cached;
+
+  const data = await apiFetch<{ teams: FDTeamRaw[] }>(`/competitions/${leagueCode}/teams`);
+  if (!data?.teams) return [];
+
+  const teams = data.teams.map(normalizeTeam).sort((a, b) => a.name.localeCompare(b.name));
+  setCache(cacheKey, teams, 60 * 24 * 7); // 7 days
+  return teams;
 }
 
 // ─── Search Teams ─────────────────────────────────────────────────────
@@ -226,31 +387,25 @@ export async function searchTeams(query: string): Promise<FootballTeam[]> {
   const cached = getCache<FootballTeam[]>(cacheKey);
   if (cached) return cached;
 
-  const data = await apiFetch<Array<{ team: FootballTeam; venue: unknown }>>('/teams', { search: query });
-  if (!data) return [];
+  // football-data.org has no search endpoint, so search across cached league teams
+  const allTeams: FootballTeam[] = [];
+  const leagueCodes = Object.values(LEAGUES).map(l => l.code);
 
-  const teams = data.map(item => item.team);
-  setCache(cacheKey, teams, 60 * 24); // Cache for 24h
-  return teams;
-}
+  for (const code of leagueCodes.slice(0, 3)) {
+    const teams = await getTeamsInLeague(code);
+    allTeams.push(...teams);
+  }
 
-// ─── Get Teams in a League ────────────────────────────────────────────
+  const lowerQuery = query.toLowerCase();
+  const results = allTeams.filter(t =>
+    t.name.toLowerCase().includes(lowerQuery) ||
+    t.shortName?.toLowerCase().includes(lowerQuery) ||
+    t.tla?.toLowerCase().includes(lowerQuery)
+  );
 
-export async function getTeamsInLeague(leagueId: number): Promise<FootballTeam[]> {
-  const season = getCurrentSeason();
-  const cacheKey = `league_teams_${leagueId}_${season}`;
-  const cached = getCache<FootballTeam[]>(cacheKey);
-  if (cached) return cached;
-
-  const data = await apiFetch<Array<{ team: FootballTeam; venue: unknown }>>('/teams', {
-    league: leagueId,
-    season,
-  });
-  if (!data) return [];
-
-  const teams = data.map(item => item.team);
-  setCache(cacheKey, teams, 60 * 24 * 7); // Cache for 7 days
-  return teams;
+  const unique = Array.from(new Map(results.map(t => [t.id, t])).values());
+  setCache(cacheKey, unique, 60 * 24);
+  return unique;
 }
 
 // ─── Get Next Fixture for Team ────────────────────────────────────────
@@ -260,16 +415,14 @@ export async function getNextFixture(teamId: number): Promise<FootballFixture | 
   const cached = getCache<FootballFixture>(cacheKey);
   if (cached) return cached;
 
-  const data = await apiFetch<FootballFixture[]>('/fixtures', {
-    team: teamId,
-    next: 1,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/London',
+  const data = await apiFetch<{ matches: FDMatchRaw[] }>(`/teams/${teamId}/matches`, {
+    status: 'SCHEDULED',
+    limit: 1,
   });
 
-  if (!data || data.length === 0) return null;
+  if (!data?.matches || data.matches.length === 0) return null;
 
-  const fixture = data[0];
-  // Cache until the match starts (min 30 min, max 24h)
+  const fixture = normalizeMatch(data.matches[0]);
   const msUntilMatch = fixture.timestamp * 1000 - Date.now();
   const ttlMin = Math.max(30, Math.min(60 * 24, msUntilMatch / 60000));
   setCache(cacheKey, fixture, ttlMin);
@@ -283,101 +436,96 @@ export async function getLastFixture(teamId: number): Promise<FootballFixture | 
   const cached = getCache<FootballFixture>(cacheKey);
   if (cached) return cached;
 
-  const data = await apiFetch<FootballFixture[]>('/fixtures', {
-    team: teamId,
-    last: 1,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/London',
+  const data = await apiFetch<{ matches: FDMatchRaw[] }>(`/teams/${teamId}/matches`, {
+    status: 'FINISHED',
+    limit: 5,
   });
 
-  if (!data || data.length === 0) return null;
+  if (!data?.matches || data.matches.length === 0) return null;
 
-  const fixture = data[0];
-  setCache(cacheKey, fixture, 60 * 4); // Cache for 4 hours
+  const lastRaw = data.matches[data.matches.length - 1];
+  const fixture = normalizeMatch(lastRaw);
+  setCache(cacheKey, fixture, 60 * 4); // 4h
   return fixture;
 }
 
 // ─── Get Recent and Upcoming Fixtures ─────────────────────────────────
 
-export async function getRecentFixtures(teamId: number, count: number = 5): Promise<FootballFixture[]> {
+export async function getRecentFixtures(teamId: number, count: number = 10): Promise<FootballFixture[]> {
   const cacheKey = `recent_fixtures_${teamId}_${count}`;
   const cached = getCache<FootballFixture[]>(cacheKey);
   if (cached) return cached;
 
-  const data = await apiFetch<FootballFixture[]>('/fixtures', {
-    team: teamId,
-    last: count,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/London',
+  const data = await apiFetch<{ matches: FDMatchRaw[] }>(`/teams/${teamId}/matches`, {
+    status: 'FINISHED',
+    limit: count,
   });
 
-  if (!data) return [];
-  setCache(cacheKey, data, 60 * 2); // Cache for 2 hours
-  return data;
+  if (!data?.matches) return [];
+  const fixtures = data.matches.map(normalizeMatch);
+  setCache(cacheKey, fixtures, 60 * 2);
+  return fixtures;
 }
 
-export async function getUpcomingFixtures(teamId: number, count: number = 5): Promise<FootballFixture[]> {
+export async function getUpcomingFixtures(teamId: number, count: number = 10): Promise<FootballFixture[]> {
   const cacheKey = `upcoming_fixtures_${teamId}_${count}`;
   const cached = getCache<FootballFixture[]>(cacheKey);
   if (cached) return cached;
 
-  const data = await apiFetch<FootballFixture[]>('/fixtures', {
-    team: teamId,
-    next: count,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/London',
+  const data = await apiFetch<{ matches: FDMatchRaw[] }>(`/teams/${teamId}/matches`, {
+    status: 'SCHEDULED',
+    limit: count,
   });
 
-  if (!data) return [];
-  setCache(cacheKey, data, 60 * 2); // Cache for 2 hours
-  return data;
+  if (!data?.matches) return [];
+  const fixtures = data.matches.map(normalizeMatch);
+  setCache(cacheKey, fixtures, 60 * 2);
+  return fixtures;
 }
 
 // ─── Get Live Fixture ─────────────────────────────────────────────────
 
 export async function getLiveFixture(teamId: number): Promise<FootballFixture | null> {
-  // Don't cache live data
-  const data = await apiFetch<FootballFixture[]>('/fixtures', {
-    team: teamId,
-    live: 'all',
+  const cacheKey = `live_fixture_${teamId}`;
+  const cached = getCache<FootballFixture>(cacheKey);
+  if (cached) return cached;
+
+  const data = await apiFetch<{ matches: FDMatchRaw[] }>(`/teams/${teamId}/matches`, {
+    status: 'IN_PLAY,PAUSED',
+    limit: 1,
   });
 
-  if (!data || data.length === 0) return null;
-  return data[0];
+  if (!data?.matches || data.matches.length === 0) return null;
+
+  const fixture = normalizeMatch(data.matches[0]);
+  setCache(cacheKey, fixture, 1); // 1 min cache
+  return fixture;
 }
 
 // ─── Get Standings ────────────────────────────────────────────────────
 
-export async function getStandings(leagueId: number): Promise<StandingEntry[]> {
-  const season = getCurrentSeason();
-  const cacheKey = `standings_${leagueId}_${season}`;
+export async function getStandings(competitionCode: string): Promise<StandingEntry[]> {
+  const cacheKey = `standings_${competitionCode}`;
   const cached = getCache<StandingEntry[]>(cacheKey);
   if (cached) return cached;
 
-  const data = await apiFetch<Array<{ league: { standings: StandingEntry[][] } }>>('/standings', {
-    league: leagueId,
-    season,
-  });
+  const data = await apiFetch<{
+    standings: Array<{
+      stage: string;
+      type: string;
+      group: string | null;
+      table: FDStandingRaw[];
+    }>;
+  }>(`/competitions/${competitionCode}/standings`);
 
-  if (!data || data.length === 0) return [];
+  if (!data?.standings) return [];
 
-  // standings is an array of arrays (groups). For leagues, take first group.
-  const standings = data[0]?.league?.standings?.[0] || [];
-  setCache(cacheKey, standings, 60); // Cache for 1 hour
+  const totalStandings = data.standings.find(s => s.type === 'TOTAL');
+  if (!totalStandings) return [];
+
+  const standings = totalStandings.table.map(normalizeStanding);
+  setCache(cacheKey, standings, 60); // 1h
   return standings;
-}
-
-// ─── Get Fixture Statistics ───────────────────────────────────────────
-
-export async function getFixtureStats(fixtureId: number): Promise<FixtureStats[]> {
-  const cacheKey = `fixture_stats_${fixtureId}`;
-  const cached = getCache<FixtureStats[]>(cacheKey);
-  if (cached) return cached;
-
-  const data = await apiFetch<FixtureStats[]>('/fixtures/statistics', {
-    fixture: fixtureId,
-  });
-
-  if (!data) return [];
-  setCache(cacheKey, data, 60 * 24); // Cache for 24h (historical data)
-  return data;
 }
 
 // ─── Helper: Format match date ────────────────────────────────────────
@@ -405,12 +553,10 @@ export function formatMatchDate(dateStr: string): string {
   return date.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ` ${time}`;
 }
 
-// ─── Helper: Get match result for favorite team ───────────────────────
+// ─── Helper: Get match result ─────────────────────────────────────────
 
 export function getMatchResult(fixture: FootballFixture, teamId: number): 'W' | 'D' | 'L' | null {
-  if (fixture.status.short !== 'FT' && fixture.status.short !== 'AET' && fixture.status.short !== 'PEN') {
-    return null;
-  }
+  if (!['FT', 'AET', 'PEN', 'AWD'].includes(fixture.status.short)) return null;
   const isHome = fixture.teams.home.id === teamId;
   const team = isHome ? fixture.teams.home : fixture.teams.away;
   if (team.winner === true) return 'W';
@@ -429,13 +575,13 @@ export function isMatchLive(fixture: FootballFixture): boolean {
 
 export async function validateApiKey(key: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/status`, {
+    const res = await fetch(`${API_BASE}/competitions/PL`, {
       method: 'GET',
-      headers: { 'x-apisports-key': key },
+      headers: { 'X-Auth-Token': key },
     });
     if (!res.ok) return false;
     const json = await res.json();
-    return json.response?.account?.email != null;
+    return json.id != null;
   } catch {
     return false;
   }

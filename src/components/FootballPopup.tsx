@@ -9,14 +9,12 @@ import {
   getRecentFixtures,
   getUpcomingFixtures,
   getStandings,
-  getFixtureStats,
   getLiveFixture,
   formatMatchDate,
   getMatchResult,
   isMatchLive,
   FootballFixture,
   StandingEntry,
-  FixtureStats,
   FavoriteTeamConfig,
 } from "@/lib/football";
 import { cn } from "@/lib/utils";
@@ -39,7 +37,6 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
     [],
   );
   const [standings, setStandings] = useState<StandingEntry[]>([]);
-  const [lastMatchStats, setLastMatchStats] = useState<FixtureStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -59,12 +56,6 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
       setNextMatch(next);
       setLastMatch(last);
       setLiveMatch(live);
-
-      // Load stats for last match
-      if (last) {
-        const stats = await getFixtureStats(last.id);
-        setLastMatchStats(stats);
-      }
     } catch (err) {
       console.error("Error loading football data:", err);
     } finally {
@@ -86,9 +77,9 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
 
   const loadStandings = useCallback(async () => {
     const fav = getFavoriteTeam();
-    if (!fav || !fav.leagueId) return;
+    if (!fav || !fav.leagueCode) return;
 
-    const data = await getStandings(fav.leagueId);
+    const data = await getStandings(fav.leagueCode);
     setStandings(data);
   }, []);
 
@@ -102,7 +93,13 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
     if (recentFixtures.length === 0 && upcomingFixtures.length === 0) {
       loadFixtures();
     }
-  }, [isOpen, tab, recentFixtures.length, upcomingFixtures.length, loadFixtures]);
+  }, [
+    isOpen,
+    tab,
+    recentFixtures.length,
+    upcomingFixtures.length,
+    loadFixtures,
+  ]);
 
   useEffect(() => {
     if (!isOpen || tab !== "table") return;
@@ -180,7 +177,6 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
             lastMatch={lastMatch}
             liveMatch={liveMatch}
             teamId={teamId}
-            lastMatchStats={lastMatchStats}
           />
         ) : tab === "fixtures" ? (
           <FixturesTab
@@ -211,13 +207,11 @@ function MatchTab({
   lastMatch,
   liveMatch,
   teamId,
-  lastMatchStats,
 }: {
   displayMatch: FootballFixture | null;
   lastMatch: FootballFixture | null;
   liveMatch: FootballFixture | null;
   teamId: number;
-  lastMatchStats: FixtureStats[];
 }) {
   // Show the active/next match display
   const matchToShow = liveMatch || displayMatch;
@@ -246,16 +240,6 @@ function MatchTab({
             Last Match
           </p>
           <MatchCard fixture={lastMatch} teamId={teamId} />
-
-          {/* Statistics */}
-          {lastMatchStats.length === 2 && (
-            <div className='mt-3'>
-              <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2 font-medium'>
-                Statistics
-              </p>
-              <StatsComparison stats={lastMatchStats} />
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -402,98 +386,9 @@ function MatchCard({
       {/* Venue */}
       {fixture.venue && (
         <p className='text-[11px] text-gray-400 dark:text-gray-500 text-center mt-2'>
-          📍 {fixture.venue.name}, {fixture.venue.city}
+          📍 {fixture.venue}
         </p>
       )}
-    </div>
-  );
-}
-
-// ─── Stats Comparison ─────────────────────────────────────────────────
-
-function StatsComparison({ stats }: { stats: FixtureStats[] }) {
-  const importantStats = [
-    "Ball Possession",
-    "Total Shots",
-    "Shots on Goal",
-    "Corner Kicks",
-    "Fouls",
-    "Yellow Cards",
-    "Red Cards",
-    "Passes %",
-  ];
-
-  const homeStats = stats[0];
-  const awayStats = stats[1];
-
-  return (
-    <div className='bg-gray-50 dark:bg-gray-800/60 rounded-xl p-3 space-y-2'>
-      <div className='flex items-center justify-between mb-2'>
-        <div className='flex items-center gap-1.5'>
-          <img
-            src={homeStats.team.logo}
-            alt=''
-            className='w-4 h-4 object-contain'
-          />
-          <span className='text-[11px] font-medium text-gray-700 dark:text-gray-300'>
-            {homeStats.team.name}
-          </span>
-        </div>
-        <div className='flex items-center gap-1.5'>
-          <span className='text-[11px] font-medium text-gray-700 dark:text-gray-300'>
-            {awayStats.team.name}
-          </span>
-          <img
-            src={awayStats.team.logo}
-            alt=''
-            className='w-4 h-4 object-contain'
-          />
-        </div>
-      </div>
-      {importantStats.map((statName) => {
-        const homeStat = homeStats.statistics.find((s) => s.type === statName);
-        const awayStat = awayStats.statistics.find((s) => s.type === statName);
-        if (!homeStat && !awayStat) return null;
-
-        const homeVal = homeStat?.value ?? 0;
-        const awayVal = awayStat?.value ?? 0;
-
-        // Parse percentage for bar widths
-        const homeNum = typeof homeVal === 'string' ? parseFloat(homeVal) : Number(homeVal);
-        const awayNum = typeof awayVal === 'string' ? parseFloat(awayVal) : Number(awayVal);
-        const total = homeNum + awayNum || 1;
-        const homePercent = (homeNum / total) * 100;
-
-        return (
-          <div key={statName}>
-            <div className='flex items-center justify-between mb-0.5'>
-              <span className='text-[13px] font-medium text-gray-900 dark:text-white w-10 text-left'>
-                {String(homeVal)}
-              </span>
-              <span className='text-[11px] text-gray-500 dark:text-gray-400 flex-1 text-center'>
-                {statName}
-              </span>
-              <span className='text-[13px] font-medium text-gray-900 dark:text-white w-10 text-right'>
-                {String(awayVal)}
-              </span>
-            </div>
-            <div className='flex gap-1 h-1.5'>
-              <div className='flex-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden flex justify-end'>
-                <div
-                  className='h-full bg-ios-blue rounded-full transition-all'
-                  style={{ width: `${homePercent}%` }}
-                />
-              </div>
-              <div className='flex-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
-                <div
-                  className='h-full bg-ios-orange rounded-full transition-all'
-                  style={{ width: `${100 - homePercent}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -754,7 +649,9 @@ function StandingsTab({
                         ? "text-ios-red"
                         : "text-gray-500",
                   )}>
-                  {entry.goalsDiff > 0 ? `+${entry.goalsDiff}` : entry.goalsDiff}
+                  {entry.goalsDiff > 0
+                    ? `+${entry.goalsDiff}`
+                    : entry.goalsDiff}
                 </td>
                 <td
                   className={cn(

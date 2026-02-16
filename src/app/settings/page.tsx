@@ -152,7 +152,7 @@ export default function SettingsPage() {
     }
     const loadTeams = async () => {
       setIsLoadingLeagueTeams(true);
-      const teams = await getTeamsInLeague(LEAGUES[selectedLeague].id);
+      const teams = await getTeamsInLeague(LEAGUES[selectedLeague].code);
       setLeagueTeams(teams);
       setIsLoadingLeagueTeams(false);
     };
@@ -174,8 +174,13 @@ export default function SettingsPage() {
     setIsValidatingKey(false);
   };
 
-  const handleSelectTeam = (team: FootballTeam, leagueId: number, leagueName: string) => {
-    const config: FavoriteTeamConfig = { team, leagueId, leagueName };
+  const handleSelectTeam = (
+    team: FootballTeam,
+    leagueId: number,
+    leagueCode: string,
+    leagueName: string,
+  ) => {
+    const config: FavoriteTeamConfig = { team, leagueId, leagueCode, leagueName };
     setFavoriteTeam(config);
     setFavoriteTeamState(config);
     setTeamSearch("");
@@ -1363,13 +1368,13 @@ export default function SettingsPage() {
                       className='text-ios-blue'
                       onClick={() =>
                         window.open(
-                          "https://dashboard.api-football.com/register",
+                          "https://www.football-data.org/client/register",
                           "_blank",
                         )
                       }>
-                      api-football.com
-                    </span>
-                    {" "}(100 free requests/day).
+                      football-data.org
+                    </span>{" "}
+                    (10 requests/minute, free forever).
                   </p>
                   <div className='flex gap-2 mb-3'>
                     <input
@@ -1428,9 +1433,7 @@ export default function SettingsPage() {
 
                       {/* Browse by league */}
                       <div className='flex flex-wrap gap-2 mb-3'>
-                        {(
-                          Object.keys(LEAGUES) as LeagueKey[]
-                        ).map((key) => (
+                        {(Object.keys(LEAGUES) as LeagueKey[]).map((key) => (
                           <button
                             key={key}
                             onClick={() =>
@@ -1482,6 +1485,7 @@ export default function SettingsPage() {
                                     handleSelectTeam(
                                       team,
                                       LEAGUES[selectedLeague!].id,
+                                      LEAGUES[selectedLeague!].code,
                                       LEAGUES[selectedLeague!].name,
                                     )
                                   }
@@ -1543,11 +1547,7 @@ export default function SettingsPage() {
                                 <button
                                   key={team.id}
                                   onClick={() =>
-                                    handleSelectTeam(
-                                      team,
-                                      0,
-                                      team.country,
-                                    )
+                                    handleSelectTeam(team, 0, '', team.country)
                                   }
                                   className='w-full px-4 py-2.5 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 last:border-0 active:bg-gray-200 dark:active:bg-gray-700'>
                                   <img
