@@ -77,7 +77,7 @@ const lucideIcons: Record<string, LucideIcon> = {
 export const icons = Object.fromEntries(
   Object.entries(lucideIcons).map(([name, LucideComponent]) => [
     name,
-    <LucideComponent key={name} className='w-6 h-6' strokeWidth={2} />,
+    <LucideComponent key={name} className='w-6 h-6' strokeWidth={1.5} />,
   ]),
 ) as Record<string, ReactNode>;
 
@@ -111,7 +111,7 @@ export function IconPicker({ selectedIcon, onSelect }: IconPickerProps) {
               }
             `}
             title={name}>
-            <LucideComponent className='w-6 h-6' strokeWidth={2} />
+            <LucideComponent className='w-6 h-6' strokeWidth={1.5} />
           </button>
         );
       })}
@@ -123,7 +123,7 @@ export function IconPicker({ selectedIcon, onSelect }: IconPickerProps) {
 export function Icon({
   name,
   className = "w-6 h-6",
-  strokeWidth = 2,
+  strokeWidth,
 }: {
   name: IconName | string;
   className?: string;
@@ -134,5 +134,7 @@ export function Icon({
     // Fallback to emoji if it's not a known icon
     return <span className={className}>{name}</span>;
   }
-  return <LucideComponent className={className} strokeWidth={strokeWidth} />;
+  return (
+    <LucideComponent className={className} strokeWidth={strokeWidth ?? 1.5} />
+  );
 }

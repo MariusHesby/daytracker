@@ -20,6 +20,16 @@ import {
   getWeatherCondition,
   WeatherData,
 } from "@/lib/weather";
+import {
+  getFavoriteTeam,
+  getNextFixture,
+  getLiveFixture,
+  formatMatchDate,
+  isMatchLive,
+  FavoriteTeamConfig,
+  FootballFixture,
+} from "@/lib/football";
+import { FootballPopup } from "@/components/FootballPopup";
 
 // Get time-based greeting
 function getGreeting(): string {
@@ -98,6 +108,43 @@ export default function HomePage() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [locationName, setLocationName] = useState<string | null>(null);
   const [showForecast, setShowForecast] = useState(false);
+
+  // Football state
+  const [favoriteTeam, setFavoriteTeamLocal] =
+    useState<FavoriteTeamConfig | null>(null);
+  const [nextFixture, setNextFixture] = useState<FootballFixture | null>(null);
+  const [liveFixture, setLiveFixture] = useState<FootballFixture | null>(null);
+  const [showFootball, setShowFootball] = useState(false);
+
+  // Load favorite team and next fixture
+  useEffect(() => {
+    const loadFootball = async () => {
+      const fav = getFavoriteTeam();
+      setFavoriteTeamLocal(fav);
+      if (!fav) return;
+
+      const [next, live] = await Promise.all([
+        getNextFixture(fav.team.id),
+        getLiveFixture(fav.team.id),
+      ]);
+      setNextFixture(next);
+      setLiveFixture(live);
+    };
+
+    loadFootball();
+
+    // Listen for favorite team changes
+    const handleUpdate = () => loadFootball();
+    window.addEventListener("favoriteTeamUpdated", handleUpdate);
+
+    // Refresh every 5 minutes
+    const interval = setInterval(loadFootball, 5 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener("favoriteTeamUpdated", handleUpdate);
+      clearInterval(interval);
+    };
+  }, []);
 
   // Fetch weather on mount and when location changes
   useEffect(() => {
@@ -238,27 +285,27 @@ export default function HomePage() {
                 const variants = getNameVariants(fullName);
                 setNameVariant((prev) => (prev + 1) % variants.length);
               }}
-              className='relative overflow-hidden rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
+              className='relative overflow-visible rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
               {/* Weather display - top right (tap to open forecast) */}
               {weather && !isViewingOther && locationName && (
                 <div
-                  className='absolute top-1 right-3 flex flex-col items-end z-10 cursor-pointer active:opacity-60 transition-opacity'
+                  className='absolute -top-5 right-3 flex flex-col items-end z-10 cursor-pointer active:opacity-60 transition-opacity'
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowForecast(true);
                   }}>
-                  <div className='flex items-center gap-1.5'>
+                  <span className='text-[32px] leading-none drop-shadow-sm'>
+                    {
+                      getWeatherCondition(weather.weatherCode, weather.isDay)
+                        .icon
+                    }
+                  </span>
+                  <div className='flex items-center gap-1.5 mt-0.5'>
                     <span className='text-[11px] text-gray-400 dark:text-gray-500 font-medium'>
                       {locationName}
                     </span>
-                    <span className='text-sm leading-none'>
-                      {
-                        getWeatherCondition(weather.weatherCode, weather.isDay)
-                          .icon
-                      }
-                    </span>
                   </div>
-                  <span className='text-[26px] font-semibold text-gray-500 dark:text-gray-400 mt-0.5 leading-none'>
+                  <span className='text-[26px] font-semibold text-gray-500 dark:text-gray-400 leading-none'>
                     {weather.temperature}°
                   </span>
                 </div>
@@ -373,6 +420,34 @@ export default function HomePage() {
             </h1>
           )}
           {user && isViewingOther && <div />}
+
+          {/* Center - Favorite team logo */}
+          {user && !isViewingOther && favoriteTeam && (
+            <button
+              onClick={() => setShowFootball(true)}
+              className='flex flex-col items-center active:opacity-60 transition-opacity'>
+              <div className='relative'>
+                <img
+                  src={favoriteTeam.team.logo}
+                  alt={favoriteTeam.team.name}
+                  className='w-10 h-10 object-contain'
+                />
+                {liveFixture && isMatchLive(liveFixture) && (
+                  <div className='absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white dark:border-gray-900' />
+                )}
+              </div>
+              {(liveFixture || nextFixture) && (
+                <span className='text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-tight max-w-20 truncate'>
+                  {liveFixture && isMatchLive(liveFixture)
+                    ? `LIVE ${liveFixture.goals.home}-${liveFixture.goals.away}`
+                    : nextFixture
+                      ? formatMatchDate(nextFixture.date)
+                      : ""}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Right side - Bell, View Mode, Search */}
           <div className='flex items-center gap-1'>
             {user && <NotificationBell />}
@@ -549,6 +624,14 @@ export default function HomePage() {
           isOpen={showForecast}
           onClose={() => setShowForecast(false)}
           locationName={locationName}
+        />
+      )}
+
+      {/* Football Popup */}
+      {favoriteTeam && (
+        <FootballPopup
+          isOpen={showFootball}
+          onClose={() => setShowFootball(false)}
         />
       )}
     </div>

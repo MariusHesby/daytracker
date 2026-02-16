@@ -177,8 +177,8 @@ export default function FriendsPage() {
 
       setSharedWithMe(shared);
       setMyShares(shares);
-      setIncomingRequests(incoming.filter(r => r.status === 'pending'));
-      setOutgoingRequests(outgoing.filter(r => r.status === 'pending'));
+      setIncomingRequests(incoming.filter((r) => r.status === "pending"));
+      setOutgoingRequests(outgoing.filter((r) => r.status === "pending"));
 
       // Cache the data for instant loading next time
       if (typeof window !== "undefined") {
@@ -256,7 +256,9 @@ export default function FriendsPage() {
     if (error) {
       setMessage(error.message);
     } else {
-      setMessage(`You are now friends with ${request.profile?.fullName || request.fromEmail}!`);
+      setMessage(
+        `You are now friends with ${request.profile?.fullName || request.fromEmail}!`,
+      );
       loadData();
     }
   };
@@ -393,7 +395,8 @@ export default function FriendsPage() {
                     />
                     <div className='min-w-0 flex-1'>
                       <p className='font-medium text-gray-900 dark:text-white truncate'>
-                        {request.profile?.fullName || request.fromEmail.split("@")[0]}
+                        {request.profile?.fullName ||
+                          request.fromEmail.split("@")[0]}
                       </p>
                       <p className='text-sm text-gray-500 truncate'>
                         {request.fromEmail}
@@ -436,9 +439,12 @@ export default function FriendsPage() {
                     />
                     <div className='min-w-0 flex-1'>
                       <p className='font-medium text-gray-900 dark:text-white truncate'>
-                        {request.toProfile?.fullName || request.toEmail.split("@")[0]}
+                        {request.toProfile?.fullName ||
+                          request.toEmail.split("@")[0]}
                       </p>
-                      <p className='text-xs text-gray-400'>Waiting for approval</p>
+                      <p className='text-xs text-gray-400'>
+                        Waiting for approval
+                      </p>
                     </div>
                     <button
                       onClick={() => handleCancelRequest(request)}
@@ -696,9 +702,15 @@ export default function FriendsPage() {
           {!isSearching && searchResults.length > 0 && (
             <div className='space-y-2 max-h-64 overflow-y-auto'>
               {searchResults.map((result) => {
-                const isFriend = sharedWithMe.some(s => s.id === result.userId);
-                const isPending = outgoingRequests.some(r => r.toUserId === result.userId);
-                const hasIncoming = incomingRequests.some(r => r.fromUserId === result.userId);
+                const isFriend = sharedWithMe.some(
+                  (s) => s.id === result.userId,
+                );
+                const isPending = outgoingRequests.some(
+                  (r) => r.toUserId === result.userId,
+                );
+                const hasIncoming = incomingRequests.some(
+                  (r) => r.fromUserId === result.userId,
+                );
 
                 return (
                   <div
@@ -726,7 +738,9 @@ export default function FriendsPage() {
                     ) : hasIncoming ? (
                       <button
                         onClick={() => {
-                          const req = incomingRequests.find(r => r.fromUserId === result.userId);
+                          const req = incomingRequests.find(
+                            (r) => r.fromUserId === result.userId,
+                          );
                           if (req) handleAcceptRequest(req);
                         }}
                         className='px-3 py-1.5 bg-ios-green text-white rounded-full text-[13px] font-medium'>

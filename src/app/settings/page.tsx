@@ -28,6 +28,20 @@ import {
   GeocodingResult,
   StoredLocation,
 } from "@/lib/weather";
+import {
+  getApiKey,
+  setApiKey as storeApiKey,
+  validateApiKey,
+  getFavoriteTeam,
+  setFavoriteTeam,
+  clearFavoriteTeam,
+  searchTeams,
+  LEAGUES,
+  getTeamsInLeague,
+  FavoriteTeamConfig,
+  FootballTeam,
+  type LeagueKey,
+} from "@/lib/football";
 
 export default function SettingsPage() {
   const {
@@ -84,6 +98,96 @@ export default function SettingsPage() {
   useEffect(() => {
     setStoredLocationState(getStoredLocation());
   }, []);
+
+  // Football state
+  const [footballExpanded, setFootballExpanded] = useState(false);
+  const [footballApiKey, setFootballApiKey] = useState("");
+  const [footballApiKeyInput, setFootballApiKeyInput] = useState("");
+  const [isValidatingKey, setIsValidatingKey] = useState(false);
+  const [apiKeyMessage, setApiKeyMessage] = useState<{
+    text: string;
+    type: "success" | "error";
+  } | null>(null);
+  const [favoriteTeam, setFavoriteTeamState] =
+    useState<FavoriteTeamConfig | null>(null);
+  const [teamSearch, setTeamSearch] = useState("");
+  const [teamSearchResults, setTeamSearchResults] = useState<FootballTeam[]>(
+    [],
+  );
+  const [isSearchingTeams, setIsSearchingTeams] = useState(false);
+  const [selectedLeague, setSelectedLeague] = useState<LeagueKey | null>(null);
+  const [leagueTeams, setLeagueTeams] = useState<FootballTeam[]>([]);
+  const [isLoadingLeagueTeams, setIsLoadingLeagueTeams] = useState(false);
+
+  // Load football settings on mount
+  useEffect(() => {
+    const key = getApiKey();
+    if (key) {
+      setFootballApiKey(key);
+      setFootballApiKeyInput(key);
+    }
+    setFavoriteTeamState(getFavoriteTeam());
+  }, []);
+
+  // Debounced team search
+  useEffect(() => {
+    if (teamSearch.length < 3) {
+      setTeamSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearchingTeams(true);
+      const results = await searchTeams(teamSearch);
+      setTeamSearchResults(results);
+      setIsSearchingTeams(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [teamSearch]);
+
+  // Load teams when a league is selected
+  useEffect(() => {
+    if (!selectedLeague) {
+      setLeagueTeams([]);
+      return;
+    }
+    const loadTeams = async () => {
+      setIsLoadingLeagueTeams(true);
+      const teams = await getTeamsInLeague(LEAGUES[selectedLeague].id);
+      setLeagueTeams(teams);
+      setIsLoadingLeagueTeams(false);
+    };
+    loadTeams();
+  }, [selectedLeague]);
+
+  const handleSaveApiKey = async () => {
+    if (!footballApiKeyInput.trim()) return;
+    setIsValidatingKey(true);
+    setApiKeyMessage(null);
+    const valid = await validateApiKey(footballApiKeyInput.trim());
+    if (valid) {
+      storeApiKey(footballApiKeyInput.trim());
+      setFootballApiKey(footballApiKeyInput.trim());
+      setApiKeyMessage({ text: "API key saved!", type: "success" });
+    } else {
+      setApiKeyMessage({ text: "Invalid API key", type: "error" });
+    }
+    setIsValidatingKey(false);
+  };
+
+  const handleSelectTeam = (team: FootballTeam, leagueId: number, leagueName: string) => {
+    const config: FavoriteTeamConfig = { team, leagueId, leagueName };
+    setFavoriteTeam(config);
+    setFavoriteTeamState(config);
+    setTeamSearch("");
+    setTeamSearchResults([]);
+    setSelectedLeague(null);
+    setLeagueTeams([]);
+  };
+
+  const handleRemoveTeam = () => {
+    clearFavoriteTeam();
+    setFavoriteTeamState(null);
+  };
 
   // Debounced location search
   const searchLocationDebounced = useCallback(async (query: string) => {
@@ -1201,6 +1305,271 @@ export default function SettingsPage() {
                         </button>
                       ))}
                     </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Football Section */}
+        <section className='mb-6'>
+          <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
+            Football
+          </h2>
+          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+            <button
+              onClick={() => setFootballExpanded(!footballExpanded)}
+              className='w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
+              <div className='flex items-center gap-3'>
+                <div className='w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center'>
+                  <span className='text-lg'>⚽</span>
+                </div>
+                <div className='text-left'>
+                  <span className='text-[17px] text-gray-900 dark:text-white'>
+                    Favorite Team
+                  </span>
+                  {favoriteTeam && (
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      {favoriteTeam.team.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <svg
+                className={cn(
+                  "w-5 h-5 text-gray-400 transition-transform",
+                  footballExpanded && "rotate-90",
+                )}
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M9 5l7 7-7 7'
+                />
+              </svg>
+            </button>
+
+            {footballExpanded && (
+              <div className='border-t border-gray-200/80 dark:border-gray-700/80'>
+                <div className='px-4 py-3'>
+                  {/* API Key */}
+                  <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2'>
+                    Enter your free API key from{" "}
+                    <span
+                      className='text-ios-blue'
+                      onClick={() =>
+                        window.open(
+                          "https://dashboard.api-football.com/register",
+                          "_blank",
+                        )
+                      }>
+                      api-football.com
+                    </span>
+                    {" "}(100 free requests/day).
+                  </p>
+                  <div className='flex gap-2 mb-3'>
+                    <input
+                      type='text'
+                      value={footballApiKeyInput}
+                      onChange={(e) => setFootballApiKeyInput(e.target.value)}
+                      placeholder='API key...'
+                      className='flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl text-[15px] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                    />
+                    <button
+                      onClick={handleSaveApiKey}
+                      disabled={isValidatingKey || !footballApiKeyInput.trim()}
+                      className='px-4 py-2 bg-ios-blue text-white rounded-xl text-[15px] font-medium disabled:opacity-50'>
+                      {isValidatingKey ? "..." : "Save"}
+                    </button>
+                  </div>
+                  {apiKeyMessage && (
+                    <p
+                      className={`text-[13px] mb-3 ${apiKeyMessage.type === "success" ? "text-ios-green" : "text-ios-red"}`}>
+                      {apiKeyMessage.text}
+                    </p>
+                  )}
+
+                  {/* Favorite Team Display */}
+                  {favoriteTeam && (
+                    <div className='flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3 mb-3'>
+                      <div className='flex items-center gap-3'>
+                        <img
+                          src={favoriteTeam.team.logo}
+                          alt={favoriteTeam.team.name}
+                          className='w-8 h-8 object-contain'
+                        />
+                        <div>
+                          <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                            {favoriteTeam.team.name}
+                          </p>
+                          <p className='text-[12px] text-gray-500 dark:text-gray-400'>
+                            {favoriteTeam.leagueName}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleRemoveTeam}
+                        className='text-ios-red text-[15px] font-medium'>
+                        Remove
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Team Selection - only if API key is set */}
+                  {footballApiKey && (
+                    <>
+                      <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2'>
+                        {favoriteTeam ? "Change team:" : "Choose your team:"}
+                      </p>
+
+                      {/* Browse by league */}
+                      <div className='flex flex-wrap gap-2 mb-3'>
+                        {(
+                          Object.keys(LEAGUES) as LeagueKey[]
+                        ).map((key) => (
+                          <button
+                            key={key}
+                            onClick={() =>
+                              setSelectedLeague(
+                                selectedLeague === key ? null : key,
+                              )
+                            }
+                            className={cn(
+                              "px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors",
+                              selectedLeague === key
+                                ? "bg-ios-blue text-white"
+                                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
+                            )}>
+                            {LEAGUES[key].name}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* League teams */}
+                      {selectedLeague && (
+                        <div className='mb-3'>
+                          {isLoadingLeagueTeams ? (
+                            <div className='flex items-center justify-center py-4'>
+                              <svg
+                                className='w-5 h-5 text-gray-400 animate-spin'
+                                fill='none'
+                                viewBox='0 0 24 24'>
+                                <circle
+                                  className='opacity-25'
+                                  cx='12'
+                                  cy='12'
+                                  r='10'
+                                  stroke='currentColor'
+                                  strokeWidth='4'
+                                />
+                                <path
+                                  className='opacity-75'
+                                  fill='currentColor'
+                                  d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                                />
+                              </svg>
+                            </div>
+                          ) : (
+                            <div className='bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden max-h-60 overflow-y-auto'>
+                              {leagueTeams.map((team) => (
+                                <button
+                                  key={team.id}
+                                  onClick={() =>
+                                    handleSelectTeam(
+                                      team,
+                                      LEAGUES[selectedLeague!].id,
+                                      LEAGUES[selectedLeague!].name,
+                                    )
+                                  }
+                                  className='w-full px-4 py-2.5 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 last:border-0 active:bg-gray-200 dark:active:bg-gray-700'>
+                                  <img
+                                    src={team.logo}
+                                    alt={team.name}
+                                    className='w-6 h-6 object-contain'
+                                  />
+                                  <span className='text-[15px] text-gray-900 dark:text-white'>
+                                    {team.name}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Or search */}
+                      {!selectedLeague && (
+                        <>
+                          <div className='relative mb-2'>
+                            <input
+                              type='text'
+                              value={teamSearch}
+                              onChange={(e) => setTeamSearch(e.target.value)}
+                              placeholder='Or search for a team...'
+                              className='w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-[15px] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                            />
+                            {isSearchingTeams && (
+                              <div className='absolute right-3 top-1/2 -translate-y-1/2'>
+                                <svg
+                                  className='w-5 h-5 text-gray-400 animate-spin'
+                                  fill='none'
+                                  viewBox='0 0 24 24'>
+                                  <circle
+                                    className='opacity-25'
+                                    cx='12'
+                                    cy='12'
+                                    r='10'
+                                    stroke='currentColor'
+                                    strokeWidth='4'
+                                  />
+                                  <path
+                                    className='opacity-75'
+                                    fill='currentColor'
+                                    d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                                  />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Search results */}
+                          {teamSearchResults.length > 0 && (
+                            <div className='bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden max-h-60 overflow-y-auto'>
+                              {teamSearchResults.map((team) => (
+                                <button
+                                  key={team.id}
+                                  onClick={() =>
+                                    handleSelectTeam(
+                                      team,
+                                      0,
+                                      team.country,
+                                    )
+                                  }
+                                  className='w-full px-4 py-2.5 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 last:border-0 active:bg-gray-200 dark:active:bg-gray-700'>
+                                  <img
+                                    src={team.logo}
+                                    alt={team.name}
+                                    className='w-6 h-6 object-contain'
+                                  />
+                                  <div className='text-left'>
+                                    <span className='text-[15px] text-gray-900 dark:text-white'>
+                                      {team.name}
+                                    </span>
+                                    <span className='text-[12px] text-gray-500 dark:text-gray-400 ml-2'>
+                                      {team.country}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
