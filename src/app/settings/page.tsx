@@ -180,7 +180,12 @@ export default function SettingsPage() {
     leagueCode: string,
     leagueName: string,
   ) => {
-    const config: FavoriteTeamConfig = { team, leagueId, leagueCode, leagueName };
+    const config: FavoriteTeamConfig = {
+      team,
+      leagueId,
+      leagueCode,
+      leagueName,
+    };
     setFavoriteTeam(config);
     setFavoriteTeamState(config);
     setTeamSearch("");
@@ -1547,7 +1552,7 @@ export default function SettingsPage() {
                                 <button
                                   key={team.id}
                                   onClick={() =>
-                                    handleSelectTeam(team, 0, '', team.country)
+                                    handleSelectTeam(team, 0, "", team.country)
                                   }
                                   className='w-full px-4 py-2.5 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 last:border-0 active:bg-gray-200 dark:active:bg-gray-700'>
                                   <img

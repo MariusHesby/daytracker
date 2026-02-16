@@ -1,8 +1,7 @@
 // Football API integration using football-data.org (v4)
 // Free tier: 10 requests/minute, no daily cap, current season data!
-// Covers: Premier League, Championship, Champions League, and more
+// Proxied through /api/football to avoid CORS issues
 
-const API_BASE = 'https://api.football-data.org/v4';
 const STORAGE_PREFIX = 'football_';
 
 // Competition codes in football-data.org
@@ -178,7 +177,9 @@ async function apiFetch<T>(endpoint: string, params: Record<string, string | num
   const apiKey = getApiKey();
   if (!apiKey) return null;
 
-  const url = new URL(`${API_BASE}${endpoint}`);
+  // Use our Next.js proxy to avoid CORS issues
+  const url = new URL('/api/football', window.location.origin);
+  url.searchParams.set('endpoint', endpoint);
   Object.entries(params).forEach(([key, value]) => {
     url.searchParams.set(key, String(value));
   });
@@ -187,7 +188,7 @@ async function apiFetch<T>(endpoint: string, params: Record<string, string | num
     const res = await fetch(url.toString(), {
       method: 'GET',
       headers: {
-        'X-Auth-Token': apiKey,
+        'x-football-token': apiKey,
       },
     });
 
@@ -575,9 +576,11 @@ export function isMatchLive(fixture: FootballFixture): boolean {
 
 export async function validateApiKey(key: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/competitions/PL`, {
+    const url = new URL('/api/football', window.location.origin);
+    url.searchParams.set('endpoint', '/competitions/PL');
+    const res = await fetch(url.toString(), {
       method: 'GET',
-      headers: { 'X-Auth-Token': key },
+      headers: { 'x-football-token': key },
     });
     if (!res.ok) return false;
     const json = await res.json();
