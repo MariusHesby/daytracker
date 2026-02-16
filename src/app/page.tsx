@@ -357,6 +357,96 @@ export default function HomePage() {
             </div>
           </div>
         )}
+
+        {/* Football Section */}
+        {user && !isViewingOther && favoriteTeam && (nextFixture || liveFixture || lastFixture) && (
+          <div className='px-4 mb-3'>
+            <button
+              onClick={() => setShowFootball(true)}
+              className='relative w-full overflow-hidden rounded-2xl bg-white/80 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200/40 dark:border-gray-700/40 active:scale-[0.98] transition-all duration-200'>
+              {/* Team logo background — centered watermark */}
+              <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
+                <img
+                  src={favoriteTeam.team.logo}
+                  alt=''
+                  className='w-1/3 max-w-[100px] h-auto object-contain opacity-[0.06] dark:opacity-[0.10]'
+                />
+              </div>
+              {/* Soft radial fade over the logo */}
+              <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(255,255,255,0.7)_70%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(17,24,39,0.7)_70%)] pointer-events-none' />
+
+              {/* Content */}
+              <div className='relative z-10 px-5 py-4'>
+                {(() => {
+                  const fixture = liveFixture && isMatchLive(liveFixture) ? liveFixture : nextFixture || lastFixture;
+                  if (!fixture) return null;
+                  const isLive = liveFixture && isMatchLive(liveFixture) && fixture === liveFixture;
+                  const isFinished = !isLive && fixture === lastFixture && !nextFixture;
+
+                  return (
+                    <>
+                      {/* League + status label */}
+                      <div className='flex items-center justify-center gap-2 mb-3'>
+                        {isLive && (
+                          <div className='flex items-center gap-1.5'>
+                            <div className='w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse' />
+                            <span className='text-[11px] font-bold text-red-500 uppercase tracking-wider'>
+                              Live · {fixture.status.elapsed}&apos;
+                            </span>
+                          </div>
+                        )}
+                        {!isLive && (
+                          <span className='text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider'>
+                            {fixture.league.name}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Teams row */}
+                      <div className='flex items-center justify-between gap-3'>
+                        <div className='flex-1 text-right'>
+                          <p className='text-[15px] font-semibold text-gray-900 dark:text-white leading-tight'>
+                            {fixture.teams.home.name}
+                          </p>
+                        </div>
+                        <div className='flex flex-col items-center min-w-[64px]'>
+                          {isLive ? (
+                            <span className='text-[22px] font-bold text-gray-900 dark:text-white tabular-nums'>
+                              {fixture.goals.home} – {fixture.goals.away}
+                            </span>
+                          ) : isFinished ? (
+                            <>
+                              <span className={`text-[22px] font-bold tabular-nums ${
+                                getMatchResult(fixture, favoriteTeam.team.id) === 'W' ? 'text-green-500' :
+                                getMatchResult(fixture, favoriteTeam.team.id) === 'L' ? 'text-red-500' :
+                                'text-gray-900 dark:text-white'
+                              }`}>
+                                {fixture.goals.home} – {fixture.goals.away}
+                              </span>
+                              <span className='text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mt-0.5'>
+                                Full time
+                              </span>
+                            </>
+                          ) : (
+                            <span className='text-[15px] font-semibold text-ios-blue'>
+                              {formatMatchDate(fixture.date)}
+                            </span>
+                          )}
+                        </div>
+                        <div className='flex-1 text-left'>
+                          <p className='text-[15px] font-semibold text-gray-900 dark:text-white leading-tight'>
+                            {fixture.teams.away.name}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </button>
+          </div>
+        )}
+
         {/* Action buttons row */}
         <div className='px-4 flex items-center justify-between'>
           {/* Left side - Unlocked days and Trivia (no background) */}
@@ -430,33 +520,6 @@ export default function HomePage() {
           )}
           {user && isViewingOther && <div />}
 
-          {/* Center - Favorite team logo */}
-          {user && !isViewingOther && favoriteTeam && (
-            <button
-              onClick={() => setShowFootball(true)}
-              className='flex flex-col items-center active:opacity-60 transition-opacity'>
-              <div className='relative'>
-                <img
-                  src={favoriteTeam.team.logo}
-                  alt={favoriteTeam.team.name}
-                  className='w-10 h-10 object-contain'
-                />
-                {liveFixture && isMatchLive(liveFixture) && (
-                  <div className='absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-white dark:border-gray-900' />
-                )}
-              </div>
-              {(liveFixture || nextFixture) && (
-                <span className='text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-tight max-w-20 truncate'>
-                  {liveFixture && isMatchLive(liveFixture)
-                    ? `LIVE ${liveFixture.goals.home}-${liveFixture.goals.away}`
-                    : nextFixture
-                      ? formatMatchDate(nextFixture.date)
-                      : ""}
-                </span>
-              )}
-            </button>
-          )}
-
           {/* Right side - Bell, View Mode, Search */}
           <div className='flex items-center gap-1'>
             {user && <NotificationBell />}
@@ -505,105 +568,6 @@ export default function HomePage() {
       <div className='px-4 pt-2 pb-3'>
         <DateNavigator date={selectedDate} onChange={setSelectedDate} />
       </div>
-
-      {/* Football Section */}
-      {user &&
-        !isViewingOther &&
-        favoriteTeam &&
-        (nextFixture || liveFixture || lastFixture) && (
-          <div className='px-4 pb-3'>
-            <button
-              onClick={() => setShowFootball(true)}
-              className='relative w-full overflow-hidden rounded-2xl bg-white/80 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200/40 dark:border-gray-700/40 active:scale-[0.98] transition-all duration-200'>
-              {/* Team logo background — centered watermark */}
-              <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
-                <img
-                  src={favoriteTeam.team.logo}
-                  alt=''
-                  className='w-1/3 max-w-[100px] h-auto object-contain opacity-[0.06] dark:opacity-[0.10]'
-                />
-              </div>
-              {/* Soft radial fade over the logo */}
-              <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(255,255,255,0.7)_70%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(17,24,39,0.7)_70%)] pointer-events-none' />
-
-              {/* Content */}
-              <div className='relative z-10 px-5 py-4'>
-                {(() => {
-                  const fixture = liveFixture && isMatchLive(liveFixture) ? liveFixture : nextFixture || lastFixture;
-                  if (!fixture) return null;
-                  const isLive = liveFixture && isMatchLive(liveFixture) && fixture === liveFixture;
-                  const isFinished = !isLive && fixture === lastFixture && !nextFixture;
-
-                  return (
-                    <>
-                      {/* League + status label */}
-                      <div className='flex items-center justify-center gap-2 mb-3'>
-                        {isLive && (
-                          <div className='flex items-center gap-1.5'>
-                            <div className='w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse' />
-                            <span className='text-[11px] font-bold text-red-500 uppercase tracking-wider'>
-                              Live · {fixture.status.elapsed}&apos;
-                            </span>
-                          </div>
-                        )}
-                        {!isLive && (
-                          <span className='text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider'>
-                            {fixture.league.name}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Teams row */}
-                      <div className='flex items-center justify-between gap-3'>
-                        {/* Home team */}
-                        <div className='flex-1 text-right'>
-                          <p className='text-[15px] font-semibold text-gray-900 dark:text-white leading-tight'>
-                            {fixture.teams.home.name}
-                          </p>
-                        </div>
-
-                        {/* Center: score or time */}
-                        <div className='flex flex-col items-center min-w-[64px]'>
-                          {isLive ? (
-                            <span className='text-[22px] font-bold text-gray-900 dark:text-white tabular-nums'>
-                              {fixture.goals.home} – {fixture.goals.away}
-                            </span>
-                          ) : isFinished ? (
-                            <>
-                              <span className={`text-[22px] font-bold tabular-nums ${
-                                getMatchResult(fixture, favoriteTeam.team.id) === 'W' ? 'text-green-500' :
-                                getMatchResult(fixture, favoriteTeam.team.id) === 'L' ? 'text-red-500' :
-                                'text-gray-900 dark:text-white'
-                              }`}>
-                                {fixture.goals.home} – {fixture.goals.away}
-                              </span>
-                              <span className='text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mt-0.5'>
-                                Full time
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <span className='text-[15px] font-semibold text-ios-blue'>
-                                {formatMatchDate(fixture.date)}
-                              </span>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Away team */}
-                        <div className='flex-1 text-left'>
-                          <p className='text-[15px] font-semibold text-gray-900 dark:text-white leading-tight'>
-                            {fixture.teams.away.name}
-                          </p>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </button>
-          </div>
-        )}
 
       {/* Main Content */}
       <main className='px-4 pb-24'>
