@@ -1368,148 +1368,146 @@ export default function SettingsPage() {
                   )}
 
                   {/* Team Selection */}
-                      <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2'>
-                        {favoriteTeam ? "Change team:" : "Choose your team:"}
-                      </p>
+                  <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2'>
+                    {favoriteTeam ? "Change team:" : "Choose your team:"}
+                  </p>
 
-                      {/* Browse by league */}
-                      <div className='flex flex-wrap gap-2 mb-3'>
-                        {(Object.keys(LEAGUES) as LeagueKey[]).map((key) => (
-                          <button
-                            key={key}
-                            onClick={() =>
-                              setSelectedLeague(
-                                selectedLeague === key ? null : key,
-                              )
-                            }
-                            className={cn(
-                              "px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors",
-                              selectedLeague === key
-                                ? "bg-ios-blue text-white"
-                                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
-                            )}>
-                            {LEAGUES[key].name}
-                          </button>
-                        ))}
-                      </div>
+                  {/* Browse by league */}
+                  <div className='flex flex-wrap gap-2 mb-3'>
+                    {(Object.keys(LEAGUES) as LeagueKey[]).map((key) => (
+                      <button
+                        key={key}
+                        onClick={() =>
+                          setSelectedLeague(selectedLeague === key ? null : key)
+                        }
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors",
+                          selectedLeague === key
+                            ? "bg-ios-blue text-white"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
+                        )}>
+                        {LEAGUES[key].name}
+                      </button>
+                    ))}
+                  </div>
 
-                      {/* League teams */}
-                      {selectedLeague && (
-                        <div className='mb-3'>
-                          {isLoadingLeagueTeams ? (
-                            <div className='flex items-center justify-center py-4'>
-                              <svg
-                                className='w-5 h-5 text-gray-400 animate-spin'
-                                fill='none'
-                                viewBox='0 0 24 24'>
-                                <circle
-                                  className='opacity-25'
-                                  cx='12'
-                                  cy='12'
-                                  r='10'
-                                  stroke='currentColor'
-                                  strokeWidth='4'
-                                />
-                                <path
-                                  className='opacity-75'
-                                  fill='currentColor'
-                                  d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
-                                />
-                              </svg>
-                            </div>
-                          ) : (
-                            <div className='bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden max-h-60 overflow-y-auto'>
-                              {leagueTeams.map((team) => (
-                                <button
-                                  key={team.id}
-                                  onClick={() =>
-                                    handleSelectTeam(
-                                      team,
-                                      LEAGUES[selectedLeague!].id,
-                                      LEAGUES[selectedLeague!].code,
-                                      LEAGUES[selectedLeague!].name,
-                                    )
-                                  }
-                                  className='w-full px-4 py-2.5 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 last:border-0 active:bg-gray-200 dark:active:bg-gray-700'>
-                                  <img
-                                    src={team.logo}
-                                    alt={team.name}
-                                    className='w-6 h-6 object-contain'
-                                  />
-                                  <span className='text-[15px] text-gray-900 dark:text-white'>
-                                    {team.name}
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                  {/* League teams */}
+                  {selectedLeague && (
+                    <div className='mb-3'>
+                      {isLoadingLeagueTeams ? (
+                        <div className='flex items-center justify-center py-4'>
+                          <svg
+                            className='w-5 h-5 text-gray-400 animate-spin'
+                            fill='none'
+                            viewBox='0 0 24 24'>
+                            <circle
+                              className='opacity-25'
+                              cx='12'
+                              cy='12'
+                              r='10'
+                              stroke='currentColor'
+                              strokeWidth='4'
+                            />
+                            <path
+                              className='opacity-75'
+                              fill='currentColor'
+                              d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                            />
+                          </svg>
+                        </div>
+                      ) : (
+                        <div className='bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden max-h-60 overflow-y-auto'>
+                          {leagueTeams.map((team) => (
+                            <button
+                              key={team.id}
+                              onClick={() =>
+                                handleSelectTeam(
+                                  team,
+                                  LEAGUES[selectedLeague!].id,
+                                  LEAGUES[selectedLeague!].code,
+                                  LEAGUES[selectedLeague!].name,
+                                )
+                              }
+                              className='w-full px-4 py-2.5 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 last:border-0 active:bg-gray-200 dark:active:bg-gray-700'>
+                              <img
+                                src={team.logo}
+                                alt={team.name}
+                                className='w-6 h-6 object-contain'
+                              />
+                              <span className='text-[15px] text-gray-900 dark:text-white'>
+                                {team.name}
+                              </span>
+                            </button>
+                          ))}
                         </div>
                       )}
+                    </div>
+                  )}
 
-                      {/* Or search */}
-                      {!selectedLeague && (
-                        <>
-                          <div className='relative mb-2'>
-                            <input
-                              type='text'
-                              value={teamSearch}
-                              onChange={(e) => setTeamSearch(e.target.value)}
-                              placeholder='Or search for a team...'
-                              className='w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-[15px] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                            />
-                            {isSearchingTeams && (
-                              <div className='absolute right-3 top-1/2 -translate-y-1/2'>
-                                <svg
-                                  className='w-5 h-5 text-gray-400 animate-spin'
-                                  fill='none'
-                                  viewBox='0 0 24 24'>
-                                  <circle
-                                    className='opacity-25'
-                                    cx='12'
-                                    cy='12'
-                                    r='10'
-                                    stroke='currentColor'
-                                    strokeWidth='4'
-                                  />
-                                  <path
-                                    className='opacity-75'
-                                    fill='currentColor'
-                                    d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
-                                  />
-                                </svg>
-                              </div>
-                            )}
+                  {/* Or search */}
+                  {!selectedLeague && (
+                    <>
+                      <div className='relative mb-2'>
+                        <input
+                          type='text'
+                          value={teamSearch}
+                          onChange={(e) => setTeamSearch(e.target.value)}
+                          placeholder='Or search for a team...'
+                          className='w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-[15px] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                        />
+                        {isSearchingTeams && (
+                          <div className='absolute right-3 top-1/2 -translate-y-1/2'>
+                            <svg
+                              className='w-5 h-5 text-gray-400 animate-spin'
+                              fill='none'
+                              viewBox='0 0 24 24'>
+                              <circle
+                                className='opacity-25'
+                                cx='12'
+                                cy='12'
+                                r='10'
+                                stroke='currentColor'
+                                strokeWidth='4'
+                              />
+                              <path
+                                className='opacity-75'
+                                fill='currentColor'
+                                d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                              />
+                            </svg>
                           </div>
+                        )}
+                      </div>
 
-                          {/* Search results */}
-                          {teamSearchResults.length > 0 && (
-                            <div className='bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden max-h-60 overflow-y-auto'>
-                              {teamSearchResults.map((team) => (
-                                <button
-                                  key={team.id}
-                                  onClick={() =>
-                                    handleSelectTeam(team, 0, "", team.country)
-                                  }
-                                  className='w-full px-4 py-2.5 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 last:border-0 active:bg-gray-200 dark:active:bg-gray-700'>
-                                  <img
-                                    src={team.logo}
-                                    alt={team.name}
-                                    className='w-6 h-6 object-contain'
-                                  />
-                                  <div className='text-left'>
-                                    <span className='text-[15px] text-gray-900 dark:text-white'>
-                                      {team.name}
-                                    </span>
-                                    <span className='text-[12px] text-gray-500 dark:text-gray-400 ml-2'>
-                                      {team.country}
-                                    </span>
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </>
+                      {/* Search results */}
+                      {teamSearchResults.length > 0 && (
+                        <div className='bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden max-h-60 overflow-y-auto'>
+                          {teamSearchResults.map((team) => (
+                            <button
+                              key={team.id}
+                              onClick={() =>
+                                handleSelectTeam(team, 0, "", team.country)
+                              }
+                              className='w-full px-4 py-2.5 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700 last:border-0 active:bg-gray-200 dark:active:bg-gray-700'>
+                              <img
+                                src={team.logo}
+                                alt={team.name}
+                                className='w-6 h-6 object-contain'
+                              />
+                              <div className='text-left'>
+                                <span className='text-[15px] text-gray-900 dark:text-white'>
+                                  {team.name}
+                                </span>
+                                <span className='text-[12px] text-gray-500 dark:text-gray-400 ml-2'>
+                                  {team.country}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
                       )}
+                    </>
+                  )}
                 </div>
               </div>
             )}
