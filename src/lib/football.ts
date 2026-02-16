@@ -2,6 +2,8 @@
 // Free tier: 10 requests/minute, no daily cap, current season data!
 // Proxied through /api/football to avoid CORS issues
 
+import { supabase } from './supabase';
+
 const STORAGE_PREFIX = 'football_';
 
 // Competition codes in football-data.org
@@ -94,6 +96,7 @@ export function getApiKey(): string | null {
 export function setApiKey(key: string): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(`${STORAGE_PREFIX}api_key`, key);
+  syncSettingsToSupabase();
 }
 
 // ─── Favorite Team Management ─────────────────────────────────────────
@@ -113,6 +116,7 @@ export function setFavoriteTeam(config: FavoriteTeamConfig): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(`${STORAGE_PREFIX}favorite_team`, JSON.stringify(config));
   clearCache();
+  syncSettingsToSupabase();
   window.dispatchEvent(new Event('favoriteTeamUpdated'));
 }
 
@@ -120,7 +124,60 @@ export function clearFavoriteTeam(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(`${STORAGE_PREFIX}favorite_team`);
   clearCache();
+  syncSettingsToSupabase();
   window.dispatchEvent(new Event('favoriteTeamUpdated'));
+}
+
+// ─── Supabase Sync ────────────────────────────────────────────────────
+
+async function syncSettingsToSupabase(): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const settings: Record<string, unknown> = {};
+    const apiKey = localStorage.getItem(`${STORAGE_PREFIX}api_key`);
+    const team = localStorage.getItem(`${STORAGE_PREFIX}favorite_team`);
+    if (apiKey) settings.football_api_key = apiKey;
+    if (team) {
+      try { settings.football_team = JSON.parse(team); } catch { /* ignore */ }
+    }
+
+    await supabase
+      .from('profiles')
+      .update({ settings })
+      .eq('user_id', user.id);
+  } catch (err) {
+    console.error('Failed to sync football settings:', err);
+  }
+}
+
+export async function loadSettingsFromSupabase(): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('settings')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!data?.settings) return;
+
+    const settings = data.settings as Record<string, unknown>;
+
+    // Only populate localStorage if it's empty (don't overwrite local changes)
+    if (settings.football_api_key && !localStorage.getItem(`${STORAGE_PREFIX}api_key`)) {
+      localStorage.setItem(`${STORAGE_PREFIX}api_key`, settings.football_api_key as string);
+    }
+    if (settings.football_team && !localStorage.getItem(`${STORAGE_PREFIX}favorite_team`)) {
+      localStorage.setItem(`${STORAGE_PREFIX}favorite_team`, JSON.stringify(settings.football_team));
+      window.dispatchEvent(new Event('favoriteTeamUpdated'));
+    }
+  } catch (err) {
+    console.error('Failed to load football settings:', err);
+  }
 }
 
 // ─── Cache Management ─────────────────────────────────────────────────

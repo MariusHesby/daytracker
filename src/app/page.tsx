@@ -26,6 +26,7 @@ import {
   getLiveFixture,
   formatMatchDate,
   isMatchLive,
+  loadSettingsFromSupabase,
   FavoriteTeamConfig,
   FootballFixture,
 } from "@/lib/football";
@@ -119,6 +120,9 @@ export default function HomePage() {
   // Load favorite team and next fixture
   useEffect(() => {
     const loadFootball = async () => {
+      // Sync settings from Supabase first (for cross-device sync)
+      await loadSettingsFromSupabase();
+
       const fav = getFavoriteTeam();
       setFavoriteTeamLocal(fav);
       if (!fav) return;

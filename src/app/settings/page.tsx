@@ -36,6 +36,7 @@ import {
   setFavoriteTeam,
   clearFavoriteTeam,
   searchTeams,
+  loadSettingsFromSupabase,
   LEAGUES,
   getTeamsInLeague,
   FavoriteTeamConfig,
@@ -121,12 +122,16 @@ export default function SettingsPage() {
 
   // Load football settings on mount
   useEffect(() => {
-    const key = getApiKey();
-    if (key) {
-      setFootballApiKey(key);
-      setFootballApiKeyInput(key);
-    }
-    setFavoriteTeamState(getFavoriteTeam());
+    const loadFootballSettings = async () => {
+      await loadSettingsFromSupabase();
+      const key = getApiKey();
+      if (key) {
+        setFootballApiKey(key);
+        setFootballApiKeyInput(key);
+      }
+      setFavoriteTeamState(getFavoriteTeam());
+    };
+    loadFootballSettings();
   }, []);
 
   // Debounced team search
