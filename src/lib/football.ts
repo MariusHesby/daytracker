@@ -86,19 +86,6 @@ export interface FavoriteTeamConfig {
   leagueName: string;
 }
 
-// ─── API Key Management ───────────────────────────────────────────────
-
-export function getApiKey(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(`${STORAGE_PREFIX}api_key`);
-}
-
-export function setApiKey(key: string): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(`${STORAGE_PREFIX}api_key`, key);
-  syncSettingsToSupabase();
-}
-
 // ─── Favorite Team Management ─────────────────────────────────────────
 
 export function getFavoriteTeam(): FavoriteTeamConfig | null {
@@ -136,9 +123,7 @@ async function syncSettingsToSupabase(): Promise<void> {
     if (!user) return;
 
     const settings: Record<string, unknown> = {};
-    const apiKey = localStorage.getItem(`${STORAGE_PREFIX}api_key`);
     const team = localStorage.getItem(`${STORAGE_PREFIX}favorite_team`);
-    if (apiKey) settings.football_api_key = apiKey;
     if (team) {
       try { settings.football_team = JSON.parse(team); } catch { /* ignore */ }
     }
@@ -167,10 +152,6 @@ export async function loadSettingsFromSupabase(): Promise<void> {
 
     const settings = data.settings as Record<string, unknown>;
 
-    // Only populate localStorage if it's empty (don't overwrite local changes)
-    if (settings.football_api_key && !localStorage.getItem(`${STORAGE_PREFIX}api_key`)) {
-      localStorage.setItem(`${STORAGE_PREFIX}api_key`, settings.football_api_key as string);
-    }
     if (settings.football_team && !localStorage.getItem(`${STORAGE_PREFIX}favorite_team`)) {
       localStorage.setItem(`${STORAGE_PREFIX}favorite_team`, JSON.stringify(settings.football_team));
       window.dispatchEvent(new Event('favoriteTeamUpdated'));
@@ -231,10 +212,7 @@ function clearCache(): void {
 // ─── API Fetcher ──────────────────────────────────────────────────────
 
 async function apiFetch<T>(endpoint: string, params: Record<string, string | number> = {}): Promise<T | null> {
-  const apiKey = getApiKey();
-  if (!apiKey) return null;
-
-  // Use our Next.js proxy to avoid CORS issues
+  // Use our Next.js proxy to avoid CORS issues (API key is server-side in .env)
   const url = new URL('/api/football', window.location.origin);
   url.searchParams.set('endpoint', endpoint);
   Object.entries(params).forEach(([key, value]) => {
@@ -244,9 +222,6 @@ async function apiFetch<T>(endpoint: string, params: Record<string, string | num
   try {
     const res = await fetch(url.toString(), {
       method: 'GET',
-      headers: {
-        'x-football-token': apiKey,
-      },
     });
 
     if (res.status === 429) {
@@ -627,22 +602,4 @@ export function getMatchResult(fixture: FootballFixture, teamId: number): 'W' | 
 export function isMatchLive(fixture: FootballFixture): boolean {
   const liveStatuses = ['1H', '2H', 'HT', 'ET', 'BT', 'P', 'SUSP', 'INT', 'LIVE'];
   return liveStatuses.includes(fixture.status.short);
-}
-
-// ─── Validate API Key ─────────────────────────────────────────────────
-
-export async function validateApiKey(key: string): Promise<boolean> {
-  try {
-    const url = new URL('/api/football', window.location.origin);
-    url.searchParams.set('endpoint', '/competitions/PL');
-    const res = await fetch(url.toString(), {
-      method: 'GET',
-      headers: { 'x-football-token': key },
-    });
-    if (!res.ok) return false;
-    const json = await res.json();
-    return json.id != null;
-  } catch {
-    return false;
-  }
 }

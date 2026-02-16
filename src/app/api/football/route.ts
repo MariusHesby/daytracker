@@ -5,14 +5,14 @@ const API_BASE = 'https://api.football-data.org/v4';
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const endpoint = searchParams.get('endpoint');
-  const token = request.headers.get('x-football-token');
+  const token = process.env.FOOTBALL_API_KEY;
 
   if (!endpoint) {
     return NextResponse.json({ error: 'Missing endpoint parameter' }, { status: 400 });
   }
 
   if (!token) {
-    return NextResponse.json({ error: 'Missing API token' }, { status: 401 });
+    return NextResponse.json({ error: 'FOOTBALL_API_KEY not configured in .env' }, { status: 500 });
   }
 
   // Build the target URL, forwarding all params except 'endpoint'

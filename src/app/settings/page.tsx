@@ -29,9 +29,6 @@ import {
   StoredLocation,
 } from "@/lib/weather";
 import {
-  getApiKey,
-  setApiKey as storeApiKey,
-  validateApiKey,
   getFavoriteTeam,
   setFavoriteTeam,
   clearFavoriteTeam,
@@ -102,13 +99,6 @@ export default function SettingsPage() {
 
   // Football state
   const [footballExpanded, setFootballExpanded] = useState(false);
-  const [footballApiKey, setFootballApiKey] = useState("");
-  const [footballApiKeyInput, setFootballApiKeyInput] = useState("");
-  const [isValidatingKey, setIsValidatingKey] = useState(false);
-  const [apiKeyMessage, setApiKeyMessage] = useState<{
-    text: string;
-    type: "success" | "error";
-  } | null>(null);
   const [favoriteTeam, setFavoriteTeamState] =
     useState<FavoriteTeamConfig | null>(null);
   const [teamSearch, setTeamSearch] = useState("");
@@ -124,11 +114,6 @@ export default function SettingsPage() {
   useEffect(() => {
     const loadFootballSettings = async () => {
       await loadSettingsFromSupabase();
-      const key = getApiKey();
-      if (key) {
-        setFootballApiKey(key);
-        setFootballApiKeyInput(key);
-      }
       setFavoriteTeamState(getFavoriteTeam());
     };
     loadFootballSettings();
@@ -163,21 +148,6 @@ export default function SettingsPage() {
     };
     loadTeams();
   }, [selectedLeague]);
-
-  const handleSaveApiKey = async () => {
-    if (!footballApiKeyInput.trim()) return;
-    setIsValidatingKey(true);
-    setApiKeyMessage(null);
-    const valid = await validateApiKey(footballApiKeyInput.trim());
-    if (valid) {
-      storeApiKey(footballApiKeyInput.trim());
-      setFootballApiKey(footballApiKeyInput.trim());
-      setApiKeyMessage({ text: "API key saved!", type: "success" });
-    } else {
-      setApiKeyMessage({ text: "Invalid API key", type: "error" });
-    }
-    setIsValidatingKey(false);
-  };
 
   const handleSelectTeam = (
     team: FootballTeam,
@@ -1371,43 +1341,6 @@ export default function SettingsPage() {
             {footballExpanded && (
               <div className='border-t border-gray-200/80 dark:border-gray-700/80'>
                 <div className='px-4 py-3'>
-                  {/* API Key */}
-                  <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2'>
-                    Enter your free API key from{" "}
-                    <span
-                      className='text-ios-blue'
-                      onClick={() =>
-                        window.open(
-                          "https://www.football-data.org/client/register",
-                          "_blank",
-                        )
-                      }>
-                      football-data.org
-                    </span>{" "}
-                    (10 requests/minute, free forever).
-                  </p>
-                  <div className='flex gap-2 mb-3'>
-                    <input
-                      type='text'
-                      value={footballApiKeyInput}
-                      onChange={(e) => setFootballApiKeyInput(e.target.value)}
-                      placeholder='API key...'
-                      className='flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl text-[15px] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                    />
-                    <button
-                      onClick={handleSaveApiKey}
-                      disabled={isValidatingKey || !footballApiKeyInput.trim()}
-                      className='px-4 py-2 bg-ios-blue text-white rounded-xl text-[15px] font-medium disabled:opacity-50'>
-                      {isValidatingKey ? "..." : "Save"}
-                    </button>
-                  </div>
-                  {apiKeyMessage && (
-                    <p
-                      className={`text-[13px] mb-3 ${apiKeyMessage.type === "success" ? "text-ios-green" : "text-ios-red"}`}>
-                      {apiKeyMessage.text}
-                    </p>
-                  )}
-
                   {/* Favorite Team Display */}
                   {favoriteTeam && (
                     <div className='flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3 mb-3'>
@@ -1434,9 +1367,7 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  {/* Team Selection - only if API key is set */}
-                  {footballApiKey && (
-                    <>
+                  {/* Team Selection */}
                       <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2'>
                         {favoriteTeam ? "Change team:" : "Choose your team:"}
                       </p>
@@ -1579,8 +1510,6 @@ export default function SettingsPage() {
                           )}
                         </>
                       )}
-                    </>
-                  )}
                 </div>
               </div>
             )}
