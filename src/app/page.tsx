@@ -24,6 +24,8 @@ import {
   getFavoriteTeam,
   getNextFixture,
   getLiveFixture,
+  getAllSeasonFixtures,
+  getMatchResult,
   isMatchLive,
   loadSettingsFromSupabase,
   FavoriteTeamConfig,
@@ -114,6 +116,7 @@ export default function HomePage() {
     useState<FavoriteTeamConfig | null>(null);
   const [nextFixture, setNextFixture] = useState<FootballFixture | null>(null);
   const [liveFixture, setLiveFixture] = useState<FootballFixture | null>(null);
+  const [seasonFixtures, setSeasonFixtures] = useState<FootballFixture[]>([]);
   const [showFootball, setShowFootball] = useState(false);
 
   // Load favorite team and next fixture
@@ -126,12 +129,14 @@ export default function HomePage() {
       setFavoriteTeamLocal(fav);
       if (!fav) return;
 
-      const [next, live] = await Promise.all([
+      const [next, live, allFixtures] = await Promise.all([
         getNextFixture(fav.team.id),
         getLiveFixture(fav.team.id),
+        getAllSeasonFixtures(fav.team.id),
       ]);
       setNextFixture(next);
       setLiveFixture(live);
+      setSeasonFixtures(allFixtures);
     };
 
     loadFootball();
@@ -484,68 +489,159 @@ export default function HomePage() {
 
       {/* Main Content */}
       <main className='px-4 pb-24'>
-        {/* Matchday Football Activity */}
-        {user && !isViewingOther && favoriteTeam && (() => {
-          const matchFixture = liveFixture && isMatchLive(liveFixture) ? liveFixture : nextFixture;
-          if (!matchFixture) return null;
-          const matchDate = new Date(matchFixture.date);
-          const today = new Date();
-          const isToday = matchDate.toDateString() === today.toDateString();
-          const live = liveFixture && isMatchLive(liveFixture);
-          if (!isToday && !live) return null;
-
-          const isHome = matchFixture.teams.home.id === favoriteTeam.team.id;
-          const opponent = isHome ? matchFixture.teams.away : matchFixture.teams.home;
-
-          return (
+        {/* Season Football Fixtures */}
+        {user &&
+          !isViewingOther &&
+          favoriteTeam &&
+          seasonFixtures.length > 0 && (
             <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden mb-3'>
+              {/* Header */}
               <div
                 onClick={() => setShowFootball(true)}
-                className='flex items-center min-h-[52px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer'>
-                {/* Football icon */}
-                <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
-                  <span className='text-[22px]'>⚽</span>
-                </div>
-
-                {/* Match info */}
-                <div className='flex-1 py-2 min-w-0'>
-                  <div className='flex items-center gap-1.5'>
-                    <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                      {isHome ? 'vs' : '@'} {opponent.name}
-                    </span>
-                    {live && (
-                      <div className='flex items-center gap-1 ml-1'>
-                        <div className='w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse' />
-                        <span className='text-[11px] font-bold text-red-500 uppercase'>Live</span>
-                      </div>
-                    )}
-                  </div>
-                  <span className='text-[13px] text-gray-500 dark:text-gray-400'>
-                    {matchFixture.league.name}
+                className='flex items-center justify-between px-4 pt-3 pb-1.5 cursor-pointer active:opacity-70 transition-opacity'>
+                <div className='flex items-center gap-2'>
+                  <span className='text-[15px]'>⚽</span>
+                  <span className='text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                    {favoriteTeam.team.shortName || favoriteTeam.team.name}
                   </span>
                 </div>
-
-                {/* Right side: score or time */}
-                <div className='shrink-0 text-right'>
-                  {live ? (
-                    <span className='text-[17px] font-bold text-gray-900 dark:text-white tabular-nums'>
-                      {matchFixture.goals.home} – {matchFixture.goals.away}
-                    </span>
-                  ) : (
-                    <span className='text-[15px] font-medium text-ios-blue'>
-                      {new Date(matchFixture.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  )}
-                </div>
-
-                {/* Chevron */}
-                <svg className='w-4 h-4 text-gray-300 dark:text-gray-600 ml-2 shrink-0' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2.5}>
-                  <path strokeLinecap='round' strokeLinejoin='round' d='M9 5l7 7-7 7' />
+                <svg
+                  className='w-4 h-4 text-gray-300 dark:text-gray-600 shrink-0'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={2.5}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M9 5l7 7-7 7'
+                  />
                 </svg>
               </div>
+
+              {/* Fixture rows */}
+              <div className='divide-y divide-gray-100 dark:divide-gray-700/50'>
+                {seasonFixtures.map((fixture) => {
+                  const isHome =
+                    fixture.teams.home.id === favoriteTeam.team.id;
+                  const opponent = isHome
+                    ? fixture.teams.away
+                    : fixture.teams.home;
+                  const live =
+                    liveFixture &&
+                    isMatchLive(liveFixture) &&
+                    liveFixture.id === fixture.id;
+                  const isFinished = [
+                    "FT",
+                    "AET",
+                    "PEN",
+                    "AWD",
+                  ].includes(fixture.status.short);
+                  const result = isFinished
+                    ? getMatchResult(fixture, favoriteTeam.team.id)
+                    : null;
+                  const matchDate = new Date(fixture.date);
+                  const today = new Date();
+                  const isToday =
+                    matchDate.toDateString() === today.toDateString();
+
+                  return (
+                    <div
+                      key={fixture.id}
+                      onClick={() => setShowFootball(true)}
+                      className={`flex items-center min-h-[48px] px-4 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700 transition-colors ${
+                        isToday || live
+                          ? "bg-ios-blue/[0.04] dark:bg-ios-blue/[0.08]"
+                          : ""
+                      }`}>
+                      {/* Result badge or date */}
+                      <div className='w-10 shrink-0 mr-2.5'>
+                        {isFinished ? (
+                          <span
+                            className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[12px] font-bold text-white ${
+                              result === "W"
+                                ? "bg-green-500"
+                                : result === "D"
+                                  ? "bg-gray-400"
+                                  : "bg-red-500"
+                            }`}>
+                            {result}
+                          </span>
+                        ) : live ? (
+                          <div className='flex items-center justify-center w-7 h-7'>
+                            <div className='w-2 h-2 bg-red-500 rounded-full animate-pulse' />
+                          </div>
+                        ) : (
+                          <span className='text-[12px] font-medium text-gray-400 dark:text-gray-500'>
+                            {matchDate.toLocaleDateString([], {
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Match info */}
+                      <div className='flex-1 py-2 min-w-0'>
+                        <div className='flex items-center gap-1'>
+                          <span
+                            className={`text-[15px] font-medium ${
+                              isFinished
+                                ? "text-gray-600 dark:text-gray-300"
+                                : isToday || live
+                                  ? "text-gray-900 dark:text-white"
+                                  : "text-gray-700 dark:text-gray-200"
+                            }`}>
+                            {isHome ? "vs" : "@"} {opponent.name}
+                          </span>
+                          {live && (
+                            <span className='text-[10px] font-bold text-red-500 uppercase ml-1'>
+                              Live
+                            </span>
+                          )}
+                        </div>
+                        <span className='text-[12px] text-gray-400 dark:text-gray-500'>
+                          {fixture.league.name}
+                          {isFinished &&
+                            " · " +
+                              matchDate.toLocaleDateString([], {
+                                day: "numeric",
+                                month: "short",
+                              })}
+                        </span>
+                      </div>
+
+                      {/* Score or time */}
+                      <div className='shrink-0 text-right'>
+                        {isFinished || live ? (
+                          <span
+                            className={`text-[15px] font-semibold tabular-nums ${
+                              live
+                                ? "text-red-500"
+                                : "text-gray-700 dark:text-gray-300"
+                            }`}>
+                            {fixture.goals.home}–{fixture.goals.away}
+                          </span>
+                        ) : (
+                          <span
+                            className={`text-[14px] font-medium ${
+                              isToday
+                                ? "text-ios-blue"
+                                : "text-gray-400 dark:text-gray-500"
+                            }`}>
+                            {matchDate.toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          );
-        })()}
+          )}
 
         <EntryForm
           date={selectedDate}

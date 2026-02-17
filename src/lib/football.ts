@@ -516,6 +516,38 @@ export async function getUpcomingFixtures(teamId: number, count: number = 10): P
   return fixtures;
 }
 
+// ─── Get All Season Fixtures (played + scheduled) ────────────────────
+
+export async function getAllSeasonFixtures(teamId: number): Promise<FootballFixture[]> {
+  const cacheKey = `all_season_fixtures_${teamId}`;
+  const cached = getCache<FootballFixture[]>(cacheKey);
+  if (cached) return cached;
+
+  // Fetch finished and scheduled matches in parallel
+  const [finishedData, scheduledData] = await Promise.all([
+    apiFetch<{ matches: FDMatchRaw[] }>(`/teams/${teamId}/matches`, {
+      status: 'FINISHED',
+      limit: 100,
+    }),
+    apiFetch<{ matches: FDMatchRaw[] }>(`/teams/${teamId}/matches`, {
+      status: 'SCHEDULED,TIMED',
+      limit: 100,
+    }),
+  ]);
+
+  const finished = finishedData?.matches?.map(normalizeMatch) ?? [];
+  const scheduled = scheduledData?.matches?.map(normalizeMatch) ?? [];
+
+  // Combine and sort by date ascending
+  const all = [...finished, ...scheduled].sort((a, b) => a.timestamp - b.timestamp);
+
+  // Deduplicate by id
+  const unique = Array.from(new Map(all.map(f => [f.id, f])).values());
+
+  setCache(cacheKey, unique, 60 * 2); // 2h cache
+  return unique;
+}
+
 // ─── Get Live Fixture ─────────────────────────────────────────────────
 
 export async function getLiveFixture(teamId: number): Promise<FootballFixture | null> {
