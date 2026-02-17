@@ -529,11 +529,8 @@ export default function HomePage() {
             };
 
             return dayFixtures.map((fixture) => {
-              const isHome =
-                fixture.teams.home.id === favoriteTeam.team.id;
-              const opponent = isHome
-                ? fixture.teams.away
-                : fixture.teams.home;
+              const isHome = fixture.teams.home.id === favoriteTeam.team.id;
+              const opponent = isHome ? fixture.teams.away : fixture.teams.home;
               const live =
                 liveFixture &&
                 isMatchLive(liveFixture) &&
@@ -551,7 +548,7 @@ export default function HomePage() {
                 <div
                   key={fixture.id}
                   onClick={() => setShowFootball(true)}
-                  className='flex items-center min-h-[44px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer border-b border-gray-200/80 dark:border-gray-700/80'>
+                  className='flex items-center min-h-[44px] px-4 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 mb-2 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer'>
                   {/* Icon: W/D/L for played, H/A for upcoming */}
                   <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
                     {live ? (
