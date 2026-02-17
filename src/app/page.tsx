@@ -297,31 +297,31 @@ export default function HomePage() {
               className='relative overflow-hidden rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
               {/* Weather emoji - large background on right side */}
               {weather && !isViewingOther && locationName && (
-                <div className='absolute -right-[15%] top-1/2 -translate-y-1/2 pointer-events-none select-none' style={{ fontSize: '200%', lineHeight: 1 }}>
-                  <span className='text-[min(200px,calc(100cqh*2))] leading-none opacity-[0.15] dark:opacity-[0.12] blur-[0.5px]' style={{ fontSize: 'clamp(100px, 20vw, 180px)' }}>
-                    {getWeatherCondition(weather.weatherCode, weather.isDay).icon}
+                <div
+                  className='absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none select-none'>
+                  <span
+                    className='leading-none opacity-[0.15] dark:opacity-[0.12] blur-[0.5px]'
+                    style={{ fontSize: "clamp(80px, 18vw, 140px)" }}>
+                    {
+                      getWeatherCondition(weather.weatherCode, weather.isDay)
+                        .icon
+                    }
                   </span>
                 </div>
-              )}
-              {/* Fade overlay on right for emoji */}
-              {weather && !isViewingOther && locationName && (
-                <div className='absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-white/40 dark:to-gray-900/50 pointer-events-none' style={{ left: '50%' }} />
               )}
 
               {/* Weather info - top right (tap to open forecast) */}
               {weather && !isViewingOther && locationName && (
                 <div
-                  className='absolute -top-5 right-3 flex flex-col items-end z-10 cursor-pointer active:opacity-60 transition-opacity'
+                  className='absolute top-2 right-3 flex flex-col items-end z-10 cursor-pointer active:opacity-60 transition-opacity'
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowForecast(true);
                   }}>
-                  <div className='flex items-center gap-1.5 mt-0.5'>
-                    <span className='text-[11px] text-gray-400 dark:text-gray-500 font-medium'>
-                      {locationName}
-                    </span>
-                  </div>
-                  <span className='text-[26px] font-semibold text-gray-500 dark:text-gray-400 leading-none'>
+                  <span className='text-[11px] text-gray-400 dark:text-gray-500 font-medium'>
+                    {locationName}
+                  </span>
+                  <span className='text-[26px] font-semibold text-gray-500 dark:text-gray-400 leading-none mt-0.5'>
                     {weather.temperature}°
                   </span>
                 </div>
