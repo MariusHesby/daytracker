@@ -515,6 +515,19 @@ export default function HomePage() {
 
             if (dayFixtures.length === 0) return null;
 
+            // Map league names to short codes
+            const leagueShort: Record<string, string> = {
+              "Premier League": "PL",
+              Championship: "ELC",
+              "Champions League": "CL",
+              Bundesliga: "BL",
+              "La Liga": "LaL",
+              "Serie A": "SA",
+              "Ligue 1": "L1",
+              Eredivisie: "ERE",
+              "Primeira Liga": "PPL",
+            };
+
             return dayFixtures.map((fixture) => {
               const isHome =
                 fixture.teams.home.id === favoriteTeam.team.id;
@@ -531,78 +544,75 @@ export default function HomePage() {
               const result = isFinished
                 ? getMatchResult(fixture, favoriteTeam.team.id)
                 : null;
+              const league =
+                leagueShort[fixture.league.name] || fixture.league.name;
 
               return (
                 <div
                   key={fixture.id}
-                  className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden mb-3'>
-                  <div
-                    onClick={() => setShowFootball(true)}
-                    className='flex items-center min-h-[52px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer'>
-                    {/* Left: result badge or football icon */}
-                    <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
-                      {isFinished && result ? (
-                        <span
-                          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-[12px] font-bold text-white ${
-                            result === "W"
-                              ? "bg-green-500"
-                              : result === "D"
-                                ? "bg-gray-400"
-                                : "bg-red-500"
-                          }`}>
+                  onClick={() => setShowFootball(true)}
+                  className='flex items-center min-h-[44px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer border-b border-gray-200/80 dark:border-gray-700/80'>
+                  {/* Icon: W/D/L for played, H/A for upcoming */}
+                  <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
+                    {live ? (
+                      <div className='relative w-7 h-7 rounded-lg bg-red-500 flex items-center justify-center'>
+                        <span className='text-[13px] font-bold text-white'>
+                          {isHome ? "H" : "A"}
+                        </span>
+                        <div className='absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-pulse ring-2 ring-white dark:ring-gray-900' />
+                      </div>
+                    ) : isFinished && result ? (
+                      <div
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                          result === "W"
+                            ? "bg-green-500"
+                            : result === "D"
+                              ? "bg-amber-500"
+                              : "bg-red-500"
+                        }`}>
+                        <span className='text-[13px] font-bold text-white'>
                           {result}
                         </span>
-                      ) : live ? (
-                        <div className='relative flex items-center justify-center'>
-                          <span className='text-[22px]'>⚽</span>
-                          <div className='absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full animate-pulse' />
-                        </div>
-                      ) : (
-                        <span className='text-[22px]'>⚽</span>
-                      )}
-                    </div>
-
-                    {/* Match info */}
-                    <div className='flex-1 py-2 min-w-0'>
-                      <div className='flex items-center gap-1.5'>
-                        <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                          {isHome ? "vs" : "@"} {opponent.name}
-                        </span>
-                        {live && (
-                          <span className='text-[10px] font-bold text-red-500 uppercase ml-0.5'>
-                            Live
-                          </span>
-                        )}
                       </div>
-                      <span className='text-[13px] text-gray-500 dark:text-gray-400'>
-                        {fixture.league.name}
+                    ) : (
+                      <div className='w-7 h-7 rounded-lg bg-ios-blue flex items-center justify-center'>
+                        <span className='text-[13px] font-bold text-white'>
+                          {isHome ? "H" : "A"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Opponent name */}
+                  <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
+                    {opponent.name}
+                  </span>
+
+                  {/* Right-aligned: league + score/time */}
+                  <div className='flex items-center gap-2 ml-auto shrink-0'>
+                    <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                      {league}
+                    </span>
+                    {isFinished || live ? (
+                      <span
+                        className={`text-[15px] font-semibold tabular-nums ${
+                          live
+                            ? "text-red-500"
+                            : "text-gray-500 dark:text-gray-400"
+                        }`}>
+                        {fixture.goals.home}–{fixture.goals.away}
                       </span>
-                    </div>
-
-                    {/* Score or time */}
-                    <div className='shrink-0 text-right'>
-                      {isFinished || live ? (
-                        <span
-                          className={`text-[17px] font-bold tabular-nums ${
-                            live
-                              ? "text-red-500"
-                              : "text-gray-900 dark:text-white"
-                          }`}>
-                          {fixture.goals.home}–{fixture.goals.away}
-                        </span>
-                      ) : (
-                        <span className='text-[15px] font-medium text-ios-blue'>
-                          {new Date(fixture.date).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      )}
-                    </div>
-
+                    ) : (
+                      <span className='text-[15px] font-medium text-ios-blue'>
+                        {new Date(fixture.date).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    )}
                     {/* Chevron */}
                     <svg
-                      className='w-4 h-4 text-gray-300 dark:text-gray-600 ml-2 shrink-0'
+                      className='w-4 h-4 text-gray-300 dark:text-gray-600'
                       fill='none'
                       viewBox='0 0 24 24'
                       stroke='currentColor'
