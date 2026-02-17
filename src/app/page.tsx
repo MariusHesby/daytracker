@@ -297,8 +297,7 @@ export default function HomePage() {
               className='relative overflow-hidden rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
               {/* Weather emoji - large background on right side */}
               {weather && !isViewingOther && locationName && (
-                <div
-                  className='absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none select-none'>
+                <div className='absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none select-none'>
                   <span
                     className='leading-none opacity-[0.15] dark:opacity-[0.12] blur-[0.5px]'
                     style={{ fontSize: "clamp(80px, 18vw, 140px)" }}>
@@ -313,7 +312,7 @@ export default function HomePage() {
               {/* Weather info - top right (tap to open forecast) */}
               {weather && !isViewingOther && locationName && (
                 <div
-                  className='absolute top-2 right-3 flex flex-col items-end z-10 cursor-pointer active:opacity-60 transition-opacity'
+                  className='absolute top-2 right-3 flex items-baseline gap-1.5 z-10 cursor-pointer active:opacity-60 transition-opacity'
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowForecast(true);
@@ -321,7 +320,7 @@ export default function HomePage() {
                   <span className='text-[11px] text-gray-400 dark:text-gray-500 font-medium'>
                     {locationName}
                   </span>
-                  <span className='text-[26px] font-semibold text-gray-500 dark:text-gray-400 leading-none mt-0.5'>
+                  <span className='text-[15px] font-semibold text-gray-500 dark:text-gray-400 leading-none'>
                     {weather.temperature}°
                   </span>
                 </div>
