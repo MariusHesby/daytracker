@@ -23,10 +23,7 @@ import {
 import {
   getFavoriteTeam,
   getNextFixture,
-  getLastFixture,
   getLiveFixture,
-  formatMatchDate,
-  getMatchResult,
   isMatchLive,
   loadSettingsFromSupabase,
   FavoriteTeamConfig,
@@ -116,7 +113,6 @@ export default function HomePage() {
   const [favoriteTeam, setFavoriteTeamLocal] =
     useState<FavoriteTeamConfig | null>(null);
   const [nextFixture, setNextFixture] = useState<FootballFixture | null>(null);
-  const [lastFixture, setLastFixture] = useState<FootballFixture | null>(null);
   const [liveFixture, setLiveFixture] = useState<FootballFixture | null>(null);
   const [showFootball, setShowFootball] = useState(false);
 
@@ -130,13 +126,11 @@ export default function HomePage() {
       setFavoriteTeamLocal(fav);
       if (!fav) return;
 
-      const [next, last, live] = await Promise.all([
+      const [next, live] = await Promise.all([
         getNextFixture(fav.team.id),
-        getLastFixture(fav.team.id),
         getLiveFixture(fav.team.id),
       ]);
       setNextFixture(next);
-      setLastFixture(last);
       setLiveFixture(live);
     };
 
@@ -364,113 +358,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* Football Section */}
-        {user &&
-          !isViewingOther &&
-          favoriteTeam &&
-          (nextFixture || liveFixture || lastFixture) && (
-            <div className='px-4 mb-3'>
-              <button
-                onClick={() => setShowFootball(true)}
-                className='relative w-full overflow-hidden rounded-2xl bg-white/80 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200/40 dark:border-gray-700/40 active:scale-[0.98] transition-all duration-200'>
-                {/* Team logo background — centered watermark */}
-                <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
-                  <img
-                    src={favoriteTeam.team.logo}
-                    alt=''
-                    className='w-1/3 max-w-[100px] h-auto object-contain opacity-[0.06] dark:opacity-[0.10]'
-                  />
-                </div>
-                {/* Soft radial fade over the logo */}
-                <div className='absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(255,255,255,0.7)_70%)] dark:bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(17,24,39,0.7)_70%)] pointer-events-none' />
-
-                {/* Content */}
-                <div className='relative z-10 px-5 py-4'>
-                  {(() => {
-                    const fixture =
-                      liveFixture && isMatchLive(liveFixture)
-                        ? liveFixture
-                        : nextFixture || lastFixture;
-                    if (!fixture) return null;
-                    const isLive =
-                      liveFixture &&
-                      isMatchLive(liveFixture) &&
-                      fixture === liveFixture;
-                    const isFinished =
-                      !isLive && fixture === lastFixture && !nextFixture;
-
-                    return (
-                      <>
-                        {/* League + status label */}
-                        <div className='flex items-center justify-center gap-2 mb-3'>
-                          {isLive && (
-                            <div className='flex items-center gap-1.5'>
-                              <div className='w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse' />
-                              <span className='text-[11px] font-bold text-red-500 uppercase tracking-wider'>
-                                Live · {fixture.status.elapsed}&apos;
-                              </span>
-                            </div>
-                          )}
-                          {!isLive && (
-                            <span className='text-[11px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider'>
-                              {fixture.league.name}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Teams row */}
-                        <div className='flex items-center justify-between gap-3'>
-                          <div className='flex-1 text-right'>
-                            <p className='text-[15px] font-semibold text-gray-900 dark:text-white leading-tight'>
-                              {fixture.teams.home.name}
-                            </p>
-                          </div>
-                          <div className='flex flex-col items-center min-w-[64px]'>
-                            {isLive ? (
-                              <span className='text-[22px] font-bold text-gray-900 dark:text-white tabular-nums'>
-                                {fixture.goals.home} – {fixture.goals.away}
-                              </span>
-                            ) : isFinished ? (
-                              <>
-                                <span
-                                  className={`text-[22px] font-bold tabular-nums ${
-                                    getMatchResult(
-                                      fixture,
-                                      favoriteTeam.team.id,
-                                    ) === "W"
-                                      ? "text-green-500"
-                                      : getMatchResult(
-                                            fixture,
-                                            favoriteTeam.team.id,
-                                          ) === "L"
-                                        ? "text-red-500"
-                                        : "text-gray-900 dark:text-white"
-                                  }`}>
-                                  {fixture.goals.home} – {fixture.goals.away}
-                                </span>
-                                <span className='text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mt-0.5'>
-                                  Full time
-                                </span>
-                              </>
-                            ) : (
-                              <span className='text-[15px] font-semibold text-ios-blue'>
-                                {formatMatchDate(fixture.date)}
-                              </span>
-                            )}
-                          </div>
-                          <div className='flex-1 text-left'>
-                            <p className='text-[15px] font-semibold text-gray-900 dark:text-white leading-tight'>
-                              {fixture.teams.away.name}
-                            </p>
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </button>
-            </div>
-          )}
+        {/* Football Section removed - shown as matchday activity below */}
 
         {/* Action buttons row */}
         <div className='px-4 flex items-center justify-between'>
@@ -596,6 +484,69 @@ export default function HomePage() {
 
       {/* Main Content */}
       <main className='px-4 pb-24'>
+        {/* Matchday Football Activity */}
+        {user && !isViewingOther && favoriteTeam && (() => {
+          const matchFixture = liveFixture && isMatchLive(liveFixture) ? liveFixture : nextFixture;
+          if (!matchFixture) return null;
+          const matchDate = new Date(matchFixture.date);
+          const today = new Date();
+          const isToday = matchDate.toDateString() === today.toDateString();
+          const live = liveFixture && isMatchLive(liveFixture);
+          if (!isToday && !live) return null;
+
+          const isHome = matchFixture.teams.home.id === favoriteTeam.team.id;
+          const opponent = isHome ? matchFixture.teams.away : matchFixture.teams.home;
+
+          return (
+            <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden mb-3'>
+              <div
+                onClick={() => setShowFootball(true)}
+                className='flex items-center min-h-[52px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer'>
+                {/* Football icon */}
+                <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
+                  <span className='text-[22px]'>⚽</span>
+                </div>
+
+                {/* Match info */}
+                <div className='flex-1 py-2 min-w-0'>
+                  <div className='flex items-center gap-1.5'>
+                    <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                      {isHome ? 'vs' : '@'} {opponent.name}
+                    </span>
+                    {live && (
+                      <div className='flex items-center gap-1 ml-1'>
+                        <div className='w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse' />
+                        <span className='text-[11px] font-bold text-red-500 uppercase'>Live</span>
+                      </div>
+                    )}
+                  </div>
+                  <span className='text-[13px] text-gray-500 dark:text-gray-400'>
+                    {matchFixture.league.name}
+                  </span>
+                </div>
+
+                {/* Right side: score or time */}
+                <div className='shrink-0 text-right'>
+                  {live ? (
+                    <span className='text-[17px] font-bold text-gray-900 dark:text-white tabular-nums'>
+                      {matchFixture.goals.home} – {matchFixture.goals.away}
+                    </span>
+                  ) : (
+                    <span className='text-[15px] font-medium text-ios-blue'>
+                      {new Date(matchFixture.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </div>
+
+                {/* Chevron */}
+                <svg className='w-4 h-4 text-gray-300 dark:text-gray-600 ml-2 shrink-0' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2.5}>
+                  <path strokeLinecap='round' strokeLinejoin='round' d='M9 5l7 7-7 7' />
+                </svg>
+              </div>
+            </div>
+          );
+        })()}
+
         <EntryForm
           date={selectedDate}
           viewMode={viewMode}

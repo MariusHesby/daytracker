@@ -553,7 +553,10 @@ export async function getStandings(competitionCode: string): Promise<StandingEnt
 
   if (!data?.standings) return [];
 
-  const totalStandings = data.standings.find(s => s.type === 'TOTAL');
+  // Try TOTAL first (domestic leagues), then fall back to other types (CL league phase etc.)
+  const totalStandings = data.standings.find(s => s.type === 'TOTAL')
+    || data.standings.find(s => s.type === 'LEAGUE_PHASE')
+    || data.standings[0]; // fallback to first available
   if (!totalStandings) return [];
 
   const standings = totalStandings.table.map(normalizeStanding);
