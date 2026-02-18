@@ -15,7 +15,7 @@ export function dbToActivityType(db: DbActivityType): ActivityType {
     icon: db.icon || undefined,
     valueType: db.value_type,
     unit: db.unit || undefined,
-    order: db.sort_order || undefined,
+    order: db.sort_order != null ? db.sort_order : undefined,
     isDefault: db.is_default,
     hidden: db.hidden,
     nutritionGoal: db.nutrition_goal || undefined,
