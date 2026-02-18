@@ -832,7 +832,20 @@ export default function MoviesPage() {
   const [activeTab, setActiveTab] = useState<"movies" | "series">("movies");
   const [sortBy, setSortBy] = useState<"date" | "rating" | "imdb">("date");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("movies-tv-viewmode");
+      return saved === "grid" ? "grid" : "list";
+    }
+    return "list";
+  });
+
+  const handleViewModeChange = (mode: "grid" | "list") => {
+    setViewMode(mode);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("movies-tv-viewmode", mode);
+    }
+  };
   const [showWatchlist, setShowWatchlist] = useState(false);
 
   // Drag and drop state for watchlist reordering
@@ -1447,7 +1460,7 @@ export default function MoviesPage() {
           </button>
         </div>
         <button
-          onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+          onClick={() => handleViewModeChange(viewMode === "grid" ? "list" : "grid")}
           className='p-2 rounded-lg bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300'>
           {viewMode === "grid" ? (
             <svg
