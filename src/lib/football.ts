@@ -104,8 +104,12 @@ export function getFavoriteTeam(): FavoriteTeamConfig | null {
 
 export function setFavoriteTeam(config: FavoriteTeamConfig): void {
   if (typeof window === 'undefined') return;
+  // Only clear cache if switching to a different team
+  const prev = getFavoriteTeam();
+  if (!prev || prev.team.id !== config.team.id) {
+    clearCache();
+  }
   localStorage.setItem(`${STORAGE_PREFIX}favorite_team`, JSON.stringify(config));
-  clearCache();
   syncSettingsToSupabase();
   window.dispatchEvent(new Event('favoriteTeamUpdated'));
 }
@@ -214,7 +218,19 @@ function clearCache(): void {
 
 // ─── API Fetcher ──────────────────────────────────────────────────────
 
-async function apiFetch<T>(endpoint: string, params: Record<string, string | number> = {}): Promise<T | null> {
+// Simple request queue to avoid flooding the API
+let lastRequestTime = 0;
+const MIN_REQUEST_GAP = 800; // ms between requests
+
+async function apiFetch<T>(endpoint: string, params: Record<string, string | number> = {}, retries = 2): Promise<T | null> {
+  // Throttle: ensure minimum gap between requests
+  const now = Date.now();
+  const timeSinceLast = now - lastRequestTime;
+  if (timeSinceLast < MIN_REQUEST_GAP) {
+    await new Promise(r => setTimeout(r, MIN_REQUEST_GAP - timeSinceLast));
+  }
+  lastRequestTime = Date.now();
+
   // Use our Next.js proxy to avoid CORS issues (API key is server-side in .env)
   const url = new URL('/api/football', window.location.origin);
   url.searchParams.set('endpoint', endpoint);
@@ -228,11 +244,21 @@ async function apiFetch<T>(endpoint: string, params: Record<string, string | num
     });
 
     if (res.status === 429) {
-      console.warn('football-data.org: rate limit hit, try again in a minute');
+      if (retries > 0) {
+        console.warn(`football-data.org: rate limited, retrying in 10s... (${retries} left)`);
+        await new Promise(r => setTimeout(r, 10000));
+        return apiFetch<T>(endpoint, params, retries - 1);
+      }
+      console.warn('football-data.org: rate limit hit, giving up');
       return null;
     }
 
     if (!res.ok) {
+      if (res.status >= 500 && retries > 0) {
+        console.warn(`football-data.org: server error ${res.status}, retrying in 5s...`);
+        await new Promise(r => setTimeout(r, 5000));
+        return apiFetch<T>(endpoint, params, retries - 1);
+      }
       console.error('football-data.org error:', res.status, res.statusText);
       return null;
     }
