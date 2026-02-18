@@ -37,6 +37,7 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
     [],
   );
   const [standings, setStandings] = useState<StandingEntry[]>([]);
+  const [standingsLoaded, setStandingsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -77,10 +78,16 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
 
   const loadStandings = useCallback(async () => {
     const fav = getFavoriteTeam();
-    if (!fav || !fav.leagueCode) return;
+    if (!fav || !fav.leagueCode) {
+      setStandingsLoaded(true);
+      return;
+    }
 
+    console.log('[Football] Loading standings for league:', fav.leagueCode);
     const data = await getStandings(fav.leagueCode);
+    console.log('[Football] Standings result:', data?.length ?? 0, 'entries');
     setStandings(data);
+    setStandingsLoaded(true);
   }, []);
 
   useEffect(() => {
@@ -103,10 +110,10 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
 
   useEffect(() => {
     if (!isOpen || tab !== "table") return;
-    if (standings.length === 0) {
+    if (!standingsLoaded) {
       loadStandings();
     }
-  }, [isOpen, tab, standings.length, loadStandings]);
+  }, [isOpen, tab, standingsLoaded, loadStandings]);
 
   // Refresh live match every 60 seconds
   useEffect(() => {
@@ -192,7 +199,7 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
             standings={standings}
             teamId={teamId}
             leagueName={config?.leagueName || ""}
-            isLoading={standings.length === 0}
+            isLoading={!standingsLoaded}
           />
         )}
       </div>

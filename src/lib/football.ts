@@ -574,6 +574,7 @@ export async function getStandings(competitionCode: string): Promise<StandingEnt
   const cached = getCache<StandingEntry[]>(cacheKey);
   if (cached) return cached;
 
+  console.log('[Football] Fetching standings for:', competitionCode);
   const data = await apiFetch<{
     standings: Array<{
       stage: string;
@@ -583,6 +584,11 @@ export async function getStandings(competitionCode: string): Promise<StandingEnt
     }>;
   }>(`/competitions/${competitionCode}/standings`);
 
+  console.log('[Football] Standings API response:', data ? `${data.standings?.length ?? 0} standing groups` : 'null');
+  if (data?.standings) {
+    data.standings.forEach((s, i) => console.log(`[Football]   [${i}] type=${s.type} stage=${s.stage} rows=${s.table?.length ?? 0}`));
+  }
+
   if (!data?.standings) return [];
 
   // Try TOTAL first (domestic leagues), then fall back to other types (CL league phase etc.)
@@ -591,6 +597,7 @@ export async function getStandings(competitionCode: string): Promise<StandingEnt
     || data.standings[0]; // fallback to first available
   if (!totalStandings) return [];
 
+  console.log('[Football] Using standings type:', totalStandings.type, 'with', totalStandings.table.length, 'rows');
   const standings = totalStandings.table.map(normalizeStanding);
   setCache(cacheKey, standings, 60); // 1h
   return standings;

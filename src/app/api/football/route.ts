@@ -29,9 +29,15 @@ export async function GET(request: NextRequest) {
       headers: {
         'X-Auth-Token': token,
       },
+      next: { revalidate: 0 },
     });
 
     const data = await res.json();
+    
+    if (!res.ok) {
+      console.error('Football API error:', res.status, data);
+    }
+    
     return NextResponse.json(data, { status: res.status });
   } catch (err) {
     console.error('Football proxy error:', err);
