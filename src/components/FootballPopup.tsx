@@ -13,6 +13,7 @@ import {
   formatMatchDate,
   getMatchResult,
   isMatchLive,
+  FREE_TIER_LEAGUES,
   FootballFixture,
   StandingEntry,
   FavoriteTeamConfig,
@@ -83,9 +84,14 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
       return;
     }
 
-    console.log('[Football] Loading standings for league:', fav.leagueCode);
+    // Check if league is on the free tier
+    if (!(FREE_TIER_LEAGUES as readonly string[]).includes(fav.leagueCode)) {
+      console.log('[Football] League not on free tier:', fav.leagueCode);
+      setStandingsLoaded(true);
+      return;
+    }
+
     const data = await getStandings(fav.leagueCode);
-    console.log('[Football] Standings result:', data?.length ?? 0, 'entries');
     setStandings(data);
     setStandingsLoaded(true);
   }, []);
@@ -580,10 +586,12 @@ function StandingsTab({
   if (standings.length === 0) {
     return (
       <div className='text-center py-8'>
+        <p className='text-[32px] mb-2'>📊</p>
         <p className='text-gray-500 dark:text-gray-400 text-[15px]'>
-          {leagueName
-            ? "Standings not available"
-            : "Select a league team to see standings"}
+          Standings not available for {leagueName || "this league"}
+        </p>
+        <p className='text-gray-400 dark:text-gray-500 text-[13px] mt-1'>
+          Supported: PL, La Liga, Bundesliga, Serie A, Ligue 1, CL
         </p>
       </div>
     );

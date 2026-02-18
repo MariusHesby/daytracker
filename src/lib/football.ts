@@ -21,6 +21,9 @@ export const LEAGUES = {
 
 export type LeagueKey = keyof typeof LEAGUES;
 
+// Leagues available on football-data.org free tier
+export const FREE_TIER_LEAGUES = ['PL', 'BL1', 'PD', 'SA', 'FL1', 'CL'] as const;
+
 // ─── Types (normalized to match UI expectations) ──────────────────────
 
 export interface FootballTeam {
