@@ -414,6 +414,33 @@ export async function getTeamsInLeague(leagueCode: string): Promise<FootballTeam
   return teams;
 }
 
+// ─── Get Team's Current Competitions ──────────────────────────────────
+
+export async function getTeamStandingsLeague(teamId: number): Promise<string | null> {
+  const cacheKey = `team_league_${teamId}`;
+  const cached = getCache<string>(cacheKey);
+  if (cached) return cached;
+
+  const data = await apiFetch<{
+    runningCompetitions: Array<{ id: number; code: string; name: string; type: string }>;
+  }>(`/teams/${teamId}`);
+
+  if (!data?.runningCompetitions) return null;
+
+  // Find the first domestic league on the free tier
+  const freeTierSet = new Set<string>(FREE_TIER_LEAGUES);
+  const league = data.runningCompetitions.find(
+    (c) => c.type === 'LEAGUE' && freeTierSet.has(c.code)
+  ) || data.runningCompetitions.find(
+    (c) => freeTierSet.has(c.code)
+  );
+
+  if (!league) return null;
+
+  setCache(cacheKey, league.code, 60 * 24); // 24h
+  return league.code;
+}
+
 // ─── Search Teams ─────────────────────────────────────────────────────
 
 export async function searchTeams(query: string): Promise<FootballTeam[]> {

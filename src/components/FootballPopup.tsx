@@ -9,11 +9,11 @@ import {
   getRecentFixtures,
   getUpcomingFixtures,
   getStandings,
+  getTeamStandingsLeague,
   getLiveFixture,
   formatMatchDate,
   getMatchResult,
   isMatchLive,
-  FREE_TIER_LEAGUES,
   FootballFixture,
   StandingEntry,
   FavoriteTeamConfig,
@@ -79,19 +79,19 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
 
   const loadStandings = useCallback(async () => {
     const fav = getFavoriteTeam();
-    if (!fav || !fav.leagueCode) {
+    if (!fav) {
       setStandingsLoaded(true);
       return;
     }
 
-    // Check if league is on the free tier
-    if (!(FREE_TIER_LEAGUES as readonly string[]).includes(fav.leagueCode)) {
-      console.log('[Football] League not on free tier:', fav.leagueCode);
+    // Dynamically find the team's current league (handles promotions/relegations)
+    const leagueCode = await getTeamStandingsLeague(fav.team.id);
+    if (!leagueCode) {
       setStandingsLoaded(true);
       return;
     }
 
-    const data = await getStandings(fav.leagueCode);
+    const data = await getStandings(leagueCode);
     setStandings(data);
     setStandingsLoaded(true);
   }, []);
