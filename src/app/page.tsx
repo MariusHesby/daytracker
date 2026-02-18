@@ -285,6 +285,16 @@ export default function HomePage() {
         {/* Full-width greeting header - iOS style */}
         {user && (
           <div className='px-4 mb-3'>
+            {/* Location label - above card, right-aligned */}
+            {weather && !isViewingOther && locationName && (
+              <div
+                className='flex justify-end pr-1 mb-1 cursor-pointer active:opacity-60 transition-opacity'
+                onClick={() => setShowForecast(true)}>
+                <span className='text-[11px] text-gray-400 dark:text-gray-500 font-medium'>
+                  {locationName}
+                </span>
+              </div>
+            )}
             <div
               onClick={() => {
                 const fullName = isViewingOther
@@ -308,17 +318,14 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* Weather info - top right (tap to open forecast) */}
+              {/* Temperature - top right inside card (tap to open forecast) */}
               {weather && !isViewingOther && locationName && (
                 <div
-                  className='absolute top-2 right-3 flex items-baseline gap-1.5 z-10 cursor-pointer active:opacity-60 transition-opacity'
+                  className='absolute top-2 right-3 z-10 cursor-pointer active:opacity-60 transition-opacity'
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowForecast(true);
                   }}>
-                  <span className='text-[11px] text-gray-400 dark:text-gray-500 font-medium'>
-                    {locationName}
-                  </span>
                   <span className='text-[15px] font-semibold text-gray-500 dark:text-gray-400 leading-none'>
                     {weather.temperature}°
                   </span>
