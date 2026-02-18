@@ -298,7 +298,7 @@ export default function HomePage() {
               {weather && !isViewingOther && locationName && (
                 <div className='absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none select-none'>
                   <span
-                    className='leading-none opacity-[0.15] dark:opacity-[0.12] blur-[0.5px]'
+                    className='leading-none opacity-[0.2] dark:opacity-[0.18] blur-[0.5px] dark:saturate-[1.8]'
                     style={{ fontSize: "clamp(80px, 18vw, 140px)" }}>
                     {
                       getWeatherCondition(weather.weatherCode, weather.isDay)
