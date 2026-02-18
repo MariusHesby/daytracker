@@ -1307,18 +1307,21 @@ export default function SettingsPage() {
               onClick={() => setFootballExpanded(!footballExpanded)}
               className='w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
               <div className='flex items-center gap-3'>
-                <div className='w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center'>
-                  <span className='text-lg'>⚽</span>
+                <div className='w-8 h-8 rounded-lg bg-ios-green flex items-center justify-center'>
+                  <svg className='w-[18px] h-[18px] text-white' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
+                    <circle cx='12' cy='12' r='10' />
+                    <path d='M12 2C12 2 8 6 8 12s4 10 4 10M12 2c0 0 4 4 4 10s-4 10-4 10M2.5 9h19M2.5 15h19' strokeLinecap='round' strokeLinejoin='round' />
+                  </svg>
                 </div>
                 <div className='text-left'>
                   <span className='text-[17px] text-gray-900 dark:text-white'>
                     Favorite Team
                   </span>
-                  {favoriteTeam && (
-                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
-                      {favoriteTeam.team.name}
-                    </p>
-                  )}
+                  <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                    {favoriteTeam
+                      ? favoriteTeam.team.name
+                      : "Track matchdays on your daily log"}
+                  </p>
                 </div>
               </div>
               <svg
