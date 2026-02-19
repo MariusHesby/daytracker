@@ -11,6 +11,7 @@ import {
 import { useAuth } from "./AuthContext";
 import { supabase } from "@/lib/supabase";
 import { getSharedEntries } from "@/lib/sharing";
+import { getLatestUnreadMessages } from "@/lib/chat";
 
 // Types for activity notifications
 export interface ActivityNotification {
@@ -25,6 +26,8 @@ export interface ActivityNotification {
   date: string;
   createdAt: string;
   read: boolean;
+  type?: "activity" | "chat";
+  messagePreview?: string;
 }
 
 export interface NotificationSubscription {
@@ -44,6 +47,12 @@ interface NotificationContextType {
   clearNotification: (notificationId: string) => void;
   clearAllNotifications: () => void;
   checkForUpdates: () => Promise<void>;
+  addChatNotification: (
+    friendId: string,
+    friendName: string,
+    friendAvatar: string | null,
+    message: string,
+  ) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -53,6 +62,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
 const STORAGE_KEY_NOTIFICATIONS = "activityNotifications";
 const STORAGE_KEY_SUBSCRIPTIONS = "activitySubscriptions";
 const STORAGE_KEY_LAST_SEEN = "activityLastSeen";
+const STORAGE_KEY_SEEN_MESSAGES = "seenChatMessageIds";
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -122,6 +132,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY_LAST_SEEN, JSON.stringify(lastSeen));
   }, [lastSeen]);
 
+  // Sort notifications: unread chat first, then by time
+  const sortedNotifications = [...notifications].sort((a, b) => {
+    const aChat = a.type === "chat" && !a.read;
+    const bChat = b.type === "chat" && !b.read;
+    if (aChat && !bChat) return -1;
+    if (!aChat && bChat) return 1;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const addSubscription = useCallback(
@@ -178,11 +197,136 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications([]);
   }, []);
 
-  // Check for updates from subscribed activities
+  const addChatNotification = useCallback(
+    (
+      friendId: string,
+      friendName: string,
+      friendAvatar: string | null,
+      message: string,
+    ) => {
+      const notification: ActivityNotification = {
+        id: crypto.randomUUID(),
+        friendId,
+        friendName,
+        friendAvatar,
+        activityId: "chat",
+        activityName: "Message",
+        activityIcon: "💬",
+        value: message,
+        date: new Date().toISOString().split("T")[0],
+        createdAt: new Date().toISOString(),
+        read: false,
+        type: "chat",
+        messagePreview:
+          message.length > 50 ? message.slice(0, 50) + "..." : message,
+      };
+      setNotifications((prev) => {
+        // Dedupe: don't add if same friend + same message within last minute
+        const isDupe = prev.some(
+          (n) =>
+            n.type === "chat" &&
+            n.friendId === friendId &&
+            n.value === message &&
+            Date.now() - new Date(n.createdAt).getTime() < 60000,
+        );
+        if (isDupe) return prev;
+        return [notification, ...prev].slice(0, 50);
+      });
+    },
+    [],
+  );
+
+  // Check for updates from subscribed activities and new chat messages
   const checkForUpdates = useCallback(async () => {
-    if (!user || subscriptions.length === 0) return;
+    if (!user) return;
 
     try {
+      // --- Check for new chat messages ---
+      try {
+        const unreadMessages = await getLatestUnreadMessages(user.id);
+        if (unreadMessages.length > 0) {
+          // Get seen message IDs from localStorage
+          let seenIds: string[] = [];
+          try {
+            const stored = localStorage.getItem(STORAGE_KEY_SEEN_MESSAGES);
+            if (stored) seenIds = JSON.parse(stored);
+          } catch {
+            /* empty */
+          }
+
+          const newMessages = unreadMessages.filter(
+            (msg) => !seenIds.includes(msg.id),
+          );
+
+          if (newMessages.length > 0) {
+            // Fetch sender profiles
+            const senderIds = [...new Set(newMessages.map((m) => m.senderId))];
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("user_id, full_name, avatar")
+              .in("user_id", senderIds);
+
+            const profileMap: Record<
+              string,
+              { full_name: string; avatar: string | null }
+            > = {};
+            (profiles || []).forEach((p) => {
+              profileMap[p.user_id] = p;
+            });
+
+            const chatNotifications: ActivityNotification[] = newMessages.map(
+              (msg) => ({
+                id: crypto.randomUUID(),
+                friendId: msg.senderId,
+                friendName: profileMap[msg.senderId]?.full_name || "Friend",
+                friendAvatar: profileMap[msg.senderId]?.avatar || null,
+                activityId: "chat",
+                activityName: "Message",
+                activityIcon: "\ud83d\udcac",
+                value: msg.content,
+                date: new Date(msg.createdAt).toISOString().split("T")[0],
+                createdAt: msg.createdAt,
+                read: false,
+                type: "chat" as const,
+                messagePreview:
+                  msg.content.length > 50
+                    ? msg.content.slice(0, 50) + "..."
+                    : msg.content,
+              }),
+            );
+
+            if (chatNotifications.length > 0) {
+              setNotifications((prev) => {
+                const existingKeys = new Set(
+                  prev.map(
+                    (n) => `${n.friendId}_${n.type || "activity"}_${n.value}`,
+                  ),
+                );
+                const uniqueNew = chatNotifications.filter(
+                  (n) => !existingKeys.has(`${n.friendId}_chat_${n.value}`),
+                );
+                return [...uniqueNew, ...prev].slice(0, 50);
+              });
+            }
+
+            // Save seen IDs
+            const allSeenIds = [
+              ...seenIds,
+              ...newMessages.map((m) => m.id),
+            ].slice(-100);
+            localStorage.setItem(
+              STORAGE_KEY_SEEN_MESSAGES,
+              JSON.stringify(allSeenIds),
+            );
+          }
+        }
+      } catch (chatError) {
+        // Chat table might not exist yet - silently ignore
+        console.debug("[Notifications] Chat check skipped:", chatError);
+      }
+
+      // --- Check for activity updates ---
+      if (subscriptions.length === 0) return;
       // Group subscriptions by friend, excluding self
       const subscriptionsByFriend = subscriptions
         .filter((sub) => sub.friendId !== user.id) // Don't check own activities
@@ -350,7 +494,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   return (
     <NotificationContext.Provider
       value={{
-        notifications,
+        notifications: sortedNotifications,
         unreadCount,
         subscriptions,
         addSubscription,
@@ -361,6 +505,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         clearNotification,
         clearAllNotifications,
         checkForUpdates,
+        addChatNotification,
       }}>
       {children}
     </NotificationContext.Provider>

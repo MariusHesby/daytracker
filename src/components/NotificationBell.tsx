@@ -228,16 +228,25 @@ function NotificationItem({
   const router = useRouter();
   const { setSelectedDate, setViewingUser } = useApp();
 
+  const isChat = notification.type === "chat";
+
   // Check if this is a movie or TV series activity
   const isMediaActivity =
-    notification.activityName.toLowerCase().includes("movie") ||
-    notification.activityName.toLowerCase().includes("tv") ||
-    notification.activityName.toLowerCase().includes("series") ||
-    notification.activityName.toLowerCase().includes("film");
+    !isChat &&
+    (notification.activityName.toLowerCase().includes("movie") ||
+      notification.activityName.toLowerCase().includes("tv") ||
+      notification.activityName.toLowerCase().includes("series") ||
+      notification.activityName.toLowerCase().includes("film"));
 
   const handleClick = async () => {
     onMarkRead();
     onClose();
+
+    // Chat notifications navigate to friends page
+    if (isChat) {
+      router.push("/friends");
+      return;
+    }
 
     // Fetch friend's shared activity types from the shares table
     const { supabase } = await import("@/lib/supabase");
@@ -316,8 +325,16 @@ function NotificationItem({
             "text-gray-600 dark:text-gray-300 mt-0.5",
             compact ? "text-[13px]" : "text-[14px]",
           )}>
-          {notification.activityName}:{" "}
-          <span className='font-medium'>{notification.value}</span>
+          {isChat ? (
+            <span className='font-medium'>
+              {notification.messagePreview || notification.value}
+            </span>
+          ) : (
+            <>
+              {notification.activityName}:{" "}
+              <span className='font-medium'>{notification.value}</span>
+            </>
+          )}
         </p>
         <p
           className={cn(

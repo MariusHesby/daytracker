@@ -1,24 +1,16 @@
 // Fun Facts API integration
-// Uses multiple free APIs for different categories
+// Uses multiple free APIs for interesting "did you know" facts
 
 export type FunFactCategory =
   | "random"
   | "animals"
-  | "science"
-  | "history"
-  | "trivia"
   | "cats"
-  | "dogs"
-  | "sports"
-  | "movies"
-  | "celebrities";
+  | "dogs";
 
 export interface FunFact {
   fact: string;
   category: FunFactCategory;
   source?: string;
-  answer?: string; // For trivia questions, the answer is separate
-  choices?: string[]; // Multiple choice options (shuffled)
 }
 
 // Storage key for selected categories
@@ -31,14 +23,8 @@ export const DEFAULT_CATEGORIES: FunFactCategory[] = ["random"];
 export const CATEGORY_LABELS: Record<FunFactCategory, string> = {
   random: "Random Facts",
   animals: "Animal Facts",
-  science: "Science & Nature",
-  history: "History",
-  trivia: "Trivia",
   cats: "Cat Facts",
   dogs: "Dog Facts",
-  sports: "Sports",
-  movies: "Movies & TV",
-  celebrities: "Celebrities",
 };
 
 // Load saved categories from localStorage
@@ -82,7 +68,7 @@ export async function fetchRandomFunFact(): Promise<FunFact | null> {
     console.error("Error fetching fun fact:", error);
     // Fallback to a static fact if all APIs fail
     return {
-      fact: "Did you know? You just completed tracking your day! 🎉",
+      fact: "Honey never spoils. Archaeologists have found 3,000-year-old honey in Egyptian tombs that was still edible.",
       category: "random",
       source: "DayTracker",
     };
@@ -96,13 +82,6 @@ export async function fetchFactByCategory(category: FunFactCategory): Promise<Fu
       return fetchCatFact();
     case "dogs":
       return fetchDogFact();
-    case "trivia":
-    case "science":
-    case "history":
-    case "sports":
-    case "movies":
-    case "celebrities":
-      return fetchTriviaFact(category);
     case "animals":
       // Randomly pick between cat and dog facts for animals
       return Math.random() > 0.5 ? fetchCatFact() : fetchDogFact();
@@ -149,63 +128,4 @@ async function fetchDogFact(): Promise<FunFact> {
     category: "dogs",
     source: "Dog Facts",
   };
-}
-
-// Open Trivia Database - for trivia, science, history, sports, movies, celebrities
-async function fetchTriviaFact(category: FunFactCategory): Promise<FunFact> {
-  // Map our categories to Open Trivia DB category IDs
-  const categoryMap: Record<string, number> = {
-    science: 17, // Science & Nature
-    history: 23, // History
-    trivia: 9, // General Knowledge
-    sports: 21, // Sports
-    movies: 11, // Film (Entertainment: Film)
-    celebrities: 26, // Celebrities
-  };
-
-  const categoryId = categoryMap[category] || 9;
-  const response = await fetch(
-    `https://opentdb.com/api.php?amount=1&category=${categoryId}&type=multiple`,
-  );
-
-  if (!response.ok) throw new Error("Trivia API error");
-
-  const data = await response.json();
-  if (data.results && data.results.length > 0) {
-    const result = data.results[0];
-    // Decode HTML entities
-    const question = decodeHTMLEntities(result.question);
-    const answer = decodeHTMLEntities(result.correct_answer);
-    const incorrectAnswers = (result.incorrect_answers || []).map(decodeHTMLEntities);
-    // Shuffle all choices together
-    const allChoices = [answer, ...incorrectAnswers];
-    const shuffledChoices = allChoices.sort(() => Math.random() - 0.5);
-    return {
-      fact: question,
-      answer: answer,
-      choices: shuffledChoices,
-      category: category,
-      source: "Open Trivia DB",
-    };
-  }
-
-  throw new Error("No trivia results");
-}
-
-// Helper to decode HTML entities from trivia API
-function decodeHTMLEntities(text: string): string {
-  const textarea = typeof document !== "undefined" 
-    ? document.createElement("textarea")
-    : null;
-  if (textarea) {
-    textarea.innerHTML = text;
-    return textarea.value;
-  }
-  // Fallback for server-side
-  return text
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
 }

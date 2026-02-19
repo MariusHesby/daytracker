@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { IOSTabBar } from "./ios";
 import { SplashScreen } from "./SplashScreen";
+import { useApp } from "@/context/AppContext";
 import {
   Clock,
   Clapperboard,
@@ -285,11 +286,13 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-const TABS = ["/", "/movies-tv", "/friends", "/stats", "/settings"];
+const TABS = ["/", "/movies-tv", "/stats", "/friends", "/settings"];
 
 export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { viewingUser } = useApp();
+  const isSpying = viewingUser !== null;
   const [showSplash, setShowSplash] = useState(true);
   const [hasSeenSplash, setHasSeenSplash] = useState(false);
   const initialPathRef = useRef<string | null>(null);
@@ -333,12 +336,19 @@ export function AppShell({ children }: AppShellProps) {
       if (currentIndex === -1) return;
 
       if (direction === "left" && currentIndex < TABS.length - 1) {
-        router.push(TABS[currentIndex + 1]);
+        const nextTab = TABS[currentIndex + 1];
+        // Block swiping to Friends/Settings while spying
+        if (isSpying && (nextTab === "/friends" || nextTab === "/settings"))
+          return;
+        router.push(nextTab);
       } else if (direction === "right" && currentIndex > 0) {
-        router.push(TABS[currentIndex - 1]);
+        const prevTab = TABS[currentIndex - 1];
+        if (isSpying && (prevTab === "/friends" || prevTab === "/settings"))
+          return;
+        router.push(prevTab);
       }
     },
-    [pathname, router],
+    [pathname, router, isSpying],
   );
 
   useEffect(() => {
@@ -516,22 +526,24 @@ export function AppShell({ children }: AppShellProps) {
       activeIcon: <MoviesIcon filled />,
     },
     {
-      href: "/friends",
-      label: "Friends",
-      icon: <FriendsIcon />,
-      activeIcon: <FriendsIcon filled />,
-    },
-    {
       href: "/stats",
       label: "Statistics",
       icon: <StatsIcon />,
       activeIcon: <StatsIcon filled />,
     },
     {
+      href: "/friends",
+      label: "Friends",
+      icon: <FriendsIcon />,
+      activeIcon: <FriendsIcon filled />,
+      disabled: isSpying,
+    },
+    {
       href: "/settings",
       label: "Settings",
       icon: <SettingsIcon />,
       activeIcon: <SettingsIcon filled />,
+      disabled: isSpying,
     },
   ];
 

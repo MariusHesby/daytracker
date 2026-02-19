@@ -17,7 +17,6 @@ import {
   getSelectedCategories,
   setSelectedCategories,
   fetchFactByCategory,
-  fetchRandomFunFact,
   FunFact,
 } from "@/lib/funfacts";
 import {
@@ -222,14 +221,6 @@ export default function SettingsPage() {
   const [showTestFunFact, setShowTestFunFact] = useState(false);
   const [loadingTestCategory, setLoadingTestCategory] =
     useState<FunFactCategory | null>(null);
-  const [showTestAnswer, setShowTestAnswer] = useState(false);
-  const [testSelectedAnswer, setTestSelectedAnswer] = useState<string | null>(
-    null,
-  );
-  const [showTestAnswerAnimation, setShowTestAnswerAnimation] = useState<
-    "correct" | "wrong" | null
-  >(null);
-
   // Test a fun fact category
   const testFunFactCategory = async (category: FunFactCategory) => {
     setLoadingTestCategory(category);
@@ -237,8 +228,6 @@ export default function SettingsPage() {
       const fact = await fetchFactByCategory(category);
       setTestFunFact(fact);
       setShowTestFunFact(true);
-      setShowTestAnswer(false);
-      setTestSelectedAnswer(null);
     } catch (error) {
       console.error("Error fetching test fun fact:", error);
     } finally {
@@ -1065,7 +1054,21 @@ export default function SettingsPage() {
                     setNutritionMergeExpanded(!nutritionMergeExpanded)
                   }
                   className='w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
-                  <div>
+                  <div className='flex items-center gap-3'>
+                    <div className='w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center'>
+                      <svg
+                        className='w-[18px] h-[18px] text-white'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        stroke='currentColor'
+                        strokeWidth={2}>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M12 2v6m0 0c0 2-2 4-2 4H8s-2-2-2-4V2m6 6c0 2 2 4 2 4h2s2-2 2-4V2M12 12v10m-3 0h6'
+                        />
+                      </svg>
+                    </div>
                     <span className='text-[17px] text-gray-900 dark:text-white'>
                       Merge Activities
                     </span>
@@ -1535,8 +1538,22 @@ export default function SettingsPage() {
             <button
               onClick={() => setFunFactsExpanded(!funFactsExpanded)}
               className='w-full px-4 py-3 flex items-center justify-between min-h-[44px] active:bg-gray-100 dark:active:bg-gray-700'>
-              <div className='flex-1'>
-                <span className='text-[17px] text-gray-900 dark:text-white'>
+              <div className='flex items-center gap-3 flex-1'>
+                <div className='w-8 h-8 rounded-lg bg-purple-500 flex items-center justify-center'>
+                  <svg
+                    className='w-[18px] h-[18px] text-white'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18'
+                    />
+                  </svg>
+                </div>
+                <span className='text-[17px] text-gray-900 dark:text-white text-left'>
                   Categories
                 </span>
               </div>
@@ -1898,11 +1915,7 @@ export default function SettingsPage() {
           {/* Backdrop */}
           <div
             className='absolute inset-0 bg-black/50 backdrop-blur-sm'
-            onClick={() => {
-              setShowTestFunFact(false);
-              setShowTestAnswer(false);
-              setTestSelectedAnswer(null);
-            }}
+            onClick={() => setShowTestFunFact(false)}
           />
           {/* Modal */}
           <div className='relative bg-white dark:bg-ios-card-dark rounded-2xl shadow-xl max-w-sm w-full p-6 animate-scale-in'>
@@ -1931,247 +1944,21 @@ export default function SettingsPage() {
             </div>
             {/* Title */}
             <h3 className='text-lg font-semibold text-center text-gray-900 dark:text-white mb-3'>
-              {testFunFact.answer ? "Trivia Time!" : "Did You Know?"}
+              Did You Know?
             </h3>
             {/* Fun fact text */}
             <p className='text-gray-600 dark:text-gray-300 text-center text-[15px] leading-relaxed mb-4'>
               {testFunFact.fact}
             </p>
-            {/* Multiple choice options */}
-            {testFunFact.choices && testFunFact.choices.length > 0 && (
-              <div className='mb-4 space-y-2'>
-                {testFunFact.choices.map((choice, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      setTestSelectedAnswer(choice);
-                      setShowTestAnswer(true);
-                      const isCorrect = choice === testFunFact.answer;
-                      setShowTestAnswerAnimation(
-                        isCorrect ? "correct" : "wrong",
-                      );
-                      // Auto-close after correct animation
-                      if (isCorrect) {
-                        setTimeout(() => {
-                          setShowTestFunFact(false);
-                          setShowTestAnswer(false);
-                          setTestSelectedAnswer(null);
-                        }, 1500);
-                      }
-                      setTimeout(() => setShowTestAnswerAnimation(null), 1500);
-                    }}
-                    disabled={showTestAnswer}
-                    className={cn(
-                      "w-full py-2.5 px-4 rounded-xl text-[15px] text-left transition-all",
-                      showTestAnswer
-                        ? choice === testFunFact.answer
-                          ? "bg-ios-green/20 dark:bg-ios-green/30 text-ios-green font-semibold ring-2 ring-ios-green"
-                          : choice === testSelectedAnswer
-                            ? "bg-ios-red/20 dark:bg-ios-red/30 text-ios-red ring-2 ring-ios-red"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-600",
-                    )}>
-                    <span className='font-medium mr-2'>
-                      {String.fromCharCode(65 + index)}.
-                    </span>
-                    {choice}
-                  </button>
-                ))}
-              </div>
-            )}
-            {/* Answer section for trivia without choices */}
-            {testFunFact.answer && !testFunFact.choices && (
-              <div className='mb-4'>
-                {showTestAnswer ? (
-                  <div className='bg-ios-green/10 dark:bg-ios-green/20 rounded-xl p-3'>
-                    <p className='text-[13px] text-gray-500 dark:text-gray-400 text-center mb-1'>
-                      Answer:
-                    </p>
-                    <p className='text-ios-green font-semibold text-center text-[16px]'>
-                      {testFunFact.answer}
-                    </p>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowTestAnswer(true)}
-                    className='w-full py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium rounded-xl active:opacity-80 transition-opacity text-[15px]'>
-                    Reveal Answer
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Button for quotes/fun facts (no trivia) */}
-            {!testFunFact.answer && !testFunFact.choices && (
-              <button
-                onClick={() => {
-                  setShowTestFunFact(false);
-                }}
-                className='w-full py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
-                Good to know
-              </button>
-            )}
-
-            {/* Button before answering trivia: "I don't wanna play" */}
-            {testFunFact.choices && !showTestAnswer && (
-              <button
-                onClick={() => {
-                  setShowTestFunFact(false);
-                  setShowTestAnswer(false);
-                  setTestSelectedAnswer(null);
-                }}
-                className='w-full py-3 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium rounded-xl active:opacity-80 transition-opacity'>
-                I don&apos;t wanna play
-              </button>
-            )}
-
-            {/* Buttons after wrong answer */}
-            {testFunFact.choices &&
-              showTestAnswer &&
-              testSelectedAnswer !== testFunFact.answer && (
-                <div className='flex gap-2'>
-                  <button
-                    onClick={async () => {
-                      // Reset state and fetch a new fun fact
-                      setShowTestAnswer(false);
-                      setTestSelectedAnswer(null);
-                      setShowTestAnswerAnimation(null);
-                      const fact = await fetchRandomFunFact();
-                      if (fact) {
-                        setTestFunFact(fact);
-                      }
-                    }}
-                    className='flex-1 py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
-                    Try again
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowTestFunFact(false);
-                      setShowTestAnswer(false);
-                      setTestSelectedAnswer(null);
-                    }}
-                    className='flex-1 py-3 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium rounded-xl active:opacity-80 transition-opacity'>
-                    D&apos;oh! I&apos;m out
-                  </button>
-                </div>
-              )}
+            {/* Good to know button */}
+            <button
+              onClick={() => setShowTestFunFact(false)}
+              className='w-full py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
+              Good to know
+            </button>
           </div>
-
-          {/* Answer Animation Overlay */}
-          {showTestAnswerAnimation && (
-            <div className='absolute inset-0 flex items-center justify-center pointer-events-none z-10'>
-              <div
-                className={cn(
-                  "answer-animation-text",
-                  showTestAnswerAnimation === "correct"
-                    ? "correct-animation"
-                    : "wrong-animation",
-                )}>
-                {showTestAnswerAnimation === "correct" ? "CORRECT!" : "WRONG!"}
-              </div>
-            </div>
-          )}
         </div>
       )}
-
-      {/* Answer Animation Styles */}
-      <style jsx>{`
-        .answer-animation-text {
-          font-size: 3rem;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          animation-fill-mode: forwards;
-        }
-
-        .correct-animation {
-          color: #22c55e;
-          text-shadow:
-            0 0 10px rgba(34, 197, 94, 0.8),
-            0 0 20px rgba(34, 197, 94, 0.6),
-            0 0 40px rgba(34, 197, 94, 0.4),
-            0 0 80px rgba(34, 197, 94, 0.2);
-          animation: correctBurst 1.5s ease-out forwards;
-        }
-
-        .wrong-animation {
-          color: #ef4444;
-          text-shadow:
-            0 0 10px rgba(239, 68, 68, 0.8),
-            0 0 20px rgba(239, 68, 68, 0.6),
-            0 0 40px rgba(239, 68, 68, 0.4),
-            0 0 80px rgba(239, 68, 68, 0.2);
-          animation: wrongShatter 1.5s ease-out forwards;
-        }
-
-        @keyframes correctBurst {
-          0% {
-            transform: scale(0.3) translateZ(0);
-            opacity: 0;
-            filter: blur(10px);
-          }
-          20% {
-            transform: scale(1.3) translateZ(100px);
-            opacity: 1;
-            filter: blur(0);
-          }
-          40% {
-            transform: scale(1.1) translateZ(150px);
-            opacity: 1;
-          }
-          60% {
-            transform: scale(1.2) translateZ(200px);
-            opacity: 0.9;
-            filter: blur(1px);
-          }
-          100% {
-            transform: scale(2.5) translateZ(500px);
-            opacity: 0;
-            filter: blur(20px);
-          }
-        }
-
-        @keyframes wrongShatter {
-          0% {
-            transform: scale(0.3) rotate(0deg) translateZ(0);
-            opacity: 0;
-            filter: blur(10px);
-          }
-          15% {
-            transform: scale(1.4) rotate(-3deg) translateZ(80px);
-            opacity: 1;
-            filter: blur(0);
-          }
-          25% {
-            transform: scale(1.3) rotate(3deg) translateZ(100px);
-          }
-          35% {
-            transform: scale(1.35) rotate(-2deg) translateZ(120px);
-          }
-          45% {
-            transform: scale(1.3) rotate(2deg) translateZ(140px);
-          }
-          55% {
-            transform: scale(1.4) rotate(0deg) translateZ(180px);
-            opacity: 1;
-          }
-          70% {
-            transform: scale(1.8) rotate(5deg) translateZ(250px);
-            opacity: 0.7;
-            filter: blur(3px);
-          }
-          85% {
-            transform: scale(2.5) rotate(-8deg) translateZ(400px);
-            opacity: 0.3;
-            filter: blur(10px);
-          }
-          100% {
-            transform: scale(4) rotate(15deg) translateZ(600px);
-            opacity: 0;
-            filter: blur(30px);
-          }
-        }
-      `}</style>
     </div>
   );
 }

@@ -583,11 +583,15 @@ export async function getSharedWithMe(viewerId: string): Promise<SharedUser[]> {
     const profile = await getProfileByUserId(share.owner_id);
 
     // Get owner's activity types to show their icons
-    const { data: ownerActivityTypes } = await supabase
-      .from('activity_types')
-      .select('*')
-      .eq('user_id', share.owner_id)
-      .in('id', activityTypeIds.length > 0 ? activityTypeIds : ['__none__']);
+    let ownerActivityTypes: DbActivityType[] | null = null;
+    if (activityTypeIds.length > 0) {
+      const { data } = await supabase
+        .from('activity_types')
+        .select('*')
+        .eq('user_id', share.owner_id)
+        .in('id', activityTypeIds);
+      ownerActivityTypes = data;
+    }
 
     const activityTypes: ActivityType[] = (ownerActivityTypes || []).map((at: DbActivityType) => ({
       id: at.id,

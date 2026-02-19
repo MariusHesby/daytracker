@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useApp } from "@/context/AppContext";
@@ -27,6 +27,13 @@ import {
 import { IOSModal } from "@/components/ios";
 import { Avatar } from "@/components/ProfileSetup";
 import { Icon, IconName, icons } from "@/components/Icons";
+import {
+  getMessages,
+  sendMessage,
+  markMessagesAsRead,
+  getUnreadCounts,
+  ChatMessage,
+} from "@/lib/chat";
 
 export default function FriendsPage() {
   const { user } = useAuth();
@@ -76,6 +83,24 @@ export default function FriendsPage() {
   const [selectedUserForNotifications, setSelectedUserForNotifications] =
     useState<SharedUser | null>(null);
 
+  // Tooltip state for icon explanations
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+
+  // Sharing overview modal
+  const [showSharingOverview, setShowSharingOverview] = useState(false);
+  const [sharingOverviewUser, setSharingOverviewUser] =
+    useState<SharedUser | null>(null);
+
+  // Chat state
+  const [expandedChat, setExpandedChat] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<
+    Record<string, ChatMessage[]>
+  >({});
+  const [chatInput, setChatInput] = useState("");
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
   // Load last viewed times and favorites from localStorage on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -98,6 +123,63 @@ export default function FriendsPage() {
       }
     }
   }, []);
+
+  // Auto-dismiss tooltips
+  useEffect(() => {
+    if (activeTooltip) {
+      const timer = setTimeout(() => setActiveTooltip(null), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTooltip]);
+
+  // Load unread message counts
+  useEffect(() => {
+    if (!user) return;
+    const loadUnread = async () => {
+      try {
+        const counts = await getUnreadCounts(user.id);
+        setUnreadCounts(counts);
+      } catch (e) {
+        console.warn("Failed to load unread counts:", e);
+      }
+    };
+    loadUnread();
+    const interval = setInterval(loadUnread, 15000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Poll for new messages when chat is expanded
+  useEffect(() => {
+    if (!expandedChat || !user) return;
+    const poll = async () => {
+      try {
+        const msgs = await getMessages(user.id, expandedChat);
+        setChatMessages((prev) => ({ ...prev, [expandedChat]: msgs }));
+        await markMessagesAsRead(user.id, expandedChat);
+        // Clear unread count for this friend
+        setUnreadCounts((prev) => {
+          const next = { ...prev };
+          delete next[expandedChat];
+          return next;
+        });
+      } catch (e) {
+        console.warn("Chat poll failed:", e);
+      }
+    };
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
+  }, [expandedChat, user]);
+
+  // Auto-scroll chat to bottom when messages change
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      setTimeout(() => {
+        if (chatScrollRef.current) {
+          chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+        }
+      }, 50);
+    }
+  }, [chatMessages, expandedChat]);
 
   const toggleFavorite = (userId: string) => {
     setFavoriteFriends((prev) => {
@@ -333,6 +415,58 @@ export default function FriendsPage() {
     router.push("/");
   };
 
+  const handleToggleChat = async (sharedUser: SharedUser) => {
+    if (expandedChat === sharedUser.id) {
+      setExpandedChat(null);
+      setChatInput("");
+      return;
+    }
+    setExpandedChat(sharedUser.id);
+    setChatInput("");
+    // Load messages
+    if (user) {
+      try {
+        const msgs = await getMessages(user.id, sharedUser.id);
+        setChatMessages((prev) => ({ ...prev, [sharedUser.id]: msgs }));
+        await markMessagesAsRead(user.id, sharedUser.id);
+        setUnreadCounts((prev) => {
+          const next = { ...prev };
+          delete next[sharedUser.id];
+          return next;
+        });
+      } catch (e) {
+        console.warn("Failed to load chat:", e);
+      }
+    }
+  };
+
+  const handleSendMessage = async (sharedUser: SharedUser) => {
+    if (!chatInput.trim() || !user || isSendingMessage) return;
+    const content = chatInput.trim();
+    setChatInput("");
+    setIsSendingMessage(true);
+    try {
+      const { data, error } = await sendMessage(
+        user.id,
+        sharedUser.id,
+        content,
+      );
+      if (!error && data) {
+        setChatMessages((prev) => ({
+          ...prev,
+          [sharedUser.id]: [...(prev[sharedUser.id] || []), data],
+        }));
+        // Create notification for recipient via context
+        // (this only adds locally - the recipient will see it when they poll)
+      }
+    } catch (e) {
+      console.warn("Failed to send message:", e);
+      setChatInput(content); // Restore input on failure
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
   if (!user) {
     return (
       <div className='min-h-screen flex items-center justify-center p-4'>
@@ -488,176 +622,350 @@ export default function FriendsPage() {
             </div>
           ) : (
             <div className='space-y-2'>
-              {sharedWithMe.map((sharedUser) => {
-                // Get the activity types with icons
-                const sharedActivities = (
-                  sharedUser.activityTypes || []
-                ).filter((at) => at.icon && at.icon in icons);
+              {[...sharedWithMe]
+                .sort((a, b) => {
+                  const aUnread = unreadCounts[a.id] || 0;
+                  const bUnread = unreadCounts[b.id] || 0;
+                  if (aUnread > 0 && bUnread === 0) return -1;
+                  if (aUnread === 0 && bUnread > 0) return 1;
+                  return 0;
+                })
+                .map((sharedUser) => {
+                  // Get the activity types with icons
+                  const sharedActivities = (
+                    sharedUser.activityTypes || []
+                  ).filter((at) => at.icon && at.icon in icons);
 
-                // Find myShare for this friend (what I share with them)
-                const myShareToFriend = myShares.find(
-                  (s) => s.share.viewerId === sharedUser.id,
-                );
+                  // Find myShare for this friend (what I share with them)
+                  const myShareToFriend = myShares.find(
+                    (s) => s.share.viewerId === sharedUser.id,
+                  );
 
-                // Helper to check if activity has new updates
-                const hasNewActivity = (activityId: string) => {
-                  const lastActivityDate =
-                    sharedUser.lastActivityDates?.[activityId];
-                  if (!lastActivityDate) return false;
+                  // Helper to check if activity has new updates
+                  const hasNewActivity = (activityId: string) => {
+                    const lastActivityDate =
+                      sharedUser.lastActivityDates?.[activityId];
+                    if (!lastActivityDate) return false;
 
-                  const lastViewed =
-                    lastViewedTimes[sharedUser.id]?.[activityId];
-                  if (!lastViewed) return true; // Never viewed = new
+                    const lastViewed =
+                      lastViewedTimes[sharedUser.id]?.[activityId];
+                    if (!lastViewed) return true; // Never viewed = new
 
-                  // Compare dates - if last activity is newer than last viewed, show dot
-                  return new Date(lastActivityDate) > new Date(lastViewed);
-                };
+                    // Compare dates - if last activity is newer than last viewed, show dot
+                    return new Date(lastActivityDate) > new Date(lastViewed);
+                  };
 
-                return (
-                  <div
-                    key={sharedUser.id}
-                    onClick={() => handleViewUserData(sharedUser)}
-                    className='relative p-4 bg-white/80 dark:bg-ios-card-dark rounded-xl cursor-pointer active:bg-gray-50 dark:active:bg-gray-700/50 transition-colors'>
-                    {/* Remove button - top right corner */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setUserToRemove(sharedUser);
-                        setShowRemoveConfirm(true);
-                      }}
-                      className='absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors'>
-                      <svg
-                        viewBox='0 0 24 24'
-                        className='w-4 h-4'
-                        fill='none'
-                        stroke='currentColor'
-                        strokeWidth='2'>
-                        <path d='M6 18L18 6M6 6l12 12' />
-                      </svg>
-                    </button>
+                  return (
+                    <div
+                      key={sharedUser.id}
+                      className='relative bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'
+                      onClick={() => {
+                        if (expandedChat === sharedUser.id) {
+                          setExpandedChat(null);
+                          setChatInput("");
+                        }
+                      }}>
+                      <div className='px-3 py-2.5'>
+                        {/* Remove button - top right corner */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUserToRemove(sharedUser);
+                            setShowRemoveConfirm(true);
+                          }}
+                          className='absolute top-2 right-2 p-1 z-10 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors'>
+                          <svg
+                            viewBox='0 0 24 24'
+                            className='w-4 h-4'
+                            fill='none'
+                            stroke='currentColor'
+                            strokeWidth='2'>
+                            <path d='M6 18L18 6M6 6l12 12' />
+                          </svg>
+                        </button>
 
-                    <div className='flex items-center gap-3 pr-6'>
-                      <Avatar
-                        avatar={sharedUser.profile?.avatar || null}
-                        size='md'
-                      />
-                      <div className='min-w-0 flex-1'>
-                        <p className='font-medium text-gray-900 dark:text-white truncate'>
-                          {sharedUser.profile?.fullName ||
-                            sharedUser.email.split("@")[0]}
-                        </p>
-                        <p className='text-sm text-gray-500 truncate'>
-                          {sharedUser.email}
-                        </p>
-                      </div>
-                    </div>
+                        <div className='flex items-start gap-3 pr-6'>
+                          <Avatar
+                            avatar={sharedUser.profile?.avatar || null}
+                            size='md'
+                            className='mt-1'
+                          />
+                          <p className='font-medium text-gray-900 dark:text-white truncate pt-0.5'>
+                            {sharedUser.profile?.fullName ||
+                              sharedUser.email.split("@")[0]}
+                          </p>
+                        </div>
 
-                    {/* Activity icons they share with me */}
-                    {sharedActivities.length > 0 && (
-                      <div className='flex flex-wrap gap-3 mt-3'>
-                        {sharedActivities.map((activity) => (
-                          <div
-                            key={activity.id}
-                            className={`w-4 h-4 ${
-                              hasNewActivity(activity.id)
-                                ? "text-green-500"
-                                : "text-gray-400 dark:text-gray-500"
-                            }`}
-                            title={activity.name}>
-                            <Icon
-                              name={activity.icon as IconName}
-                              className='w-4 h-4'
-                            />
+                        {/* Action icons row - aligned with name */}
+                        <div className='flex items-center mt-0.5 ml-[52px]'>
+                          {/* Left-aligned icons */}
+                          <div className='flex items-center gap-0.5'>
+                            {/* Chat */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleChat(sharedUser);
+                              }}
+                              className='relative p-1.5'>
+                              <svg
+                                viewBox='0 0 24 24'
+                                className={`w-[18px] h-[18px] transition-colors ${
+                                  expandedChat === sharedUser.id
+                                    ? "text-ios-blue"
+                                    : (unreadCounts[sharedUser.id] || 0) > 0
+                                      ? "text-ios-green"
+                                      : "text-gray-300 dark:text-gray-600"
+                                }`}
+                                fill='none'
+                                stroke='currentColor'
+                                strokeWidth='2'
+                                strokeLinecap='round'
+                                strokeLinejoin='round'>
+                                <path d='M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z' />
+                              </svg>
+                              {(unreadCounts[sharedUser.id] || 0) > 0 &&
+                                expandedChat !== sharedUser.id && (
+                                  <span className='absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] bg-ios-red text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5'>
+                                    {unreadCounts[sharedUser.id]}
+                                  </span>
+                                )}
+                            </button>
+
+                            {/* Sharing overview */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSharingOverviewUser(sharedUser);
+                                setShowSharingOverview(true);
+                              }}
+                              className='p-1.5'>
+                              <svg
+                                viewBox='0 0 24 24'
+                                className={`w-[18px] h-[18px] transition-colors ${
+                                  sharedActivities.length > 0 ||
+                                  (myShareToFriend &&
+                                    myShareToFriend.share.activityTypeIds
+                                      .length > 0)
+                                    ? "text-ios-blue"
+                                    : "text-gray-300 dark:text-gray-600"
+                                }`}
+                                fill='none'
+                                stroke='currentColor'
+                                strokeWidth='2'
+                                strokeLinecap='round'
+                                strokeLinejoin='round'>
+                                <path d='M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8' />
+                                <polyline points='16 6 12 2 8 6' />
+                                <line x1='12' y1='2' x2='12' y2='15' />
+                              </svg>
+                            </button>
+
+                            {/* Heart (favorite) */}
+                            <div className='relative'>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFavorite(sharedUser.id);
+                                  setActiveTooltip(
+                                    activeTooltip ===
+                                      `${sharedUser.id}-favorite`
+                                      ? null
+                                      : `${sharedUser.id}-favorite`,
+                                  );
+                                }}
+                                className='p-1.5'>
+                                <svg
+                                  viewBox='0 0 24 24'
+                                  className={`w-[18px] h-[18px] transition-colors ${
+                                    favoriteFriends.includes(sharedUser.id)
+                                      ? "text-red-500 fill-red-500"
+                                      : "text-gray-300 dark:text-gray-600"
+                                  }`}
+                                  fill={
+                                    favoriteFriends.includes(sharedUser.id)
+                                      ? "currentColor"
+                                      : "none"
+                                  }
+                                  stroke='currentColor'
+                                  strokeWidth='2'>
+                                  <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
+                                </svg>
+                              </button>
+                              {activeTooltip ===
+                                `${sharedUser.id}-favorite` && (
+                                <div
+                                  onClick={(e) => e.stopPropagation()}
+                                  className='absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-xl shadow-lg whitespace-nowrap z-10 animate-in fade-in zoom-in-95 duration-150'>
+                                  Favorite for Movies & TV ratings
+                                  <div className='absolute top-full right-3 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mt-1' />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Bell (notifications) */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedUserForNotifications(sharedUser);
+                                setShowNotificationModal(true);
+                              }}
+                              className='p-1.5'>
+                              <svg
+                                viewBox='0 0 24 24'
+                                className={`w-[18px] h-[18px] transition-colors ${
+                                  sharedActivities.some((a) =>
+                                    isSubscribed(sharedUser.id, a.id),
+                                  )
+                                    ? "text-ios-blue fill-ios-blue/20"
+                                    : "text-gray-300 dark:text-gray-600"
+                                }`}
+                                fill={
+                                  sharedActivities.some((a) =>
+                                    isSubscribed(sharedUser.id, a.id),
+                                  )
+                                    ? "currentColor"
+                                    : "none"
+                                }
+                                stroke='currentColor'
+                                strokeWidth='2'>
+                                <path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9' />
+                                <path d='M13.73 21a2 2 0 0 1-3.46 0' />
+                              </svg>
+                            </button>
                           </div>
-                        ))}
-                      </div>
-                    )}
 
-                    {/* Bottom row: Edit what I share + Heart + Bell */}
-                    <div className='flex items-center justify-between mt-3'>
-                      {myShareToFriend ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedShare({
-                              share: myShareToFriend.share,
-                              viewerEmail: myShareToFriend.viewerEmail,
-                              viewerProfile: myShareToFriend.viewerProfile,
-                            });
-                            setSelectedActivityTypes(
-                              myShareToFriend.share.activityTypeIds,
-                            );
-                            setShowEditShare(true);
-                          }}
-                          className='text-sm text-ios-blue'>
-                          {myShareToFriend.share.activityTypeIds.length === 0
-                            ? "Share activities"
-                            : `${myShareToFriend.share.activityTypeIds.length} shared`}
-                        </button>
-                      ) : (
-                        <span className='text-sm text-gray-400'>
-                          Not sharing
-                        </span>
-                      )}
-                      <div className='flex items-center gap-1'>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleFavorite(sharedUser.id);
-                          }}
-                          className='p-1.5'>
-                          <svg
-                            viewBox='0 0 24 24'
-                            className={`w-5 h-5 transition-colors ${
-                              favoriteFriends.includes(sharedUser.id)
-                                ? "text-red-500 fill-red-500"
-                                : "text-gray-300 dark:text-gray-600 hover:text-red-400 hover:fill-red-400"
-                            }`}
-                            fill={
-                              favoriteFriends.includes(sharedUser.id)
-                                ? "currentColor"
-                                : "none"
-                            }
-                            stroke='currentColor'
-                            strokeWidth='2'>
-                            <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedUserForNotifications(sharedUser);
-                            setShowNotificationModal(true);
-                          }}
-                          className='p-1.5'
-                          title='Manage activity notifications'>
-                          <svg
-                            viewBox='0 0 24 24'
-                            className={`w-4 h-4 transition-colors ${
-                              sharedActivities.some((a) =>
-                                isSubscribed(sharedUser.id, a.id),
-                              )
-                                ? "text-ios-blue fill-ios-blue/20"
-                                : "text-gray-300 dark:text-gray-600 hover:text-ios-blue"
-                            }`}
-                            fill={
-                              sharedActivities.some((a) =>
-                                isSubscribed(sharedUser.id, a.id),
-                              )
-                                ? "currentColor"
-                                : "none"
-                            }
-                            stroke='currentColor'
-                            strokeWidth='2'>
-                            <path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9' />
-                            <path d='M13.73 21a2 2 0 0 1-3.46 0' />
-                          </svg>
-                        </button>
+                          {/* Spacer */}
+                          <div className='flex-1' />
+
+                          {/* Spy on user - view their data */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewUserData(sharedUser);
+                            }}
+                            className='p-1.5 active:scale-95 transition-transform'>
+                            <svg
+                              viewBox='0 0 24 24'
+                              className='w-[22px] h-[22px] text-gray-500 dark:text-gray-400 transition-colors'
+                              fill='none'
+                              stroke='currentColor'
+                              strokeWidth='1.8'
+                              strokeLinecap='round'
+                              strokeLinejoin='round'>
+                              <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' />
+                              <circle cx='12' cy='12' r='3' />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
+
+                      {/* Expandable Chat */}
+                      {expandedChat === sharedUser.id && (
+                        <div
+                          className='border-t border-gray-200/60 dark:border-gray-700/60'
+                          onClick={(e) => e.stopPropagation()}>
+                          {/* Messages */}
+                          <div
+                            ref={chatScrollRef}
+                            className='max-h-72 overflow-y-auto px-3 py-3 space-y-1'>
+                            {(chatMessages[sharedUser.id] || []).length ===
+                            0 ? (
+                              <p className='text-center text-gray-400 dark:text-gray-500 text-[13px] py-8'>
+                                No messages yet. Say hi! 👋
+                              </p>
+                            ) : (
+                              (chatMessages[sharedUser.id] || []).map(
+                                (msg, i) => {
+                                  const isMe = msg.senderId === user?.id;
+                                  const time = new Date(
+                                    msg.createdAt,
+                                  ).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  });
+                                  const msgs =
+                                    chatMessages[sharedUser.id] || [];
+                                  const showDate =
+                                    i === 0 ||
+                                    new Date(msg.createdAt).toDateString() !==
+                                      new Date(
+                                        msgs[i - 1].createdAt,
+                                      ).toDateString();
+                                  return (
+                                    <div key={msg.id}>
+                                      {showDate && (
+                                        <p className='text-center text-[11px] text-gray-400 dark:text-gray-500 my-2 font-medium'>
+                                          {new Date(
+                                            msg.createdAt,
+                                          ).toLocaleDateString([], {
+                                            month: "short",
+                                            day: "numeric",
+                                          })}
+                                        </p>
+                                      )}
+                                      <div
+                                        className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                                        <div
+                                          className={cn(
+                                            "max-w-[75%] px-3 py-2 text-[14px] leading-snug",
+                                            isMe
+                                              ? "bg-ios-blue text-white rounded-2xl rounded-br-md"
+                                              : "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-2xl rounded-bl-md",
+                                          )}>
+                                          <p className='break-words'>
+                                            {msg.content}
+                                          </p>
+                                          <p
+                                            className={`text-[10px] mt-0.5 text-right ${isMe ? "text-white/60" : "text-gray-400 dark:text-gray-500"}`}>
+                                            {time}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                },
+                              )
+                            )}
+                          </div>
+                          {/* Input */}
+                          <div className='px-3 pb-3 pt-1'>
+                            <div className='flex items-end gap-2'>
+                              <input
+                                type='text'
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSendMessage(sharedUser);
+                                  }
+                                }}
+                                placeholder='Message...'
+                                className='flex-1 px-3.5 py-2 bg-gray-100 dark:bg-gray-700 rounded-full text-[14px] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue/30 transition-shadow'
+                              />
+                              <button
+                                onClick={() => handleSendMessage(sharedUser)}
+                                disabled={!chatInput.trim() || isSendingMessage}
+                                className='w-8 h-8 flex items-center justify-center bg-ios-blue rounded-full disabled:opacity-40 transition-all active:scale-95 flex-shrink-0'>
+                                <svg
+                                  viewBox='0 0 24 24'
+                                  className='w-4 h-4 text-white'
+                                  fill='none'
+                                  stroke='currentColor'
+                                  strokeWidth='2.5'
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'>
+                                  <line x1='12' y1='19' x2='12' y2='5' />
+                                  <polyline points='5 12 12 5 19 12' />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           )}
         </div>
@@ -767,6 +1075,153 @@ export default function FriendsPage() {
               </p>
             )}
         </div>
+      </IOSModal>
+
+      {/* Sharing Overview Modal */}
+      <IOSModal
+        isOpen={showSharingOverview}
+        onClose={() => {
+          setShowSharingOverview(false);
+          setSharingOverviewUser(null);
+        }}
+        title='Shared Activities'>
+        {sharingOverviewUser &&
+          (() => {
+            const overviewSharedActivities = (
+              sharingOverviewUser.activityTypes || []
+            ).filter((at) => at.icon && at.icon in icons);
+            const overviewMyShare = myShares.find(
+              (s) => s.share.viewerId === sharingOverviewUser.id,
+            );
+            const mySharedActivityTypes = overviewMyShare
+              ? activityTypes.filter((at) =>
+                  overviewMyShare.share.activityTypeIds.includes(at.id),
+                )
+              : [];
+            const friendName =
+              sharingOverviewUser.profile?.fullName ||
+              sharingOverviewUser.email.split("@")[0];
+
+            return (
+              <div className='space-y-5'>
+                {/* What they share with me */}
+                <div>
+                  <div className='flex items-center gap-2 mb-2.5'>
+                    <svg
+                      viewBox='0 0 24 24'
+                      className='w-4 h-4 text-ios-blue'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='2'
+                      strokeLinecap='round'
+                      strokeLinejoin='round'>
+                      <polyline points='8 18 12 22 16 18' />
+                      <line x1='12' y1='22' x2='12' y2='9' />
+                    </svg>
+                    <p className='text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                      {friendName} shares with you
+                    </p>
+                  </div>
+                  {overviewSharedActivities.length > 0 ? (
+                    <div className='bg-gray-50 dark:bg-gray-800/50 rounded-xl overflow-hidden'>
+                      {overviewSharedActivities.map((activity, i) => (
+                        <div
+                          key={activity.id}
+                          className={cn(
+                            "flex items-center gap-3 px-4 py-2.5",
+                            i < overviewSharedActivities.length - 1 &&
+                              "border-b border-gray-200/60 dark:border-gray-700/60",
+                          )}>
+                          <div className='w-7 h-7 flex items-center justify-center'>
+                            <Icon
+                              name={activity.icon as IconName}
+                              className='w-5 h-5 text-gray-600 dark:text-gray-300'
+                            />
+                          </div>
+                          <span className='text-[15px] text-gray-900 dark:text-white flex-1'>
+                            {activity.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className='text-sm text-gray-400 dark:text-gray-500 px-1'>
+                      No activities shared yet
+                    </p>
+                  )}
+                </div>
+
+                {/* What I share with them */}
+                <div>
+                  <div className='flex items-center gap-2 mb-2.5'>
+                    <svg
+                      viewBox='0 0 24 24'
+                      className='w-4 h-4 text-ios-green'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='2'
+                      strokeLinecap='round'
+                      strokeLinejoin='round'>
+                      <polyline points='16 6 12 2 8 6' />
+                      <line x1='12' y1='2' x2='12' y2='15' />
+                    </svg>
+                    <p className='text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+                      You share with {friendName}
+                    </p>
+                  </div>
+                  {mySharedActivityTypes.length > 0 ? (
+                    <div className='bg-gray-50 dark:bg-gray-800/50 rounded-xl overflow-hidden'>
+                      {mySharedActivityTypes.map((activity, i) => (
+                        <div
+                          key={activity.id}
+                          className={cn(
+                            "flex items-center gap-3 px-4 py-2.5",
+                            i < mySharedActivityTypes.length - 1 &&
+                              "border-b border-gray-200/60 dark:border-gray-700/60",
+                          )}>
+                          <div className='w-7 h-7 flex items-center justify-center'>
+                            {activity.icon && activity.icon in icons ? (
+                              <Icon
+                                name={activity.icon as IconName}
+                                className='w-5 h-5 text-gray-600 dark:text-gray-300'
+                              />
+                            ) : (
+                              <span className='text-lg'>📊</span>
+                            )}
+                          </div>
+                          <span className='text-[15px] text-gray-900 dark:text-white flex-1'>
+                            {activity.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className='text-sm text-gray-400 dark:text-gray-500 px-1'>
+                      Not sharing any activities
+                    </p>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowSharingOverview(false);
+                      if (overviewMyShare) {
+                        setSelectedShare({
+                          share: overviewMyShare.share,
+                          viewerEmail: overviewMyShare.viewerEmail,
+                          viewerProfile: overviewMyShare.viewerProfile,
+                        });
+                        setSelectedActivityTypes(
+                          overviewMyShare.share.activityTypeIds,
+                        );
+                        setShowEditShare(true);
+                      }
+                    }}
+                    className='mt-3 w-full py-2.5 rounded-xl bg-ios-blue/10 dark:bg-ios-blue/20 text-ios-blue text-[14px] font-medium active:opacity-70 transition-opacity'>
+                    Edit shared activities
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
       </IOSModal>
 
       {/* Edit Share Modal */}

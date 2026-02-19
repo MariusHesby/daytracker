@@ -157,6 +157,36 @@ export async function reorderActivityTypesInSupabase(types: ActivityType[]): Pro
   }
 }
 
+// Look up media metadata (poster, imdbId, etc.) from a previous entry
+export async function getMediaMetadata(
+  userId: string,
+  activityTypeId: string,
+  value: string
+): Promise<{ imdbId?: string; poster?: string; imdbRating?: string; year?: string; userRating?: number } | null> {
+  try {
+    const { data } = await supabase
+      .from('log_entries')
+      .select('imdb_id, poster, imdb_rating, year, user_rating')
+      .eq('user_id', userId)
+      .eq('activity_type_id', activityTypeId)
+      .ilike('value', value)
+      .not('imdb_id', 'is', null)
+      .limit(1)
+      .single();
+
+    if (!data) return null;
+    return {
+      imdbId: data.imdb_id || undefined,
+      poster: data.poster || undefined,
+      imdbRating: data.imdb_rating || undefined,
+      year: data.year || undefined,
+      userRating: data.user_rating || undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // Log Entries
 export async function getEntriesFromSupabase(
   userId: string,

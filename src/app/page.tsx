@@ -188,38 +188,6 @@ export default function HomePage() {
     };
   }, []);
 
-  // Track if user answered trivia correctly TODAY
-  const [triviaCorrectToday, setTriviaCorrectToday] = useState(false);
-
-  // Listen for trivia correct changes (from EntryForm)
-  useEffect(() => {
-    const checkTriviaToday = () => {
-      if (typeof window === "undefined") return;
-      const stored = localStorage.getItem("triviaCorrectDate");
-      const today = formatDate(new Date());
-      setTriviaCorrectToday(stored === today);
-    };
-
-    // Load initial value
-    checkTriviaToday();
-
-    // Listen for storage changes and custom event
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "triviaCorrectDate") {
-        checkTriviaToday();
-      }
-    };
-    const handleTriviaUpdate = () => checkTriviaToday();
-
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("triviaCountUpdated", handleTriviaUpdate);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("triviaCountUpdated", handleTriviaUpdate);
-    };
-  }, []);
-
   // Calculate unlocked days from the first locked day to yesterday
   const unlockedDays = useMemo(() => {
     if (!lockedDays || lockedDays.length === 0) return [];
@@ -307,9 +275,7 @@ export default function HomePage() {
               {/* Weather emoji - large background on right side */}
               {weather && !isViewingOther && locationName && (
                 <div className='absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none select-none'>
-                  <span
-                    className='leading-none opacity-[0.25] dark:opacity-[0.22]'
-                    style={{ fontSize: "clamp(80px, 18vw, 140px)" }}>
+                  <span className='leading-none opacity-[0.25] dark:opacity-[0.22] text-[66px]'>
                     {
                       getWeatherCondition(weather.weatherCode, weather.isDay)
                         .icon
@@ -374,7 +340,7 @@ export default function HomePage() {
 
         {/* Action buttons row */}
         <div className='px-4 flex items-center justify-between'>
-          {/* Left side - Unlocked days and Trivia (no background) */}
+          {/* Left side - Unlocked days (no background) */}
           {user && !isViewingOther && (
             <div className='flex items-center gap-4 ml-1'>
               {/* Unlocked days button */}
@@ -405,36 +371,6 @@ export default function HomePage() {
                   {unlockedDays.length}
                 </span>
               </button>
-              {/* Trivia indicator */}
-              <div
-                className='flex items-center justify-center'
-                title={
-                  triviaCorrectToday
-                    ? "You got it right today! 🎉"
-                    : "Answer a trivia correctly today"
-                }>
-                {triviaCorrectToday ? (
-                  <svg
-                    className='w-5 h-5 text-amber-500'
-                    fill='currentColor'
-                    viewBox='0 0 24 24'>
-                    <path d='M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z' />
-                  </svg>
-                ) : (
-                  <svg
-                    className='w-5 h-5 text-gray-400 dark:text-gray-500'
-                    fill='none'
-                    viewBox='0 0 24 24'
-                    stroke='currentColor'
-                    strokeWidth={1.5}>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      d='M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z'
-                    />
-                  </svg>
-                )}
-              </div>
             </div>
           )}
           {/* Title or spacer when not logged in / viewing other */}
@@ -667,7 +603,7 @@ export default function HomePage() {
             <p className='text-gray-500 dark:text-gray-400 text-[15px] leading-relaxed'>
               {unlockedDays.length > 0
                 ? "Days that haven't been locked since your first locked day."
-                : "All days are locked! Great job! 🎉"}
+                : "All days are locked! Great job!"}
             </p>
           </div>
 

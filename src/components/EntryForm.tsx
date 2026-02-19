@@ -25,6 +25,7 @@ import {
   COMMON_EXERCISES,
 } from "@/types";
 import { cn, addDays } from "@/lib/utils";
+import { getMediaMetadata } from "@/lib/supabase-sync";
 import { Icon, icons, IconName } from "./Icons";
 import { MediaSearch } from "./MediaSearch";
 import {
@@ -107,11 +108,6 @@ export function EntryForm({
   const [particles, setParticles] = useState<Particle[]>([]);
   const [showFunFact, setShowFunFact] = useState(false);
   const [funFact, setFunFact] = useState<FunFact | null>(null);
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [showAnswerAnimation, setShowAnswerAnimation] = useState<
-    "correct" | "wrong" | null
-  >(null);
 
   // View mode: 'list' or 'icons' - use external state if provided
   const [internalViewMode, setInternalViewMode] = useState<"list" | "icons">(
@@ -988,6 +984,12 @@ export function EntryForm({
             year: existingEntry.year,
             userRating: entryWithRating?.userRating,
           };
+        } else if (user) {
+          // Fallback: query Supabase for metadata from a historical entry
+          const dbMeta = await getMediaMetadata(user.id, typeId, value);
+          if (dbMeta) {
+            entryMetadata = dbMeta;
+          }
         }
       }
 
@@ -2204,7 +2206,7 @@ export function EntryForm({
 
       {/* Icon Grid View */}
       {viewMode === "icons" && (
-        <div className='grid grid-cols-4 gap-3'>
+        <div className='grid grid-cols-4 gap-3.5'>
           {allActivityTypes
             .filter((type) => {
               // Don't show if hidden for this specific day
@@ -2444,7 +2446,7 @@ export function EntryForm({
                     }
                   }}
                   className={cn(
-                    "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 p-1 overflow-hidden relative",
+                    "aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all active:scale-95 p-1.5 overflow-hidden relative",
                     isSkipped
                       ? "bg-gradient-to-br from-red-400/40 via-rose-500/30 to-pink-400/40 dark:from-red-500/50 dark:via-rose-600/40 dark:to-pink-500/50 ring-2 ring-ios-red/50"
                       : "bg-gray-100/90 dark:bg-gray-800/90",
@@ -2771,7 +2773,7 @@ export function EntryForm({
                   {/* Activity row */}
                   <div
                     className={cn(
-                      "flex items-center min-h-[44px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
+                      "flex items-center min-h-[48px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
                       isExpanded && "bg-gray-50 dark:bg-gray-800",
                       isLocked && "pointer-events-none opacity-75",
                       !isLast &&
@@ -3409,10 +3411,7 @@ export function EntryForm({
           {/* Backdrop */}
           <div
             className='absolute inset-0 bg-black/50 backdrop-blur-sm'
-            onClick={() => {
-              setShowFunFact(false);
-              setShowAnswer(false);
-            }}
+            onClick={() => setShowFunFact(false)}
           />
           {/* Modal */}
           <div className='relative bg-white dark:bg-ios-card-dark rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95 duration-200'>
@@ -3435,252 +3434,21 @@ export function EntryForm({
             </div>
             {/* Title */}
             <h3 className='text-lg font-semibold text-center text-gray-900 dark:text-white mb-3'>
-              {funFact.answer ? "Trivia Time!" : "Did You Know?"}
+              Did You Know?
             </h3>
             {/* Fun fact text */}
             <p className='text-gray-600 dark:text-gray-300 text-center text-[15px] leading-relaxed mb-4'>
               {funFact.fact}
             </p>
-            {/* Multiple choice options */}
-            {funFact.choices && funFact.choices.length > 0 && (
-              <div className='mb-4 space-y-2'>
-                {funFact.choices.map((choice, index) => (
-                  <button
-                    key={index}
-                    onClick={() => {
-                      setSelectedAnswer(choice);
-                      setShowAnswer(true);
-                      const isCorrect = choice === funFact.answer;
-                      setShowAnswerAnimation(isCorrect ? "correct" : "wrong");
-                      // Track trivia correct date in localStorage
-                      if (isCorrect && typeof window !== "undefined") {
-                        const today = new Date().toISOString().split("T")[0];
-                        localStorage.setItem("triviaCorrectDate", today);
-                        // Dispatch event for live UI updates
-                        window.dispatchEvent(new Event("triviaCountUpdated"));
-                        // Auto-close after correct animation
-                        setTimeout(() => {
-                          setShowFunFact(false);
-                          setShowAnswer(false);
-                          setSelectedAnswer(null);
-                        }, 1500);
-                      }
-                      // Clear animation after it finishes
-                      setTimeout(() => setShowAnswerAnimation(null), 1500);
-                    }}
-                    disabled={showAnswer}
-                    className={cn(
-                      "w-full py-2.5 px-4 rounded-xl text-[15px] text-left transition-all",
-                      showAnswer
-                        ? choice === funFact.answer
-                          ? "bg-ios-green/20 dark:bg-ios-green/30 text-ios-green font-semibold ring-2 ring-ios-green"
-                          : choice === selectedAnswer
-                            ? "bg-ios-red/20 dark:bg-ios-red/30 text-ios-red ring-2 ring-ios-red"
-                            : "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500"
-                        : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 active:bg-gray-200 dark:active:bg-gray-600",
-                    )}>
-                    <span className='font-medium mr-2'>
-                      {String.fromCharCode(65 + index)}.
-                    </span>
-                    {choice}
-                  </button>
-                ))}
-              </div>
-            )}
-            {/* Answer section for trivia without choices */}
-            {funFact.answer && !funFact.choices && (
-              <div className='mb-4'>
-                {showAnswer ? (
-                  <div className='bg-ios-green/10 dark:bg-ios-green/20 rounded-xl p-3'>
-                    <p className='text-[13px] text-gray-500 dark:text-gray-400 text-center mb-1'>
-                      Answer:
-                    </p>
-                    <p className='text-ios-green font-semibold text-center text-[16px]'>
-                      {funFact.answer}
-                    </p>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setShowAnswer(true)}
-                    className='w-full py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium rounded-xl active:opacity-80 transition-opacity text-[15px]'>
-                    Reveal Answer
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* Button for quotes/fun facts (no trivia) */}
-            {!funFact.answer && !funFact.choices && (
-              <button
-                onClick={() => {
-                  setShowFunFact(false);
-                }}
-                className='w-full py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
-                Good to know
-              </button>
-            )}
-
-            {/* Button before answering trivia: "I don't wanna play" */}
-            {funFact.choices && !showAnswer && (
-              <button
-                onClick={() => {
-                  setShowFunFact(false);
-                  setShowAnswer(false);
-                  setSelectedAnswer(null);
-                }}
-                className='w-full py-3 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium rounded-xl active:opacity-80 transition-opacity'>
-                I don&apos;t wanna play
-              </button>
-            )}
-
-            {/* Buttons after wrong answer */}
-            {funFact.choices &&
-              showAnswer &&
-              selectedAnswer !== funFact.answer && (
-                <div className='flex gap-2'>
-                  <button
-                    onClick={() => {
-                      // Reset state and fetch a new fun fact
-                      setShowAnswer(false);
-                      setSelectedAnswer(null);
-                      setShowAnswerAnimation(null);
-                      fetchRandomFunFact().then((fact) => {
-                        if (fact) {
-                          setFunFact(fact);
-                        }
-                      });
-                    }}
-                    className='flex-1 py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
-                    Try again
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowFunFact(false);
-                      setShowAnswer(false);
-                      setSelectedAnswer(null);
-                    }}
-                    className='flex-1 py-3 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 font-medium rounded-xl active:opacity-80 transition-opacity'>
-                    D&apos;oh! I&apos;m out
-                  </button>
-                </div>
-              )}
+            {/* Good to know button */}
+            <button
+              onClick={() => setShowFunFact(false)}
+              className='w-full py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
+              Good to know
+            </button>
           </div>
-
-          {/* Answer Animation Overlay */}
-          {showAnswerAnimation && (
-            <div className='absolute inset-0 flex items-center justify-center pointer-events-none z-10'>
-              <div
-                className={cn(
-                  "answer-animation-text",
-                  showAnswerAnimation === "correct"
-                    ? "correct-animation"
-                    : "wrong-animation",
-                )}>
-                {showAnswerAnimation === "correct" ? "CORRECT!" : "WRONG!"}
-              </div>
-            </div>
-          )}
         </div>
       )}
-
-      {/* Answer Animation Styles */}
-      <style jsx>{`
-        .answer-animation-text {
-          font-size: 3rem;
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          animation-fill-mode: forwards;
-        }
-
-        .correct-animation {
-          color: #22c55e;
-          text-shadow:
-            0 0 10px rgba(34, 197, 94, 0.8),
-            0 0 20px rgba(34, 197, 94, 0.6),
-            0 0 40px rgba(34, 197, 94, 0.4),
-            0 0 80px rgba(34, 197, 94, 0.2);
-          animation: correctBurst 1.5s ease-out forwards;
-        }
-
-        .wrong-animation {
-          color: #ef4444;
-          text-shadow:
-            0 0 10px rgba(239, 68, 68, 0.8),
-            0 0 20px rgba(239, 68, 68, 0.6),
-            0 0 40px rgba(239, 68, 68, 0.4),
-            0 0 80px rgba(239, 68, 68, 0.2);
-          animation: wrongShatter 1.5s ease-out forwards;
-        }
-
-        @keyframes correctBurst {
-          0% {
-            transform: scale(0.3) translateZ(0);
-            opacity: 0;
-            filter: blur(10px);
-          }
-          20% {
-            transform: scale(1.3) translateZ(100px);
-            opacity: 1;
-            filter: blur(0);
-          }
-          40% {
-            transform: scale(1.1) translateZ(150px);
-            opacity: 1;
-          }
-          60% {
-            transform: scale(1.2) translateZ(200px);
-            opacity: 0.9;
-            filter: blur(1px);
-          }
-          100% {
-            transform: scale(2.5) translateZ(500px);
-            opacity: 0;
-            filter: blur(20px);
-          }
-        }
-
-        @keyframes wrongShatter {
-          0% {
-            transform: scale(0.3) rotate(0deg) translateZ(0);
-            opacity: 0;
-            filter: blur(10px);
-          }
-          15% {
-            transform: scale(1.4) rotate(-3deg) translateZ(80px);
-            opacity: 1;
-            filter: blur(0);
-          }
-          25% {
-            transform: scale(1.3) rotate(3deg) translateZ(100px);
-          }
-          35% {
-            transform: scale(1.35) rotate(-2deg) translateZ(120px);
-          }
-          45% {
-            transform: scale(1.3) rotate(2deg) translateZ(140px);
-          }
-          55% {
-            transform: scale(1.4) rotate(0deg) translateZ(180px);
-            opacity: 1;
-          }
-          70% {
-            transform: scale(1.8) rotate(5deg) translateZ(250px);
-            opacity: 0.7;
-            filter: blur(3px);
-          }
-          85% {
-            transform: scale(2.5) rotate(-8deg) translateZ(400px);
-            opacity: 0.3;
-            filter: blur(10px);
-          }
-          100% {
-            transform: scale(4) rotate(15deg) translateZ(600px);
-            opacity: 0;
-            filter: blur(30px);
-          }
-        }
-      `}</style>
     </>
   );
 }

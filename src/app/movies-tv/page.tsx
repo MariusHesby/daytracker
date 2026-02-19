@@ -1460,7 +1460,9 @@ export default function MoviesPage() {
           </button>
         </div>
         <button
-          onClick={() => handleViewModeChange(viewMode === "grid" ? "list" : "grid")}
+          onClick={() =>
+            handleViewModeChange(viewMode === "grid" ? "list" : "grid")
+          }
           className='p-2 rounded-lg bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300'>
           {viewMode === "grid" ? (
             <svg

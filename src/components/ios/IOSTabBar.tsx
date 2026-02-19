@@ -10,6 +10,7 @@ interface TabItem {
   label: string;
   icon: ReactNode;
   activeIcon?: ReactNode;
+  disabled?: boolean;
 }
 
 interface IOSTabBarProps {
@@ -34,6 +35,21 @@ export function IOSTabBar({ items, className }: IOSTabBarProps) {
           const isActive =
             pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(item.href));
+
+          if (item.disabled) {
+            return (
+              <div
+                key={item.href}
+                className='flex flex-col items-center justify-center flex-1 opacity-30 pointer-events-none'>
+                <div className='w-6 h-6 text-gray-400 dark:text-gray-600'>
+                  {item.icon}
+                </div>
+                <span className='text-[10px] mt-0.5 text-gray-400 dark:text-gray-600'>
+                  {item.label}
+                </span>
+              </div>
+            );
+          }
 
           return (
             <Link
