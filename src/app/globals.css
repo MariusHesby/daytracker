@@ -845,3 +845,18 @@ input[type="number"] {
   animation: border-pulse 2s ease-in-out infinite;
 }
 
+@keyframes logo-breathe {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  }
+  50% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
+  }
+}
+
+.animate-logo-breathe {
+  animation: logo-breathe 3s ease-in-out infinite;
+}
+

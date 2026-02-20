@@ -308,7 +308,7 @@ function MatchCard({
             className={cn(
               "object-contain",
               isMain ? "w-16 h-16" : "w-14 h-14",
-              !finished && !live && "animate-pulse [animation-duration:3s]",
+              !finished && !live && "animate-logo-breathe",
             )}
           />
           <span
@@ -373,7 +373,7 @@ function MatchCard({
             className={cn(
               "object-contain",
               isMain ? "w-16 h-16" : "w-14 h-14",
-              !finished && !live && "animate-pulse [animation-duration:3s]",
+              !finished && !live && "animate-logo-breathe",
             )}
           />
           <span
