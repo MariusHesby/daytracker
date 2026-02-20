@@ -621,24 +621,27 @@ export default function FriendsPage() {
             />
           </div>
           <button
-            onClick={() => setExpandedCardInfo(expandedCardInfo ? null : '__all__')}
-            className={`p-2 rounded-lg transition-colors ${
+            onClick={() =>
+              setExpandedCardInfo(expandedCardInfo ? null : "__all__")
+            }
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-medium transition-all active:scale-95 ${
               expandedCardInfo
-                ? 'bg-ios-blue/10 text-ios-blue'
-                : 'text-gray-400 dark:text-gray-500'
+                ? "bg-ios-blue text-white shadow-sm"
+                : "bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
             }`}>
             <svg
               viewBox='0 0 24 24'
-              className='w-5 h-5'
+              className='w-4 h-4'
               fill='none'
               stroke='currentColor'
-              strokeWidth='2'
+              strokeWidth='2.5'
               strokeLinecap='round'
               strokeLinejoin='round'>
-              <circle cx='12' cy='12' r='10' />
-              <line x1='12' y1='16' x2='12' y2='12' />
-              <line x1='12' y1='8' x2='12.01' y2='8' />
+              <circle cx='12' cy='5' r='1' />
+              <circle cx='12' cy='12' r='1' />
+              <circle cx='12' cy='19' r='1' />
             </svg>
+            Info
           </button>
         </div>
 
@@ -671,7 +674,7 @@ export default function FriendsPage() {
                 .filter((u) => {
                   if (!friendsFilter.trim()) return true;
                   const q = friendsFilter.toLowerCase();
-                  const name = (u.profile?.fullName || '').toLowerCase();
+                  const name = (u.profile?.fullName || "").toLowerCase();
                   const email = u.email.toLowerCase();
                   return name.includes(q) || email.includes(q);
                 })
@@ -693,19 +696,18 @@ export default function FriendsPage() {
                     (s) => s.share.viewerId === sharedUser.id,
                   );
 
-                  const isInfoExpanded = expandedCardInfo === '__all__' || expandedCardInfo === sharedUser.id;
+                  const isInfoExpanded =
+                    expandedCardInfo === "__all__" ||
+                    expandedCardInfo === sharedUser.id;
 
                   return (
                     <div
                       key={sharedUser.id}
-                      className='relative bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'
+                      className='relative bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden cursor-pointer active:bg-gray-50 dark:active:bg-gray-800/60 transition-colors'
                       onClick={() => {
-                        if (expandedChat === sharedUser.id) {
-                          setExpandedChat(null);
-                          setChatInput("");
-                        }
+                        handleToggleChat(sharedUser);
                       }}>
-                      {/* Main row: avatar, name, chat icon, spy icon */}
+                      {/* Main row: avatar, name, unread badge, spy icon */}
                       <div className='flex items-center gap-2.5 px-3 py-2'>
                         <Avatar
                           avatar={sharedUser.profile?.avatar || null}
@@ -716,36 +718,13 @@ export default function FriendsPage() {
                             sharedUser.email.split("@")[0]}
                         </p>
 
-                        {/* Chat icon */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleChat(sharedUser);
-                          }}
-                          className='relative p-1.5 flex-shrink-0'>
-                          <svg
-                            viewBox='0 0 24 24'
-                            className={`w-[18px] h-[18px] transition-colors ${
-                              expandedChat === sharedUser.id
-                                ? "text-ios-blue"
-                                : (unreadCounts[sharedUser.id] || 0) > 0
-                                  ? "text-ios-green"
-                                  : "text-gray-300 dark:text-gray-600"
-                            }`}
-                            fill='none'
-                            stroke='currentColor'
-                            strokeWidth='2'
-                            strokeLinecap='round'
-                            strokeLinejoin='round'>
-                            <path d='M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z' />
-                          </svg>
-                          {(unreadCounts[sharedUser.id] || 0) > 0 &&
-                            expandedChat !== sharedUser.id && (
-                              <span className='absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] bg-ios-red text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5'>
-                                {unreadCounts[sharedUser.id]}
-                              </span>
-                            )}
-                        </button>
+                        {/* Unread badge (no button, just indicator) */}
+                        {(unreadCounts[sharedUser.id] || 0) > 0 &&
+                          expandedChat !== sharedUser.id && (
+                            <span className='min-w-[20px] h-[20px] bg-ios-green text-white text-[11px] font-bold rounded-full flex items-center justify-center px-1 flex-shrink-0'>
+                              {unreadCounts[sharedUser.id]}
+                            </span>
+                          )}
 
                         {/* Spy icon */}
                         <button
@@ -784,7 +763,8 @@ export default function FriendsPage() {
                               className={`w-[17px] h-[17px] transition-colors ${
                                 sharedActivities.length > 0 ||
                                 (myShareToFriend &&
-                                  myShareToFriend.share.activityTypeIds.length > 0)
+                                  myShareToFriend.share.activityTypeIds.length >
+                                    0)
                                   ? "text-ios-blue"
                                   : "text-gray-300 dark:text-gray-600"
                               }`}
