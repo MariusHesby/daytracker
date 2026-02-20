@@ -285,37 +285,31 @@ function MatchCard({
           ? "bg-gray-100 dark:bg-gray-800"
           : "bg-gray-50 dark:bg-gray-800/60",
       )}>
-      {/* League & status */}
-      <div className='flex items-center justify-between mb-3'>
-        <div className='flex items-center gap-2'>
-          <img
-            src={fixture.league.logo}
-            alt=''
-            className='w-4 h-4 object-contain'
-          />
-          <span className='text-[12px] text-gray-500 dark:text-gray-400'>
-            {fixture.league.name} · {fixture.league.round}
-          </span>
-        </div>
-        {live && (
-          <span className='px-2 py-0.5 bg-red-500 text-white text-[11px] font-bold rounded-full animate-pulse'>
+      {/* Live badge only */}
+      {live && (
+        <div className='flex justify-center mb-3'>
+          <span className='px-2.5 py-0.5 bg-red-500 text-white text-[11px] font-bold rounded-full animate-pulse'>
             LIVE {fixture.status.elapsed}&apos;
           </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Teams and score */}
       <div className='flex items-center justify-between'>
         {/* Home team */}
         <div
           className={cn(
-            "flex flex-col items-center gap-1.5 flex-1",
+            "flex flex-col items-center gap-2 flex-1",
             !isHome && "opacity-80",
           )}>
           <img
             src={fixture.teams.home.logo}
             alt={fixture.teams.home.name}
-            className={cn("object-contain", isMain ? "w-12 h-12" : "w-10 h-10")}
+            className={cn(
+              "object-contain",
+              isMain ? "w-16 h-16" : "w-14 h-14",
+              !finished && !live && "animate-[pulse_3s_ease-in-out_infinite]",
+            )}
           />
           <span
             className={cn(
@@ -329,7 +323,7 @@ function MatchCard({
           </span>
         </div>
 
-        {/* Score / Time */}
+        {/* Score / VS */}
         <div className='flex flex-col items-center px-4'>
           {finished || live ? (
             <>
@@ -361,27 +355,26 @@ function MatchCard({
               </span>
             </>
           ) : (
-            <>
-              <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
-                vs
-              </span>
-              <span className='text-[12px] text-gray-500 dark:text-gray-400 mt-0.5'>
-                {formatMatchDate(fixture.date)}
-              </span>
-            </>
+            <span className='text-[17px] font-semibold text-gray-400 dark:text-gray-500'>
+              vs
+            </span>
           )}
         </div>
 
         {/* Away team */}
         <div
           className={cn(
-            "flex flex-col items-center gap-1.5 flex-1",
+            "flex flex-col items-center gap-2 flex-1",
             isHome && "opacity-80",
           )}>
           <img
             src={fixture.teams.away.logo}
             alt={fixture.teams.away.name}
-            className={cn("object-contain", isMain ? "w-12 h-12" : "w-10 h-10")}
+            className={cn(
+              "object-contain",
+              isMain ? "w-16 h-16" : "w-14 h-14",
+              !finished && !live && "animate-[pulse_3s_ease-in-out_infinite]",
+            )}
           />
           <span
             className={cn(
