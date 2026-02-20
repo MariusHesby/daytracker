@@ -86,6 +86,12 @@ export default function FriendsPage() {
   // Tooltip state for icon explanations
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
+  // Expanded card info (shows extra icons row)
+  const [expandedCardInfo, setExpandedCardInfo] = useState<string | null>(null);
+
+  // Friends list filter
+  const [friendsFilter, setFriendsFilter] = useState("");
+
   // Sharing overview modal
   const [showSharingOverview, setShowSharingOverview] = useState(false);
   const [sharingOverviewUser, setSharingOverviewUser] =
@@ -592,10 +598,49 @@ export default function FriendsPage() {
           </>
         )}
 
-        {/* My Friends Section Header */}
-        <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-1'>
-          My Friends
-        </h2>
+        {/* Friends search bar + info toggle */}
+        <div className='flex items-center gap-2'>
+          <div className='flex-1 relative'>
+            <svg
+              viewBox='0 0 24 24'
+              className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'>
+              <circle cx='11' cy='11' r='8' />
+              <line x1='21' y1='21' x2='16.65' y2='16.65' />
+            </svg>
+            <input
+              type='text'
+              value={friendsFilter}
+              onChange={(e) => setFriendsFilter(e.target.value)}
+              placeholder='Search friends...'
+              className='w-full pl-9 pr-3 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-[14px] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 outline-none focus:ring-2 focus:ring-ios-blue/30 transition-shadow'
+            />
+          </div>
+          <button
+            onClick={() => setExpandedCardInfo(expandedCardInfo ? null : '__all__')}
+            className={`p-2 rounded-lg transition-colors ${
+              expandedCardInfo
+                ? 'bg-ios-blue/10 text-ios-blue'
+                : 'text-gray-400 dark:text-gray-500'
+            }`}>
+            <svg
+              viewBox='0 0 24 24'
+              className='w-5 h-5'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'>
+              <circle cx='12' cy='12' r='10' />
+              <line x1='12' y1='16' x2='12' y2='12' />
+              <line x1='12' y1='8' x2='12.01' y2='8' />
+            </svg>
+          </button>
+        </div>
 
         {/* Friends List */}
         <div className='space-y-3'>
@@ -621,8 +666,15 @@ export default function FriendsPage() {
               </p>
             </div>
           ) : (
-            <div className='space-y-2'>
+            <div className='space-y-1.5'>
               {[...sharedWithMe]
+                .filter((u) => {
+                  if (!friendsFilter.trim()) return true;
+                  const q = friendsFilter.toLowerCase();
+                  const name = (u.profile?.fullName || '').toLowerCase();
+                  const email = u.email.toLowerCase();
+                  return name.includes(q) || email.includes(q);
+                })
                 .sort((a, b) => {
                   const aUnread = unreadCounts[a.id] || 0;
                   const bUnread = unreadCounts[b.id] || 0;
@@ -641,19 +693,7 @@ export default function FriendsPage() {
                     (s) => s.share.viewerId === sharedUser.id,
                   );
 
-                  // Helper to check if activity has new updates
-                  const hasNewActivity = (activityId: string) => {
-                    const lastActivityDate =
-                      sharedUser.lastActivityDates?.[activityId];
-                    if (!lastActivityDate) return false;
-
-                    const lastViewed =
-                      lastViewedTimes[sharedUser.id]?.[activityId];
-                    if (!lastViewed) return true; // Never viewed = new
-
-                    // Compare dates - if last activity is newer than last viewed, show dot
-                    return new Date(lastActivityDate) > new Date(lastViewed);
-                  };
+                  const isInfoExpanded = expandedCardInfo === '__all__' || expandedCardInfo === sharedUser.id;
 
                   return (
                     <div
@@ -665,199 +705,196 @@ export default function FriendsPage() {
                           setChatInput("");
                         }
                       }}>
-                      <div className='px-3 py-2.5'>
-                        {/* Remove button - top right corner */}
+                      {/* Main row: avatar, name, chat icon, spy icon */}
+                      <div className='flex items-center gap-2.5 px-3 py-2'>
+                        <Avatar
+                          avatar={sharedUser.profile?.avatar || null}
+                          size='sm'
+                        />
+                        <p className='font-medium text-[15px] text-gray-900 dark:text-white truncate flex-1 min-w-0'>
+                          {sharedUser.profile?.fullName ||
+                            sharedUser.email.split("@")[0]}
+                        </p>
+
+                        {/* Chat icon */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setUserToRemove(sharedUser);
-                            setShowRemoveConfirm(true);
+                            handleToggleChat(sharedUser);
                           }}
-                          className='absolute top-2 right-2 p-1 z-10 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors'>
+                          className='relative p-1.5 flex-shrink-0'>
                           <svg
                             viewBox='0 0 24 24'
-                            className='w-4 h-4'
+                            className={`w-[18px] h-[18px] transition-colors ${
+                              expandedChat === sharedUser.id
+                                ? "text-ios-blue"
+                                : (unreadCounts[sharedUser.id] || 0) > 0
+                                  ? "text-ios-green"
+                                  : "text-gray-300 dark:text-gray-600"
+                            }`}
                             fill='none'
                             stroke='currentColor'
-                            strokeWidth='2'>
-                            <path d='M6 18L18 6M6 6l12 12' />
+                            strokeWidth='2'
+                            strokeLinecap='round'
+                            strokeLinejoin='round'>
+                            <path d='M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z' />
                           </svg>
+                          {(unreadCounts[sharedUser.id] || 0) > 0 &&
+                            expandedChat !== sharedUser.id && (
+                              <span className='absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] bg-ios-red text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5'>
+                                {unreadCounts[sharedUser.id]}
+                              </span>
+                            )}
                         </button>
 
-                        <div className='flex items-start gap-3 pr-6'>
-                          <Avatar
-                            avatar={sharedUser.profile?.avatar || null}
-                            size='md'
-                            className='mt-1'
-                          />
-                          <p className='font-medium text-gray-900 dark:text-white truncate pt-0.5'>
-                            {sharedUser.profile?.fullName ||
-                              sharedUser.email.split("@")[0]}
-                          </p>
-                        </div>
+                        {/* Spy icon */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewUserData(sharedUser);
+                          }}
+                          className='p-1.5 flex-shrink-0 active:scale-95 transition-transform'>
+                          <svg
+                            viewBox='0 0 24 24'
+                            className='w-[20px] h-[20px] text-gray-500 dark:text-gray-400 transition-colors'
+                            fill='none'
+                            stroke='currentColor'
+                            strokeWidth='1.8'
+                            strokeLinecap='round'
+                            strokeLinejoin='round'>
+                            <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' />
+                            <circle cx='12' cy='12' r='3' />
+                          </svg>
+                        </button>
+                      </div>
 
-                        {/* Action icons row - aligned with name */}
-                        <div className='flex items-center mt-0.5 ml-[52px]'>
-                          {/* Left-aligned icons */}
-                          <div className='flex items-center gap-0.5'>
-                            {/* Chat */}
+                      {/* Expandable info row */}
+                      {isInfoExpanded && (
+                        <div className='flex items-center gap-0.5 px-3 pb-2 border-t border-gray-100 dark:border-gray-700/40 pt-1.5'>
+                          {/* Sharing overview */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSharingOverviewUser(sharedUser);
+                              setShowSharingOverview(true);
+                            }}
+                            className='p-1.5'>
+                            <svg
+                              viewBox='0 0 24 24'
+                              className={`w-[17px] h-[17px] transition-colors ${
+                                sharedActivities.length > 0 ||
+                                (myShareToFriend &&
+                                  myShareToFriend.share.activityTypeIds.length > 0)
+                                  ? "text-ios-blue"
+                                  : "text-gray-300 dark:text-gray-600"
+                              }`}
+                              fill='none'
+                              stroke='currentColor'
+                              strokeWidth='2'
+                              strokeLinecap='round'
+                              strokeLinejoin='round'>
+                              <path d='M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8' />
+                              <polyline points='16 6 12 2 8 6' />
+                              <line x1='12' y1='2' x2='12' y2='15' />
+                            </svg>
+                          </button>
+
+                          {/* Heart (favorite) */}
+                          <div className='relative'>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleToggleChat(sharedUser);
-                              }}
-                              className='relative p-1.5'>
-                              <svg
-                                viewBox='0 0 24 24'
-                                className={`w-[18px] h-[18px] transition-colors ${
-                                  expandedChat === sharedUser.id
-                                    ? "text-ios-blue"
-                                    : (unreadCounts[sharedUser.id] || 0) > 0
-                                      ? "text-ios-green"
-                                      : "text-gray-300 dark:text-gray-600"
-                                }`}
-                                fill='none'
-                                stroke='currentColor'
-                                strokeWidth='2'
-                                strokeLinecap='round'
-                                strokeLinejoin='round'>
-                                <path d='M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z' />
-                              </svg>
-                              {(unreadCounts[sharedUser.id] || 0) > 0 &&
-                                expandedChat !== sharedUser.id && (
-                                  <span className='absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] bg-ios-red text-white text-[9px] font-bold rounded-full flex items-center justify-center px-0.5'>
-                                    {unreadCounts[sharedUser.id]}
-                                  </span>
-                                )}
-                            </button>
-
-                            {/* Sharing overview */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSharingOverviewUser(sharedUser);
-                                setShowSharingOverview(true);
-                              }}
-                              className='p-1.5'>
-                              <svg
-                                viewBox='0 0 24 24'
-                                className={`w-[18px] h-[18px] transition-colors ${
-                                  sharedActivities.length > 0 ||
-                                  (myShareToFriend &&
-                                    myShareToFriend.share.activityTypeIds
-                                      .length > 0)
-                                    ? "text-ios-blue"
-                                    : "text-gray-300 dark:text-gray-600"
-                                }`}
-                                fill='none'
-                                stroke='currentColor'
-                                strokeWidth='2'
-                                strokeLinecap='round'
-                                strokeLinejoin='round'>
-                                <path d='M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8' />
-                                <polyline points='16 6 12 2 8 6' />
-                                <line x1='12' y1='2' x2='12' y2='15' />
-                              </svg>
-                            </button>
-
-                            {/* Heart (favorite) */}
-                            <div className='relative'>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggleFavorite(sharedUser.id);
-                                  setActiveTooltip(
-                                    activeTooltip ===
-                                      `${sharedUser.id}-favorite`
-                                      ? null
-                                      : `${sharedUser.id}-favorite`,
-                                  );
-                                }}
-                                className='p-1.5'>
-                                <svg
-                                  viewBox='0 0 24 24'
-                                  className={`w-[18px] h-[18px] transition-colors ${
-                                    favoriteFriends.includes(sharedUser.id)
-                                      ? "text-red-500 fill-red-500"
-                                      : "text-gray-300 dark:text-gray-600"
-                                  }`}
-                                  fill={
-                                    favoriteFriends.includes(sharedUser.id)
-                                      ? "currentColor"
-                                      : "none"
-                                  }
-                                  stroke='currentColor'
-                                  strokeWidth='2'>
-                                  <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
-                                </svg>
-                              </button>
-                              {activeTooltip ===
-                                `${sharedUser.id}-favorite` && (
-                                <div
-                                  onClick={(e) => e.stopPropagation()}
-                                  className='absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-xl shadow-lg whitespace-nowrap z-10 animate-in fade-in zoom-in-95 duration-150'>
-                                  Favorite for Movies & TV ratings
-                                  <div className='absolute top-full right-3 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mt-1' />
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Bell (notifications) */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedUserForNotifications(sharedUser);
-                                setShowNotificationModal(true);
+                                toggleFavorite(sharedUser.id);
+                                setActiveTooltip(
+                                  activeTooltip === `${sharedUser.id}-favorite`
+                                    ? null
+                                    : `${sharedUser.id}-favorite`,
+                                );
                               }}
                               className='p-1.5'>
                               <svg
                                 viewBox='0 0 24 24'
-                                className={`w-[18px] h-[18px] transition-colors ${
-                                  sharedActivities.some((a) =>
-                                    isSubscribed(sharedUser.id, a.id),
-                                  )
-                                    ? "text-ios-blue fill-ios-blue/20"
+                                className={`w-[17px] h-[17px] transition-colors ${
+                                  favoriteFriends.includes(sharedUser.id)
+                                    ? "text-red-500 fill-red-500"
                                     : "text-gray-300 dark:text-gray-600"
                                 }`}
                                 fill={
-                                  sharedActivities.some((a) =>
-                                    isSubscribed(sharedUser.id, a.id),
-                                  )
+                                  favoriteFriends.includes(sharedUser.id)
                                     ? "currentColor"
                                     : "none"
                                 }
                                 stroke='currentColor'
                                 strokeWidth='2'>
-                                <path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9' />
-                                <path d='M13.73 21a2 2 0 0 1-3.46 0' />
+                                <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
                               </svg>
                             </button>
+                            {activeTooltip === `${sharedUser.id}-favorite` && (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className='absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-xl shadow-lg whitespace-nowrap z-10 animate-in fade-in zoom-in-95 duration-150'>
+                                Favorite for Movies & TV ratings
+                                <div className='absolute top-full left-3 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mt-1' />
+                              </div>
+                            )}
                           </div>
 
-                          {/* Spacer */}
-                          <div className='flex-1' />
-
-                          {/* Spy on user - view their data */}
+                          {/* Bell (notifications) */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleViewUserData(sharedUser);
+                              setSelectedUserForNotifications(sharedUser);
+                              setShowNotificationModal(true);
                             }}
-                            className='p-1.5 active:scale-95 transition-transform'>
+                            className='p-1.5'>
                             <svg
                               viewBox='0 0 24 24'
-                              className='w-[22px] h-[22px] text-gray-500 dark:text-gray-400 transition-colors'
+                              className={`w-[17px] h-[17px] transition-colors ${
+                                sharedActivities.some((a) =>
+                                  isSubscribed(sharedUser.id, a.id),
+                                )
+                                  ? "text-ios-blue fill-ios-blue/20"
+                                  : "text-gray-300 dark:text-gray-600"
+                              }`}
+                              fill={
+                                sharedActivities.some((a) =>
+                                  isSubscribed(sharedUser.id, a.id),
+                                )
+                                  ? "currentColor"
+                                  : "none"
+                              }
+                              stroke='currentColor'
+                              strokeWidth='2'>
+                              <path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9' />
+                              <path d='M13.73 21a2 2 0 0 1-3.46 0' />
+                            </svg>
+                          </button>
+
+                          <div className='flex-1' />
+
+                          {/* Remove friend */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUserToRemove(sharedUser);
+                              setShowRemoveConfirm(true);
+                            }}
+                            className='p-1.5 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors'>
+                            <svg
+                              viewBox='0 0 24 24'
+                              className='w-[17px] h-[17px]'
                               fill='none'
                               stroke='currentColor'
-                              strokeWidth='1.8'
+                              strokeWidth='2'
                               strokeLinecap='round'
                               strokeLinejoin='round'>
-                              <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' />
-                              <circle cx='12' cy='12' r='3' />
+                              <path d='M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2' />
+                              <circle cx='9' cy='7' r='4' />
+                              <line x1='17' y1='11' x2='22' y2='11' />
                             </svg>
                           </button>
                         </div>
-                      </div>
+                      )}
 
                       {/* Expandable Chat */}
                       {expandedChat === sharedUser.id && (
