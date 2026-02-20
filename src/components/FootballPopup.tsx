@@ -243,14 +243,21 @@ function MatchTab({
     <div className='space-y-4'>
       {/* Main match display (live or next) */}
       {matchToShow && (
-        <MatchCard fixture={matchToShow} teamId={teamId} isMain />
+        <div>
+          <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2 font-medium'>
+            {liveMatch
+              ? `Live (${matchToShow.league.name})`
+              : `${formatMatchDate(matchToShow.date)} (${matchToShow.league.name})`}
+          </p>
+          <MatchCard fixture={matchToShow} teamId={teamId} isMain />
+        </div>
       )}
 
       {/* Last match result (only if not showing live) */}
       {!liveMatch && lastMatch && (
         <div>
           <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2 font-medium'>
-            Last Match
+            Last Match ({lastMatch.league.name})
           </p>
           <MatchCard fixture={lastMatch} teamId={teamId} />
         </div>
