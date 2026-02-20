@@ -387,7 +387,8 @@ export default function FriendsPage() {
     if (!error) {
       setShowEditShare(false);
       setSelectedShare(null);
-      loadData();
+      await loadData();
+      setShowSharingOverview(true);
     }
   };
 
@@ -1226,7 +1227,7 @@ export default function FriendsPage() {
                             className='w-[10px] h-[10px] rounded-full transition-opacity'
                             style={{
                               backgroundColor: friendColor,
-                              opacity: activity.sharedByFriend ? 1 : 0.15,
+                              opacity: activity.sharedByFriend ? 1 : 0,
                             }}
                           />
                         </div>
