@@ -859,7 +859,7 @@ export default function FriendsPage() {
                               setUserToRemove(sharedUser);
                               setShowRemoveConfirm(true);
                             }}
-                            className='p-1.5 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors'>
+                            className='p-1.5 text-red-500 dark:text-red-400 transition-colors'>
                             <svg
                               viewBox='0 0 24 24'
                               className='w-[17px] h-[17px]'
