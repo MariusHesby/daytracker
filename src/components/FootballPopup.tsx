@@ -312,7 +312,7 @@ function MatchCard({
           <div
             className={cn(
               "flex items-center justify-center",
-              isMain ? "w-16 h-16" : "w-14 h-14",
+              isMain ? "w-20 h-20" : "w-16 h-16",
               !finished && !live && "animate-logo-breathe",
             )}>
             <img
@@ -320,7 +320,7 @@ function MatchCard({
               alt={fixture.teams.home.name}
               className={cn(
                 "object-contain",
-                isMain ? "w-16 h-16" : "w-14 h-14",
+                isMain ? "w-20 h-20" : "w-16 h-16",
               )}
             />
           </div>
@@ -383,7 +383,7 @@ function MatchCard({
           <div
             className={cn(
               "flex items-center justify-center",
-              isMain ? "w-16 h-16" : "w-14 h-14",
+              isMain ? "w-20 h-20" : "w-16 h-16",
               !finished && !live && "animate-logo-breathe",
             )}>
             <img
@@ -391,7 +391,7 @@ function MatchCard({
               alt={fixture.teams.away.name}
               className={cn(
                 "object-contain",
-                isMain ? "w-16 h-16" : "w-14 h-14",
+                isMain ? "w-20 h-20" : "w-16 h-16",
               )}
             />
           </div>
