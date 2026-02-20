@@ -302,15 +302,21 @@ function MatchCard({
             "flex flex-col items-center gap-2 flex-1",
             !isHome && "opacity-80",
           )}>
-          <img
-            src={fixture.teams.home.logo}
-            alt={fixture.teams.home.name}
+          <div
             className={cn(
-              "object-contain",
+              "flex items-center justify-center",
               isMain ? "w-16 h-16" : "w-14 h-14",
               !finished && !live && "animate-logo-breathe",
-            )}
-          />
+            )}>
+            <img
+              src={fixture.teams.home.logo}
+              alt={fixture.teams.home.name}
+              className={cn(
+                "object-contain",
+                isMain ? "w-16 h-16" : "w-14 h-14",
+              )}
+            />
+          </div>
           <span
             className={cn(
               "text-center leading-tight",
@@ -367,15 +373,21 @@ function MatchCard({
             "flex flex-col items-center gap-2 flex-1",
             isHome && "opacity-80",
           )}>
-          <img
-            src={fixture.teams.away.logo}
-            alt={fixture.teams.away.name}
+          <div
             className={cn(
-              "object-contain",
+              "flex items-center justify-center",
               isMain ? "w-16 h-16" : "w-14 h-14",
               !finished && !live && "animate-logo-breathe",
-            )}
-          />
+            )}>
+            <img
+              src={fixture.teams.away.logo}
+              alt={fixture.teams.away.name}
+              className={cn(
+                "object-contain",
+                isMain ? "w-16 h-16" : "w-14 h-14",
+              )}
+            />
+          </div>
           <span
             className={cn(
               "text-center leading-tight",
