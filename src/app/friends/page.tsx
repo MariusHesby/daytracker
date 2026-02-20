@@ -1125,25 +1125,39 @@ export default function FriendsPage() {
             const myColor = "#34C759"; // iOS green
             const friendColor = "#FF9500"; // iOS orange
 
-            // Build merged activity list with sharing info
+            // Build merged activity list deduplicated by name
             const allActivitiesMap = new Map<
               string,
-              { name: string; icon?: string; sharedByFriend: boolean; sharedByMe: boolean }
+              {
+                name: string;
+                icon?: string;
+                sharedByFriend: boolean;
+                sharedByMe: boolean;
+              }
             >();
             overviewSharedActivities.forEach((a) => {
-              allActivitiesMap.set(a.id, {
-                name: a.name,
-                icon: a.icon,
-                sharedByFriend: true,
-                sharedByMe: false,
-              });
+              const key = a.name.toLowerCase();
+              const existing = allActivitiesMap.get(key);
+              if (existing) {
+                existing.sharedByFriend = true;
+                if (!existing.icon && a.icon) existing.icon = a.icon;
+              } else {
+                allActivitiesMap.set(key, {
+                  name: a.name,
+                  icon: a.icon,
+                  sharedByFriend: true,
+                  sharedByMe: false,
+                });
+              }
             });
             mySharedActivityTypes.forEach((a) => {
-              const existing = allActivitiesMap.get(a.id);
+              const key = a.name.toLowerCase();
+              const existing = allActivitiesMap.get(key);
               if (existing) {
                 existing.sharedByMe = true;
+                if (!existing.icon && a.icon) existing.icon = a.icon;
               } else {
-                allActivitiesMap.set(a.id, {
+                allActivitiesMap.set(key, {
                   name: a.name,
                   icon: a.icon,
                   sharedByFriend: false,
@@ -1196,20 +1210,25 @@ export default function FriendsPage() {
                         <span className='text-[15px] text-gray-900 dark:text-white flex-1'>
                           {activity.name}
                         </span>
-                        {/* Colored bullets showing who shares */}
+                        {/* Colored bullets: user1 · user2 in same order as header */}
                         <div className='flex items-center gap-1.5'>
-                          {activity.sharedByMe && (
-                            <span
-                              className='w-[10px] h-[10px] rounded-full'
-                              style={{ backgroundColor: myColor }}
-                            />
-                          )}
-                          {activity.sharedByFriend && (
-                            <span
-                              className='w-[10px] h-[10px] rounded-full'
-                              style={{ backgroundColor: friendColor }}
-                            />
-                          )}
+                          <span
+                            className='w-[10px] h-[10px] rounded-full transition-opacity'
+                            style={{
+                              backgroundColor: myColor,
+                              opacity: activity.sharedByMe ? 1 : 0.15,
+                            }}
+                          />
+                          <span className='text-[10px] text-gray-400 dark:text-gray-500 font-light'>
+                            :
+                          </span>
+                          <span
+                            className='w-[10px] h-[10px] rounded-full transition-opacity'
+                            style={{
+                              backgroundColor: friendColor,
+                              opacity: activity.sharedByFriend ? 1 : 0.15,
+                            }}
+                          />
                         </div>
                       </div>
                     ))}
