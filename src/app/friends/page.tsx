@@ -36,7 +36,7 @@ import {
 } from "@/lib/chat";
 
 export default function FriendsPage() {
-  const { user } = useAuth();
+  const { user, profile: myProfile } = useAuth();
   const { activityTypes, setViewingUser } = useApp();
   const { isSubscribed, addSubscription, removeSubscription } =
     useNotifications();
@@ -1118,124 +1118,127 @@ export default function FriendsPage() {
             const friendName =
               sharingOverviewUser.profile?.fullName ||
               sharingOverviewUser.email.split("@")[0];
+            const myName =
+              myProfile?.fullName || user?.email?.split("@")[0] || "You";
+
+            // Assign consistent colors to each user
+            const myColor = "#34C759"; // iOS green
+            const friendColor = "#FF9500"; // iOS orange
+
+            // Build merged activity list with sharing info
+            const allActivitiesMap = new Map<
+              string,
+              { name: string; icon?: string; sharedByFriend: boolean; sharedByMe: boolean }
+            >();
+            overviewSharedActivities.forEach((a) => {
+              allActivitiesMap.set(a.id, {
+                name: a.name,
+                icon: a.icon,
+                sharedByFriend: true,
+                sharedByMe: false,
+              });
+            });
+            mySharedActivityTypes.forEach((a) => {
+              const existing = allActivitiesMap.get(a.id);
+              if (existing) {
+                existing.sharedByMe = true;
+              } else {
+                allActivitiesMap.set(a.id, {
+                  name: a.name,
+                  icon: a.icon,
+                  sharedByFriend: false,
+                  sharedByMe: true,
+                });
+              }
+            });
+            const mergedActivities = Array.from(allActivitiesMap.entries());
 
             return (
-              <div className='space-y-5'>
-                {/* What they share with me */}
-                <div>
-                  <div className='flex items-center gap-2 mb-2.5'>
-                    <svg
-                      viewBox='0 0 24 24'
-                      className='w-4 h-4 text-ios-blue'
-                      fill='none'
-                      stroke='currentColor'
-                      strokeWidth='2'
-                      strokeLinecap='round'
-                      strokeLinejoin='round'>
-                      <polyline points='8 18 12 22 16 18' />
-                      <line x1='12' y1='22' x2='12' y2='9' />
-                    </svg>
-                    <p className='text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
-                      {friendName} shares with you
-                    </p>
-                  </div>
-                  {overviewSharedActivities.length > 0 ? (
-                    <div className='bg-gray-50 dark:bg-gray-800/50 rounded-xl overflow-hidden'>
-                      {overviewSharedActivities.map((activity, i) => (
-                        <div
-                          key={activity.id}
-                          className={cn(
-                            "flex items-center gap-3 px-4 py-2.5",
-                            i < overviewSharedActivities.length - 1 &&
-                              "border-b border-gray-200/60 dark:border-gray-700/60",
-                          )}>
-                          <div className='w-7 h-7 flex items-center justify-center'>
+              <div className='space-y-4'>
+                {/* Color-coded name header */}
+                <div className='flex items-center justify-center gap-3 py-1'>
+                  <span
+                    className='text-[16px] font-semibold'
+                    style={{ color: myColor }}>
+                    {myName}
+                  </span>
+                  <span className='text-[14px] text-gray-400 dark:text-gray-500 font-light'>
+                    :
+                  </span>
+                  <span
+                    className='text-[16px] font-semibold'
+                    style={{ color: friendColor }}>
+                    {friendName}
+                  </span>
+                </div>
+
+                {/* Merged activity list */}
+                {mergedActivities.length > 0 ? (
+                  <div className='bg-gray-50 dark:bg-gray-800/50 rounded-xl overflow-hidden'>
+                    {mergedActivities.map(([id, activity], i) => (
+                      <div
+                        key={id}
+                        className={cn(
+                          "flex items-center gap-3 px-4 py-2.5",
+                          i < mergedActivities.length - 1 &&
+                            "border-b border-gray-200/60 dark:border-gray-700/60",
+                        )}>
+                        <div className='w-7 h-7 flex items-center justify-center'>
+                          {activity.icon && activity.icon in icons ? (
                             <Icon
                               name={activity.icon as IconName}
                               className='w-5 h-5 text-gray-600 dark:text-gray-300'
                             />
-                          </div>
-                          <span className='text-[15px] text-gray-900 dark:text-white flex-1'>
-                            {activity.name}
-                          </span>
+                          ) : (
+                            <span className='text-lg'>📊</span>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className='text-sm text-gray-400 dark:text-gray-500 px-1'>
-                      No activities shared yet
-                    </p>
-                  )}
-                </div>
-
-                {/* What I share with them */}
-                <div>
-                  <div className='flex items-center gap-2 mb-2.5'>
-                    <svg
-                      viewBox='0 0 24 24'
-                      className='w-4 h-4 text-ios-green'
-                      fill='none'
-                      stroke='currentColor'
-                      strokeWidth='2'
-                      strokeLinecap='round'
-                      strokeLinejoin='round'>
-                      <polyline points='16 6 12 2 8 6' />
-                      <line x1='12' y1='2' x2='12' y2='15' />
-                    </svg>
-                    <p className='text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
-                      You share with {friendName}
-                    </p>
+                        <span className='text-[15px] text-gray-900 dark:text-white flex-1'>
+                          {activity.name}
+                        </span>
+                        {/* Colored bullets showing who shares */}
+                        <div className='flex items-center gap-1.5'>
+                          {activity.sharedByMe && (
+                            <span
+                              className='w-[10px] h-[10px] rounded-full'
+                              style={{ backgroundColor: myColor }}
+                            />
+                          )}
+                          {activity.sharedByFriend && (
+                            <span
+                              className='w-[10px] h-[10px] rounded-full'
+                              style={{ backgroundColor: friendColor }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  {mySharedActivityTypes.length > 0 ? (
-                    <div className='bg-gray-50 dark:bg-gray-800/50 rounded-xl overflow-hidden'>
-                      {mySharedActivityTypes.map((activity, i) => (
-                        <div
-                          key={activity.id}
-                          className={cn(
-                            "flex items-center gap-3 px-4 py-2.5",
-                            i < mySharedActivityTypes.length - 1 &&
-                              "border-b border-gray-200/60 dark:border-gray-700/60",
-                          )}>
-                          <div className='w-7 h-7 flex items-center justify-center'>
-                            {activity.icon && activity.icon in icons ? (
-                              <Icon
-                                name={activity.icon as IconName}
-                                className='w-5 h-5 text-gray-600 dark:text-gray-300'
-                              />
-                            ) : (
-                              <span className='text-lg'>📊</span>
-                            )}
-                          </div>
-                          <span className='text-[15px] text-gray-900 dark:text-white flex-1'>
-                            {activity.name}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className='text-sm text-gray-400 dark:text-gray-500 px-1'>
-                      Not sharing any activities
-                    </p>
-                  )}
-                  <button
-                    onClick={() => {
-                      setShowSharingOverview(false);
-                      if (overviewMyShare) {
-                        setSelectedShare({
-                          share: overviewMyShare.share,
-                          viewerEmail: overviewMyShare.viewerEmail,
-                          viewerProfile: overviewMyShare.viewerProfile,
-                        });
-                        setSelectedActivityTypes(
-                          overviewMyShare.share.activityTypeIds,
-                        );
-                        setShowEditShare(true);
-                      }
-                    }}
-                    className='mt-3 w-full py-2.5 rounded-xl bg-ios-blue/10 dark:bg-ios-blue/20 text-ios-blue text-[14px] font-medium active:opacity-70 transition-opacity'>
-                    Edit shared activities
-                  </button>
-                </div>
+                ) : (
+                  <p className='text-sm text-gray-400 dark:text-gray-500 text-center py-4'>
+                    No activities shared yet
+                  </p>
+                )}
+
+                {/* Edit button */}
+                <button
+                  onClick={() => {
+                    setShowSharingOverview(false);
+                    if (overviewMyShare) {
+                      setSelectedShare({
+                        share: overviewMyShare.share,
+                        viewerEmail: overviewMyShare.viewerEmail,
+                        viewerProfile: overviewMyShare.viewerProfile,
+                      });
+                      setSelectedActivityTypes(
+                        overviewMyShare.share.activityTypeIds,
+                      );
+                      setShowEditShare(true);
+                    }
+                  }}
+                  className='w-full py-2.5 rounded-xl bg-ios-blue/10 dark:bg-ios-blue/20 text-ios-blue text-[14px] font-semibold active:scale-[0.98] transition-all'>
+                  Edit shared activities
+                </button>
               </div>
             );
           })()}
@@ -1247,49 +1250,65 @@ export default function FriendsPage() {
         onClose={() => setShowEditShare(false)}
         title='Share Activities'>
         <div className='space-y-4'>
-          <p className='text-sm text-gray-500'>
-            Choose which of your activities{" "}
-            {selectedShare?.viewerProfile?.fullName ||
-              selectedShare?.viewerEmail}{" "}
+          <p className='text-[13px] text-gray-500 dark:text-gray-400 text-center'>
+            Choose which activities{" "}
+            <span className='font-medium text-gray-700 dark:text-gray-300'>
+              {selectedShare?.viewerProfile?.fullName ||
+                selectedShare?.viewerEmail}
+            </span>{" "}
             can see
           </p>
-          <div className='space-y-2 max-h-60 overflow-y-auto'>
-            {activityTypes.map((type) => (
-              <label
-                key={type.id}
-                className='flex items-center gap-3 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg cursor-pointer'>
-                <input
-                  type='checkbox'
-                  checked={selectedActivityTypes.includes(type.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
+          <div className='space-y-1.5 max-h-72 overflow-y-auto'>
+            {activityTypes.map((type) => {
+              const isSelected = selectedActivityTypes.includes(type.id);
+              return (
+                <button
+                  key={type.id}
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedActivityTypes(
+                        selectedActivityTypes.filter((id) => id !== type.id),
+                      );
+                    } else {
                       setSelectedActivityTypes([
                         ...selectedActivityTypes,
                         type.id,
                       ]);
-                    } else {
-                      setSelectedActivityTypes(
-                        selectedActivityTypes.filter((id) => id !== type.id),
-                      );
                     }
                   }}
-                  className='w-5 h-5 rounded text-ios-blue'
-                />
-                {type.icon && (
-                  <Icon
-                    name={type.icon as IconName}
-                    className='w-5 h-5 text-gray-600 dark:text-gray-300'
-                  />
-                )}
-                <span className='text-gray-900 dark:text-white'>
-                  {type.name}
-                </span>
-              </label>
-            ))}
+                  className={cn(
+                    "flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all active:scale-[0.98]",
+                    isSelected
+                      ? "bg-ios-blue/15 dark:bg-ios-blue/25 ring-1.5 ring-ios-blue/40"
+                      : "bg-gray-100 dark:bg-gray-800/60",
+                  )}>
+                  {type.icon && type.icon in icons && (
+                    <Icon
+                      name={type.icon as IconName}
+                      className={cn(
+                        "w-5 h-5 transition-colors",
+                        isSelected
+                          ? "text-ios-blue"
+                          : "text-gray-500 dark:text-gray-400",
+                      )}
+                    />
+                  )}
+                  <span
+                    className={cn(
+                      "text-[15px] font-medium transition-colors",
+                      isSelected
+                        ? "text-ios-blue"
+                        : "text-gray-700 dark:text-gray-300",
+                    )}>
+                    {type.name}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <button
             onClick={handleUpdateShare}
-            className='w-full py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium shadow-lg shadow-ios-blue/30'>
+            className='w-full py-3 rounded-xl bg-ios-blue text-white text-[15px] font-semibold active:scale-[0.98] transition-all shadow-sm'>
             Save
           </button>
         </div>
