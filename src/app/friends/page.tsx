@@ -388,7 +388,6 @@ export default function FriendsPage() {
       setShowEditShare(false);
       setSelectedShare(null);
       await loadData();
-      setShowSharingOverview(true);
     }
   };
 
@@ -1243,7 +1242,6 @@ export default function FriendsPage() {
                 {/* Edit button */}
                 <button
                   onClick={() => {
-                    setShowSharingOverview(false);
                     if (overviewMyShare) {
                       setSelectedShare({
                         share: overviewMyShare.share,
