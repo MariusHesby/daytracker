@@ -670,18 +670,18 @@ export function formatMatchDate(dateStr: string): string {
   const isToday = date.toDateString() === now.toDateString();
   const isTomorrow = date.toDateString() === tomorrow.toDateString();
 
-  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const time = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 
   if (isToday) return `Today ${time}`;
   if (isTomorrow) return `Tomorrow ${time}`;
 
   const daysDiff = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
   if (daysDiff > 0 && daysDiff <= 6) {
-    const dayName = date.toLocaleDateString([], { weekday: 'short' });
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
     return `${dayName} ${time}`;
   }
 
-  return date.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ` ${time}`;
+  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) + ` ${time}`;
 }
 
 // ─── Helper: Get match result ─────────────────────────────────────────

@@ -544,9 +544,10 @@ export default function HomePage() {
                       </span>
                     ) : (
                       <span className='text-[15px] font-medium text-ios-blue'>
-                        {new Date(fixture.date).toLocaleTimeString([], {
+                        {new Date(fixture.date).toLocaleTimeString("en-US", {
                           hour: "2-digit",
                           minute: "2-digit",
+                          hour12: false,
                         })}
                       </span>
                     )}
