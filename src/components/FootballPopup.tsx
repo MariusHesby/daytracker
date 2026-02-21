@@ -55,12 +55,12 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
       const now = Date.now() / 1000;
       setRecentFixtures(
         data.allFixtures
-          .filter((f) => ['FT', 'AET', 'PEN', 'AWD'].includes(f.status.short))
+          .filter((f) => ["FT", "AET", "PEN", "AWD"].includes(f.status.short))
           .slice(-10),
       );
       setUpcomingFixtures(
         data.allFixtures
-          .filter((f) => ['NS', 'PST'].includes(f.status.short))
+          .filter((f) => ["NS", "PST"].includes(f.status.short))
           .slice(0, 10),
       );
     } catch (err) {

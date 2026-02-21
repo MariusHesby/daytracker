@@ -102,7 +102,6 @@ export function StarRating({
   return (
     <div
       ref={containerRef}
-      data-no-swipe
       className={cn(
         "flex gap-1 touch-none select-none",
         wrap && "flex-wrap justify-center",
@@ -112,7 +111,6 @@ export function StarRating({
         <button
           key={star}
           type='button'
-          data-no-swipe
           onClick={() => handleClick(star)}
           onMouseEnter={() => setHovered(star)}
           onMouseLeave={() => setHovered(null)}

@@ -395,13 +395,11 @@ function MinRatingFilter({
     <div className='flex items-center gap-1'>
       <div
         ref={containerRef}
-        data-no-swipe
         className='flex gap-1 touch-none select-none'
         style={{ touchAction: "none" }}>
         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
           <button
             key={star}
-            data-no-swipe
             onClick={() => onChange(star)}
             onMouseEnter={() => setHovered(star)}
             onMouseLeave={() => setHovered(null)}

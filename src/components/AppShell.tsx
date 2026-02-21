@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useState, useEffect, useRef, useCallback } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { IOSTabBar } from "./ios";
 import { SplashScreen } from "./SplashScreen";
@@ -286,7 +286,6 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-const TABS = ["/", "/movies-tv", "/stats", "/friends", "/settings"];
 
 export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
@@ -323,54 +322,13 @@ export function AppShell({ children }: AppShellProps) {
   const pullStartY = useRef<number | null>(null);
   const isPulling = useRef(false);
 
-  // Swipe handling
-  const touchStartX = useRef<number | null>(null);
-  const touchStartY = useRef<number | null>(null);
-  const touchStartTime = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const swipeDisabled = useRef(false); // Track if swipe should be disabled for this touch
-
-  const handleSwipe = useCallback(
-    (direction: "left" | "right") => {
-      const currentIndex = TABS.indexOf(pathname);
-      if (currentIndex === -1) return;
-
-      if (direction === "left" && currentIndex < TABS.length - 1) {
-        const nextTab = TABS[currentIndex + 1];
-        // Block swiping to Friends/Settings while spying
-        if (isSpying && (nextTab === "/friends" || nextTab === "/settings"))
-          return;
-        router.push(nextTab);
-      } else if (direction === "right" && currentIndex > 0) {
-        const prevTab = TABS[currentIndex - 1];
-        if (isSpying && (prevTab === "/friends" || prevTab === "/settings"))
-          return;
-        router.push(prevTab);
-      }
-    },
-    [pathname, router, isSpying],
-  );
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const handleTouchStart = (e: TouchEvent) => {
-      // Check if touch started on an element that should prevent swipe
-      const target = e.target as HTMLElement;
-      if (target.closest("[data-no-swipe]")) {
-        swipeDisabled.current = true;
-        touchStartX.current = null;
-        touchStartY.current = null;
-        touchStartTime.current = null;
-        return;
-      }
-
-      swipeDisabled.current = false;
-      touchStartX.current = e.touches[0].clientX;
-      touchStartY.current = e.touches[0].clientY;
-      touchStartTime.current = Date.now();
-
       // Check if we're at the top of the page for pull-to-refresh
       if (window.scrollY <= 0 && !isRefreshing) {
         pullStartY.current = e.touches[0].clientY;
@@ -379,11 +337,6 @@ export function AppShell({ children }: AppShellProps) {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      // Skip if swipe is disabled for this touch sequence
-      if (swipeDisabled.current) {
-        return;
-      }
-
       // Handle pull-to-refresh
       if (isPulling.current && pullStartY.current !== null && !isRefreshing) {
         const currentY = e.touches[0].clientY;
@@ -406,58 +359,7 @@ export function AppShell({ children }: AppShellProps) {
       }
     };
 
-    const handleTouchEnd = (e: TouchEvent) => {
-      // Skip if swipe is disabled for this touch sequence
-      if (swipeDisabled.current) {
-        touchStartX.current = null;
-        touchStartY.current = null;
-        touchStartTime.current = null;
-        isPulling.current = false;
-        pullStartY.current = null;
-        swipeDisabled.current = false;
-        return;
-      }
-
-      if (
-        touchStartX.current === null ||
-        touchStartY.current === null ||
-        touchStartTime.current === null
-      )
-        return;
-
-      const touchEndX = e.changedTouches[0].clientX;
-      const touchEndY = e.changedTouches[0].clientY;
-      const touchDuration = Date.now() - touchStartTime.current;
-
-      const deltaX = touchEndX - touchStartX.current;
-      const deltaY = touchEndY - touchStartY.current;
-
-      // Calculate velocity (pixels per millisecond)
-      const velocityX = Math.abs(deltaX) / touchDuration;
-
-      // Very responsive swipe detection:
-      // - Only 20px minimum horizontal movement
-      // - Allow diagonal swipes (horizontal just needs to be slightly more than vertical)
-      // - Fast swipes work with just 15px
-      const minSwipeDistance = 20;
-      const minFastSwipeDistance = 15;
-      const fastSwipeVelocity = 0.2; // pixels per ms
-
-      // Much more lenient - horizontal just needs to be equal or greater than vertical
-      const isHorizontalSwipe = Math.abs(deltaX) >= Math.abs(deltaY);
-      const isLongEnough = Math.abs(deltaX) > minSwipeDistance;
-      const isFastEnough =
-        velocityX > fastSwipeVelocity &&
-        Math.abs(deltaX) > minFastSwipeDistance;
-
-      if (isHorizontalSwipe && (isLongEnough || isFastEnough)) {
-        if (deltaX > 0) {
-          handleSwipe("right");
-        } else {
-          handleSwipe("left");
-        }
-      }
-
+    const handleTouchEnd = () => {
       // Handle pull-to-refresh on touch end
       if (isPulling.current && pullDistance > 80) {
         setIsRefreshing(true);
@@ -476,10 +378,6 @@ export function AppShell({ children }: AppShellProps) {
 
       isPulling.current = false;
       pullStartY.current = null;
-
-      touchStartX.current = null;
-      touchStartY.current = null;
-      touchStartTime.current = null;
     };
 
     container.addEventListener("touchstart", handleTouchStart, {
@@ -495,7 +393,7 @@ export function AppShell({ children }: AppShellProps) {
       container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("touchend", handleTouchEnd);
     };
-  }, [handleSwipe, pullDistance, isRefreshing, router]);
+  }, [pullDistance, isRefreshing, router]);
 
   useEffect(() => {
     // Check if user has seen splash before in this session

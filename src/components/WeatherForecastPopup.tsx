@@ -183,7 +183,6 @@ export function WeatherForecastPopup({
 
               {/* Hourly scroll */}
               <div
-                data-no-swipe
                 className='flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide'
                 style={{ touchAction: "pan-x" }}>
                 {displayHours.map((h, i) => {
