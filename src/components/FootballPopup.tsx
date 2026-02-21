@@ -4,13 +4,9 @@ import { useEffect, useState, useCallback } from "react";
 import { IOSModal } from "@/components/ios";
 import {
   getFavoriteTeam,
-  getNextFixture,
-  getLastFixture,
-  getRecentFixtures,
-  getUpcomingFixtures,
+  loadAllTeamData,
   getStandings,
   getTeamStandingsLeague,
-  getLiveFixture,
   formatMatchDate,
   getMatchResult,
   isMatchLive,
@@ -40,6 +36,7 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
   const [standings, setStandings] = useState<StandingEntry[]>([]);
   const [standingsLoaded, setStandingsLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [allFixtures, setAllFixtures] = useState<FootballFixture[]>([]);
 
   const loadData = useCallback(async () => {
     const fav = getFavoriteTeam();
@@ -48,33 +45,29 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
     setIsLoading(true);
 
     try {
-      // Load next, last, and live match in parallel
-      const [next, last, live] = await Promise.all([
-        getNextFixture(fav.team.id),
-        getLastFixture(fav.team.id),
-        getLiveFixture(fav.team.id),
-      ]);
+      const data = await loadAllTeamData(fav.team.id);
+      setNextMatch(data.nextFixture);
+      setLastMatch(data.lastFixture);
+      setLiveMatch(data.liveFixture);
+      setAllFixtures(data.allFixtures);
 
-      setNextMatch(next);
-      setLastMatch(last);
-      setLiveMatch(live);
+      // Derive recent/upcoming from allFixtures
+      const now = Date.now() / 1000;
+      setRecentFixtures(
+        data.allFixtures
+          .filter((f) => ['FT', 'AET', 'PEN', 'AWD'].includes(f.status.short))
+          .slice(-10),
+      );
+      setUpcomingFixtures(
+        data.allFixtures
+          .filter((f) => ['NS', 'PST'].includes(f.status.short))
+          .slice(0, 10),
+      );
     } catch (err) {
       console.error("Error loading football data:", err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
-
-  const loadFixtures = useCallback(async () => {
-    const fav = getFavoriteTeam();
-    if (!fav) return;
-
-    const [recent, upcoming] = await Promise.all([
-      getRecentFixtures(fav.team.id, 10),
-      getUpcomingFixtures(fav.team.id, 10),
-    ]);
-    setRecentFixtures(recent);
-    setUpcomingFixtures(upcoming);
   }, []);
 
   const loadStandings = useCallback(async () => {
@@ -102,19 +95,6 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
   }, [isOpen, loadData]);
 
   useEffect(() => {
-    if (!isOpen || tab !== "fixtures") return;
-    if (recentFixtures.length === 0 && upcomingFixtures.length === 0) {
-      loadFixtures();
-    }
-  }, [
-    isOpen,
-    tab,
-    recentFixtures.length,
-    upcomingFixtures.length,
-    loadFixtures,
-  ]);
-
-  useEffect(() => {
     if (!isOpen || tab !== "table") return;
     if (!standingsLoaded) {
       loadStandings();
@@ -127,8 +107,8 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
     const interval = setInterval(async () => {
       const fav = getFavoriteTeam();
       if (!fav) return;
-      const live = await getLiveFixture(fav.team.id);
-      setLiveMatch(live);
+      const data = await loadAllTeamData(fav.team.id);
+      setLiveMatch(data.liveFixture);
     }, 60000);
     return () => clearInterval(interval);
   }, [isOpen, liveMatch]);

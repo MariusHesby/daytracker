@@ -22,14 +22,12 @@ import {
 } from "@/lib/weather";
 import {
   getFavoriteTeam,
-  getNextFixture,
-  getLiveFixture,
-  getAllSeasonFixtures,
   getMatchResult,
   isMatchLive,
   loadSettingsFromSupabase,
   FavoriteTeamConfig,
   FootballFixture,
+  loadAllTeamData,
 } from "@/lib/football";
 import { FootballPopup } from "@/components/FootballPopup";
 
@@ -122,21 +120,18 @@ export default function HomePage() {
   // Load favorite team and next fixture
   useEffect(() => {
     const loadFootball = async () => {
-      // Sync settings from Supabase first (for cross-device sync)
-      await loadSettingsFromSupabase();
+      // Load Supabase settings in parallel with checking local storage
+      loadSettingsFromSupabase().catch(() => {});
 
       const fav = getFavoriteTeam();
       setFavoriteTeamLocal(fav);
       if (!fav) return;
 
-      const [next, live, allFixtures] = await Promise.all([
-        getNextFixture(fav.team.id),
-        getLiveFixture(fav.team.id),
-        getAllSeasonFixtures(fav.team.id),
-      ]);
-      setNextFixture(next);
-      setLiveFixture(live);
-      setSeasonFixtures(allFixtures);
+      // Single bulk call gets everything
+      const data = await loadAllTeamData(fav.team.id);
+      setNextFixture(data.nextFixture);
+      setLiveFixture(data.liveFixture);
+      setSeasonFixtures(data.allFixtures);
     };
 
     loadFootball();

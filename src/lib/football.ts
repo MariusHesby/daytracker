@@ -220,7 +220,7 @@ function clearCache(): void {
 
 // Simple request queue to avoid flooding the API
 let lastRequestTime = 0;
-const MIN_REQUEST_GAP = 800; // ms between requests
+const MIN_REQUEST_GAP = 150; // ms between requests
 
 async function apiFetch<T>(endpoint: string, params: Record<string, string | number> = {}, retries = 2): Promise<T | null> {
   // Throttle: ensure minimum gap between requests
@@ -602,6 +602,67 @@ export async function getAllSeasonFixtures(teamId: number): Promise<FootballFixt
 
   setCache(cacheKey, unique, 60 * 2); // 2h cache
   return unique;
+}
+
+// ─── Bulk Load All Team Data (single API call) ───────────────────────
+
+export interface TeamMatchData {
+  nextFixture: FootballFixture | null;
+  lastFixture: FootballFixture | null;
+  liveFixture: FootballFixture | null;
+  allFixtures: FootballFixture[];
+}
+
+export async function loadAllTeamData(teamId: number): Promise<TeamMatchData> {
+  const cacheKey = `all_team_data_${teamId}`;
+  const cached = getCache<TeamMatchData>(cacheKey);
+  if (cached) {
+    // Even with cache, check for live matches separately (short TTL)
+    const liveData = await apiFetch<{ matches: FDMatchRaw[] }>(`/teams/${teamId}/matches`, {
+      status: 'IN_PLAY,PAUSED',
+      limit: 1,
+    });
+    if (liveData?.matches?.length) {
+      cached.liveFixture = normalizeMatch(liveData.matches[0]);
+    }
+    return cached;
+  }
+
+  // Single API call to get ALL matches for the team this season
+  const data = await apiFetch<{ matches: FDMatchRaw[] }>(`/teams/${teamId}/matches`);
+
+  if (!data?.matches) {
+    return { nextFixture: null, lastFixture: null, liveFixture: null, allFixtures: [] };
+  }
+
+  const allNormalized = data.matches.map(normalizeMatch).sort((a, b) => a.timestamp - b.timestamp);
+  const now = Date.now() / 1000;
+
+  // Derive everything from the single response
+  const finished = allNormalized.filter(f => ['FT', 'AET', 'PEN', 'AWD'].includes(f.status.short));
+  const scheduled = allNormalized.filter(f => ['NS', 'PST'].includes(f.status.short));
+  const live = allNormalized.filter(f => ['2H', 'HT', '1H', 'ET', 'PEN', 'BT'].includes(f.status.short) || (f.status.elapsed !== null && !['FT', 'AET', 'NS'].includes(f.status.short)));
+
+  const result: TeamMatchData = {
+    nextFixture: scheduled.length > 0 ? scheduled[0] : null,
+    lastFixture: finished.length > 0 ? finished[finished.length - 1] : null,
+    liveFixture: live.length > 0 ? live[0] : null,
+    allFixtures: allNormalized,
+  };
+
+  // Cache for 30 min (all static data), live check is done separately above
+  setCache(cacheKey, result, 30);
+
+  // Also populate individual caches for backward compat
+  if (result.nextFixture) {
+    const msUntilMatch = result.nextFixture.timestamp * 1000 - Date.now();
+    const ttlMin = Math.max(30, Math.min(60 * 24, msUntilMatch / 60000));
+    setCache(`next_fixture_${teamId}`, result.nextFixture, ttlMin);
+  }
+  if (result.lastFixture) setCache(`last_fixture_${teamId}`, result.lastFixture, 60 * 4);
+  setCache(`all_season_fixtures_${teamId}`, allNormalized, 60 * 2);
+
+  return result;
 }
 
 // ─── Get Live Fixture ─────────────────────────────────────────────────
