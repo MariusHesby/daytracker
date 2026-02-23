@@ -269,8 +269,8 @@ export default function HomePage() {
               className='relative overflow-hidden rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
               {/* Weather emoji - large background on right side */}
               {weather && !isViewingOther && locationName && (
-                <div className='absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none select-none'>
-                  <span className='leading-none text-[66px]'>
+                <div className='absolute right-7 top-1/2 -translate-y-1/2 pointer-events-none select-none'>
+                  <span className='leading-none text-[56px]'>
                     {
                       getWeatherCondition(weather.weatherCode, weather.isDay)
                         .icon

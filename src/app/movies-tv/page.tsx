@@ -1587,21 +1587,35 @@ export default function MoviesPage() {
               />
             ))}
             {/* Drag and drop hint */}
-            {showWatchlist && !isViewingOther && mediaEntries.length > 1 && !hideDragHint && (
-              <div className='flex items-center justify-between px-4 py-3 bg-gray-100/80 dark:bg-gray-800/50 rounded-xl'>
-                <span className='text-[13px] text-gray-400 dark:text-gray-500'>💡 Hold and drag items to reorder your watchlist</span>
-                <button
-                  onClick={() => {
-                    setHideDragHint(true);
-                    localStorage.setItem('movies-hide-drag-hint', 'true');
-                  }}
-                  className='p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'>
-                  <svg className='w-4 h-4' fill='none' viewBox='0 0 24 24' strokeWidth={2} stroke='currentColor'>
-                    <path strokeLinecap='round' strokeLinejoin='round' d='M6 18L18 6M6 6l12 12' />
-                  </svg>
-                </button>
-              </div>
-            )}
+            {showWatchlist &&
+              !isViewingOther &&
+              mediaEntries.length > 1 &&
+              !hideDragHint && (
+                <div className='flex items-center justify-between px-4 py-3 bg-gray-100/80 dark:bg-gray-800/50 rounded-xl'>
+                  <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                    💡 Hold and drag items to reorder your watchlist
+                  </span>
+                  <button
+                    onClick={() => {
+                      setHideDragHint(true);
+                      localStorage.setItem("movies-hide-drag-hint", "true");
+                    }}
+                    className='p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'>
+                    <svg
+                      className='w-4 h-4'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      strokeWidth={2}
+                      stroke='currentColor'>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M6 18L18 6M6 6l12 12'
+                      />
+                    </svg>
+                  </button>
+                </div>
+              )}
           </div>
         )}
       </main>
