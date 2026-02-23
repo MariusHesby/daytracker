@@ -1081,16 +1081,16 @@ export default function SettingsPage() {
                   <svg
                     className={cn(
                       "w-5 h-5 text-gray-400 transition-transform duration-200",
-                      nutritionMergeExpanded && "rotate-180",
+                      nutritionMergeExpanded && "rotate-90",
                     )}
                     fill='none'
                     viewBox='0 0 24 24'
-                    strokeWidth={2}
-                    stroke='currentColor'>
+                    stroke='currentColor'
+                    strokeWidth={2}>
                     <path
                       strokeLinecap='round'
                       strokeLinejoin='round'
-                      d='M19.5 8.25l-7.5 7.5-7.5-7.5'
+                      d='M9 5l7 7-7 7'
                     />
                   </svg>
                 </button>
@@ -1560,16 +1560,16 @@ export default function SettingsPage() {
               <svg
                 className={cn(
                   "w-5 h-5 text-gray-400 transition-transform",
-                  funFactsExpanded && "rotate-180",
+                  funFactsExpanded && "rotate-90",
                 )}
                 fill='none'
                 viewBox='0 0 24 24'
-                strokeWidth={2}
-                stroke='currentColor'>
+                stroke='currentColor'
+                strokeWidth={2}>
                 <path
                   strokeLinecap='round'
                   strokeLinejoin='round'
-                  d='M19.5 8.25l-7.5 7.5-7.5-7.5'
+                  d='M9 5l7 7-7 7'
                 />
               </svg>
             </button>

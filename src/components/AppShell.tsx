@@ -330,7 +330,7 @@ export function AppShell({ children }: AppShellProps) {
     const handleTouchStart = (e: TouchEvent) => {
       // Check if touch started inside a scrollable container (e.g. chat messages)
       const target = e.target as HTMLElement;
-      const scrollableParent = target.closest('[data-scrollable]');
+      const scrollableParent = target.closest("[data-scrollable]");
       if (scrollableParent) {
         // Don't activate pull-to-refresh when inside a scrollable area
         isPulling.current = false;
