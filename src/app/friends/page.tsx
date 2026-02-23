@@ -884,6 +884,7 @@ export default function FriendsPage() {
                           {/* Messages */}
                           <div
                             ref={chatScrollRef}
+                            data-scrollable
                             className='max-h-72 overflow-y-auto px-3 py-3 space-y-1'>
                             {(chatMessages[sharedUser.id] || []).length ===
                             0 ? (
