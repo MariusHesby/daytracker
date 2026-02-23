@@ -269,8 +269,8 @@ export default function HomePage() {
               className='relative overflow-hidden rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
               {/* Weather emoji - large background on right side */}
               {weather && !isViewingOther && locationName && (
-                <div className='absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none select-none'>
-                  <span className='leading-none opacity-[0.25] dark:opacity-[0.22] text-[66px]'>
+                <div className='absolute right-10 top-1/2 -translate-y-1/2 pointer-events-none select-none'>
+                  <span className='leading-none text-[66px]'>
                     {
                       getWeatherCondition(weather.weatherCode, weather.isDay)
                         .icon
@@ -334,7 +334,7 @@ export default function HomePage() {
         {/* Football Section removed - shown as matchday activity below */}
 
         {/* Action buttons row */}
-        <div className='px-4 flex items-center justify-between'>
+        <div className='px-4 pt-3 flex items-center justify-between'>
           {/* Left side - Unlocked days (no background) */}
           {user && !isViewingOther && (
             <div className='flex items-center gap-4 ml-1'>
@@ -351,7 +351,7 @@ export default function HomePage() {
                 }`}
                 title={`${unlockedDays.length} unlocked ${unlockedDays.length === 1 ? "day" : "days"}`}>
                 <svg
-                  className='w-5 h-5'
+                  className='w-6 h-6'
                   fill='none'
                   viewBox='0 0 24 24'
                   stroke='currentColor'
@@ -389,7 +389,7 @@ export default function HomePage() {
               }>
               {viewMode === "list" ? (
                 <svg
-                  className='w-5 h-5 text-gray-500 dark:text-gray-400'
+                  className='w-6 h-6 text-gray-500 dark:text-gray-400'
                   fill='none'
                   viewBox='0 0 24 24'
                   strokeWidth={1.5}
@@ -402,7 +402,7 @@ export default function HomePage() {
                 </svg>
               ) : (
                 <svg
-                  className='w-5 h-5 text-gray-500 dark:text-gray-400'
+                  className='w-6 h-6 text-gray-500 dark:text-gray-400'
                   fill='none'
                   viewBox='0 0 24 24'
                   strokeWidth={1.5}

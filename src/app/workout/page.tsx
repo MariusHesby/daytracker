@@ -331,19 +331,26 @@ function WorkoutPageContent() {
   };
 
   // Touch drag handlers for exercise reordering
-  const handleDragTouchStart = (exerciseName: string, index: number, y: number) => {
+  const handleDragTouchStart = (
+    exerciseName: string,
+    index: number,
+    y: number,
+  ) => {
     setDraggedExercise(exerciseName);
     dragStartY.current = y;
     draggedIndex.current = index;
   };
 
-  const handleDragTouchMove = (y: number, exerciseElements: NodeListOf<Element>) => {
+  const handleDragTouchMove = (
+    y: number,
+    exerciseElements: NodeListOf<Element>,
+  ) => {
     if (draggedExercise === null) return;
     // Find which exercise the touch is over
     exerciseElements.forEach((el, i) => {
       const rect = el.getBoundingClientRect();
       if (y >= rect.top && y <= rect.bottom) {
-        const name = el.getAttribute('data-exercise-name');
+        const name = el.getAttribute("data-exercise-name");
         if (name && name !== draggedExercise) {
           setDragOverExercise(name);
         }
@@ -354,8 +361,8 @@ function WorkoutPageContent() {
   const handleDragTouchEnd = () => {
     if (draggedExercise && dragOverExercise) {
       const allExercises = workoutType?.customExercises || [];
-      const fromIdx = allExercises.findIndex(e => e.name === draggedExercise);
-      const toIdx = allExercises.findIndex(e => e.name === dragOverExercise);
+      const fromIdx = allExercises.findIndex((e) => e.name === draggedExercise);
+      const toIdx = allExercises.findIndex((e) => e.name === dragOverExercise);
       if (fromIdx !== -1 && toIdx !== -1) {
         handleReorderExercises(fromIdx, toIdx);
       }
@@ -713,12 +720,12 @@ function WorkoutPageContent() {
             <button
               onClick={() => setRemoveMode(!removeMode)}
               className={cn(
-                'px-4 py-2.5 rounded-full text-[13px] font-medium active:scale-[0.98] transition-all',
+                "px-4 py-2.5 rounded-full text-[13px] font-medium active:scale-[0.98] transition-all",
                 removeMode
-                  ? 'text-ios-red'
-                  : 'text-gray-400 dark:text-gray-500',
+                  ? "text-ios-red"
+                  : "text-gray-400 dark:text-gray-500",
               )}>
-              {removeMode ? 'Done' : 'Remove'}
+              {removeMode ? "Done" : "Remove"}
             </button>
           )}
         </div>
@@ -754,25 +761,31 @@ function WorkoutPageContent() {
                   onDragStart={(e) => {
                     setDraggedExercise(exercise.name);
                     draggedIndex.current = index;
-                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.effectAllowed = "move";
                   }}
                   onDragOver={(e) => {
                     e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
+                    e.dataTransfer.dropEffect = "move";
                     if (draggedExercise && exercise.name !== draggedExercise) {
                       setDragOverExercise(exercise.name);
                     }
                   }}
                   onDragLeave={() => {
-                    if (dragOverExercise === exercise.name) setDragOverExercise(null);
+                    if (dragOverExercise === exercise.name)
+                      setDragOverExercise(null);
                   }}
                   onDrop={(e) => {
                     e.preventDefault();
                     if (draggedExercise) {
                       const allExercises = workoutType?.customExercises || [];
-                      const fromIdx = allExercises.findIndex(ex => ex.name === draggedExercise);
-                      const toIdx = allExercises.findIndex(ex => ex.name === exercise.name);
-                      if (fromIdx !== -1 && toIdx !== -1) handleReorderExercises(fromIdx, toIdx);
+                      const fromIdx = allExercises.findIndex(
+                        (ex) => ex.name === draggedExercise,
+                      );
+                      const toIdx = allExercises.findIndex(
+                        (ex) => ex.name === exercise.name,
+                      );
+                      if (fromIdx !== -1 && toIdx !== -1)
+                        handleReorderExercises(fromIdx, toIdx);
                     }
                     setDraggedExercise(null);
                     setDragOverExercise(null);
@@ -787,22 +800,27 @@ function WorkoutPageContent() {
                     const timeout = setTimeout(() => {
                       handleDragTouchStart(exercise.name, index, touch.clientY);
                     }, 400);
-                    (e.currentTarget as HTMLElement).dataset.dragTimeout = String(timeout);
+                    (e.currentTarget as HTMLElement).dataset.dragTimeout =
+                      String(timeout);
                   }}
                   onTouchMove={(e) => {
                     if (draggedExercise) {
                       e.preventDefault();
                       const touch = e.touches[0];
-                      const list = document.querySelectorAll('[data-exercise-name]');
+                      const list = document.querySelectorAll(
+                        "[data-exercise-name]",
+                      );
                       handleDragTouchMove(touch.clientY, list);
                     } else {
                       // Cancel long-press if user is scrolling
-                      const timeout = (e.currentTarget as HTMLElement).dataset.dragTimeout;
+                      const timeout = (e.currentTarget as HTMLElement).dataset
+                        .dragTimeout;
                       if (timeout) clearTimeout(Number(timeout));
                     }
                   }}
                   onTouchEnd={(e) => {
-                    const timeout = (e.currentTarget as HTMLElement).dataset.dragTimeout;
+                    const timeout = (e.currentTarget as HTMLElement).dataset
+                      .dragTimeout;
                     if (timeout) clearTimeout(Number(timeout));
                     if (draggedExercise) {
                       handleDragTouchEnd();
@@ -812,79 +830,85 @@ function WorkoutPageContent() {
                     "transition-all",
                     isExpanded && "bg-gray-50 dark:bg-gray-800/50",
                     draggedExercise === exercise.name && "opacity-50",
-                    dragOverExercise === exercise.name && "border-t-2 border-ios-blue",
+                    dragOverExercise === exercise.name &&
+                      "border-t-2 border-ios-blue",
                   )}>
                   {/* Exercise Header */}
-                  <div className={cn(
-                    "w-full px-4 flex items-center",
-                    compactView ? "min-h-[44px]" : "min-h-[56px] py-2",
-                  )}>
+                  <div
+                    className={cn(
+                      "w-full px-4 flex items-center",
+                      compactView ? "min-h-[44px]" : "min-h-[56px] py-2",
+                    )}>
                     {/* Remove mode: red minus button */}
                     {removeMode && (
                       <button
                         onClick={() => handleDeleteExercise(exercise.name)}
                         className='mr-2 shrink-0 w-6 h-6 rounded-full bg-ios-red flex items-center justify-center active:scale-90 transition-transform'>
-                        <span className='text-white text-[16px] font-bold leading-none'>−</span>
+                        <span className='text-white text-[16px] font-bold leading-none'>
+                          −
+                        </span>
                       </button>
                     )}
                     <button
-                      onClick={() => !removeMode && toggleExercise(exercise.name)}
+                      onClick={() =>
+                        !removeMode && toggleExercise(exercise.name)
+                      }
                       className={cn(
                         "flex-1 flex items-center active:bg-gray-100 dark:active:bg-gray-700",
                         removeMode && "pointer-events-auto",
                       )}>
-                    <div
-                      className={cn(
-                        "flex items-center justify-center mr-3 shrink-0",
-                        compactView ? "w-8 h-8" : "w-10 h-10",
-                      )}>
-                      {exercise.category === "cardio" ? (
-                        <Heart
+                      <div
+                        className={cn(
+                          "flex items-center justify-center mr-3 shrink-0",
+                          compactView ? "w-8 h-8" : "w-10 h-10",
+                        )}>
+                        {exercise.category === "cardio" ? (
+                          <Heart
+                            className={cn(
+                              compactView ? "w-6 h-6" : "w-7 h-7",
+                              hasData ? "text-ios-green" : "text-ios-red",
+                            )}
+                          />
+                        ) : (
+                          <Dumbbell
+                            className={cn(
+                              compactView ? "w-6 h-6" : "w-7 h-7",
+                              hasData
+                                ? "text-ios-green"
+                                : "text-gray-600 dark:text-gray-300",
+                            )}
+                          />
+                        )}
+                      </div>
+                      <div className='flex-1 text-left'>
+                        <span
+                          className={cn(
+                            "font-medium block",
+                            compactView ? "text-[17px]" : "text-[19px]",
+                            hasData
+                              ? "text-ios-green"
+                              : "text-gray-900 dark:text-white",
+                          )}>
+                          {exercise.name}
+                        </span>
+                      </div>
+                      {hasData ? (
+                        <Check
                           className={cn(
                             compactView ? "w-6 h-6" : "w-7 h-7",
-                            hasData ? "text-ios-green" : "text-ios-red",
+                            "text-ios-green",
                           )}
                         />
                       ) : (
-                        <Dumbbell
+                        <ChevronRight
                           className={cn(
-                            compactView ? "w-6 h-6" : "w-7 h-7",
-                            hasData
-                              ? "text-ios-green"
-                              : "text-gray-600 dark:text-gray-300",
+                            "text-gray-400 transition-transform",
+                            compactView ? "w-5 h-5" : "w-6 h-6",
+                            isExpanded && "rotate-90",
                           )}
                         />
                       )}
-                    </div>
-                    <div className='flex-1 text-left'>
-                      <span
-                        className={cn(
-                          "font-medium block",
-                          compactView ? "text-[17px]" : "text-[19px]",
-                          hasData
-                            ? "text-ios-green"
-                            : "text-gray-900 dark:text-white",
-                        )}>
-                        {exercise.name}
-                      </span>
-                    </div>
-                    {hasData ? (
-                      <Check
-                        className={cn(
-                          compactView ? "w-6 h-6" : "w-7 h-7",
-                          "text-ios-green",
-                        )}
-                      />
-                    ) : (
-                      <ChevronRight
-                        className={cn(
-                          "text-gray-400 transition-transform",
-                          compactView ? "w-5 h-5" : "w-6 h-6",
-                          isExpanded && "rotate-90",
-                        )}
-                      />
-                    )}
-                  </button>
+                    </button>
                   </div>
 
                   {/* Expanded Content */}
@@ -1122,12 +1146,14 @@ function WorkoutPageContent() {
         {displayedExercises.length > 1 && !hideDragHint && (
           <div className='flex items-center justify-between px-4 py-3 bg-gray-100/80 dark:bg-gray-800/50 rounded-xl'>
             <div className='flex items-center gap-2'>
-              <span className='text-[13px] text-gray-400 dark:text-gray-500'>💡 Hold and drag exercises to reorder them</span>
+              <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                💡 Hold and drag exercises to reorder them
+              </span>
             </div>
             <button
               onClick={() => {
                 setHideDragHint(true);
-                localStorage.setItem('workout-hide-drag-hint', 'true');
+                localStorage.setItem("workout-hide-drag-hint", "true");
               }}
               className='p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'>
               <X className='w-4 h-4' />
