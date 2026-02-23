@@ -286,7 +286,6 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-
 export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();

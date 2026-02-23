@@ -76,6 +76,7 @@ function WorkoutPageContent() {
   const [showAddRoutine, setShowAddRoutine] = useState(false);
   const [showManageRoutines, setShowManageRoutines] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [removeMode, setRemoveMode] = useState(false);
   const [editingRoutine, setEditingRoutine] = useState<WorkoutRoutine | null>(
     null,
   );
@@ -97,6 +98,18 @@ function WorkoutPageContent() {
   const [newRoutineColor, setNewRoutineColor] = useState(ROUTINE_COLORS[0]);
   const [selectedExercisesForRoutine, setSelectedExercisesForRoutine] =
     useState<string[]>([]);
+
+  // Drag-and-drop hint
+  const [hideDragHint, setHideDragHint] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("workout-hide-drag-hint") === "true";
+  });
+
+  // Drag-and-drop state
+  const [draggedExercise, setDraggedExercise] = useState<string | null>(null);
+  const [dragOverExercise, setDragOverExercise] = useState<string | null>(null);
+  const dragStartY = useRef<number | null>(null);
+  const draggedIndex = useRef<number | null>(null);
 
   // Workout state
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(
@@ -303,6 +316,54 @@ function WorkoutPageContent() {
         (e) => e.name.toLowerCase() !== name.toLowerCase(),
       ),
     });
+  };
+
+  // Reorder exercises (drag and drop)
+  const handleReorderExercises = async (fromIndex: number, toIndex: number) => {
+    if (!workoutType || fromIndex === toIndex) return;
+    const reordered = [...(workoutType.customExercises || [])];
+    const [moved] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, moved);
+    await updateActivityType({
+      ...workoutType,
+      customExercises: reordered,
+    });
+  };
+
+  // Touch drag handlers for exercise reordering
+  const handleDragTouchStart = (exerciseName: string, index: number, y: number) => {
+    setDraggedExercise(exerciseName);
+    dragStartY.current = y;
+    draggedIndex.current = index;
+  };
+
+  const handleDragTouchMove = (y: number, exerciseElements: NodeListOf<Element>) => {
+    if (draggedExercise === null) return;
+    // Find which exercise the touch is over
+    exerciseElements.forEach((el, i) => {
+      const rect = el.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom) {
+        const name = el.getAttribute('data-exercise-name');
+        if (name && name !== draggedExercise) {
+          setDragOverExercise(name);
+        }
+      }
+    });
+  };
+
+  const handleDragTouchEnd = () => {
+    if (draggedExercise && dragOverExercise) {
+      const allExercises = workoutType?.customExercises || [];
+      const fromIdx = allExercises.findIndex(e => e.name === draggedExercise);
+      const toIdx = allExercises.findIndex(e => e.name === dragOverExercise);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        handleReorderExercises(fromIdx, toIdx);
+      }
+    }
+    setDraggedExercise(null);
+    setDragOverExercise(null);
+    dragStartY.current = null;
+    draggedIndex.current = null;
   };
 
   // Add routine
@@ -640,13 +701,27 @@ function WorkoutPageContent() {
 
       {/* Content */}
       <div className='px-4 py-4 space-y-4'>
-        {/* Add Exercise Button */}
-        <button
-          onClick={() => setShowAddExercise(true)}
-          className='w-full py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium flex items-center justify-center gap-2 shadow-lg shadow-ios-blue/30 active:scale-[0.98] transition-all'>
-          <Plus className='w-4 h-4' />
-          Add Exercise
-        </button>
+        {/* Add Exercise + Remove Exercise Row */}
+        <div className='flex items-center gap-2'>
+          <button
+            onClick={() => setShowAddExercise(true)}
+            className='flex-1 py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium flex items-center justify-center gap-2 shadow-lg shadow-ios-blue/30 active:scale-[0.98] transition-all'>
+            <Plus className='w-4 h-4' />
+            Add Exercise
+          </button>
+          {exercises.length > 0 && (
+            <button
+              onClick={() => setRemoveMode(!removeMode)}
+              className={cn(
+                'px-4 py-2.5 rounded-full text-[13px] font-medium active:scale-[0.98] transition-all',
+                removeMode
+                  ? 'text-ios-red'
+                  : 'text-gray-400 dark:text-gray-500',
+              )}>
+              {removeMode ? 'Done' : 'Remove'}
+            </button>
+          )}
+        </div>
 
         {/* Empty State */}
         {exercises.length === 0 && (
@@ -674,17 +749,90 @@ function WorkoutPageContent() {
               return (
                 <div
                   key={`${exercise.name}-${index}`}
+                  data-exercise-name={exercise.name}
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggedExercise(exercise.name);
+                    draggedIndex.current = index;
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (draggedExercise && exercise.name !== draggedExercise) {
+                      setDragOverExercise(exercise.name);
+                    }
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverExercise === exercise.name) setDragOverExercise(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedExercise) {
+                      const allExercises = workoutType?.customExercises || [];
+                      const fromIdx = allExercises.findIndex(ex => ex.name === draggedExercise);
+                      const toIdx = allExercises.findIndex(ex => ex.name === exercise.name);
+                      if (fromIdx !== -1 && toIdx !== -1) handleReorderExercises(fromIdx, toIdx);
+                    }
+                    setDraggedExercise(null);
+                    setDragOverExercise(null);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedExercise(null);
+                    setDragOverExercise(null);
+                  }}
+                  onTouchStart={(e) => {
+                    // Long-press to initiate drag on mobile
+                    const touch = e.touches[0];
+                    const timeout = setTimeout(() => {
+                      handleDragTouchStart(exercise.name, index, touch.clientY);
+                    }, 400);
+                    (e.currentTarget as HTMLElement).dataset.dragTimeout = String(timeout);
+                  }}
+                  onTouchMove={(e) => {
+                    if (draggedExercise) {
+                      e.preventDefault();
+                      const touch = e.touches[0];
+                      const list = document.querySelectorAll('[data-exercise-name]');
+                      handleDragTouchMove(touch.clientY, list);
+                    } else {
+                      // Cancel long-press if user is scrolling
+                      const timeout = (e.currentTarget as HTMLElement).dataset.dragTimeout;
+                      if (timeout) clearTimeout(Number(timeout));
+                    }
+                  }}
+                  onTouchEnd={(e) => {
+                    const timeout = (e.currentTarget as HTMLElement).dataset.dragTimeout;
+                    if (timeout) clearTimeout(Number(timeout));
+                    if (draggedExercise) {
+                      handleDragTouchEnd();
+                    }
+                  }}
                   className={cn(
                     "transition-all",
                     isExpanded && "bg-gray-50 dark:bg-gray-800/50",
+                    draggedExercise === exercise.name && "opacity-50",
+                    dragOverExercise === exercise.name && "border-t-2 border-ios-blue",
                   )}>
                   {/* Exercise Header */}
-                  <button
-                    onClick={() => toggleExercise(exercise.name)}
-                    className={cn(
-                      "w-full px-4 flex items-center active:bg-gray-100 dark:active:bg-gray-700",
-                      compactView ? "min-h-[44px]" : "min-h-[56px] py-2",
-                    )}>
+                  <div className={cn(
+                    "w-full px-4 flex items-center",
+                    compactView ? "min-h-[44px]" : "min-h-[56px] py-2",
+                  )}>
+                    {/* Remove mode: red minus button */}
+                    {removeMode && (
+                      <button
+                        onClick={() => handleDeleteExercise(exercise.name)}
+                        className='mr-2 shrink-0 w-6 h-6 rounded-full bg-ios-red flex items-center justify-center active:scale-90 transition-transform'>
+                        <span className='text-white text-[16px] font-bold leading-none'>−</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => !removeMode && toggleExercise(exercise.name)}
+                      className={cn(
+                        "flex-1 flex items-center active:bg-gray-100 dark:active:bg-gray-700",
+                        removeMode && "pointer-events-auto",
+                      )}>
                     <div
                       className={cn(
                         "flex items-center justify-center mr-3 shrink-0",
@@ -737,6 +885,7 @@ function WorkoutPageContent() {
                       />
                     )}
                   </button>
+                  </div>
 
                   {/* Expanded Content */}
                   {isExpanded && (
@@ -950,22 +1099,39 @@ function WorkoutPageContent() {
                         Add Set
                       </button>
 
-                      {/* Delete Exercise */}
+                      {/* Close Exercise */}
                       <button
-                        onClick={() => handleDeleteExercise(exercise.name)}
+                        onClick={() => toggleExercise(exercise.name)}
                         className={cn(
-                          "w-full text-ios-red font-medium",
+                          "w-full text-gray-500 dark:text-gray-400 font-medium",
                           compactView
                             ? "py-1 text-[13px]"
                             : "py-1.5 text-[14px]",
                         )}>
-                        Delete Exercise
+                        Close
                       </button>
                     </div>
                   )}
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Drag & Drop Hint */}
+        {displayedExercises.length > 1 && !hideDragHint && (
+          <div className='flex items-center justify-between px-4 py-3 bg-gray-100/80 dark:bg-gray-800/50 rounded-xl'>
+            <div className='flex items-center gap-2'>
+              <span className='text-[13px] text-gray-400 dark:text-gray-500'>💡 Hold and drag exercises to reorder them</span>
+            </div>
+            <button
+              onClick={() => {
+                setHideDragHint(true);
+                localStorage.setItem('workout-hide-drag-hint', 'true');
+              }}
+              className='p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300'>
+              <X className='w-4 h-4' />
+            </button>
           </div>
         )}
 
