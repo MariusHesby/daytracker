@@ -5,6 +5,7 @@ import { supabase } from './supabase';
 
 const STORAGE_KEY = 'news_sources';
 const CACHE_PREFIX = 'news_cache_';
+const HIDDEN_PREFIX = 'news_hidden_';
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 export interface NewsSource {
@@ -26,9 +27,12 @@ interface NewsCache {
 
 // ─── Display helpers ─────────────────────────────────────
 
-/** Strip protocol + "www." for display, e.g. "www.tek.no" → "tek.no" */
+/** Strip protocol + "www." + path for display, e.g. "https://www.filmweb.no/filmnytt" → "filmweb.no" */
 export function formatSourceName(url: string): string {
-  return url.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
+  const stripped = url.replace(/^https?:\/\//, '').replace(/^www\./, '');
+  // Return only the domain (everything before the first /)
+  const domain = stripped.split('/')[0];
+  return domain;
 }
 
 // ─── Config management ───────────────────────────────────
@@ -143,22 +147,62 @@ export async function loadNewsFromSupabase(): Promise<void> {
   }
 }
 
+// ─── Hidden headlines ────────────────────────────────────
+
+function hiddenKeyFor(url: string): string {
+  return HIDDEN_PREFIX + url.trim().toLowerCase().replace(/\/$/, '');
+}
+
+/** Get the set of hidden article links for a source */
+export function getHiddenHeadlines(sourceUrl: string): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(hiddenKeyFor(sourceUrl));
+    if (!stored) return new Set();
+    return new Set(JSON.parse(stored));
+  } catch {
+    return new Set();
+  }
+}
+
+/** Hide a specific headline (by link) for a source */
+export function hideHeadline(sourceUrl: string, articleLink: string): void {
+  const hidden = getHiddenHeadlines(sourceUrl);
+  hidden.add(articleLink);
+  localStorage.setItem(hiddenKeyFor(sourceUrl), JSON.stringify([...hidden]));
+}
+
+/** Reset hidden headlines for a source (show all latest again) */
+export function resetHiddenHeadlines(sourceUrl: string): void {
+  localStorage.removeItem(hiddenKeyFor(sourceUrl));
+  // Also clear cache so fresh articles are fetched
+  localStorage.removeItem(cacheKeyFor(sourceUrl));
+}
+
 // ─── Fetch news ──────────────────────────────────────────
 
-/** Fetch headlines for a single source */
+/** Fetch headlines for a single source, filtering out hidden ones */
 export async function fetchNewsForSource(source: NewsSource): Promise<NewsItem[]> {
   if (!source.url) return [];
 
+  const hidden = getHiddenHeadlines(source.url);
+  // Request extra articles to backfill hidden ones
+  const fetchCount = source.count + hidden.size + 10;
+
   const cached = getCachedNews(source.url);
-  if (cached) return cached.slice(0, source.count);
+  if (cached) {
+    const filtered = cached.filter(item => !hidden.has(item.link));
+    return filtered.slice(0, source.count);
+  }
 
   try {
-    const res = await fetch(`/api/news?url=${encodeURIComponent(source.url)}&count=${source.count}`);
+    const res = await fetch(`/api/news?url=${encodeURIComponent(source.url)}&count=${fetchCount}`);
     if (!res.ok) return [];
     const data = await res.json();
     const items: NewsItem[] = data.items || [];
     setCachedNews(source.url, items);
-    return items.slice(0, source.count);
+    const filtered = items.filter(item => !hidden.has(item.link));
+    return filtered.slice(0, source.count);
   } catch {
     return [];
   }

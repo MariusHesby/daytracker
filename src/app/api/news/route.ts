@@ -38,11 +38,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Decode HTML entities in image URLs (RSS feeds often have &amp; etc.)
+    // Decode HTML entities in all fields (titles, links, images)
     for (const item of items) {
-      if (item.image) {
-        item.image = decodeEntities(item.image);
-      }
+      item.title = decodeEntities(item.title);
+      if (item.link) item.link = decodeEntities(item.link);
+      if (item.image) item.image = decodeEntities(item.image);
     }
 
     return NextResponse.json({ items });
@@ -239,9 +239,17 @@ function decodeEntities(text: string): string {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
     .replace(/&#39;/g, "'")
     .replace(/&#x27;/g, "'")
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)));
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&ndash;/g, '\u2013')
+    .replace(/&mdash;/g, '\u2014')
+    .replace(/&laquo;/g, '\u00AB')
+    .replace(/&raquo;/g, '\u00BB')
+    .replace(/&hellip;/g, '\u2026')
+    .replace(/&nbsp;/g, ' ');
 }
 
 // ─── Fallback HTML scraping ──────────────────────────────

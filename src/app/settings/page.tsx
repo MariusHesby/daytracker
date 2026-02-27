@@ -1613,9 +1613,9 @@ export default function SettingsPage() {
                       {newsSources.map((src) => (
                         <div
                           key={src.url}
-                          className='flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3'>
-                          <div>
-                            <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                          className='flex items-center justify-between gap-3 bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3'>
+                          <div className='min-w-0 flex-1'>
+                            <p className='text-[15px] font-medium text-gray-900 dark:text-white truncate'>
                               {formatSourceName(src.url)}
                             </p>
                             <p className='text-[12px] text-gray-500 dark:text-gray-400'>
@@ -1627,7 +1627,7 @@ export default function SettingsPage() {
                               removeNewsSource(src.url);
                               setNewsSourcesState(getNewsSources());
                             }}
-                            className='text-ios-red text-[15px] font-medium'>
+                            className='text-ios-red text-[15px] font-medium flex-shrink-0'>
                             Remove
                           </button>
                         </div>
