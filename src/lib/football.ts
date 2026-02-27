@@ -129,10 +129,19 @@ async function syncSettingsToSupabase(): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const settings: Record<string, unknown> = {};
+    // Load existing settings so we don't overwrite other keys (e.g. news_sources)
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('settings')
+      .eq('user_id', user.id)
+      .single();
+
+    const settings: Record<string, unknown> = (existing?.settings as Record<string, unknown>) ?? {};
     const team = localStorage.getItem(`${STORAGE_PREFIX}favorite_team`);
     if (team) {
       try { settings.football_team = JSON.parse(team); } catch { /* ignore */ }
+    } else {
+      delete settings.football_team;
     }
 
     await supabase

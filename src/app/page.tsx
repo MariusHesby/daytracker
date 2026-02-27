@@ -34,6 +34,7 @@ import {
   getNewsSources,
   fetchAllNews,
   formatSourceName,
+  loadNewsFromSupabase,
   NewsItem,
 } from "@/lib/news";
 
@@ -163,6 +164,8 @@ export default function HomePage() {
   // Load news on mount and when config changes
   useEffect(() => {
     const loadNews = async () => {
+      // Ensure Supabase settings are loaded first
+      await loadNewsFromSupabase();
       const sources = getNewsSources();
       if (sources.length === 0) {
         setNewsData({});

@@ -44,6 +44,7 @@ import {
   addNewsSource,
   removeNewsSource,
   formatSourceName,
+  loadNewsFromSupabase,
   NewsSource,
 } from "@/lib/news";
 
@@ -133,7 +134,11 @@ export default function SettingsPage() {
 
   // Load news config on mount
   useEffect(() => {
-    setNewsSourcesState(getNewsSources());
+    const loadNews = async () => {
+      await loadNewsFromSupabase();
+      setNewsSourcesState(getNewsSources());
+    };
+    loadNews();
   }, []);
 
   // Debounced team search

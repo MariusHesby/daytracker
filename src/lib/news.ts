@@ -1,5 +1,7 @@
 // News feed integration – multi-source
-// Stores config in localStorage, fetches via /api/news proxy
+// Stores config in localStorage, syncs to Supabase, fetches via /api/news proxy
+
+import { supabase } from './supabase';
 
 const STORAGE_KEY = 'news_sources';
 const CACHE_PREFIX = 'news_cache_';
@@ -59,6 +61,7 @@ export function addNewsSource(source: NewsSource): void {
   if (sources.some(s => s.url.trim().toLowerCase().replace(/\/$/, '') === norm)) return;
   sources.push({ url: source.url.trim(), count: source.count });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(sources));
+  syncNewsToSupabase();
   window.dispatchEvent(new Event('newsConfigUpdated'));
 }
 
@@ -69,6 +72,7 @@ export function removeNewsSource(url: string): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
   // Clear cache for this source
   localStorage.removeItem(cacheKeyFor(url));
+  syncNewsToSupabase();
   window.dispatchEvent(new Event('newsConfigUpdated'));
 }
 
@@ -76,7 +80,67 @@ export function clearAllNewsSources(): void {
   const sources = getNewsSources();
   sources.forEach(s => localStorage.removeItem(cacheKeyFor(s.url)));
   localStorage.removeItem(STORAGE_KEY);
+  syncNewsToSupabase();
   window.dispatchEvent(new Event('newsConfigUpdated'));
+}
+
+// ─── Supabase Sync ───────────────────────────────────────
+
+async function syncNewsToSupabase(): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Merge with existing settings
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('settings')
+      .eq('user_id', user.id)
+      .single();
+
+    const settings: Record<string, unknown> = (existing?.settings as Record<string, unknown>) ?? {};
+    const sources = getNewsSources();
+    if (sources.length > 0) {
+      settings.news_sources = sources;
+    } else {
+      delete settings.news_sources;
+    }
+
+    await supabase
+      .from('profiles')
+      .update({ settings })
+      .eq('user_id', user.id);
+  } catch (err) {
+    console.error('Failed to sync news settings:', err);
+  }
+}
+
+export async function loadNewsFromSupabase(): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('settings')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!data?.settings) return;
+
+    const settings = data.settings as Record<string, unknown>;
+
+    // Only load from Supabase if localStorage is empty (avoids overwriting local edits)
+    if (settings.news_sources && getNewsSources().length === 0) {
+      const sources = settings.news_sources as NewsSource[];
+      if (Array.isArray(sources) && sources.length > 0) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sources));
+        window.dispatchEvent(new Event('newsConfigUpdated'));
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load news settings:', err);
+  }
 }
 
 // ─── Fetch news ──────────────────────────────────────────
@@ -128,6 +192,11 @@ function getCachedNews(url: string): NewsItem[] | null {
     if (!stored) return null;
     const cache: NewsCache = JSON.parse(stored);
     if (Date.now() - cache.fetchedAt > CACHE_TTL) {
+      localStorage.removeItem(cacheKeyFor(url));
+      return null;
+    }
+    // Invalidate cache if none of the items have images (legacy cache before image support)
+    if (cache.items.length > 0 && !cache.items.some(item => item.image)) {
       localStorage.removeItem(cacheKeyFor(url));
       return null;
     }

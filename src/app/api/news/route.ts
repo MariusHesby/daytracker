@@ -17,14 +17,35 @@ export async function GET(request: NextRequest) {
 
   try {
     // First try to find and parse an RSS feed
-    const items = await tryRSS(targetUrl, count);
-    if (items.length > 0) {
-      return NextResponse.json({ items });
+    let items = await tryRSS(targetUrl, count);
+    if (items.length === 0) {
+      // Fallback: scrape <a> tags with heuristics for news headlines
+      items = await scrapeHeadlines(targetUrl, count);
     }
 
-    // Fallback: scrape <a> tags with heuristics for news headlines
-    const scraped = await scrapeHeadlines(targetUrl, count);
-    return NextResponse.json({ items: scraped });
+    // For items missing images, try fetching og:image from the article page
+    const needImages = items.filter(it => !it.image).slice(0, 5); // limit to 5 fetches
+    if (needImages.length > 0) {
+      await Promise.allSettled(
+        needImages.map(async (item) => {
+          try {
+            const ogImage = await fetchOgImage(item.link);
+            if (ogImage) {
+              (item as Record<string, unknown>).image = ogImage;
+            }
+          } catch { /* ignore */ }
+        }),
+      );
+    }
+
+    // Decode HTML entities in image URLs (RSS feeds often have &amp; etc.)
+    for (const item of items) {
+      if (item.image) {
+        item.image = decodeEntities(item.image);
+      }
+    }
+
+    return NextResponse.json({ items });
   } catch (err) {
     console.error('News fetch error:', err);
     return NextResponse.json({ error: 'Failed to fetch news' }, { status: 500 });
@@ -103,7 +124,7 @@ async function parseFeed(feedUrl: string, count: number) {
     return [];
   }
 
-  const items: { title: string; link: string; pubDate?: string }[] = [];
+  const items: { title: string; link: string; pubDate?: string; image?: string }[] = [];
 
   // Parse RSS <item> elements
   const itemRegex = /<item[\s>]([\s\S]*?)<\/item>/gi;
@@ -149,6 +170,41 @@ function extractTag(xml: string, tag: string): string | null {
 function extractAttr(xml: string, tag: string, attr: string): string | null {
   const match = xml.match(new RegExp(`<${tag}[^>]*${attr}=["']([^"']+)["']`, 'i'));
   return match ? match[1] : null;
+}
+
+/** Fetch og:image meta tag from an article page */
+async function fetchOgImage(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DayTracker/1.0)' },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return null;
+    // Only read the first 50KB to find the meta tag quickly
+    const reader = res.body?.getReader();
+    if (!reader) return null;
+    let html = '';
+    while (html.length < 50000) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      html += new TextDecoder().decode(value);
+    }
+    reader.cancel();
+
+    // og:image
+    const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+      || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+    if (ogMatch) return ogMatch[1];
+
+    // twitter:image
+    const twMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i)
+      || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
+    if (twMatch) return twMatch[1];
+
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /** Extract the best image URL from an RSS/Atom item */
