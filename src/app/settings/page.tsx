@@ -39,6 +39,13 @@ import {
   FootballTeam,
   type LeagueKey,
 } from "@/lib/football";
+import {
+  getNewsSources,
+  addNewsSource,
+  removeNewsSource,
+  formatSourceName,
+  NewsSource,
+} from "@/lib/news";
 
 export default function SettingsPage() {
   const {
@@ -83,6 +90,12 @@ export default function SettingsPage() {
   const [colorScheme, setColorScheme] = useState<1 | 2 | 3>(1);
   const [nutritionMergeExpanded, setNutritionMergeExpanded] = useState(false);
 
+  // News state
+  const [newsExpanded, setNewsExpanded] = useState(false);
+  const [newsSources, setNewsSourcesState] = useState<NewsSource[]>([]);
+  const [newsUrlInput, setNewsUrlInput] = useState("");
+  const [newsCount, setNewsCount] = useState(5);
+
   // Location/Weather state
   const [locationExpanded, setLocationExpanded] = useState(false);
   const [storedLocation, setStoredLocationState] =
@@ -116,6 +129,11 @@ export default function SettingsPage() {
       setFavoriteTeamState(getFavoriteTeam());
     };
     loadFootballSettings();
+  }, []);
+
+  // Load news config on mount
+  useEffect(() => {
+    setNewsSourcesState(getNewsSources());
   }, []);
 
   // Debounced team search
@@ -1523,6 +1541,152 @@ export default function SettingsPage() {
                       )}
                     </>
                   )}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* News Section */}
+        <section className='mb-6'>
+          <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
+            News
+          </h2>
+          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+            <button
+              onClick={() => setNewsExpanded(!newsExpanded)}
+              className='w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
+              <div className='flex items-center gap-3'>
+                <div className='w-8 h-8 rounded-lg bg-ios-orange flex items-center justify-center'>
+                  <svg
+                    className='w-[18px] h-[18px] text-white'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
+                    />
+                  </svg>
+                </div>
+                <div className='text-left'>
+                  <span className='text-[17px] text-gray-900 dark:text-white'>
+                    News Feed
+                  </span>
+                  <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                    {newsSources.length > 0
+                      ? `${newsSources.length} source${newsSources.length > 1 ? "s" : ""}`
+                      : "Add news sources to your front page"}
+                  </p>
+                </div>
+              </div>
+              <svg
+                className={cn(
+                  "w-5 h-5 text-gray-400 transition-transform",
+                  newsExpanded && "rotate-90",
+                )}
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M9 5l7 7-7 7'
+                />
+              </svg>
+            </button>
+
+            {newsExpanded && (
+              <div className='border-t border-gray-200/80 dark:border-gray-700/80'>
+                <div className='px-4 py-3 space-y-3'>
+                  {/* Existing sources list */}
+                  {newsSources.length > 0 && (
+                    <div className='space-y-2'>
+                      {newsSources.map((src) => (
+                        <div
+                          key={src.url}
+                          className='flex items-center justify-between bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3'>
+                          <div>
+                            <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                              {formatSourceName(src.url)}
+                            </p>
+                            <p className='text-[12px] text-gray-500 dark:text-gray-400'>
+                              {src.count} headlines
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              removeNewsSource(src.url);
+                              setNewsSourcesState(getNewsSources());
+                            }}
+                            className='text-ios-red text-[15px] font-medium'>
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add new source */}
+                  <div>
+                    <label className='text-[13px] text-gray-500 dark:text-gray-400 mb-1 block'>
+                      Website URL
+                    </label>
+                    <input
+                      type='text'
+                      value={newsUrlInput}
+                      onChange={(e) => setNewsUrlInput(e.target.value)}
+                      placeholder='e.g. www.tek.no'
+                      className='w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-[15px] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                    />
+                  </div>
+
+                  {/* Count selector */}
+                  <div>
+                    <label className='text-[13px] text-gray-500 dark:text-gray-400 mb-1 block'>
+                      Number of headlines
+                    </label>
+                    <div className='flex gap-2'>
+                      {[3, 5, 8, 10, 15].map((n) => (
+                        <button
+                          key={n}
+                          onClick={() => setNewsCount(n)}
+                          className={cn(
+                            "px-3 py-1.5 rounded-full text-[13px] font-medium transition-colors",
+                            newsCount === n
+                              ? "bg-ios-blue text-white"
+                              : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400",
+                          )}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Add button */}
+                  <button
+                    onClick={() => {
+                      if (!newsUrlInput.trim()) return;
+                      addNewsSource({
+                        url: newsUrlInput.trim(),
+                        count: newsCount,
+                      });
+                      setNewsSourcesState(getNewsSources());
+                      setNewsUrlInput("");
+                      setNewsCount(5);
+                    }}
+                    disabled={!newsUrlInput.trim()}
+                    className={cn(
+                      "w-full py-2.5 rounded-xl text-[15px] font-medium transition-colors",
+                      newsUrlInput.trim()
+                        ? "bg-ios-blue text-white active:opacity-80"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500",
+                    )}>
+                    Add Source
+                  </button>
                 </div>
               </div>
             )}

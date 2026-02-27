@@ -30,6 +30,12 @@ import {
   loadAllTeamData,
 } from "@/lib/football";
 import { FootballPopup } from "@/components/FootballPopup";
+import {
+  getNewsSources,
+  fetchAllNews,
+  formatSourceName,
+  NewsItem,
+} from "@/lib/news";
 
 // Get time-based greeting
 function getGreeting(): string {
@@ -117,6 +123,11 @@ export default function HomePage() {
   const [seasonFixtures, setSeasonFixtures] = useState<FootballFixture[]>([]);
   const [showFootball, setShowFootball] = useState(false);
 
+  // News state
+  const [newsData, setNewsData] = useState<Record<string, NewsItem[]>>({});
+  const [newsOpen, setNewsOpen] = useState(false);
+  const [openSources, setOpenSources] = useState<Record<string, boolean>>({});
+
   // Load favorite team and next fixture
   useEffect(() => {
     const loadFootball = async () => {
@@ -145,6 +156,32 @@ export default function HomePage() {
 
     return () => {
       window.removeEventListener("favoriteTeamUpdated", handleUpdate);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Load news on mount and when config changes
+  useEffect(() => {
+    const loadNews = async () => {
+      const sources = getNewsSources();
+      if (sources.length === 0) {
+        setNewsData({});
+        return;
+      }
+      const data = await fetchAllNews();
+      setNewsData(data);
+    };
+
+    loadNews();
+
+    const handleConfigUpdate = () => loadNews();
+    window.addEventListener("newsConfigUpdated", handleConfigUpdate);
+
+    // Refresh every 15 minutes
+    const interval = setInterval(loadNews, 15 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener("newsConfigUpdated", handleConfigUpdate);
       clearInterval(interval);
     };
   }, []);
@@ -486,7 +523,7 @@ export default function HomePage() {
                 <div
                   key={fixture.id}
                   onClick={() => setShowFootball(true)}
-                  className='flex items-center min-h-[44px] px-4 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 mb-2 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer'>
+                  className='flex items-center px-4 py-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 mb-3 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer'>
                   {/* Icon: W/D/L for played, H/A for upcoming */}
                   <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
                     {live ? (
@@ -551,6 +588,122 @@ export default function HomePage() {
               );
             });
           })()}
+
+        {/* News Section */}
+        {Object.keys(newsData).length > 0 && (
+          <div className='mb-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-hidden'>
+            <button
+              onClick={() => setNewsOpen(!newsOpen)}
+              className='w-full flex items-center px-4 py-3 active:bg-gray-100 dark:active:bg-gray-700'>
+              <div className='w-8 h-8 rounded-lg bg-ios-orange flex items-center justify-center mr-3 shrink-0'>
+                <svg
+                  className='w-[18px] h-[18px] text-white'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={2}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
+                  />
+                </svg>
+              </div>
+              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                News
+              </span>
+              <svg
+                className={`w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto transition-transform duration-200 ${
+                  newsOpen ? "rotate-180" : ""
+                }`}
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M19 9l-7 7-7-7'
+                />
+              </svg>
+            </button>
+
+            {newsOpen && (
+              <div className='border-t border-gray-200/60 dark:border-gray-700/60'>
+                {Object.entries(newsData).map(([url, items]) => {
+                  if (items.length === 0) return null;
+                  const sourceName = formatSourceName(url);
+                  const isSourceOpen = openSources[url] ?? false;
+                  return (
+                    <div key={url}>
+                      <button
+                        onClick={() =>
+                          setOpenSources((prev) => ({
+                            ...prev,
+                            [url]: !prev[url],
+                          }))
+                        }
+                        className='w-full flex items-center px-4 py-2.5 active:bg-gray-100 dark:active:bg-gray-700 border-b border-gray-200/50 dark:border-gray-700/50'>
+                        <span className='text-[15px] font-semibold text-gray-700 dark:text-gray-300'>
+                          {sourceName}
+                        </span>
+                        <span className='ml-1.5 text-[12px] text-gray-400 dark:text-gray-500'>
+                          {items.length}
+                        </span>
+                        <svg
+                          className={`w-3.5 h-3.5 text-gray-400 dark:text-gray-500 ml-auto transition-transform duration-200 ${
+                            isSourceOpen ? "rotate-180" : ""
+                          }`}
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'
+                          strokeWidth={2}>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            d='M19 9l-7 7-7-7'
+                          />
+                        </svg>
+                      </button>
+                      {isSourceOpen &&
+                        items.map((item, i) => (
+                          <a
+                            key={i}
+                            href={item.link}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className={`flex items-center gap-3 px-4 py-2.5 active:bg-gray-100 dark:active:bg-gray-700 ${
+                              i < items.length - 1
+                                ? "border-b border-gray-200/50 dark:border-gray-700/50"
+                                : ""
+                            }`}>
+                            {item.image ? (
+                              <img
+                                src={item.image}
+                                alt=''
+                                className='w-12 h-12 rounded-lg object-cover shrink-0 bg-gray-200 dark:bg-gray-700'
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display =
+                                    "none";
+                                }}
+                              />
+                            ) : (
+                              <span className='text-[14px] text-ios-blue shrink-0'>
+                                •
+                              </span>
+                            )}
+                            <span className='text-[15px] text-gray-900 dark:text-white leading-snug line-clamp-2'>
+                              {item.title}
+                            </span>
+                          </a>
+                        ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <EntryForm
           date={selectedDate}

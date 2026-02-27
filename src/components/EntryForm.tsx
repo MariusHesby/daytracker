@@ -172,21 +172,12 @@ export function EntryForm({
 
   const isLocked = isDayLocked(date);
 
-  // Track activities hidden for a specific day (when locked with no data)
-  const [dayHiddenActivities, setDayHiddenActivities] = useState<Set<string>>(
-    () => {
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(`day-hidden-activities-${date}`);
-        return saved ? new Set(JSON.parse(saved)) : new Set();
-      }
-      return new Set();
-    },
-  );
   const [showAddHiddenModal, setShowAddHiddenModal] = useState(false);
 
   // Checklist new item text input state
   const [newChecklistItemText, setNewChecklistItemText] = useState("");
   const [showChecklistDropdown, setShowChecklistDropdown] = useState(false);
+  const [checklistOpen, setChecklistOpen] = useState(false);
 
   // Get checklist suggestions from all entries with checklist data
   const checklistSuggestions = useMemo(() => {
@@ -208,11 +199,10 @@ export function EntryForm({
       .map(([text, count]) => ({ value: text, count }));
   }, [entries]);
 
-  // Load day-hidden activities when date changes
+  // Clean up old day-hidden-activities localStorage keys (migration)
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(`day-hidden-activities-${date}`);
-      setDayHiddenActivities(saved ? new Set(JSON.parse(saved)) : new Set());
+      localStorage.removeItem(`day-hidden-activities-${date}`);
     }
   }, [date]);
 
@@ -488,18 +478,6 @@ export function EntryForm({
         }
       }
 
-      // Find activities without data and mark them as hidden for this day
-      const activitiesToHide = activityTypes
-        .filter((t) => !activityIdsWithData.has(t.id))
-        .map((t) => t.id);
-
-      const newHiddenSet = new Set(activitiesToHide);
-      setDayHiddenActivities(newHiddenSet);
-      localStorage.setItem(
-        `day-hidden-activities-${date}`,
-        JSON.stringify([...newHiddenSet]),
-      );
-
       // Clear workout localStorage since day is now locked
       localStorage.removeItem(`workout-data-${date}`);
       localStorage.removeItem(`workout-expanded-${date}`);
@@ -528,14 +506,13 @@ export function EntryForm({
         });
       }
     } else {
-      // When unlocking: clear day-hidden activities
-      setDayHiddenActivities(new Set());
-      localStorage.removeItem(`day-hidden-activities-${date}`);
+      // When unlocking: all activities will show again (dynamic filtering)
     }
   };
 
   useEffect(() => {
-    loadEntriesForDateRange(date, date);
+    // Load current day + next day (for tomorrow's checklist preview)
+    loadEntriesForDateRange(date, addDays(date, 1));
     // Load expanded activity from localStorage instead of resetting
     if (typeof window !== "undefined") {
       const savedExpanded = localStorage.getItem(`expanded-activity-${date}`);
@@ -2121,8 +2098,413 @@ export function EntryForm({
     }
   };
 
+  // Get checklist types for standalone section
+  const checklistTypes = allActivityTypes.filter(
+    (t) =>
+      t.valueType === "checklist" &&
+      (!t.hidden ||
+        (savedValues[t.id] || []).length > 0 ||
+        entries.some(
+          (e) =>
+            e.activityTypeId === t.id && e.date === date && e.checklistData,
+        )),
+  );
+  const nextDay = addDays(date, 1);
+
   return (
     <>
+      {/* Standalone Checklist / Todo Section — separated like matchday */}
+      {checklistTypes.map((type) => {
+        const existingEntry = entries.find(
+          (e) =>
+            e.activityTypeId === type.id && e.date === date && e.checklistData,
+        );
+        const checklistItems = existingEntry?.checklistData?.items || [];
+        const completedCount = checklistItems.filter(
+          (item) => item.completed,
+        ).length;
+        const totalCount = checklistItems.length;
+
+        // Next day items
+        const nextDayEntry = entries.find(
+          (e) =>
+            e.activityTypeId === type.id &&
+            e.date === nextDay &&
+            e.checklistData,
+        );
+        const nextDayItems = nextDayEntry?.checklistData?.items || [];
+        const nextDayCompleted = nextDayItems.filter((i) => i.completed).length;
+
+        const handleAddItem = async () => {
+          if (!newChecklistItemText.trim()) return;
+
+          const newItem: ChecklistItem = {
+            id: crypto.randomUUID(),
+            text: newChecklistItemText.trim(),
+            completed: false,
+          };
+
+          const updatedItems = [...checklistItems, newItem];
+          const checklistData: ChecklistData = { items: updatedItems };
+
+          if (existingEntry) {
+            await updateEntry({
+              ...existingEntry,
+              checklistData,
+              value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
+            });
+          } else {
+            await addEntry({
+              date,
+              activityTypeId: type.id,
+              value: `0/${updatedItems.length}`,
+              checklistData,
+            });
+          }
+          setNewChecklistItemText("");
+        };
+
+        const handleToggleItem = async (itemId: string) => {
+          if (!existingEntry) return;
+
+          const updatedItems = checklistItems.map((item) =>
+            item.id === itemId ? { ...item, completed: !item.completed } : item,
+          );
+          const checklistData: ChecklistData = { items: updatedItems };
+
+          await updateEntry({
+            ...existingEntry,
+            checklistData,
+            value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
+          });
+        };
+
+        const handleDeleteItem = async (itemId: string) => {
+          if (!existingEntry) return;
+
+          const updatedItems = checklistItems.filter(
+            (item) => item.id !== itemId,
+          );
+
+          if (updatedItems.length === 0) {
+            await deleteEntry(existingEntry.id);
+          } else {
+            const checklistData: ChecklistData = { items: updatedItems };
+            await updateEntry({
+              ...existingEntry,
+              checklistData,
+              value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
+            });
+          }
+        };
+
+        // Next day toggle/delete handlers
+        const handleToggleNextDayItem = async (itemId: string) => {
+          if (!nextDayEntry) return;
+          const updatedItems = nextDayItems.map((item) =>
+            item.id === itemId ? { ...item, completed: !item.completed } : item,
+          );
+          await updateEntry({
+            ...nextDayEntry,
+            checklistData: { items: updatedItems },
+            value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
+          });
+        };
+
+        const handleDeleteNextDayItem = async (itemId: string) => {
+          if (!nextDayEntry) return;
+          const updatedItems = nextDayItems.filter(
+            (item) => item.id !== itemId,
+          );
+          if (updatedItems.length === 0) {
+            await deleteEntry(nextDayEntry.id);
+          } else {
+            await updateEntry({
+              ...nextDayEntry,
+              checklistData: { items: updatedItems },
+              value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
+            });
+          }
+        };
+
+        // Don't render if locked and no items
+        if (isLocked && totalCount === 0 && nextDayItems.length === 0)
+          return null;
+
+        return (
+          <div
+            key={type.id}
+            className='mb-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
+            {/* Header — tap to open/close */}
+            <div
+              className='flex items-center px-4 py-3 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700'
+              onClick={() => setChecklistOpen((prev) => !prev)}>
+              <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
+                {type.icon &&
+                  (type.icon in icons ? (
+                    <Icon
+                      name={type.icon as IconName}
+                      className={cn(
+                        "w-6 h-6",
+                        completedCount === totalCount && totalCount > 0
+                          ? "text-ios-green"
+                          : totalCount > 0
+                            ? "text-ios-orange"
+                            : "text-ios-blue",
+                      )}
+                    />
+                  ) : (
+                    <span className='text-xl'>{type.icon}</span>
+                  ))}
+              </div>
+              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                {type.name}
+              </span>
+              <div className='ml-auto flex items-center gap-2'>
+                {totalCount > 0 && (
+                  <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                    {completedCount}/{totalCount}
+                    {completedCount === totalCount && " ✓"}
+                  </span>
+                )}
+                <svg
+                  className={cn(
+                    "w-4 h-4 text-gray-400 dark:text-gray-500 transition-transform duration-200",
+                    checklistOpen && "rotate-180",
+                  )}
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={2}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M19 9l-7 7-7-7'
+                  />
+                </svg>
+              </div>
+            </div>
+
+            {/* Today's checklist items — collapsible */}
+            {checklistOpen && (totalCount > 0 || !isLocked) && (
+              <div className='px-4 pb-3'>
+                {checklistItems.length > 0 && (
+                  <div className='space-y-1'>
+                    {checklistItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className='flex items-center gap-3 py-2 px-1 group'>
+                        <button
+                          onClick={() => handleToggleItem(item.id)}
+                          className={cn(
+                            "w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                            item.completed
+                              ? "bg-ios-green border-ios-green"
+                              : "border-gray-300 dark:border-gray-600",
+                          )}>
+                          {item.completed && (
+                            <svg
+                              className='w-4 h-4 text-white'
+                              fill='none'
+                              viewBox='0 0 24 24'
+                              stroke='currentColor'
+                              strokeWidth={3}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M5 13l4 4L19 7'
+                              />
+                            </svg>
+                          )}
+                        </button>
+                        <span
+                          className={cn(
+                            "flex-1 text-[15px]",
+                            item.completed
+                              ? "text-gray-400 dark:text-gray-500 line-through"
+                              : "text-gray-900 dark:text-white",
+                          )}>
+                          {item.text}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          className='w-6 h-6 rounded-full flex items-center justify-center text-gray-200 dark:text-gray-700 active:text-ios-red transition-colors'>
+                          <svg
+                            className='w-3 h-3'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'
+                            strokeWidth={1.5}>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              d='M6 18L18 6M6 6l12 12'
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new item with autocomplete */}
+                {!isLocked && (
+                  <div className='relative mt-2'>
+                    <div className='flex items-center gap-2'>
+                      <input
+                        type='text'
+                        value={newChecklistItemText}
+                        onChange={(e) => {
+                          setNewChecklistItemText(e.target.value);
+                          setShowChecklistDropdown(true);
+                        }}
+                        onFocus={() => setShowChecklistDropdown(true)}
+                        onBlur={() =>
+                          setTimeout(() => setShowChecklistDropdown(false), 200)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleAddItem();
+                            setShowChecklistDropdown(false);
+                          }
+                          if (e.key === "Escape") {
+                            setShowChecklistDropdown(false);
+                          }
+                        }}
+                        placeholder='Add new item...'
+                        className='flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-[15px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                      />
+                      <button
+                        onClick={() => {
+                          handleAddItem();
+                          setShowChecklistDropdown(false);
+                        }}
+                        disabled={!newChecklistItemText.trim()}
+                        className={cn(
+                          "px-4 py-2 rounded-lg text-[15px] font-medium transition-colors",
+                          newChecklistItemText.trim()
+                            ? "bg-ios-blue text-white"
+                            : "bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500",
+                        )}>
+                        Add
+                      </button>
+                    </div>
+                    {/* Autocomplete dropdown */}
+                    {showChecklistDropdown &&
+                      (() => {
+                        const filteredSuggestions = newChecklistItemText.trim()
+                          ? checklistSuggestions.filter((sugg) =>
+                              sugg.value
+                                .toLowerCase()
+                                .includes(newChecklistItemText.toLowerCase()),
+                            )
+                          : checklistSuggestions;
+                        const showDropdown =
+                          filteredSuggestions.length > 0 &&
+                          !filteredSuggestions.some(
+                            (s) =>
+                              s.value.toLowerCase() ===
+                              newChecklistItemText.toLowerCase().trim(),
+                          );
+                        if (!showDropdown) return null;
+                        return (
+                          <div className='absolute left-0 right-12 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50 max-h-48 overflow-y-auto'>
+                            {filteredSuggestions.slice(0, 10).map((sugg) => (
+                              <button
+                                key={sugg.value}
+                                onClick={() => {
+                                  setNewChecklistItemText(sugg.value);
+                                  setShowChecklistDropdown(false);
+                                }}
+                                className='w-full px-3 py-2.5 text-left text-[15px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center justify-between'>
+                                <span>{sugg.value}</span>
+                                <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                                  ({sugg.count}×)
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tomorrow's checklist items */}
+            {checklistOpen && nextDayItems.length > 0 && (
+              <div className='border-t border-gray-200/60 dark:border-gray-700/60'>
+                <div className='flex items-center px-4 py-2'>
+                  <span className='text-[13px] font-medium text-gray-400 dark:text-gray-500'>
+                    Tomorrow
+                  </span>
+                  <span className='ml-auto text-[12px] text-gray-400 dark:text-gray-500'>
+                    {nextDayCompleted}/{nextDayItems.length}
+                  </span>
+                </div>
+                <div className='px-4 pb-3 space-y-1'>
+                  {nextDayItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className='flex items-center gap-3 py-1.5 px-1 group'>
+                      <button
+                        onClick={() => handleToggleNextDayItem(item.id)}
+                        className={cn(
+                          "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                          item.completed
+                            ? "bg-ios-green/70 border-ios-green/70"
+                            : "border-gray-300/60 dark:border-gray-600/60",
+                        )}>
+                        {item.completed && (
+                          <svg
+                            className='w-3 h-3 text-white'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'
+                            strokeWidth={3}>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              d='M5 13l4 4L19 7'
+                            />
+                          </svg>
+                        )}
+                      </button>
+                      <span
+                        className={cn(
+                          "flex-1 text-[14px]",
+                          item.completed
+                            ? "text-gray-300 dark:text-gray-600 line-through"
+                            : "text-gray-500 dark:text-gray-400",
+                        )}>
+                        {item.text}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteNextDayItem(item.id)}
+                        className='w-5 h-5 rounded-full flex items-center justify-center text-gray-200 dark:text-gray-700 active:text-ios-red transition-colors'>
+                        <svg
+                          className='w-2.5 h-2.5'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'
+                          strokeWidth={1.5}>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            d='M6 18L18 6M6 6l12 12'
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
       {/* Expanded Content for Icon Grid View - Positioned at top */}
       {viewMode === "icons" &&
         expandedTypeId &&
@@ -2209,10 +2591,15 @@ export function EntryForm({
         <div className='grid grid-cols-4 gap-3.5'>
           {allActivityTypes
             .filter((type) => {
-              // Don't show if hidden for this specific day
-              if (dayHiddenActivities.has(type.id)) return false;
+              // Checklist types are shown in the standalone section above
+              if (type.valueType === "checklist") return false;
               // Show if currently expanded (user is adding data)
               if (expandedTypeId === type.id) return true;
+              // When day is locked: only show activities that have data
+              if (isLocked) {
+                const typeSavedValues = savedValues[type.id] || [];
+                return typeSavedValues.length > 0;
+              }
               // Show if not globally hidden
               if (!type.hidden) return true;
               // Show hidden activities if they have data for this day
@@ -2513,34 +2900,32 @@ export function EntryForm({
             })}
 
           {/* Add Hidden Activity Button - Icon Grid Version */}
-          {!isViewingOther &&
-            (dayHiddenActivities.size > 0 ||
-              allActivityTypes.some((t) => t.hidden)) && (
-              <button
-                onClick={() => setShowAddHiddenModal(true)}
-                className={cn(
-                  "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 p-1",
-                  "bg-gray-100/50 dark:bg-gray-800/30 border-2 border-dashed border-gray-300 dark:border-gray-600",
-                )}>
-                <div className='w-8 h-8 rounded-lg flex items-center justify-center'>
-                  <svg
-                    className='w-5 h-5 text-gray-400'
-                    fill='none'
-                    viewBox='0 0 24 24'
-                    stroke='currentColor'
-                    strokeWidth={2}>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      d='M12 4v16m8-8H4'
-                    />
-                  </svg>
-                </div>
-                <span className='text-[9px] text-gray-400 font-medium leading-tight text-center px-0.5 line-clamp-2'>
-                  Add
-                </span>
-              </button>
-            )}
+          {!isViewingOther && allActivityTypes.some((t) => t.hidden) && (
+            <button
+              onClick={() => setShowAddHiddenModal(true)}
+              className={cn(
+                "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 p-1",
+                "bg-gray-100/50 dark:bg-gray-800/30 border-2 border-dashed border-gray-300 dark:border-gray-600",
+              )}>
+              <div className='w-8 h-8 rounded-lg flex items-center justify-center'>
+                <svg
+                  className='w-5 h-5 text-gray-400'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={2}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M12 4v16m8-8H4'
+                  />
+                </svg>
+              </div>
+              <span className='text-[9px] text-gray-400 font-medium leading-tight text-center px-0.5 line-clamp-2'>
+                Add
+              </span>
+            </button>
+          )}
         </div>
       )}
 
@@ -2549,10 +2934,15 @@ export function EntryForm({
         <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible'>
           {allActivityTypes
             .filter((type) => {
-              // Don't show if hidden for this specific day
-              if (dayHiddenActivities.has(type.id)) return false;
+              // Checklist types are shown in the standalone section above
+              if (type.valueType === "checklist") return false;
               // Show if currently expanded (user is adding data)
               if (expandedTypeId === type.id) return true;
+              // When day is locked: only show activities that have data
+              if (isLocked) {
+                const typeSavedValues = savedValues[type.id] || [];
+                return typeSavedValues.length > 0;
+              }
               // Show if not globally hidden
               if (!type.hidden) return true;
               // Show hidden activities if they have data for this day
@@ -2775,7 +3165,6 @@ export function EntryForm({
                     className={cn(
                       "flex items-center min-h-[48px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
                       isExpanded && "bg-gray-50 dark:bg-gray-800",
-                      isLocked && "pointer-events-none opacity-75",
                       !isLast &&
                         !isExpanded &&
                         "border-b border-gray-200/80 dark:border-gray-700/80",
@@ -2789,24 +3178,21 @@ export function EntryForm({
                             name={type.icon as IconName}
                             className={cn(
                               "w-6 h-6",
-                              isLocked
-                                ? "text-ios-green"
-                                : isChecklist
-                                  ? checklistCompleted
+                              isChecklist
+                                ? checklistCompleted
+                                  ? "text-ios-green"
+                                  : checklistHasItems
+                                    ? "text-ios-orange"
+                                    : "text-ios-blue"
+                                : isNutrition && nutritionGoalProgress.hasGoals
+                                  ? nutritionGoalProgress.allGoalsReached
                                     ? "text-ios-green"
-                                    : checklistHasItems
+                                    : nutritionGoalProgress.hasData
                                       ? "text-ios-orange"
                                       : "text-ios-blue"
-                                  : isNutrition &&
-                                      nutritionGoalProgress.hasGoals
-                                    ? nutritionGoalProgress.allGoalsReached
-                                      ? "text-ios-green"
-                                      : nutritionGoalProgress.hasData
-                                        ? "text-ios-orange"
-                                        : "text-ios-blue"
-                                    : hasSavedValues || workoutHasEnteredData
-                                      ? "text-ios-green"
-                                      : "text-ios-blue",
+                                  : hasSavedValues || workoutHasEnteredData
+                                    ? "text-ios-green"
+                                    : "text-ios-blue",
                             )}
                           />
                         ) : (
@@ -3152,8 +3538,7 @@ export function EntryForm({
       {/* Add Hidden Activity Button - List View Version */}
       {!isViewingOther &&
         viewMode === "list" &&
-        (dayHiddenActivities.size > 0 ||
-          allActivityTypes.some((t) => t.hidden)) && (
+        allActivityTypes.some((t) => t.hidden) && (
           <button
             onClick={() => setShowAddHiddenModal(true)}
             className='mt-3 w-full py-3 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center gap-2 text-gray-400 hover:text-gray-500 hover:border-gray-400 transition-colors'>
@@ -3203,61 +3588,6 @@ export function EntryForm({
               </button>
             </div>
             <div className='p-4 overflow-y-auto max-h-[calc(100vh-220px)]'>
-              {/* Activities hidden for this specific day (when locked) */}
-              {dayHiddenActivities.size > 0 && (
-                <div className='mb-4'>
-                  <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2'>
-                    Hidden for this day
-                  </p>
-                  <div className='space-y-2'>
-                    {activityTypes
-                      .filter((t) => dayHiddenActivities.has(t.id))
-                      .map((type) => (
-                        <button
-                          key={type.id}
-                          onClick={() => {
-                            // Remove from day-hidden list
-                            const newHidden = new Set(dayHiddenActivities);
-                            newHidden.delete(type.id);
-                            setDayHiddenActivities(newHidden);
-                            localStorage.setItem(
-                              `day-hidden-activities-${date}`,
-                              JSON.stringify([...newHidden]),
-                            );
-                            setShowAddHiddenModal(false);
-                          }}
-                          className='w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'>
-                          <div
-                            className='w-10 h-10 rounded-xl flex items-center justify-center'
-                            style={{
-                              backgroundColor: "rgba(0, 122, 255, 0.1)",
-                            }}>
-                            <Icon
-                              name={(type.icon as IconName) || "star"}
-                              className='w-5 h-5 text-ios-blue'
-                            />
-                          </div>
-                          <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
-                            {type.name}
-                          </span>
-                          <svg
-                            className='w-5 h-5 text-gray-400 ml-auto'
-                            fill='none'
-                            viewBox='0 0 24 24'
-                            stroke='currentColor'>
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              strokeWidth={2}
-                              d='M12 4v16m8-8H4'
-                            />
-                          </svg>
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              )}
-
               {/* Globally hidden activities (from settings) */}
               {allActivityTypes.filter((t) => t.hidden).length > 0 && (
                 <div>
@@ -3309,12 +3639,11 @@ export function EntryForm({
               )}
 
               {/* No hidden activities */}
-              {dayHiddenActivities.size === 0 &&
-                allActivityTypes.filter((t) => t.hidden).length === 0 && (
-                  <p className='text-center text-gray-500 dark:text-gray-400 py-8'>
-                    No hidden activities
-                  </p>
-                )}
+              {allActivityTypes.filter((t) => t.hidden).length === 0 && (
+                <p className='text-center text-gray-500 dark:text-gray-400 py-8'>
+                  No hidden activities
+                </p>
+              )}
             </div>
           </div>
         </div>

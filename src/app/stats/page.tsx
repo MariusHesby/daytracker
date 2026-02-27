@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { Icon, icons, IconName } from "@/components";
@@ -204,7 +205,9 @@ export default function StatsPage() {
     viewingUser,
     setViewingUser,
     isViewingOther,
+    setSelectedDate,
   } = useApp();
+  const router = useRouter();
   const { user } = useAuth();
   const [timeRange, setTimeRange] = useState<TimeRange>("year");
   const [offset, setOffset] = useState(0); // 0 = current, -1 = previous, etc.
@@ -424,6 +427,127 @@ export default function StatsPage() {
     return Math.max(...valueCounts.map((v) => v.count));
   }, [valueCounts]);
 
+  // State for top TV series count (persisted)
+  const [topSeriesCount, setTopSeriesCount] = useState<number>(() => {
+    if (typeof window === "undefined") return 6;
+    const saved = localStorage.getItem("stats-top-series-count");
+    return saved ? parseInt(saved, 10) : 6;
+  });
+
+  // Check if selected activity is TV Series type
+  const isTvSeriesType = useMemo(() => {
+    if (!selectedStat) return false;
+    const selectedType = getActivityType(selectedStat.activityTypeId);
+    return selectedType?.name === "TV Series";
+  }, [selectedStat, getActivityType]);
+
+  // Compute top viewed TV series with poster data
+  const topViewedSeries = useMemo(() => {
+    if (!selectedStat || !isTvSeriesType) return [];
+
+    // Group entries by normalized series name
+    const seriesMap = new Map<
+      string,
+      { name: string; poster: string | undefined; count: number }
+    >();
+    selectedStat.entries.forEach((entry) => {
+      const key = String(entry.value).trim().toLowerCase();
+      const existing = seriesMap.get(key);
+      if (existing) {
+        existing.count += 1;
+        // Keep the poster from the latest entry that has one
+        if (entry.poster && !existing.poster) {
+          existing.poster = entry.poster;
+        }
+      } else {
+        seriesMap.set(key, {
+          name: String(entry.value).trim(),
+          poster: entry.poster,
+          count: 1,
+        });
+      }
+    });
+
+    return Array.from(seriesMap.values())
+      .filter((s) => s.count > 1)
+      .sort((a, b) => b.count - a.count);
+  }, [selectedStat, isTvSeriesType]);
+
+  // Check if selected activity is Movie type
+  const isMovieType = useMemo(() => {
+    if (!selectedStat) return false;
+    const selectedType = getActivityType(selectedStat.activityTypeId);
+    return selectedType?.name === "Movie";
+  }, [selectedStat, getActivityType]);
+
+  // Movie sort mode (persisted)
+  const [movieSortMode, setMovieSortMode] = useState<
+    "newest" | "myRating" | "imdbRating"
+  >(() => {
+    if (typeof window === "undefined") return "newest";
+    const saved = localStorage.getItem("stats-movie-sort-mode");
+    return (saved as "newest" | "myRating" | "imdbRating") || "newest";
+  });
+
+  // Compute top 3 movies based on sort mode
+  const topMovies = useMemo(() => {
+    if (!selectedStat || !isMovieType) return [];
+
+    // Deduplicate by name (keep the entry with best data)
+    const movieMap = new Map<
+      string,
+      {
+        name: string;
+        poster: string | undefined;
+        userRating: number;
+        imdbRating: number;
+        date: string;
+        year: string;
+      }
+    >();
+    selectedStat.entries.forEach((entry) => {
+      const key = String(entry.value).trim().toLowerCase();
+      const existing = movieMap.get(key);
+      const userRating = entry.userRating || 0;
+      const imdbRating = entry.imdbRating ? parseFloat(entry.imdbRating) : 0;
+      if (!existing) {
+        movieMap.set(key, {
+          name: String(entry.value).trim(),
+          poster: entry.poster,
+          userRating,
+          imdbRating,
+          date: entry.date,
+          year: entry.year || "",
+        });
+      } else {
+        // Update with better data if available
+        if (entry.poster && !existing.poster) existing.poster = entry.poster;
+        if (userRating > existing.userRating) existing.userRating = userRating;
+        if (imdbRating > existing.imdbRating) existing.imdbRating = imdbRating;
+        if (entry.date > existing.date) existing.date = entry.date;
+      }
+    });
+
+    const movies = Array.from(movieMap.values());
+
+    switch (movieSortMode) {
+      case "newest":
+        return movies.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+      case "myRating":
+        return movies
+          .filter((m) => m.userRating > 0)
+          .sort((a, b) => b.userRating - a.userRating)
+          .slice(0, 3);
+      case "imdbRating":
+        return movies
+          .filter((m) => m.imdbRating > 0)
+          .sort((a, b) => b.imdbRating - a.imdbRating)
+          .slice(0, 3);
+      default:
+        return movies.slice(0, 3);
+    }
+  }, [selectedStat, isMovieType, movieSortMode]);
+
   // State for selected entry value to show dates
   const [selectedValue, setSelectedValue] = useState<string | null>(null);
   const [showAllDates, setShowAllDates] = useState(false);
@@ -628,8 +752,11 @@ export default function StatsPage() {
     };
   }, [selectedStat, isChecklistType]);
 
-  // State for showing all checklist items
-  const [showAllChecklistItems, setShowAllChecklistItems] = useState(false);
+  // State for showing all checklist items (persisted)
+  const [showAllChecklistItems, setShowAllChecklistItems] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("stats-show-all-checklist") === "true";
+  });
 
   // State for selected checklist item (to show calendar)
   const [selectedChecklistItem, setSelectedChecklistItem] = useState<
@@ -804,7 +931,6 @@ export default function StatsPage() {
 
   // Reset checklist item selection when activity changes
   useEffect(() => {
-    setShowAllChecklistItems(false);
     setSelectedChecklistItem(null);
   }, [timeRange, selectedActivityId]);
 
@@ -880,9 +1006,9 @@ export default function StatsPage() {
     });
 
     // Top exercises by frequency
-    const topExercises = Array.from(exerciseCounts.entries())
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 5);
+    const topExercises = Array.from(exerciseCounts.entries()).sort(
+      (a, b) => b[1].count - a[1].count,
+    );
 
     // Calculate totals
     const totalWeight = allExercises.reduce(
@@ -917,8 +1043,7 @@ export default function StatsPage() {
             .filter((d) => d.weight)
             .sort((a, b) => b.date.localeCompare(a.date))[0]?.weight || 0,
       }))
-      .sort((a, b) => b.data.length - a.data.length)
-      .slice(0, 3);
+      .sort((a, b) => b.data.length - a.data.length);
 
     // Find exercises with distance progress (for chart)
     const exercisesWithDistanceProgress = Array.from(exerciseProgress.entries())
@@ -931,12 +1056,31 @@ export default function StatsPage() {
         maxDistance: Math.max(...data.map((d) => d.distance || 0)),
         totalDistance: data.reduce((sum, d) => sum + (d.distance || 0), 0),
       }))
-      .sort((a, b) => b.data.length - a.data.length)
-      .slice(0, 3);
+      .sort((a, b) => b.data.length - a.data.length);
+
+    // Calculate average workout days per week (cap range end at today)
+    const rangeStart = new Date(currentRange.start + "T12:00:00");
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    const rangeEnd = new Date(
+      Math.min(
+        new Date(currentRange.end + "T12:00:00").getTime(),
+        today.getTime(),
+      ),
+    );
+    const totalDays = Math.max(
+      1,
+      Math.round(
+        (rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24),
+      ) + 1,
+    );
+    const totalWeeks = Math.max(1, totalDays / 7);
+    const avgPerWeek = Math.round((workoutDays.size / totalWeeks) * 10) / 10;
 
     return {
       totalExercises: allExercises.length,
       workoutDays: workoutDays.size,
+      avgPerWeek,
       uniqueExercises: exerciseCounts.size,
       topExercises,
       categoryBreakdown: Array.from(categoryBreakdown.entries()),
@@ -948,7 +1092,150 @@ export default function StatsPage() {
       exercisesWithWeightProgress,
       exercisesWithDistanceProgress,
     };
-  }, [selectedStat, isWorkoutType]);
+  }, [selectedStat, isWorkoutType, currentRange]);
+
+  // All-time workout progress (up to 1 year back) for curve charts
+  const allTimeWorkoutProgress = useMemo(() => {
+    if (!selectedActivityId || !isWorkoutType)
+      return { strength: [], cardio: [] };
+
+    const now = new Date();
+    const oneYearAgo = new Date(now);
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const cutoffDate = oneYearAgo.toISOString().split("T")[0];
+
+    // Get all workout entries for the selected activity up to 1 year back
+    const workoutEntries = allEntries.filter(
+      (e) =>
+        e.activityTypeId === selectedActivityId &&
+        e.date >= cutoffDate &&
+        e.workoutData?.exercises,
+    );
+
+    // Group by exercise name
+    const exerciseProgress = new Map<
+      string,
+      { date: string; weight?: number; distance?: number; duration?: number }[]
+    >();
+
+    workoutEntries.forEach((entry) => {
+      entry.workoutData!.exercises.forEach((ex) => {
+        const progress = exerciseProgress.get(ex.name) || [];
+        progress.push({
+          date: entry.date,
+          weight: ex.weight,
+          distance: ex.distance,
+          duration: ex.duration,
+        });
+        exerciseProgress.set(ex.name, progress);
+      });
+    });
+
+    // Strength: exercises with weight data, aggregate max weight per day
+    const strength = Array.from(exerciseProgress.entries())
+      .filter(([, data]) => data.some((d) => d.weight && d.weight > 0))
+      .map(([name, data]) => {
+        // Aggregate: max weight per day
+        const byDay = new Map<string, number>();
+        data
+          .filter((d) => d.weight && d.weight > 0)
+          .forEach((d) => {
+            const existing = byDay.get(d.date) || 0;
+            byDay.set(d.date, Math.max(existing, d.weight!));
+          });
+        const points = Array.from(byDay.entries())
+          .map(([date, weight]) => ({ date, weight }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+        const maxWeight = Math.max(...points.map((p) => p.weight));
+        const minWeight = Math.min(...points.map((p) => p.weight));
+        const latestWeight = points[points.length - 1]?.weight || 0;
+        const startWeight = points[0]?.weight || 0;
+        const avgWeight =
+          Math.round(
+            (points.reduce((s, p) => s + p.weight, 0) / points.length) * 10,
+          ) / 10;
+        // Trend: compare second half avg to first half avg
+        const half = Math.floor(points.length / 2);
+        const firstHalfAvg =
+          points.slice(0, half).reduce((s, p) => s + p.weight, 0) / (half || 1);
+        const secondHalfAvg =
+          points.slice(half).reduce((s, p) => s + p.weight, 0) /
+          (points.length - half || 1);
+        const trendPct =
+          firstHalfAvg > 0
+            ? Math.round(((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100)
+            : 0;
+        return {
+          name,
+          points,
+          maxWeight,
+          minWeight,
+          latestWeight,
+          startWeight,
+          avgWeight,
+          trendPct,
+          dataCount: points.length,
+        };
+      })
+      .filter((e) => e.points.length >= 2)
+      .sort((a, b) => b.dataCount - a.dataCount);
+
+    // Cardio: exercises with distance data, aggregate total distance per day
+    const cardio = Array.from(exerciseProgress.entries())
+      .filter(([, data]) => data.some((d) => d.distance && d.distance > 0))
+      .map(([name, data]) => {
+        const byDay = new Map<string, number>();
+        data
+          .filter((d) => d.distance && d.distance > 0)
+          .forEach((d) => {
+            const existing = byDay.get(d.date) || 0;
+            byDay.set(d.date, Math.max(existing, d.distance!));
+          });
+        const points = Array.from(byDay.entries())
+          .map(([date, distance]) => ({ date, distance }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+        const maxDistance = Math.max(...points.map((p) => p.distance));
+        const minDistance = Math.min(...points.map((p) => p.distance));
+        const totalDistance = points.reduce((sum, p) => sum + p.distance, 0);
+        const avgDistance =
+          Math.round((totalDistance / points.length) * 10) / 10;
+        const latestDistance = points[points.length - 1]?.distance || 0;
+        const half = Math.floor(points.length / 2);
+        const firstHalfAvg =
+          points.slice(0, half).reduce((s, p) => s + p.distance, 0) /
+          (half || 1);
+        const secondHalfAvg =
+          points.slice(half).reduce((s, p) => s + p.distance, 0) /
+          (points.length - half || 1);
+        const trendPct =
+          firstHalfAvg > 0
+            ? Math.round(((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100)
+            : 0;
+        return {
+          name,
+          points,
+          maxDistance,
+          minDistance,
+          totalDistance,
+          avgDistance,
+          latestDistance,
+          trendPct,
+          dataCount: points.length,
+        };
+      })
+      .filter((e) => e.points.length >= 2)
+      .sort((a, b) => b.dataCount - a.dataCount);
+
+    return { strength, cardio };
+  }, [allEntries, selectedActivityId, isWorkoutType]);
+
+  // State for showing all exercises and expanded exercise
+  const [showAllExercises, setShowAllExercises] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("stats-show-all-exercises") === "true";
+  });
+  const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
+  const [showSessionsFor, setShowSessionsFor] = useState<string | null>(null);
 
   // Get dates for selected value as a Set for quick lookup
   const datesForSelectedValue = useMemo(() => {
@@ -1292,13 +1579,6 @@ export default function StatsPage() {
                     {selectedStat.uniqueDays} days
                   </p>
                 </div>
-                <span
-                  className={cn(
-                    "text-[13px] text-gray-400 transition-transform",
-                    showAllDates ? "rotate-180" : "",
-                  )}>
-                  ▼
-                </span>
               </div>
             </button>
 
@@ -1717,10 +1997,10 @@ export default function StatsPage() {
                   </div>
                   <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
                     <div className='text-[13px] text-gray-500 dark:text-gray-400 mb-1'>
-                      Total Exercises
+                      Average a Week
                     </div>
                     <div className='text-[24px] font-bold text-ios-blue'>
-                      {workoutStats.totalExercises}
+                      {workoutStats.avgPerWeek}
                     </div>
                   </div>
                 </div>
@@ -1900,195 +2180,605 @@ export default function StatsPage() {
                   </div>
                 )}
 
-                {/* Top Exercises */}
+                {/* Exercises */}
                 {workoutStats.topExercises.length > 0 && (
                   <div className='bg-white/80 dark:bg-gray-800 rounded-2xl overflow-hidden'>
                     <div className='px-4 pt-4 pb-2'>
                       <h4 className='text-[13px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400'>
-                        Top Exercises
+                        Exercises
                       </h4>
+                      <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-0.5'>
+                        Tap to see curve
+                      </p>
                     </div>
                     <div>
-                      {workoutStats.topExercises.map(([name, data], index) => (
-                        <div
-                          key={name}
-                          className={cn(
-                            "flex items-center justify-between px-4 py-3",
-                            index < workoutStats.topExercises.length - 1 &&
-                              "border-b border-gray-100 dark:border-gray-700",
-                          )}>
-                          <div className='flex items-center gap-3'>
-                            <div className='w-8 h-8 rounded-full bg-ios-blue/10 flex items-center justify-center'>
-                              <span className='text-[13px] font-bold text-ios-blue'>
-                                {index + 1}
-                              </span>
-                            </div>
-                            <span className='text-[17px] text-gray-900 dark:text-white'>
-                              {name}
-                            </span>
-                          </div>
-                          <span className='text-[15px] font-medium text-gray-500'>
-                            {data.count}×
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Weight Progress Charts */}
-                {workoutStats.exercisesWithWeightProgress.length > 0 && (
-                  <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
-                    <h4 className='text-[13px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-4'>
-                      Weight Progress
-                    </h4>
-                    <div className='space-y-6'>
-                      {workoutStats.exercisesWithWeightProgress.map(
-                        ({ name, data, maxWeight, latestWeight }) => (
-                          <div key={name} className='space-y-3'>
-                            <div className='flex items-center justify-between'>
-                              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                                {name}
-                              </span>
-                              <div className='flex items-center gap-2'>
-                                <span className='text-[13px] text-gray-400'>
-                                  PR
-                                </span>
-                                <span className='text-[17px] font-bold text-ios-green'>
-                                  {maxWeight}kg
-                                </span>
-                              </div>
-                            </div>
-                            {/* Progress chart */}
-                            <div className='bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3'>
-                              <div className='flex items-end gap-1.5 h-20'>
-                                {data.slice(-12).map((d, i) => {
-                                  const heightPercent =
-                                    maxWeight > 0
-                                      ? ((d.weight || 0) / maxWeight) * 100
-                                      : 0;
-                                  const isMax = d.weight === maxWeight;
-                                  return (
-                                    <div
-                                      key={`${d.date}-${i}`}
-                                      className='flex-1 flex flex-col items-center'
-                                      title={`${d.date}: ${d.weight}kg`}>
-                                      <div
-                                        className='w-full relative'
-                                        style={{ height: "60px" }}>
-                                        <div
-                                          className={cn(
-                                            "absolute bottom-0 left-0 right-0 rounded-t-md transition-all",
-                                            isMax
-                                              ? "bg-ios-green"
-                                              : "bg-ios-blue/70",
-                                          )}
-                                          style={{
-                                            height: `${Math.max(heightPercent, 8)}%`,
-                                          }}
-                                        />
-                                      </div>
-                                      <div className='text-[9px] text-gray-400 mt-1.5 font-medium'>
-                                        {
-                                          new Date(d.date + "T12:00:00")
-                                            .toLocaleDateString("en-US", {
-                                              day: "numeric",
-                                              month: "short",
-                                            })
-                                            .split(" ")[1]
-                                        }
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                            {latestWeight > 0 && (
-                              <div className='text-[13px] text-gray-500 text-center'>
-                                Latest:{" "}
-                                <span className='font-medium text-gray-700 dark:text-gray-300'>
-                                  {latestWeight}kg
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        ),
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Distance Progress Charts */}
-                {workoutStats.exercisesWithDistanceProgress.length > 0 && (
-                  <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
-                    <h4 className='text-[13px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-4'>
-                      Distance Progress
-                    </h4>
-                    <div className='space-y-6'>
-                      {workoutStats.exercisesWithDistanceProgress.map(
-                        ({ name, data, maxDistance, totalDistance }) => (
-                          <div key={name} className='space-y-3'>
-                            <div className='flex items-center justify-between'>
-                              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                                {name}
-                              </span>
+                      {(showAllExercises
+                        ? workoutStats.topExercises
+                        : workoutStats.topExercises.slice(0, 5)
+                      ).map(([name, data], index) => {
+                        const isExpanded = expandedExercise === name;
+                        // Find progress data from allTimeWorkoutProgress
+                        const strengthData =
+                          allTimeWorkoutProgress.strength.find(
+                            (s) => s.name === name,
+                          );
+                        const cardioData = allTimeWorkoutProgress.cardio.find(
+                          (c) => c.name === name,
+                        );
+                        const trendPct =
+                          strengthData?.trendPct ?? cardioData?.trendPct ?? 0;
+                        const maxLabel = strengthData
+                          ? `${strengthData.maxWeight}kg`
+                          : cardioData
+                            ? `${cardioData.maxDistance % 1 === 0 ? cardioData.maxDistance : cardioData.maxDistance.toFixed(1)}km`
+                            : null;
+                        const hasChart = !!(strengthData || cardioData);
+                        return (
+                          <div key={name}>
+                            <button
+                              onClick={() =>
+                                hasChart &&
+                                setExpandedExercise(isExpanded ? null : name)
+                              }
+                              className={cn(
+                                "w-full flex items-center justify-between px-4 py-3 transition-colors",
+                                hasChart &&
+                                  "active:bg-gray-50 dark:active:bg-gray-700/50",
+                                index <
+                                  (showAllExercises
+                                    ? workoutStats.topExercises.length
+                                    : Math.min(
+                                        5,
+                                        workoutStats.topExercises.length,
+                                      )) -
+                                    1 &&
+                                  !isExpanded &&
+                                  "border-b border-gray-100 dark:border-gray-700",
+                              )}>
                               <div className='flex items-center gap-3'>
-                                <span className='text-[13px] text-gray-500'>
-                                  Total:{" "}
-                                  <span className='font-semibold text-ios-orange'>
-                                    {totalDistance.toFixed(1)}km
+                                <div className='w-8 h-8 rounded-full bg-ios-blue/10 flex items-center justify-center'>
+                                  <span className='text-[13px] font-bold text-ios-blue'>
+                                    {index + 1}
                                   </span>
-                                </span>
+                                </div>
+                                <div className='text-left'>
+                                  <span className='text-[15px] text-gray-900 dark:text-white'>
+                                    {name}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                            {/* Progress chart */}
-                            <div className='bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3'>
-                              <div className='flex items-end gap-1.5 h-20'>
-                                {data.slice(-12).map((d, i) => {
-                                  const heightPercent =
-                                    maxDistance > 0
-                                      ? ((d.distance || 0) / maxDistance) * 100
-                                      : 0;
-                                  const isMax = d.distance === maxDistance;
-                                  return (
-                                    <div
-                                      key={`${d.date}-${i}`}
-                                      className='flex-1 flex flex-col items-center'
-                                      title={`${d.date}: ${d.distance}km`}>
-                                      <div
-                                        className='w-full relative'
-                                        style={{ height: "60px" }}>
-                                        <div
-                                          className={cn(
-                                            "absolute bottom-0 left-0 right-0 rounded-t-md transition-all",
-                                            isMax
-                                              ? "bg-ios-green"
-                                              : "bg-ios-orange/70",
-                                          )}
-                                          style={{
-                                            height: `${Math.max(heightPercent, 8)}%`,
-                                          }}
+                              <div className='flex items-center gap-2'>
+                                {trendPct !== 0 && (
+                                  <span
+                                    className={cn(
+                                      "text-[11px] font-semibold px-1.5 py-0.5 rounded-full",
+                                      trendPct > 0
+                                        ? "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                                        : "bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400",
+                                    )}>
+                                    {trendPct > 0 ? "↑" : "↓"}
+                                    {Math.abs(trendPct)}%
+                                  </span>
+                                )}
+                                {maxLabel && (
+                                  <span className='text-[13px] font-semibold text-gray-600 dark:text-gray-300'>
+                                    {maxLabel}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                            {/* Expanded curve */}
+                            {isExpanded &&
+                              strengthData &&
+                              (() => {
+                                const { points, maxWeight, minWeight } =
+                                  strengthData;
+                                const chartW = 280;
+                                const chartH = 80;
+                                const padL = 32;
+                                const padR = 4;
+                                const padY = 8;
+                                const rangeW = maxWeight - minWeight || 1;
+                                const pathPts = points.map((p, i) => ({
+                                  x:
+                                    padL +
+                                    (points.length > 1
+                                      ? (i / (points.length - 1)) *
+                                        (chartW - padL - padR)
+                                      : (chartW - padL - padR) / 2),
+                                  y:
+                                    padY +
+                                    (1 - (p.weight - minWeight) / rangeW) *
+                                      (chartH - 2 * padY),
+                                  ...p,
+                                }));
+                                const smoothPath = pathPts.reduce(
+                                  (acc, pt, i, arr) => {
+                                    if (i === 0) return `M${pt.x},${pt.y}`;
+                                    const prev = arr[i - 1];
+                                    const cpx = (prev.x + pt.x) / 2;
+                                    return `${acc} C${cpx},${prev.y} ${cpx},${pt.y} ${pt.x},${pt.y}`;
+                                  },
+                                  "",
+                                );
+                                const areaPath = `${smoothPath} L${pathPts[pathPts.length - 1].x},${chartH} L${pathPts[0].x},${chartH} Z`;
+                                const prPt = pathPts.find(
+                                  (p) => p.weight === maxWeight,
+                                );
+                                const fmtD = (d: string) =>
+                                  new Date(d + "T12:00:00").toLocaleDateString(
+                                    "en-US",
+                                    { day: "numeric", month: "short" },
+                                  );
+                                return (
+                                  <div className='px-4 pb-3 border-b border-gray-100 dark:border-gray-700'>
+                                    <div className='bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 pb-1'>
+                                      <svg
+                                        viewBox={`0 0 ${chartW} ${chartH}`}
+                                        className='w-full'
+                                        style={{ height: 80 }}
+                                        preserveAspectRatio='none'>
+                                        <defs>
+                                          <linearGradient
+                                            id={`grad-ex-${name.replace(/\s/g, "")}`}
+                                            x1='0'
+                                            y1='0'
+                                            x2='0'
+                                            y2='1'>
+                                            <stop
+                                              offset='0%'
+                                              stopColor='#007AFF'
+                                              stopOpacity='0.2'
+                                            />
+                                            <stop
+                                              offset='100%'
+                                              stopColor='#007AFF'
+                                              stopOpacity='0.02'
+                                            />
+                                          </linearGradient>
+                                        </defs>
+                                        <line
+                                          x1={padL}
+                                          y1={padY}
+                                          x2={chartW - padR}
+                                          y2={padY}
+                                          stroke='#e5e7eb'
+                                          strokeWidth='0.5'
+                                          strokeDasharray='3,3'
                                         />
-                                      </div>
-                                      <div className='text-[9px] text-gray-400 mt-1.5 font-medium'>
-                                        {
-                                          new Date(d.date + "T12:00:00")
-                                            .toLocaleDateString("en-US", {
-                                              day: "numeric",
-                                              month: "short",
-                                            })
-                                            .split(" ")[1]
-                                        }
+                                        <line
+                                          x1={padL}
+                                          y1={chartH - padY}
+                                          x2={chartW - padR}
+                                          y2={chartH - padY}
+                                          stroke='#e5e7eb'
+                                          strokeWidth='0.5'
+                                          strokeDasharray='3,3'
+                                        />
+                                        <text
+                                          x={padL - 4}
+                                          y={padY + 3}
+                                          textAnchor='end'
+                                          fontSize='8'
+                                          fill='#9ca3af'>
+                                          {maxWeight}
+                                        </text>
+                                        <text
+                                          x={padL - 4}
+                                          y={chartH - padY + 3}
+                                          textAnchor='end'
+                                          fontSize='8'
+                                          fill='#9ca3af'>
+                                          {minWeight}
+                                        </text>
+                                        <path
+                                          d={areaPath}
+                                          fill={`url(#grad-ex-${name.replace(/\s/g, "")})`}
+                                        />
+                                        <path
+                                          d={smoothPath}
+                                          fill='none'
+                                          stroke='#007AFF'
+                                          strokeWidth='2.5'
+                                          strokeLinecap='round'
+                                          strokeLinejoin='round'
+                                        />
+                                        {prPt && (
+                                          <circle
+                                            cx={prPt.x}
+                                            cy={prPt.y}
+                                            r='4'
+                                            fill='#34C759'
+                                            stroke='white'
+                                            strokeWidth='2'
+                                          />
+                                        )}
+                                        <circle
+                                          cx={pathPts[pathPts.length - 1].x}
+                                          cy={pathPts[pathPts.length - 1].y}
+                                          r='3.5'
+                                          fill='#007AFF'
+                                          stroke='white'
+                                          strokeWidth='1.5'
+                                        />
+                                      </svg>
+                                      <div className='flex justify-between mt-1'>
+                                        <span className='text-[10px] text-gray-400'>
+                                          {fmtD(points[0].date)}
+                                        </span>
+                                        <span className='text-[10px] text-gray-400'>
+                                          {fmtD(points[points.length - 1].date)}
+                                        </span>
                                       </div>
                                     </div>
+                                    <div className='flex items-center justify-between text-[11px] text-gray-500 px-1 mt-2'>
+                                      <span>
+                                        PR{" "}
+                                        <span className='font-semibold text-green-500'>
+                                          {maxWeight}kg
+                                        </span>
+                                      </span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setShowSessionsFor(
+                                            showSessionsFor === name
+                                              ? null
+                                              : name,
+                                          );
+                                        }}
+                                        className='text-ios-blue active:opacity-70'>
+                                        {points.length} sessions{" "}
+                                        {showSessionsFor === name ? "▲" : "▼"}
+                                      </button>
+                                    </div>
+                                    {showSessionsFor === name &&
+                                      (() => {
+                                        const reversed = [...points].reverse();
+                                        const byYear: Record<
+                                          string,
+                                          typeof reversed
+                                        > = {};
+                                        reversed.forEach((pt) => {
+                                          const yr = pt.date.slice(0, 4);
+                                          if (!byYear[yr]) byYear[yr] = [];
+                                          byYear[yr].push(pt);
+                                        });
+                                        const years = Object.keys(byYear).sort(
+                                          (a, b) => b.localeCompare(a),
+                                        );
+                                        return (
+                                          <div className='mt-2 space-y-2'>
+                                            {years.map((yr) => (
+                                              <div key={yr}>
+                                                {years.length > 1 && (
+                                                  <div className='text-[10px] font-semibold text-gray-400 dark:text-gray-500 mb-1'>
+                                                    {yr}
+                                                  </div>
+                                                )}
+                                                <div className='flex flex-wrap gap-1.5'>
+                                                  {byYear[yr].map((pt) => {
+                                                    const d = new Date(
+                                                      pt.date + "T12:00:00",
+                                                    );
+                                                    const label =
+                                                      d.toLocaleDateString(
+                                                        "en-US",
+                                                        {
+                                                          day: "numeric",
+                                                          month: "short",
+                                                        },
+                                                      );
+                                                    const isPR =
+                                                      pt.weight === maxWeight;
+                                                    return (
+                                                      <button
+                                                        key={pt.date}
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setSelectedDate(
+                                                            pt.date,
+                                                          );
+                                                          router.push("/");
+                                                        }}
+                                                        className={cn(
+                                                          "inline-flex items-center gap-1 pl-2 pr-1.5 py-1 rounded-lg text-[11px] active:scale-95 transition-transform",
+                                                          isPR
+                                                            ? "bg-green-50 dark:bg-green-900/20"
+                                                            : "bg-gray-50 dark:bg-gray-700/50",
+                                                        )}>
+                                                        <span className='text-gray-500 dark:text-gray-400'>
+                                                          {label}
+                                                        </span>
+                                                        <span
+                                                          className={cn(
+                                                            "text-[10px] font-bold px-1.5 py-0.5 rounded-md",
+                                                            isPR
+                                                              ? "bg-green-500 text-white"
+                                                              : "bg-ios-blue/10 text-ios-blue dark:bg-ios-blue/20",
+                                                          )}>
+                                                          {pt.weight}kg
+                                                        </span>
+                                                      </button>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        );
+                                      })()}
+                                  </div>
+                                );
+                              })()}
+                            {isExpanded &&
+                              cardioData &&
+                              !strengthData &&
+                              (() => {
+                                const { points, maxDistance, minDistance } =
+                                  cardioData;
+                                const chartW = 280;
+                                const chartH = 80;
+                                const padL = 32;
+                                const padR = 4;
+                                const padY = 8;
+                                const rangeD = maxDistance - minDistance || 1;
+                                const pathPts = points.map((p, i) => ({
+                                  x:
+                                    padL +
+                                    (points.length > 1
+                                      ? (i / (points.length - 1)) *
+                                        (chartW - padL - padR)
+                                      : (chartW - padL - padR) / 2),
+                                  y:
+                                    padY +
+                                    (1 - (p.distance - minDistance) / rangeD) *
+                                      (chartH - 2 * padY),
+                                  ...p,
+                                }));
+                                const smoothPath = pathPts.reduce(
+                                  (acc, pt, i, arr) => {
+                                    if (i === 0) return `M${pt.x},${pt.y}`;
+                                    const prev = arr[i - 1];
+                                    const cpx = (prev.x + pt.x) / 2;
+                                    return `${acc} C${cpx},${prev.y} ${cpx},${pt.y} ${pt.x},${pt.y}`;
+                                  },
+                                  "",
+                                );
+                                const areaPath = `${smoothPath} L${pathPts[pathPts.length - 1].x},${chartH} L${pathPts[0].x},${chartH} Z`;
+                                const prPt = pathPts.find(
+                                  (p) => p.distance === maxDistance,
+                                );
+                                const fmtD = (d: string) =>
+                                  new Date(d + "T12:00:00").toLocaleDateString(
+                                    "en-US",
+                                    { day: "numeric", month: "short" },
                                   );
-                                })}
-                              </div>
-                            </div>
+                                const fmtDist = (d: number) =>
+                                  d % 1 === 0 ? String(d) : d.toFixed(1);
+                                return (
+                                  <div className='px-4 pb-3 border-b border-gray-100 dark:border-gray-700'>
+                                    <div className='bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 pb-1'>
+                                      <svg
+                                        viewBox={`0 0 ${chartW} ${chartH}`}
+                                        className='w-full'
+                                        style={{ height: 80 }}
+                                        preserveAspectRatio='none'>
+                                        <defs>
+                                          <linearGradient
+                                            id={`grad-ex-${name.replace(/\s/g, "")}`}
+                                            x1='0'
+                                            y1='0'
+                                            x2='0'
+                                            y2='1'>
+                                            <stop
+                                              offset='0%'
+                                              stopColor='#FF9500'
+                                              stopOpacity='0.2'
+                                            />
+                                            <stop
+                                              offset='100%'
+                                              stopColor='#FF9500'
+                                              stopOpacity='0.02'
+                                            />
+                                          </linearGradient>
+                                        </defs>
+                                        <line
+                                          x1={padL}
+                                          y1={padY}
+                                          x2={chartW - padR}
+                                          y2={padY}
+                                          stroke='#e5e7eb'
+                                          strokeWidth='0.5'
+                                          strokeDasharray='3,3'
+                                        />
+                                        <line
+                                          x1={padL}
+                                          y1={chartH - padY}
+                                          x2={chartW - padR}
+                                          y2={chartH - padY}
+                                          stroke='#e5e7eb'
+                                          strokeWidth='0.5'
+                                          strokeDasharray='3,3'
+                                        />
+                                        <text
+                                          x={padL - 4}
+                                          y={padY + 3}
+                                          textAnchor='end'
+                                          fontSize='8'
+                                          fill='#9ca3af'>
+                                          {fmtDist(maxDistance)}
+                                        </text>
+                                        <text
+                                          x={padL - 4}
+                                          y={chartH - padY + 3}
+                                          textAnchor='end'
+                                          fontSize='8'
+                                          fill='#9ca3af'>
+                                          {fmtDist(minDistance)}
+                                        </text>
+                                        <path
+                                          d={areaPath}
+                                          fill={`url(#grad-ex-${name.replace(/\s/g, "")})`}
+                                        />
+                                        <path
+                                          d={smoothPath}
+                                          fill='none'
+                                          stroke='#FF9500'
+                                          strokeWidth='2.5'
+                                          strokeLinecap='round'
+                                          strokeLinejoin='round'
+                                        />
+                                        {prPt && (
+                                          <circle
+                                            cx={prPt.x}
+                                            cy={prPt.y}
+                                            r='4'
+                                            fill='#34C759'
+                                            stroke='white'
+                                            strokeWidth='2'
+                                          />
+                                        )}
+                                        <circle
+                                          cx={pathPts[pathPts.length - 1].x}
+                                          cy={pathPts[pathPts.length - 1].y}
+                                          r='3.5'
+                                          fill='#FF9500'
+                                          stroke='white'
+                                          strokeWidth='1.5'
+                                        />
+                                      </svg>
+                                      <div className='flex justify-between mt-1'>
+                                        <span className='text-[10px] text-gray-400'>
+                                          {fmtD(points[0].date)}
+                                        </span>
+                                        <span className='text-[10px] text-gray-400'>
+                                          {fmtD(points[points.length - 1].date)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className='flex items-center justify-between text-[11px] text-gray-500 px-1 mt-2'>
+                                      <span>
+                                        Best{" "}
+                                        <span className='font-semibold text-green-500'>
+                                          {fmtDist(maxDistance)}km
+                                        </span>
+                                      </span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setShowSessionsFor(
+                                            showSessionsFor === name
+                                              ? null
+                                              : name,
+                                          );
+                                        }}
+                                        className='text-ios-blue active:opacity-70'>
+                                        {points.length} sessions{" "}
+                                        {showSessionsFor === name ? "▲" : "▼"}
+                                      </button>
+                                    </div>
+                                    {showSessionsFor === name &&
+                                      (() => {
+                                        const reversed = [...points].reverse();
+                                        const byYear: Record<
+                                          string,
+                                          typeof reversed
+                                        > = {};
+                                        reversed.forEach((pt) => {
+                                          const yr = pt.date.slice(0, 4);
+                                          if (!byYear[yr]) byYear[yr] = [];
+                                          byYear[yr].push(pt);
+                                        });
+                                        const years = Object.keys(byYear).sort(
+                                          (a, b) => b.localeCompare(a),
+                                        );
+                                        return (
+                                          <div className='mt-2 space-y-2'>
+                                            {years.map((yr) => (
+                                              <div key={yr}>
+                                                {years.length > 1 && (
+                                                  <div className='text-[10px] font-semibold text-gray-400 dark:text-gray-500 mb-1'>
+                                                    {yr}
+                                                  </div>
+                                                )}
+                                                <div className='flex flex-wrap gap-1.5'>
+                                                  {byYear[yr].map((pt) => {
+                                                    const d = new Date(
+                                                      pt.date + "T12:00:00",
+                                                    );
+                                                    const label =
+                                                      d.toLocaleDateString(
+                                                        "en-US",
+                                                        {
+                                                          day: "numeric",
+                                                          month: "short",
+                                                        },
+                                                      );
+                                                    const isBest =
+                                                      pt.distance ===
+                                                      maxDistance;
+                                                    return (
+                                                      <button
+                                                        key={pt.date}
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setSelectedDate(
+                                                            pt.date,
+                                                          );
+                                                          router.push("/");
+                                                        }}
+                                                        className={cn(
+                                                          "inline-flex items-center gap-1 pl-2 pr-1.5 py-1 rounded-lg text-[11px] active:scale-95 transition-transform",
+                                                          isBest
+                                                            ? "bg-green-50 dark:bg-green-900/20"
+                                                            : "bg-gray-50 dark:bg-gray-700/50",
+                                                        )}>
+                                                        <span className='text-gray-500 dark:text-gray-400'>
+                                                          {label}
+                                                        </span>
+                                                        <span
+                                                          className={cn(
+                                                            "text-[10px] font-bold px-1.5 py-0.5 rounded-md",
+                                                            isBest
+                                                              ? "bg-green-500 text-white"
+                                                              : "bg-orange-500/10 text-orange-500 dark:bg-orange-500/20",
+                                                          )}>
+                                                          {fmtDist(pt.distance)}
+                                                          km
+                                                        </span>
+                                                      </button>
+                                                    );
+                                                  })}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        );
+                                      })()}
+                                  </div>
+                                );
+                              })()}
                           </div>
-                        ),
-                      )}
+                        );
+                      })}
                     </div>
+                    {workoutStats.topExercises.length > 5 && (
+                      <button
+                        onClick={() => {
+                          const next = !showAllExercises;
+                          setShowAllExercises(next);
+                          localStorage.setItem(
+                            "stats-show-all-exercises",
+                            String(next),
+                          );
+                        }}
+                        className='w-full text-center text-[13px] text-ios-blue font-medium py-3 border-t border-gray-100 dark:border-gray-700'>
+                        {showAllExercises
+                          ? "Show less"
+                          : `Show all (${workoutStats.topExercises.length})`}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -2103,7 +2793,7 @@ export default function StatsPage() {
                 <div className='space-y-3'>
                   {(showAllChecklistItems
                     ? checklistStats.allItems
-                    : checklistStats.topItems
+                    : checklistStats.allItems.slice(0, 5)
                   ).map((item, index) => {
                     const isSelected = selectedChecklistItem === item.text;
                     const itemBarColor = barColors[index % barColors.length];
@@ -2122,25 +2812,29 @@ export default function StatsPage() {
                               : "active:bg-gray-100 dark:active:bg-gray-800",
                           )}>
                           <div className='flex items-center justify-between text-[15px]'>
-                            <span
-                              className={cn(
-                                "truncate mr-2",
-                                isSelected
-                                  ? "text-ios-blue font-medium"
-                                  : "text-gray-700 dark:text-gray-300",
-                              )}>
-                              {item.text}
-                            </span>
+                            <div className='flex items-center gap-2 truncate mr-2'>
+                              {index < 10 && (
+                                <div
+                                  className={cn(
+                                    "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0",
+                                    itemBarColor,
+                                  )}>
+                                  {index + 1}
+                                </div>
+                              )}
+                              <span
+                                className={cn(
+                                  "truncate",
+                                  isSelected
+                                    ? "text-ios-blue font-medium"
+                                    : "text-gray-700 dark:text-gray-300",
+                                )}>
+                                {item.text}
+                              </span>
+                            </div>
                             <div className='flex items-center gap-2'>
                               <span className='text-[13px] text-gray-600 dark:text-gray-400 font-medium shrink-0 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full'>
                                 {item.count}
-                              </span>
-                              <span
-                                className={cn(
-                                  "text-[13px] text-gray-400 transition-transform",
-                                  isSelected ? "rotate-180" : "",
-                                )}>
-                                ▼
                               </span>
                             </div>
                           </div>
@@ -2345,17 +3039,570 @@ export default function StatsPage() {
                     );
                   })}
                 </div>
-                {checklistStats.allItems.length > 10 && (
+                {checklistStats.allItems.length > 5 && (
                   <button
-                    onClick={() =>
-                      setShowAllChecklistItems(!showAllChecklistItems)
-                    }
+                    onClick={() => {
+                      const next = !showAllChecklistItems;
+                      setShowAllChecklistItems(next);
+                      localStorage.setItem(
+                        "stats-show-all-checklist",
+                        String(next),
+                      );
+                    }}
                     className='mt-4 w-full text-center text-[13px] text-ios-blue font-medium py-2'>
                     {showAllChecklistItems
-                      ? "Show Less"
-                      : `Show All (${checklistStats.uniqueItems})`}
+                      ? "Show less"
+                      : `Show all (${checklistStats.uniqueItems})`}
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* Top Viewed TV Series Grid */}
+            {isTvSeriesType && topViewedSeries.length > 0 && (
+              <div className='p-4 border-b border-gray-200/80 dark:border-gray-700/80'>
+                <div className='flex items-center justify-between mb-3'>
+                  <h4 className='text-[13px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400'>
+                    Most Watched
+                  </h4>
+                  <div className='relative'>
+                    <select
+                      value={topSeriesCount}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        setTopSeriesCount(val);
+                        localStorage.setItem(
+                          "stats-top-series-count",
+                          String(val),
+                        );
+                      }}
+                      className='appearance-none bg-gray-100 dark:bg-gray-700/80 text-[13px] font-medium text-ios-blue pl-3 pr-7 py-1.5 rounded-full outline-none cursor-pointer'>
+                      {[3, 6, 9, 12, 15].map((n) => (
+                        <option key={n} value={n}>
+                          Top {n}
+                        </option>
+                      ))}
+                    </select>
+                    <svg
+                      className='absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-ios-blue pointer-events-none'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth={2.5}
+                      viewBox='0 0 24 24'>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M19 9l-7 7-7-7'
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <div className='grid grid-cols-3 gap-3'>
+                  {topViewedSeries.slice(0, topSeriesCount).map((series) => {
+                    const seriesKey = series.name.toLowerCase();
+                    const isSelected = selectedValue === seriesKey;
+                    return (
+                      <div key={series.name} className='relative'>
+                        <button
+                          onClick={() => {
+                            setSelectedValue(isSelected ? null : seriesKey);
+                            setShowAllDates(false);
+                          }}
+                          className={cn(
+                            "aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 w-full transition-all",
+                            isSelected &&
+                              "ring-2 ring-ios-blue ring-offset-2 dark:ring-offset-gray-900",
+                          )}>
+                          {series.poster ? (
+                            <img
+                              src={series.poster}
+                              alt={series.name}
+                              className='w-full h-full object-cover'
+                            />
+                          ) : (
+                            <div className='w-full h-full flex items-center justify-center text-[11px] text-gray-500 dark:text-gray-400 px-1 text-center'>
+                              {series.name}
+                            </div>
+                          )}
+                        </button>
+                        {/* Notification badge */}
+                        <div className='absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1 flex items-center justify-center rounded-full bg-ios-red text-white text-[12px] font-bold shadow-sm'>
+                          {series.count}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Calendar for selected top series */}
+                {selectedValue &&
+                  topViewedSeries
+                    .slice(0, topSeriesCount)
+                    .some((s) => s.name.toLowerCase() === selectedValue) &&
+                  calendarData && (
+                    <div
+                      className='mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl'
+                      onClick={(e) => e.stopPropagation()}>
+                      <div className='flex items-center justify-between mb-2'>
+                        <span className='text-[13px] font-medium text-gray-700 dark:text-gray-300 capitalize'>
+                          {formatDisplayValue(selectedValue)}
+                        </span>
+                        <button
+                          onClick={() => setSelectedValue(null)}
+                          className='text-[12px] text-ios-blue font-medium'>
+                          Close
+                        </button>
+                      </div>
+                      {calendarData.type === "week" && (
+                        <div>
+                          <CalendarNavHeader
+                            label={calendarData.weekRange}
+                            onPrev={() => setOffset(offset - 1)}
+                            onNext={() => setOffset(offset + 1)}
+                            canGoPrev={canGoBack}
+                            canGoNext={canGoForward}
+                            onToday={() => setOffset(0)}
+                            showToday={offset !== 0}
+                          />
+                          <div className='flex justify-between gap-1'>
+                            {calendarData.days.map((day) => (
+                              <div
+                                key={day.date}
+                                className={cn(
+                                  "flex-1 text-center py-2 px-1 rounded-lg",
+                                  day.isMarked
+                                    ? "bg-ios-blue text-white"
+                                    : day.isToday
+                                      ? "bg-ios-blue/10 text-ios-blue"
+                                      : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400",
+                                )}>
+                                <div className='text-[10px] uppercase font-medium'>
+                                  {day.dayName}
+                                </div>
+                                <div
+                                  className={cn(
+                                    "text-lg font-bold",
+                                    day.isMarked && "text-white",
+                                  )}>
+                                  {day.dayNum}
+                                </div>
+                                <div className='text-[9px] opacity-70'>
+                                  {day.month}
+                                </div>
+                                {day.isMarked && (
+                                  <div className='text-[10px]'>✓</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {calendarData.type === "month" && (
+                        <div>
+                          <CalendarNavHeader
+                            label={calendarData.monthName}
+                            onPrev={() => setOffset(offset - 1)}
+                            onNext={() => setOffset(offset + 1)}
+                            canGoPrev={canGoBack}
+                            canGoNext={canGoForward}
+                            onToday={() => setOffset(0)}
+                            showToday={offset !== 0}
+                          />
+                          <div className='grid grid-cols-7 gap-1 text-center text-[10px] text-gray-500 mb-1'>
+                            <div>Mo</div>
+                            <div>Tu</div>
+                            <div>We</div>
+                            <div>Th</div>
+                            <div>Fr</div>
+                            <div>Sa</div>
+                            <div>Su</div>
+                          </div>
+                          {calendarData.weeks.map((week, weekIdx) => (
+                            <div
+                              key={weekIdx}
+                              className='grid grid-cols-7 gap-1'>
+                              {week.map((day) => (
+                                <div
+                                  key={day.date}
+                                  className={cn(
+                                    "aspect-square flex items-center justify-center text-[13px] rounded-lg",
+                                    !day.isCurrentMonth && "opacity-30",
+                                    day.isMarked
+                                      ? "bg-ios-blue text-white font-bold"
+                                      : day.isToday
+                                        ? "bg-ios-blue/10 text-ios-blue font-medium"
+                                        : "text-gray-600 dark:text-gray-400",
+                                  )}>
+                                  {day.dayNum}
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {calendarData.type === "year" && (
+                        <div className='space-y-2'>
+                          <CalendarNavHeader
+                            label={String(calendarData.year)}
+                            onPrev={() => setOffset(offset - 1)}
+                            onNext={() => setOffset(offset + 1)}
+                            canGoPrev={canGoBack}
+                            canGoNext={canGoForward}
+                            onToday={() => setOffset(0)}
+                            showToday={offset !== 0}
+                          />
+                          <div className='grid grid-cols-2 gap-4'>
+                            {calendarData.months.map((month, idx) => (
+                              <div key={idx} className='text-center'>
+                                <div className='text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1.5'>
+                                  {month.name}
+                                </div>
+                                <div className='grid grid-cols-7 gap-0.5 text-[8px] text-gray-400 mb-0.5'>
+                                  <div>M</div>
+                                  <div>T</div>
+                                  <div>W</div>
+                                  <div>T</div>
+                                  <div>F</div>
+                                  <div>S</div>
+                                  <div>S</div>
+                                </div>
+                                <div className='grid grid-cols-7 gap-0.5'>
+                                  {(() => {
+                                    const firstDay = new Date(
+                                      month.year,
+                                      idx,
+                                      1,
+                                    );
+                                    const startDay =
+                                      (firstDay.getDay() + 6) % 7;
+                                    const emptyCells = [];
+                                    for (let i = 0; i < startDay; i++) {
+                                      emptyCells.push(
+                                        <div
+                                          key={`empty-${i}`}
+                                          className='w-4 h-4'
+                                        />,
+                                      );
+                                    }
+                                    return emptyCells;
+                                  })()}
+                                  {month.days.map((day) => (
+                                    <div
+                                      key={day.date}
+                                      className={cn(
+                                        "w-4 h-4 rounded-sm flex items-center justify-center text-[9px]",
+                                        day.isFuture
+                                          ? "bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600"
+                                          : day.isMarked
+                                            ? "bg-ios-blue text-white font-bold"
+                                            : day.isToday
+                                              ? "bg-ios-blue/30 text-ios-blue font-medium"
+                                              : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
+                                      )}
+                                      title={`${day.dayNum}. ${month.name}${day.isMarked ? " ✓" : ""}`}>
+                                      {day.dayNum}
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className='mt-1 text-[10px] text-gray-500 dark:text-gray-400'>
+                                  {month.days.filter((d) => d.isMarked).length >
+                                    0 && (
+                                    <span className='font-medium text-ios-blue'>
+                                      {
+                                        month.days.filter((d) => d.isMarked)
+                                          .length
+                                      }{" "}
+                                      days
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className='mt-3 pt-2 border-t border-gray-200/80 dark:border-gray-700/80 text-center text-[13px] text-gray-500'>
+                        {datesForSelectedValue.size} days watched
+                      </div>
+                    </div>
+                  )}
+              </div>
+            )}
+
+            {/* Top Movies Grid */}
+            {isMovieType && topMovies.length > 0 && (
+              <div className='p-4 border-b border-gray-200/80 dark:border-gray-700/80'>
+                <div className='flex items-center gap-1 mb-3 bg-gray-100 dark:bg-gray-700/80 rounded-full p-0.5'>
+                  {(
+                    [
+                      { value: "newest", label: "Newest" },
+                      { value: "myRating", label: "My Top" },
+                      { value: "imdbRating", label: "IMDb Top" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setMovieSortMode(opt.value);
+                        localStorage.setItem(
+                          "stats-movie-sort-mode",
+                          opt.value,
+                        );
+                        setSelectedValue(null);
+                      }}
+                      className={cn(
+                        "flex-1 text-[13px] font-medium py-1.5 rounded-full transition-all text-center",
+                        movieSortMode === opt.value
+                          ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
+                          : "text-gray-500 dark:text-gray-400",
+                      )}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <div className='grid grid-cols-3 gap-3'>
+                  {topMovies.map((movie) => {
+                    const movieKey = movie.name.toLowerCase();
+                    const isSelected = selectedValue === movieKey;
+                    return (
+                      <div key={movie.name} className='relative'>
+                        <button
+                          onClick={() => {
+                            setSelectedValue(isSelected ? null : movieKey);
+                            setShowAllDates(false);
+                          }}
+                          className={cn(
+                            "aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 dark:bg-gray-700 w-full transition-all",
+                            isSelected &&
+                              "ring-2 ring-ios-blue ring-offset-2 dark:ring-offset-gray-900",
+                          )}>
+                          {movie.poster ? (
+                            <img
+                              src={movie.poster}
+                              alt={movie.name}
+                              className='w-full h-full object-cover'
+                            />
+                          ) : (
+                            <div className='w-full h-full flex items-center justify-center text-[11px] text-gray-500 dark:text-gray-400 px-1 text-center'>
+                              {movie.name}
+                            </div>
+                          )}
+                        </button>
+                        {/* Rating badge */}
+                        {movieSortMode === "myRating" &&
+                          movie.userRating > 0 && (
+                            <div className='absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1 flex items-center justify-center rounded-full bg-ios-blue text-white text-[11px] font-bold shadow-sm'>
+                              {movie.userRating}
+                            </div>
+                          )}
+                        {movieSortMode === "imdbRating" &&
+                          movie.imdbRating > 0 && (
+                            <div className='absolute -top-1.5 -right-1.5 min-w-[26px] h-[22px] px-1 flex items-center justify-center rounded-full bg-amber-500 text-white text-[11px] font-bold shadow-sm'>
+                              {movie.imdbRating}
+                            </div>
+                          )}
+                        {movieSortMode === "newest" && movie.year && (
+                          <div className='absolute -top-1.5 -right-1.5 min-w-[22px] h-[22px] px-1.5 flex items-center justify-center rounded-full bg-gray-600 text-white text-[10px] font-bold shadow-sm'>
+                            {movie.year}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Calendar for selected movie */}
+                {selectedValue &&
+                  topMovies.some(
+                    (m) => m.name.toLowerCase() === selectedValue,
+                  ) &&
+                  calendarData && (
+                    <div
+                      className='mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl'
+                      onClick={(e) => e.stopPropagation()}>
+                      <div className='flex items-center justify-between mb-2'>
+                        <span className='text-[13px] font-medium text-gray-700 dark:text-gray-300 capitalize'>
+                          {formatDisplayValue(selectedValue)}
+                        </span>
+                        <button
+                          onClick={() => setSelectedValue(null)}
+                          className='text-[12px] text-ios-blue font-medium'>
+                          Close
+                        </button>
+                      </div>
+                      {calendarData.type === "week" && (
+                        <div>
+                          <CalendarNavHeader
+                            label={calendarData.weekRange}
+                            onPrev={() => setOffset(offset - 1)}
+                            onNext={() => setOffset(offset + 1)}
+                            canGoPrev={canGoBack}
+                            canGoNext={canGoForward}
+                            onToday={() => setOffset(0)}
+                            showToday={offset !== 0}
+                          />
+                          <div className='flex justify-between gap-1'>
+                            {calendarData.days.map((day) => (
+                              <div
+                                key={day.date}
+                                className={cn(
+                                  "flex-1 text-center py-2 px-1 rounded-lg",
+                                  day.isMarked
+                                    ? "bg-ios-blue text-white"
+                                    : day.isToday
+                                      ? "bg-ios-blue/10 text-ios-blue"
+                                      : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400",
+                                )}>
+                                <div className='text-[10px] uppercase font-medium'>
+                                  {day.dayName}
+                                </div>
+                                <div
+                                  className={cn(
+                                    "text-lg font-bold",
+                                    day.isMarked && "text-white",
+                                  )}>
+                                  {day.dayNum}
+                                </div>
+                                <div className='text-[9px] opacity-70'>
+                                  {day.month}
+                                </div>
+                                {day.isMarked && (
+                                  <div className='text-[10px]'>✓</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {calendarData.type === "month" && (
+                        <div>
+                          <CalendarNavHeader
+                            label={calendarData.monthName}
+                            onPrev={() => setOffset(offset - 1)}
+                            onNext={() => setOffset(offset + 1)}
+                            canGoPrev={canGoBack}
+                            canGoNext={canGoForward}
+                            onToday={() => setOffset(0)}
+                            showToday={offset !== 0}
+                          />
+                          <div className='grid grid-cols-7 gap-1 text-center text-[10px] text-gray-500 mb-1'>
+                            <div>Mo</div>
+                            <div>Tu</div>
+                            <div>We</div>
+                            <div>Th</div>
+                            <div>Fr</div>
+                            <div>Sa</div>
+                            <div>Su</div>
+                          </div>
+                          {calendarData.weeks.map((week, weekIdx) => (
+                            <div
+                              key={weekIdx}
+                              className='grid grid-cols-7 gap-1'>
+                              {week.map((day) => (
+                                <div
+                                  key={day.date}
+                                  className={cn(
+                                    "aspect-square flex items-center justify-center text-[13px] rounded-lg",
+                                    !day.isCurrentMonth && "opacity-30",
+                                    day.isMarked
+                                      ? "bg-ios-blue text-white font-bold"
+                                      : day.isToday
+                                        ? "bg-ios-blue/10 text-ios-blue font-medium"
+                                        : "text-gray-600 dark:text-gray-400",
+                                  )}>
+                                  {day.dayNum}
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {calendarData.type === "year" && (
+                        <div className='space-y-2'>
+                          <CalendarNavHeader
+                            label={String(calendarData.year)}
+                            onPrev={() => setOffset(offset - 1)}
+                            onNext={() => setOffset(offset + 1)}
+                            canGoPrev={canGoBack}
+                            canGoNext={canGoForward}
+                            onToday={() => setOffset(0)}
+                            showToday={offset !== 0}
+                          />
+                          <div className='grid grid-cols-2 gap-4'>
+                            {calendarData.months.map((month, idx) => (
+                              <div key={idx} className='text-center'>
+                                <div className='text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1.5'>
+                                  {month.name}
+                                </div>
+                                <div className='grid grid-cols-7 gap-0.5 text-[8px] text-gray-400 mb-0.5'>
+                                  <div>M</div>
+                                  <div>T</div>
+                                  <div>W</div>
+                                  <div>T</div>
+                                  <div>F</div>
+                                  <div>S</div>
+                                  <div>S</div>
+                                </div>
+                                <div className='grid grid-cols-7 gap-0.5'>
+                                  {(() => {
+                                    const firstDay = new Date(
+                                      month.year,
+                                      idx,
+                                      1,
+                                    );
+                                    const startDay =
+                                      (firstDay.getDay() + 6) % 7;
+                                    const emptyCells = [];
+                                    for (let i = 0; i < startDay; i++) {
+                                      emptyCells.push(
+                                        <div
+                                          key={`empty-${i}`}
+                                          className='w-4 h-4'
+                                        />,
+                                      );
+                                    }
+                                    return emptyCells;
+                                  })()}
+                                  {month.days.map((day) => (
+                                    <div
+                                      key={day.date}
+                                      className={cn(
+                                        "w-4 h-4 rounded-sm flex items-center justify-center text-[9px]",
+                                        day.isFuture
+                                          ? "bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600"
+                                          : day.isMarked
+                                            ? "bg-ios-blue text-white font-bold"
+                                            : day.isToday
+                                              ? "bg-ios-blue/30 text-ios-blue font-medium"
+                                              : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
+                                      )}
+                                      title={`${day.dayNum}. ${month.name}${day.isMarked ? " ✓" : ""}`}>
+                                      {day.dayNum}
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className='mt-1 text-[10px] text-gray-500 dark:text-gray-400'>
+                                  {month.days.filter((d) => d.isMarked).length >
+                                    0 && (
+                                    <span className='font-medium text-ios-blue'>
+                                      {
+                                        month.days.filter((d) => d.isMarked)
+                                          .length
+                                      }{" "}
+                                      days
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className='mt-3 pt-2 border-t border-gray-200/80 dark:border-gray-700/80 text-center text-[13px] text-gray-500'>
+                        {datesForSelectedValue.size} days watched
+                      </div>
+                    </div>
+                  )}
               </div>
             )}
 
@@ -2366,310 +3613,326 @@ export default function StatsPage() {
                   Tap to see dates
                 </h4>
                 <div className='space-y-3'>
-                  {valueCounts.map(({ value, count }, index) => {
-                    const isSelected = selectedValue === value;
-                    const moodBarColor = isMoodType
-                      ? getMoodBarColor(value)
-                      : barColors[index % barColors.length];
-                    const moodTextColor = isMoodType
-                      ? getMoodTextColor(value)
-                      : "text-ios-blue";
-                    const moodBgColorClass = isMoodType
-                      ? getMoodBgColor(value)
-                      : "bg-ios-blue/5 dark:bg-ios-blue/10";
-                    return (
-                      <div key={value}>
-                        <button
-                          onClick={() =>
-                            setSelectedValue(isSelected ? null : value)
-                          }
-                          className={cn(
-                            "w-full text-left space-y-1 p-2 -m-2 rounded-lg transition-all",
-                            isSelected
-                              ? moodBgColorClass
-                              : "active:bg-gray-100 dark:active:bg-gray-800",
-                          )}>
-                          <div className='flex items-center justify-between text-[15px]'>
-                            <span
-                              className={cn(
-                                "capitalize truncate mr-2",
-                                isSelected
-                                  ? cn(moodTextColor, "font-medium")
-                                  : "text-gray-700 dark:text-gray-300",
-                              )}>
-                              {formatDisplayValue(value)}
-                            </span>
-                            <div className='flex items-center gap-2'>
-                              <span className='text-[13px] text-gray-600 dark:text-gray-400 font-medium shrink-0 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full'>
-                                {count}
-                              </span>
+                  {valueCounts
+                    .filter(({ value }) => {
+                      // Hide series already shown in top grid
+                      if (isTvSeriesType && topViewedSeries.length > 0) {
+                        const shownNames = new Set(
+                          topViewedSeries
+                            .slice(0, topSeriesCount)
+                            .map((s) => s.name.toLowerCase()),
+                        );
+                        return !shownNames.has(value);
+                      }
+                      // Hide movies already shown in top grid
+                      if (isMovieType && topMovies.length > 0) {
+                        const shownNames = new Set(
+                          topMovies.map((m) => m.name.toLowerCase()),
+                        );
+                        return !shownNames.has(value);
+                      }
+                      return true;
+                    })
+                    .map(({ value, count }, index) => {
+                      const isSelected = selectedValue === value;
+                      const moodBarColor = isMoodType
+                        ? getMoodBarColor(value)
+                        : barColors[index % barColors.length];
+                      const moodTextColor = isMoodType
+                        ? getMoodTextColor(value)
+                        : "text-ios-blue";
+                      const moodBgColorClass = isMoodType
+                        ? getMoodBgColor(value)
+                        : "bg-ios-blue/5 dark:bg-ios-blue/10";
+                      return (
+                        <div key={value}>
+                          <button
+                            onClick={() =>
+                              setSelectedValue(isSelected ? null : value)
+                            }
+                            className={cn(
+                              "w-full text-left space-y-1 p-2 -m-2 rounded-lg transition-all",
+                              isSelected
+                                ? moodBgColorClass
+                                : "active:bg-gray-100 dark:active:bg-gray-800",
+                            )}>
+                            <div className='flex items-center justify-between text-[15px]'>
                               <span
                                 className={cn(
-                                  "text-[13px] text-gray-400 transition-transform",
-                                  isSelected ? "rotate-180" : "",
+                                  "capitalize truncate mr-2",
+                                  isSelected
+                                    ? cn(moodTextColor, "font-medium")
+                                    : "text-gray-700 dark:text-gray-300",
                                 )}>
-                                ▼
+                                {formatDisplayValue(value)}
                               </span>
-                            </div>
-                          </div>
-                          <div className='h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden'>
-                            <div
-                              className={cn(
-                                "h-full rounded-full transition-all",
-                                moodBarColor,
-                              )}
-                              style={{ width: `${(count / maxCount) * 100}%` }}
-                            />
-                          </div>
-                        </button>
-
-                        {/* Calendar view when selected */}
-                        {isSelected && calendarData && (
-                          <div
-                            className='mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl'
-                            onClick={(e) => e.stopPropagation()}>
-                            {calendarData.type === "week" && (
-                              <div>
-                                <CalendarNavHeader
-                                  label={calendarData.weekRange}
-                                  onPrev={() => setOffset(offset - 1)}
-                                  onNext={() => setOffset(offset + 1)}
-                                  canGoPrev={canGoBack}
-                                  canGoNext={canGoForward}
-                                  onToday={() => setOffset(0)}
-                                  showToday={offset !== 0}
-                                />
-                                <div className='flex justify-between gap-1'>
-                                  {calendarData.days.map((day) => (
-                                    <div
-                                      key={day.date}
-                                      className={cn(
-                                        "flex-1 text-center py-2 px-1 rounded-lg",
-                                        day.isMarked
-                                          ? isMoodType
-                                            ? getMoodColorClasses(value, true)
-                                            : "bg-ios-blue text-white"
-                                          : day.isToday
-                                            ? isMoodType
-                                              ? getMoodColorClasses(
-                                                  value,
-                                                  false,
-                                                )
-                                              : "bg-ios-blue/10 text-ios-blue"
-                                            : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400",
-                                      )}>
-                                      <div className='text-[10px] uppercase font-medium'>
-                                        {day.dayName}
-                                      </div>
-                                      <div
-                                        className={cn(
-                                          "text-lg font-bold",
-                                          day.isMarked && "text-white",
-                                        )}>
-                                        {day.dayNum}
-                                      </div>
-                                      <div className='text-[9px] opacity-70'>
-                                        {day.month}
-                                      </div>
-                                      {day.isMarked && (
-                                        <div className='text-[10px]'>
-                                          {isMoodType
-                                            ? getMoodEmoji(value)
-                                            : "✓"}
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
+                              <div className='flex items-center gap-2'>
+                                <span className='text-[13px] text-gray-600 dark:text-gray-400 font-medium shrink-0 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full'>
+                                  {count}
+                                </span>
                               </div>
-                            )}
+                            </div>
+                            <div className='h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden'>
+                              <div
+                                className={cn(
+                                  "h-full rounded-full transition-all",
+                                  moodBarColor,
+                                )}
+                                style={{
+                                  width: `${(count / maxCount) * 100}%`,
+                                }}
+                              />
+                            </div>
+                          </button>
 
-                            {calendarData.type === "month" && (
-                              <div>
-                                <CalendarNavHeader
-                                  label={calendarData.monthName}
-                                  onPrev={() => setOffset(offset - 1)}
-                                  onNext={() => setOffset(offset + 1)}
-                                  canGoPrev={canGoBack}
-                                  canGoNext={canGoForward}
-                                  onToday={() => setOffset(0)}
-                                  showToday={offset !== 0}
-                                />
-                                <div className='grid grid-cols-7 gap-1 text-center text-[10px] text-gray-500 mb-1'>
-                                  <div>Mo</div>
-                                  <div>Tu</div>
-                                  <div>We</div>
-                                  <div>Th</div>
-                                  <div>Fr</div>
-                                  <div>Sa</div>
-                                  <div>Su</div>
-                                </div>
-                                {calendarData.weeks.map((week, weekIdx) => (
-                                  <div
-                                    key={weekIdx}
-                                    className='grid grid-cols-7 gap-1'>
-                                    {week.map((day) => (
+                          {/* Calendar view when selected */}
+                          {isSelected && calendarData && (
+                            <div
+                              className='mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl'
+                              onClick={(e) => e.stopPropagation()}>
+                              {calendarData.type === "week" && (
+                                <div>
+                                  <CalendarNavHeader
+                                    label={calendarData.weekRange}
+                                    onPrev={() => setOffset(offset - 1)}
+                                    onNext={() => setOffset(offset + 1)}
+                                    canGoPrev={canGoBack}
+                                    canGoNext={canGoForward}
+                                    onToday={() => setOffset(0)}
+                                    showToday={offset !== 0}
+                                  />
+                                  <div className='flex justify-between gap-1'>
+                                    {calendarData.days.map((day) => (
                                       <div
                                         key={day.date}
                                         className={cn(
-                                          "aspect-square flex items-center justify-center text-[13px] rounded-lg",
-                                          !day.isCurrentMonth && "opacity-30",
+                                          "flex-1 text-center py-2 px-1 rounded-lg",
                                           day.isMarked
                                             ? isMoodType
-                                              ? getMoodColorClasses(
-                                                  value,
-                                                  true,
-                                                ) + " font-bold"
-                                              : "bg-ios-blue text-white font-bold"
+                                              ? getMoodColorClasses(value, true)
+                                              : "bg-ios-blue text-white"
                                             : day.isToday
                                               ? isMoodType
                                                 ? getMoodColorClasses(
                                                     value,
                                                     false,
-                                                  ) + " font-medium"
-                                                : "bg-ios-blue/10 text-ios-blue font-medium"
-                                              : "text-gray-600 dark:text-gray-400",
+                                                  )
+                                                : "bg-ios-blue/10 text-ios-blue"
+                                              : "bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-400",
                                         )}>
-                                        {day.dayNum}
+                                        <div className='text-[10px] uppercase font-medium'>
+                                          {day.dayName}
+                                        </div>
+                                        <div
+                                          className={cn(
+                                            "text-lg font-bold",
+                                            day.isMarked && "text-white",
+                                          )}>
+                                          {day.dayNum}
+                                        </div>
+                                        <div className='text-[9px] opacity-70'>
+                                          {day.month}
+                                        </div>
+                                        {day.isMarked && (
+                                          <div className='text-[10px]'>
+                                            {isMoodType
+                                              ? getMoodEmoji(value)
+                                              : "✓"}
+                                          </div>
+                                        )}
                                       </div>
                                     ))}
                                   </div>
-                                ))}
-                              </div>
-                            )}
+                                </div>
+                              )}
 
-                            {calendarData.type === "year" && (
-                              <div className='space-y-2'>
-                                {/* Year header with navigation */}
-                                <CalendarNavHeader
-                                  label={String(calendarData.year)}
-                                  onPrev={() => setOffset(offset - 1)}
-                                  onNext={() => setOffset(offset + 1)}
-                                  canGoPrev={canGoBack}
-                                  canGoNext={canGoForward}
-                                  onToday={() => setOffset(0)}
-                                  showToday={offset !== 0}
-                                />
-
-                                {/* Mini calendar grid - 2 columns of months (6 rows) */}
-                                <div className='grid grid-cols-2 gap-4'>
-                                  {calendarData.months.map((month, idx) => (
-                                    <div key={idx} className='text-center'>
-                                      <div className='text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1.5'>
-                                        {month.name}
-                                      </div>
-                                      <div className='grid grid-cols-7 gap-0.5 text-[8px] text-gray-400 mb-0.5'>
-                                        <div>M</div>
-                                        <div>T</div>
-                                        <div>W</div>
-                                        <div>T</div>
-                                        <div>F</div>
-                                        <div>S</div>
-                                        <div>S</div>
-                                      </div>
-                                      <div className='grid grid-cols-7 gap-0.5'>
-                                        {/* Add empty cells for first week alignment */}
-                                        {(() => {
-                                          const firstDay = new Date(
-                                            month.year,
-                                            idx,
-                                            1,
-                                          );
-                                          const startDay =
-                                            (firstDay.getDay() + 6) % 7; // Monday = 0
-                                          const emptyCells = [];
-                                          for (let i = 0; i < startDay; i++) {
-                                            emptyCells.push(
-                                              <div
-                                                key={`empty-${i}`}
-                                                className='w-4 h-4'
-                                              />,
-                                            );
-                                          }
-                                          return emptyCells;
-                                        })()}
-                                        {month.days.map((day) => (
-                                          <div
-                                            key={day.date}
-                                            className={cn(
-                                              "w-4 h-4 rounded-sm flex items-center justify-center text-[9px]",
-                                              day.isFuture
-                                                ? "bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600"
-                                                : day.isMarked
-                                                  ? isMoodType
-                                                    ? getMoodColorClasses(
-                                                        value,
-                                                        true,
-                                                      ) + " font-bold"
-                                                    : "bg-ios-blue text-white font-bold"
-                                                  : day.isToday
-                                                    ? isMoodType
-                                                      ? getMoodColorClasses(
-                                                          value,
-                                                          false,
-                                                        ) + " font-medium"
-                                                      : "bg-ios-blue/30 text-ios-blue font-medium"
-                                                    : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
-                                            )}
-                                            title={`${day.dayNum}. ${
-                                              month.name
-                                            }${
-                                              day.isMarked
+                              {calendarData.type === "month" && (
+                                <div>
+                                  <CalendarNavHeader
+                                    label={calendarData.monthName}
+                                    onPrev={() => setOffset(offset - 1)}
+                                    onNext={() => setOffset(offset + 1)}
+                                    canGoPrev={canGoBack}
+                                    canGoNext={canGoForward}
+                                    onToday={() => setOffset(0)}
+                                    showToday={offset !== 0}
+                                  />
+                                  <div className='grid grid-cols-7 gap-1 text-center text-[10px] text-gray-500 mb-1'>
+                                    <div>Mo</div>
+                                    <div>Tu</div>
+                                    <div>We</div>
+                                    <div>Th</div>
+                                    <div>Fr</div>
+                                    <div>Sa</div>
+                                    <div>Su</div>
+                                  </div>
+                                  {calendarData.weeks.map((week, weekIdx) => (
+                                    <div
+                                      key={weekIdx}
+                                      className='grid grid-cols-7 gap-1'>
+                                      {week.map((day) => (
+                                        <div
+                                          key={day.date}
+                                          className={cn(
+                                            "aspect-square flex items-center justify-center text-[13px] rounded-lg",
+                                            !day.isCurrentMonth && "opacity-30",
+                                            day.isMarked
+                                              ? isMoodType
+                                                ? getMoodColorClasses(
+                                                    value,
+                                                    true,
+                                                  ) + " font-bold"
+                                                : "bg-ios-blue text-white font-bold"
+                                              : day.isToday
                                                 ? isMoodType
-                                                  ? ` ${getMoodEmoji(value)}`
-                                                  : " ✓"
-                                                : ""
-                                            }`}>
-                                            {day.dayNum}
-                                          </div>
-                                        ))}
-                                      </div>
-                                      {/* Month summary */}
-                                      <div className='mt-1 text-[10px] text-gray-500 dark:text-gray-400'>
-                                        {month.days.filter((d) => d.isMarked)
-                                          .length > 0 && (
-                                          <span
-                                            className={cn(
-                                              "font-medium",
-                                              isMoodType
-                                                ? getMoodTextColor(value)
-                                                : "text-ios-blue",
-                                            )}>
-                                            {
-                                              month.days.filter(
-                                                (d) => d.isMarked,
-                                              ).length
-                                            }{" "}
-                                            days
-                                          </span>
-                                        )}
-                                      </div>
+                                                  ? getMoodColorClasses(
+                                                      value,
+                                                      false,
+                                                    ) + " font-medium"
+                                                  : "bg-ios-blue/10 text-ios-blue font-medium"
+                                                : "text-gray-600 dark:text-gray-400",
+                                          )}>
+                                          {day.dayNum}
+                                        </div>
+                                      ))}
                                     </div>
                                   ))}
                                 </div>
+                              )}
 
-                                {/* Legend */}
-                                <div className='flex items-center justify-center gap-2 mt-3 text-[10px] text-gray-500'>
-                                  <span>Less</span>
-                                  <div className='flex gap-1'>
-                                    <div className='w-2 h-2 rounded-sm bg-gray-200 dark:bg-gray-700' />
-                                    <div className='w-2 h-2 rounded-sm bg-ios-blue/30' />
-                                    <div className='w-2 h-2 rounded-sm bg-ios-blue' />
+                              {calendarData.type === "year" && (
+                                <div className='space-y-2'>
+                                  {/* Year header with navigation */}
+                                  <CalendarNavHeader
+                                    label={String(calendarData.year)}
+                                    onPrev={() => setOffset(offset - 1)}
+                                    onNext={() => setOffset(offset + 1)}
+                                    canGoPrev={canGoBack}
+                                    canGoNext={canGoForward}
+                                    onToday={() => setOffset(0)}
+                                    showToday={offset !== 0}
+                                  />
+
+                                  {/* Mini calendar grid - 2 columns of months (6 rows) */}
+                                  <div className='grid grid-cols-2 gap-4'>
+                                    {calendarData.months.map((month, idx) => (
+                                      <div key={idx} className='text-center'>
+                                        <div className='text-[11px] font-medium text-gray-500 dark:text-gray-400 mb-1.5'>
+                                          {month.name}
+                                        </div>
+                                        <div className='grid grid-cols-7 gap-0.5 text-[8px] text-gray-400 mb-0.5'>
+                                          <div>M</div>
+                                          <div>T</div>
+                                          <div>W</div>
+                                          <div>T</div>
+                                          <div>F</div>
+                                          <div>S</div>
+                                          <div>S</div>
+                                        </div>
+                                        <div className='grid grid-cols-7 gap-0.5'>
+                                          {/* Add empty cells for first week alignment */}
+                                          {(() => {
+                                            const firstDay = new Date(
+                                              month.year,
+                                              idx,
+                                              1,
+                                            );
+                                            const startDay =
+                                              (firstDay.getDay() + 6) % 7; // Monday = 0
+                                            const emptyCells = [];
+                                            for (let i = 0; i < startDay; i++) {
+                                              emptyCells.push(
+                                                <div
+                                                  key={`empty-${i}`}
+                                                  className='w-4 h-4'
+                                                />,
+                                              );
+                                            }
+                                            return emptyCells;
+                                          })()}
+                                          {month.days.map((day) => (
+                                            <div
+                                              key={day.date}
+                                              className={cn(
+                                                "w-4 h-4 rounded-sm flex items-center justify-center text-[9px]",
+                                                day.isFuture
+                                                  ? "bg-gray-100 dark:bg-gray-800 text-gray-300 dark:text-gray-600"
+                                                  : day.isMarked
+                                                    ? isMoodType
+                                                      ? getMoodColorClasses(
+                                                          value,
+                                                          true,
+                                                        ) + " font-bold"
+                                                      : "bg-ios-blue text-white font-bold"
+                                                    : day.isToday
+                                                      ? isMoodType
+                                                        ? getMoodColorClasses(
+                                                            value,
+                                                            false,
+                                                          ) + " font-medium"
+                                                        : "bg-ios-blue/30 text-ios-blue font-medium"
+                                                      : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
+                                              )}
+                                              title={`${day.dayNum}. ${
+                                                month.name
+                                              }${
+                                                day.isMarked
+                                                  ? isMoodType
+                                                    ? ` ${getMoodEmoji(value)}`
+                                                    : " ✓"
+                                                  : ""
+                                              }`}>
+                                              {day.dayNum}
+                                            </div>
+                                          ))}
+                                        </div>
+                                        {/* Month summary */}
+                                        <div className='mt-1 text-[10px] text-gray-500 dark:text-gray-400'>
+                                          {month.days.filter((d) => d.isMarked)
+                                            .length > 0 && (
+                                            <span
+                                              className={cn(
+                                                "font-medium",
+                                                isMoodType
+                                                  ? getMoodTextColor(value)
+                                                  : "text-ios-blue",
+                                              )}>
+                                              {
+                                                month.days.filter(
+                                                  (d) => d.isMarked,
+                                                ).length
+                                              }{" "}
+                                              days
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
-                                  <span>More</span>
-                                </div>
-                              </div>
-                            )}
 
-                            {/* Summary */}
-                            <div className='mt-3 pt-2 border-t border-gray-200/80 dark:border-gray-700/80 text-center text-[13px] text-gray-500'>
-                              {datesForSelectedValue.size} days with this value
+                                  {/* Legend */}
+                                  <div className='flex items-center justify-center gap-2 mt-3 text-[10px] text-gray-500'>
+                                    <span>Less</span>
+                                    <div className='flex gap-1'>
+                                      <div className='w-2 h-2 rounded-sm bg-gray-200 dark:bg-gray-700' />
+                                      <div className='w-2 h-2 rounded-sm bg-ios-blue/30' />
+                                      <div className='w-2 h-2 rounded-sm bg-ios-blue' />
+                                    </div>
+                                    <span>More</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Summary */}
+                              <div className='mt-3 pt-2 border-t border-gray-200/80 dark:border-gray-700/80 text-center text-[13px] text-gray-500'>
+                                {datesForSelectedValue.size} days with this
+                                value
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               </div>
             )}

@@ -6,7 +6,7 @@ import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import { formatDate, addDays, cn } from "@/lib/utils";
 import { LogEntry } from "@/types";
-import { IOSSegmentedControl } from "@/components/ios";
+import { IOSSegmentedControl, IOSModal } from "@/components/ios";
 import { MediaSearch, StarRating } from "@/components";
 import { getSharedWithMe, SharedUser } from "@/lib/sharing";
 import { supabase } from "@/lib/supabase";
@@ -432,6 +432,7 @@ function MediaCard({
   onMarkAsWatched,
   onRemoveFromWatchlist,
   isWatchlistView = false,
+  releaseDate,
   layout = "grid",
   isDraggable = false,
   onDragStart,
@@ -449,6 +450,7 @@ function MediaCard({
   onMarkAsWatched?: (entryId: string) => void;
   onRemoveFromWatchlist?: (entryId: string) => void;
   isWatchlistView?: boolean;
+  releaseDate?: string | null;
   layout?: "grid" | "list";
   isDraggable?: boolean;
   onDragStart?: (e: React.DragEvent) => void;
@@ -512,17 +514,38 @@ function MediaCard({
             <div className='flex items-start justify-between gap-3'>
               {(() => {
                 const link = getMediaLink(entry.imdbId);
+                const isFuture =
+                  isWatchlistView &&
+                  releaseDate &&
+                  new Date(releaseDate) > new Date();
+                const relDateStr = isFuture
+                  ? ` (${new Date(releaseDate + "T12:00:00").toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })})`
+                  : "";
                 return link ? (
-                  <a
-                    href={link}
-                    target='_blank'
-                    rel='noopener noreferrer'
-                    className='font-semibold text-gray-900 dark:text-white text-[15px] line-clamp-2 hover:text-ios-blue transition-colors flex-1'>
-                    {title}
-                  </a>
+                  <span className='font-semibold text-[15px] line-clamp-2 flex-1'>
+                    <a
+                      href={link}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='text-gray-900 dark:text-white hover:text-ios-blue transition-colors'>
+                      {title}
+                    </a>
+                    {isFuture && (
+                      <span className='text-orange-500 dark:text-orange-400'>
+                        {relDateStr}
+                      </span>
+                    )}
+                  </span>
                 ) : (
-                  <h3 className='font-semibold text-gray-900 dark:text-white text-[15px] line-clamp-2 flex-1'>
-                    {title}
+                  <h3 className='font-semibold text-[15px] line-clamp-2 flex-1'>
+                    <span className='text-gray-900 dark:text-white'>
+                      {title}
+                    </span>
+                    {isFuture && (
+                      <span className='text-orange-500 dark:text-orange-400'>
+                        {relDateStr}
+                      </span>
+                    )}
                   </h3>
                 );
               })()}
@@ -679,17 +702,36 @@ function MediaCard({
       <div className='p-2.5 flex flex-col flex-1'>
         {(() => {
           const link = getMediaLink(entry.imdbId);
+          const isFuture =
+            isWatchlistView &&
+            releaseDate &&
+            new Date(releaseDate) > new Date();
+          const relDateStr = isFuture
+            ? ` (${new Date(releaseDate + "T12:00:00").toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })})`
+            : "";
           return link ? (
-            <a
-              href={link}
-              target='_blank'
-              rel='noopener noreferrer'
-              className='font-semibold text-gray-900 dark:text-white text-[14px] line-clamp-2 hover:text-ios-blue transition-colors'>
-              {title}
-            </a>
+            <span className='font-semibold text-[14px] line-clamp-2'>
+              <a
+                href={link}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-gray-900 dark:text-white hover:text-ios-blue transition-colors'>
+                {title}
+              </a>
+              {isFuture && (
+                <span className='text-orange-500 dark:text-orange-400'>
+                  {relDateStr}
+                </span>
+              )}
+            </span>
           ) : (
-            <h3 className='font-semibold text-gray-900 dark:text-white text-[14px] line-clamp-2'>
-              {title}
+            <h3 className='font-semibold text-[14px] line-clamp-2'>
+              <span className='text-gray-900 dark:text-white'>{title}</span>
+              {isFuture && (
+                <span className='text-orange-500 dark:text-orange-400'>
+                  {relDateStr}
+                </span>
+              )}
             </h3>
           );
         })()}
@@ -817,6 +859,7 @@ export default function MoviesPage() {
     viewingUser,
     setViewingUser,
     isViewingOther,
+    selectedDate,
   } = useApp();
   const [activeTab, setActiveTab] = useState<"movies" | "series">("movies");
   const [sortBy, setSortBy] = useState<"date" | "rating" | "imdb">("date");
@@ -836,6 +879,16 @@ export default function MoviesPage() {
     }
   };
   const [showWatchlist, setShowWatchlist] = useState(false);
+
+  // Watched confirmation popup state
+  const [watchedConfirmEntry, setWatchedConfirmEntry] =
+    useState<LogEntry | null>(null);
+  const [watchedAlreadyExists, setWatchedAlreadyExists] = useState(false);
+
+  // Release dates cache for watchlist items
+  const [releaseDates, setReleaseDates] = useState<
+    Record<string, string | null>
+  >({});
 
   // Drag and drop state for watchlist reordering
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -864,6 +917,46 @@ export default function MoviesPage() {
       }
     }
   }, []);
+
+  // Fetch release dates for watchlist items from TMDb
+  useEffect(() => {
+    if (!showWatchlist || !TMDB_API_KEY) return;
+
+    const watchlistItems = entries.filter(
+      (e) => e.isWatchlist && e.imdbId && !(e.imdbId in releaseDates),
+    );
+
+    if (watchlistItems.length === 0) return;
+
+    const fetchReleaseDates = async () => {
+      const newDates: Record<string, string | null> = {};
+      for (const item of watchlistItems) {
+        if (!item.imdbId) continue;
+        try {
+          const findUrl = `https://api.themoviedb.org/3/find/${item.imdbId}?api_key=${TMDB_API_KEY}&external_source=imdb_id`;
+          const res = await fetch(findUrl);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.movie_results?.length > 0) {
+              newDates[item.imdbId] =
+                data.movie_results[0].release_date || null;
+            } else if (data.tv_results?.length > 0) {
+              newDates[item.imdbId] = data.tv_results[0].first_air_date || null;
+            } else {
+              newDates[item.imdbId] = null;
+            }
+          }
+        } catch {
+          newDates[item.imdbId!] = null;
+        }
+      }
+      if (Object.keys(newDates).length > 0) {
+        setReleaseDates((prev) => ({ ...prev, ...newDates }));
+      }
+    };
+
+    fetchReleaseDates();
+  }, [showWatchlist, entries, releaseDates]);
 
   // Save watchlist order to localStorage
   const saveWatchlistOrder = useCallback(
@@ -1166,14 +1259,32 @@ export default function MoviesPage() {
     if (isViewingOther) return;
 
     const entry = entries.find((e) => e.id === entryId);
-    if (entry) {
-      // Remove from watchlist and set today's date
-      await updateEntry({
-        ...entry,
-        isWatchlist: false,
-        date: formatDate(new Date()),
-      });
-    }
+    if (!entry) return;
+
+    // Check if this movie/series already exists as a non-watchlist entry (by imdbId or title)
+    const alreadyExists = entries.some(
+      (e) =>
+        e.id !== entryId &&
+        e.activityTypeId === entry.activityTypeId &&
+        !e.isWatchlist &&
+        (entry.imdbId
+          ? e.imdbId === entry.imdbId
+          : String(e.value).toLowerCase() ===
+            String(entry.value).toLowerCase()),
+    );
+
+    setWatchedAlreadyExists(alreadyExists);
+    setWatchedConfirmEntry(entry);
+  };
+
+  const confirmMarkAsWatched = async () => {
+    if (!watchedConfirmEntry) return;
+    await updateEntry({
+      ...watchedConfirmEntry,
+      isWatchlist: false,
+      date: selectedDate,
+    });
+    setWatchedConfirmEntry(null);
   };
 
   const handleRemoveFromWatchlist = async (entryId: string) => {
@@ -1559,6 +1670,9 @@ export default function MoviesPage() {
                 onMarkAsWatched={handleMarkAsWatched}
                 onRemoveFromWatchlist={handleRemoveFromWatchlist}
                 isWatchlistView={showWatchlist}
+                releaseDate={
+                  entry.imdbId ? releaseDates[entry.imdbId] : undefined
+                }
                 layout='grid'
               />
             ))}
@@ -1574,6 +1688,9 @@ export default function MoviesPage() {
                 onMarkAsWatched={handleMarkAsWatched}
                 onRemoveFromWatchlist={handleRemoveFromWatchlist}
                 isWatchlistView={showWatchlist}
+                releaseDate={
+                  entry.imdbId ? releaseDates[entry.imdbId] : undefined
+                }
                 layout='list'
                 isDraggable={showWatchlist && !isViewingOther}
                 onDragStart={(e) => handleDragStart(e, index)}
@@ -1619,6 +1736,70 @@ export default function MoviesPage() {
           </div>
         )}
       </main>
+
+      {/* Watched Confirmation Modal */}
+      <IOSModal
+        isOpen={!!watchedConfirmEntry}
+        onClose={() => setWatchedConfirmEntry(null)}
+        title={watchedAlreadyExists ? "Already Added" : "Mark as Watched"}
+        size='small'>
+        <div className='space-y-4'>
+          {watchedConfirmEntry?.poster && (
+            <div className='flex justify-center'>
+              <div className='w-20 h-[120px] rounded-lg overflow-hidden shadow-md'>
+                <Image
+                  src={watchedConfirmEntry.poster}
+                  alt={String(watchedConfirmEntry.value)}
+                  width={80}
+                  height={120}
+                  className='w-full h-full object-cover'
+                />
+              </div>
+            </div>
+          )}
+          <p className='text-[15px] font-medium text-center text-gray-900 dark:text-white'>
+            {String(watchedConfirmEntry?.value || "")}
+          </p>
+          {watchedAlreadyExists ? (
+            <>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400 text-center'>
+                This title has already been added to your watched list. Adding
+                it again would create a duplicate.
+              </p>
+              <button
+                onClick={() => setWatchedConfirmEntry(null)}
+                className='w-full py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium'>
+                OK
+              </button>
+            </>
+          ) : (
+            <>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400 text-center'>
+                Add to{" "}
+                <span className='font-medium text-gray-700 dark:text-gray-200'>
+                  {new Date(selectedDate + "T12:00:00").toLocaleDateString(
+                    "en-US",
+                    { day: "numeric", month: "long", year: "numeric" },
+                  )}
+                </span>
+                ?
+              </p>
+              <div className='flex gap-3'>
+                <button
+                  onClick={() => setWatchedConfirmEntry(null)}
+                  className='flex-1 py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-[14px] font-medium'>
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmMarkAsWatched}
+                  className='flex-1 py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium shadow-lg shadow-ios-blue/30'>
+                  Add
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </IOSModal>
     </div>
   );
 }
