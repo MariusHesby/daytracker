@@ -108,9 +108,12 @@ function NewsCard({
           <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
             <span
               className='text-[11px] font-medium tracking-wide uppercase transition-opacity duration-150'
-              style={{ color: sliderX > maxSlide * 0.3 ? 'transparent' : undefined }}
-            >
-              <span className='text-gray-400 dark:text-gray-500'>slide → read</span>
+              style={{
+                color: sliderX > maxSlide * 0.3 ? "transparent" : undefined,
+              }}>
+              <span className='text-gray-400 dark:text-gray-500'>
+                slide → read
+              </span>
             </span>
           </div>
           {/* Green fill */}
@@ -124,7 +127,7 @@ function NewsCard({
             className='absolute top-[2px] left-[2px] w-8 h-8 rounded-full bg-white dark:bg-gray-300 shadow-md flex items-center justify-center cursor-grab active:cursor-grabbing select-none touch-none'
             style={{
               transform: `translateX(${sliderX}px)`,
-              transition: isDragging.current ? 'none' : 'transform 0.25s ease',
+              transition: isDragging.current ? "none" : "transform 0.25s ease",
             }}
             onTouchStart={(e) => {
               e.stopPropagation();
@@ -139,13 +142,15 @@ function NewsCard({
               e.stopPropagation();
               e.preventDefault();
               const x = e.touches[0].clientX - startX.current;
-              const max = (trackRef.current?.offsetWidth || 200) - thumbSize - 4;
+              const max =
+                (trackRef.current?.offsetWidth || 200) - thumbSize - 4;
               setSliderX(Math.max(0, Math.min(x, max)));
             }}
             onTouchEnd={(e) => {
               e.stopPropagation();
               isDragging.current = false;
-              const max = (trackRef.current?.offsetWidth || 200) - thumbSize - 4;
+              const max =
+                (trackRef.current?.offsetWidth || 200) - thumbSize - 4;
               if (sliderX >= max * 0.85) {
                 setSliderX(max);
                 setTimeout(onMarkRead, 200);
@@ -153,8 +158,17 @@ function NewsCard({
                 setSliderX(0);
               }
             }}>
-            <svg className='w-4 h-4 text-ios-green' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2.5}>
-              <path strokeLinecap='round' strokeLinejoin='round' d='M5 13l4 4L19 7' />
+            <svg
+              className='w-4 h-4 text-ios-green'
+              fill='none'
+              viewBox='0 0 24 24'
+              stroke='currentColor'
+              strokeWidth={2.5}>
+              <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M5 13l4 4L19 7'
+              />
             </svg>
           </div>
         </div>
@@ -255,7 +269,9 @@ export default function HomePage() {
   const [newsVisible, setNewsVisibleLocal] = useState(true);
   const newsHasSources = useRef(false);
   const [newsFullscreen, setNewsFullscreen] = useState(false);
-  const [readHeadlines, setReadHeadlines] = useState<Record<string, Set<string>>>({});
+  const [readHeadlines, setReadHeadlines] = useState<
+    Record<string, Set<string>>
+  >({});
 
   // Load read headlines when news data changes
   useEffect(() => {
@@ -269,36 +285,39 @@ export default function HomePage() {
   // Lock body scroll when fullscreen news is open
   useEffect(() => {
     if (newsFullscreen) {
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
       document.body.style.top = `-${window.scrollY}px`;
     } else {
       const scrollY = document.body.style.top;
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.top = '';
-      window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
+      window.scrollTo(0, parseInt(scrollY || "0") * -1);
     }
     return () => {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.top = '';
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
+      document.body.style.top = "";
     };
   }, [newsFullscreen]);
 
-  const handleMarkRead = useCallback((sourceUrl: string, articleLink: string) => {
-    markHeadlineRead(sourceUrl, articleLink);
-    setReadHeadlines(prev => {
-      const updated = { ...prev };
-      const set = new Set(prev[sourceUrl] || []);
-      set.add(articleLink);
-      updated[sourceUrl] = set;
-      return updated;
-    });
-  }, []);
+  const handleMarkRead = useCallback(
+    (sourceUrl: string, articleLink: string) => {
+      markHeadlineRead(sourceUrl, articleLink);
+      setReadHeadlines((prev) => {
+        const updated = { ...prev };
+        const set = new Set(prev[sourceUrl] || []);
+        set.add(articleLink);
+        updated[sourceUrl] = set;
+        return updated;
+      });
+    },
+    [],
+  );
 
   // Load favorite team and next fixture
   useEffect(() => {
@@ -857,7 +876,9 @@ export default function HomePage() {
             <div className='pb-8'>
               {Object.entries(newsData).map(([url, items], idx) => {
                 const sourceRead = readHeadlines[url] || new Set<string>();
-                const unreadItems = items.filter(item => !sourceRead.has(item.link));
+                const unreadItems = items.filter(
+                  (item) => !sourceRead.has(item.link),
+                );
                 if (unreadItems.length === 0 && items.length === 0) return null;
                 return (
                   <div
@@ -876,7 +897,7 @@ export default function HomePage() {
                           <button
                             onClick={() => {
                               resetReadHeadlines(url);
-                              setReadHeadlines(prev => {
+                              setReadHeadlines((prev) => {
                                 const updated = { ...prev };
                                 updated[url] = new Set();
                                 return updated;
@@ -894,7 +915,10 @@ export default function HomePage() {
                             const source = sources.find((s) => s.url === url);
                             if (source) {
                               const fresh = await fetchNewsForSource(source);
-                              setNewsData((prev) => ({ ...prev, [url]: fresh }));
+                              setNewsData((prev) => ({
+                                ...prev,
+                                [url]: fresh,
+                              }));
                             }
                           }}
                           className='p-1.5 text-ios-blue active:opacity-60'
