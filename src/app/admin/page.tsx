@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { Avatar } from "@/components";
 
 const ADMIN_EMAIL = "marius.r.hesby@gmail.com";
 
@@ -30,6 +30,136 @@ interface AppStats {
   activeUsersLast30Days: number;
 }
 
+function UserRow({
+  userStats,
+  isLast,
+  isAdmin,
+  swipedUserId,
+  setSwipedUserId,
+  onDelete,
+  formatDate,
+  formatDateShort,
+}: {
+  userStats: UserStats;
+  isLast: boolean;
+  isAdmin: boolean;
+  swipedUserId: string | null;
+  setSwipedUserId: (id: string | null) => void;
+  onDelete: () => void;
+  formatDate: (d: string) => string;
+  formatDateShort: (d: string | null) => string;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef(0);
+  const touchCurrentX = useRef(0);
+
+  // Reset position when another row is swiped
+  useEffect(() => {
+    if (swipedUserId !== userStats.userId && rowRef.current) {
+      rowRef.current.style.transform = "translateX(0)";
+    }
+  }, [swipedUserId, userStats.userId]);
+
+  return (
+    <div
+      className={cn(
+        "relative overflow-hidden",
+        !isLast && "border-b border-gray-200/80 dark:border-gray-700/80",
+      )}>
+      {/* Delete button behind the row */}
+      {!isAdmin && (
+        <button
+          onClick={onDelete}
+          className='absolute right-0 top-0 bottom-0 w-20 bg-ios-red flex items-center justify-center'>
+          <svg
+            className='w-5 h-5 text-white'
+            fill='none'
+            viewBox='0 0 24 24'
+            stroke='currentColor'
+            strokeWidth={2}>
+            <path
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              d='M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16'
+            />
+          </svg>
+        </button>
+      )}
+      {/* Swipeable content */}
+      <div
+        ref={rowRef}
+        className='relative bg-white dark:bg-ios-card-dark px-4 py-3 transition-transform duration-200'
+        onTouchStart={(e) => {
+          if (isAdmin) return;
+          if (swipedUserId && swipedUserId !== userStats.userId) {
+            setSwipedUserId(null);
+          }
+          touchStartX.current = e.touches[0].clientX;
+          touchCurrentX.current = e.touches[0].clientX;
+        }}
+        onTouchMove={(e) => {
+          if (isAdmin || !rowRef.current) return;
+          touchCurrentX.current = e.touches[0].clientX;
+          const diff = touchStartX.current - touchCurrentX.current;
+          if (diff > 0) {
+            rowRef.current.style.transition = "none";
+            rowRef.current.style.transform = `translateX(-${Math.min(diff, 80)}px)`;
+          } else {
+            rowRef.current.style.transition = "none";
+            rowRef.current.style.transform = "translateX(0)";
+          }
+        }}
+        onTouchEnd={() => {
+          if (isAdmin || !rowRef.current) return;
+          rowRef.current.style.transition = "transform 0.2s ease";
+          const diff = touchStartX.current - touchCurrentX.current;
+          if (diff > 60) {
+            rowRef.current.style.transform = "translateX(-80px)";
+            setSwipedUserId(userStats.userId);
+          } else {
+            rowRef.current.style.transform = "translateX(0)";
+            if (swipedUserId === userStats.userId) setSwipedUserId(null);
+          }
+        }}
+        onClick={() => {
+          if (swipedUserId === userStats.userId && rowRef.current) {
+            rowRef.current.style.transform = "translateX(0)";
+            setSwipedUserId(null);
+          }
+        }}>
+        <div className='flex items-start gap-3'>
+          <Avatar avatar={userStats.avatar} size='md' />
+          <div className='flex-1 min-w-0'>
+            <p className='text-[17px] font-medium text-gray-900 dark:text-white truncate'>
+              {userStats.fullName}
+            </p>
+            <p className='text-[14px] text-gray-500 dark:text-gray-400 truncate'>
+              {userStats.email}
+            </p>
+            <div className='flex flex-wrap gap-x-3 gap-y-1 mt-1'>
+              <span className='text-[12px] text-gray-400'>
+                Joined: {formatDate(userStats.createdAt)}
+              </span>
+              <span className='text-[12px] text-gray-400'>
+                Last: {formatDateShort(userStats.lastActiveDate)}
+              </span>
+            </div>
+          </div>
+          <div className='text-right shrink-0'>
+            <p className='text-[17px] font-medium text-gray-900 dark:text-white'>
+              {userStats.totalEntries}
+            </p>
+            <p className='text-[12px] text-gray-400'>entries</p>
+            <p className='text-[12px] text-gray-400 mt-1'>
+              {userStats.daysActive} days
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -43,6 +173,7 @@ export default function AdminPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [userToDelete, setUserToDelete] = useState<UserStats | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [swipedUserId, setSwipedUserId] = useState<string | null>(null);
 
   // Check if current user is admin
   const isAdmin = user?.email === ADMIN_EMAIL;
@@ -445,86 +576,17 @@ export default function AdminPage() {
               </div>
               <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
                 {sortedUsers.map((userStats, index) => (
-                  <div
+                  <UserRow
                     key={userStats.userId}
-                    className={cn(
-                      "px-4 py-3",
-                      index < sortedUsers.length - 1 &&
-                        "border-b border-gray-200/80 dark:border-gray-700/80",
-                    )}>
-                    <div className='flex items-start gap-3'>
-                      {/* Avatar */}
-                      <div className='w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center overflow-hidden shrink-0'>
-                        {userStats.avatar &&
-                        userStats.avatar !== "avatar" &&
-                        userStats.avatar.length > 0 ? (
-                          userStats.avatar.startsWith("http") ||
-                          userStats.avatar.startsWith("/") ? (
-                            <Image
-                              src={userStats.avatar}
-                              alt={userStats.fullName}
-                              width={40}
-                              height={40}
-                              className='object-cover'
-                              unoptimized
-                            />
-                          ) : (
-                            <span className='text-xl'>{userStats.avatar}</span>
-                          )
-                        ) : (
-                          <svg
-                            className='w-5 h-5 text-gray-400'
-                            fill='none'
-                            viewBox='0 0 24 24'
-                            stroke='currentColor'>
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              strokeWidth={2}
-                              d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
-                            />
-                          </svg>
-                        )}
-                      </div>
-
-                      {/* Info */}
-                      <div className='flex-1 min-w-0'>
-                        <p className='text-[17px] font-medium text-gray-900 dark:text-white truncate'>
-                          {userStats.fullName}
-                        </p>
-                        <p className='text-[14px] text-gray-500 dark:text-gray-400 truncate'>
-                          {userStats.email}
-                        </p>
-                        <div className='flex flex-wrap gap-x-3 gap-y-1 mt-1'>
-                          <span className='text-[12px] text-gray-400'>
-                            Joined: {formatDate(userStats.createdAt)}
-                          </span>
-                          <span className='text-[12px] text-gray-400'>
-                            Last: {formatDateShort(userStats.lastActiveDate)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Stats & Delete */}
-                      <div className='text-right shrink-0'>
-                        <p className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                          {userStats.totalEntries}
-                        </p>
-                        <p className='text-[12px] text-gray-400'>entries</p>
-                        <p className='text-[12px] text-gray-400 mt-1'>
-                          {userStats.daysActive} days
-                        </p>
-                        {/* Delete button - don't allow deleting yourself */}
-                        {userStats.email !== ADMIN_EMAIL && (
-                          <button
-                            onClick={() => setUserToDelete(userStats)}
-                            className='text-[12px] text-ios-red mt-2 active:opacity-60'>
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                    userStats={userStats}
+                    isLast={index === sortedUsers.length - 1}
+                    isAdmin={userStats.email === ADMIN_EMAIL}
+                    swipedUserId={swipedUserId}
+                    setSwipedUserId={setSwipedUserId}
+                    onDelete={() => setUserToDelete(userStats)}
+                    formatDate={formatDate}
+                    formatDateShort={formatDateShort}
+                  />
                 ))}
               </div>
             </section>

@@ -6,11 +6,11 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    // Show logo animation for 2.5 seconds, then hold for 0.3s, then switch instantly
+    // Brief splash animation then switch to app
     const completeTimer = setTimeout(() => {
       setVisible(false);
       onComplete();
-    }, 2800);
+    }, 1500);
 
     return () => {
       clearTimeout(completeTimer);

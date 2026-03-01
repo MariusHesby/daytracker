@@ -43,8 +43,11 @@ import {
   getNewsSources,
   addNewsSource,
   removeNewsSource,
+  updateNewsSource,
   formatSourceName,
   loadNewsFromSupabase,
+  getNewsVisible,
+  setNewsVisible,
   NewsSource,
 } from "@/lib/news";
 
@@ -96,6 +99,10 @@ export default function SettingsPage() {
   const [newsSources, setNewsSourcesState] = useState<NewsSource[]>([]);
   const [newsUrlInput, setNewsUrlInput] = useState("");
   const [newsCount, setNewsCount] = useState(5);
+  const [newsVisibleOnFront, setNewsVisibleOnFront] = useState(true);
+  const [editingNewsUrl, setEditingNewsUrl] = useState<string | null>(null);
+  const [editNewsUrlValue, setEditNewsUrlValue] = useState("");
+  const [editNewsCountValue, setEditNewsCountValue] = useState(5);
 
   // Location/Weather state
   const [locationExpanded, setLocationExpanded] = useState(false);
@@ -137,6 +144,7 @@ export default function SettingsPage() {
     const loadNews = async () => {
       await loadNewsFromSupabase();
       setNewsSourcesState(getNewsSources());
+      setNewsVisibleOnFront(getNewsVisible());
     };
     loadNews();
   }, []);
@@ -1607,29 +1615,123 @@ export default function SettingsPage() {
             {newsExpanded && (
               <div className='border-t border-gray-200/80 dark:border-gray-700/80'>
                 <div className='px-4 py-3 space-y-3'>
+                  {/* Show on front page toggle */}
+                  <div className='flex items-center justify-between py-1'>
+                    <span className='text-[15px] text-gray-900 dark:text-white'>
+                      Show on front page
+                    </span>
+                    <button
+                      onClick={() => {
+                        const next = !newsVisibleOnFront;
+                        setNewsVisibleOnFront(next);
+                        setNewsVisible(next);
+                      }}
+                      className={cn(
+                        "relative w-[51px] h-[31px] rounded-full transition-colors duration-200",
+                        newsVisibleOnFront
+                          ? "bg-ios-green"
+                          : "bg-gray-300 dark:bg-gray-600",
+                      )}>
+                      <span
+                        className={cn(
+                          "absolute top-[2px] left-[2px] w-[27px] h-[27px] bg-white rounded-full shadow transition-transform duration-200",
+                          newsVisibleOnFront && "translate-x-[20px]",
+                        )}
+                      />
+                    </button>
+                  </div>
+
                   {/* Existing sources list */}
                   {newsSources.length > 0 && (
                     <div className='space-y-2'>
                       {newsSources.map((src) => (
-                        <div
-                          key={src.url}
-                          className='flex items-center justify-between gap-3 bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3'>
-                          <div className='min-w-0 flex-1'>
-                            <p className='text-[15px] font-medium text-gray-900 dark:text-white truncate'>
-                              {formatSourceName(src.url)}
-                            </p>
-                            <p className='text-[12px] text-gray-500 dark:text-gray-400'>
-                              {src.count} headlines
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => {
-                              removeNewsSource(src.url);
-                              setNewsSourcesState(getNewsSources());
-                            }}
-                            className='text-ios-red text-[15px] font-medium flex-shrink-0'>
-                            Remove
-                          </button>
+                        <div key={src.url}>
+                          {editingNewsUrl === src.url ? (
+                            /* Edit mode */
+                            <div className='bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3 space-y-2'>
+                              <input
+                                type='text'
+                                value={editNewsUrlValue}
+                                onChange={(e) =>
+                                  setEditNewsUrlValue(e.target.value)
+                                }
+                                className='w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-[15px] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                              />
+                              <div className='flex gap-1.5'>
+                                {[3, 5, 8, 10, 15].map((n) => (
+                                  <button
+                                    key={n}
+                                    onClick={() => setEditNewsCountValue(n)}
+                                    className={cn(
+                                      "px-2.5 py-1 rounded-full text-[12px] font-medium transition-colors",
+                                      editNewsCountValue === n
+                                        ? "bg-ios-blue text-white"
+                                        : "bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-400",
+                                    )}>
+                                    {n}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className='flex gap-2'>
+                                <button
+                                  onClick={() => {
+                                    if (!editNewsUrlValue.trim()) return;
+                                    updateNewsSource(src.url, {
+                                      url: editNewsUrlValue.trim(),
+                                      count: editNewsCountValue,
+                                    });
+                                    setNewsSourcesState(getNewsSources());
+                                    setEditingNewsUrl(null);
+                                  }}
+                                  className='flex-1 py-2 rounded-lg bg-ios-blue text-white text-[14px] font-medium active:opacity-80'>
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => setEditingNewsUrl(null)}
+                                  className='flex-1 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-[14px] font-medium active:opacity-80'>
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* View mode */
+                            <div className='flex items-center gap-3 bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3'>
+                              <button
+                                onClick={() => {
+                                  setEditingNewsUrl(src.url);
+                                  setEditNewsUrlValue(src.url);
+                                  setEditNewsCountValue(src.count);
+                                }}
+                                className='min-w-0 flex-1 text-left'>
+                                <p className='text-[15px] font-medium text-gray-900 dark:text-white truncate'>
+                                  {formatSourceName(src.url)}
+                                </p>
+                                <p className='text-[12px] text-gray-500 dark:text-gray-400'>
+                                  {src.count} headlines
+                                </p>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  removeNewsSource(src.url);
+                                  setNewsSourcesState(getNewsSources());
+                                }}
+                                className='p-2 rounded-full text-gray-400 dark:text-gray-500 active:bg-gray-200 dark:active:bg-gray-600 flex-shrink-0'
+                                title='Remove source'>
+                                <svg
+                                  className='w-4 h-4'
+                                  fill='none'
+                                  viewBox='0 0 24 24'
+                                  stroke='currentColor'
+                                  strokeWidth={1.5}>
+                                  <path
+                                    strokeLinecap='round'
+                                    strokeLinejoin='round'
+                                    d='M6 18L18 6M6 6l12 12'
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

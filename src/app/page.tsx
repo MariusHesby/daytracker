@@ -38,6 +38,8 @@ import {
   loadNewsFromSupabase,
   hideHeadline,
   resetHiddenHeadlines,
+  getCachedAllNews,
+  getNewsVisible,
   NewsItem,
 } from "@/lib/news";
 
@@ -131,6 +133,9 @@ export default function HomePage() {
   const [newsData, setNewsData] = useState<Record<string, NewsItem[]>>({});
   const [newsOpen, setNewsOpen] = useState(false);
   const [openSources, setOpenSources] = useState<Record<string, boolean>>({});
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [newsVisible, setNewsVisibleLocal] = useState(true);
+  const newsHasSources = useRef(false);
 
   // Load favorite team and next fixture
   useEffect(() => {
@@ -167,15 +172,35 @@ export default function HomePage() {
   // Load news on mount and when config changes
   useEffect(() => {
     const loadNews = async () => {
-      // Ensure Supabase settings are loaded first
+      // Check visibility
+      setNewsVisibleLocal(getNewsVisible());
+
+      // Show cached data instantly
+      const cached = getCachedAllNews();
+      if (Object.keys(cached).length > 0) {
+        setNewsData(cached);
+        setNewsLoading(false);
+      }
+
+      // Check if there are sources configured
+      const localSources = getNewsSources();
+      newsHasSources.current = localSources.length > 0;
+
+      // Load from Supabase (may add new sources)
       await loadNewsFromSupabase();
       const sources = getNewsSources();
+      newsHasSources.current = sources.length > 0;
+
       if (sources.length === 0) {
         setNewsData({});
+        setNewsLoading(false);
         return;
       }
+
+      // Fetch fresh data in background
       const data = await fetchAllNews();
       setNewsData(data);
+      setNewsLoading(false);
     };
 
     loadNews();
@@ -596,14 +621,40 @@ export default function HomePage() {
           })()}
 
         {/* News Section */}
-        {Object.keys(newsData).length > 0 && (
-          <div className='mb-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-hidden'>
-            <button
-              onClick={() => setNewsOpen(!newsOpen)}
-              className='w-full flex items-center px-4 py-3 active:bg-gray-100 dark:active:bg-gray-700'>
-              <div className='w-8 h-8 rounded-lg bg-ios-orange flex items-center justify-center mr-3 shrink-0'>
+        {newsVisible &&
+          (Object.keys(newsData).length > 0 ||
+            newsHasSources.current ||
+            newsLoading) && (
+            <div className='mb-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-hidden'>
+              <button
+                onClick={() => setNewsOpen(!newsOpen)}
+                className='w-full flex items-center px-4 py-3 active:bg-gray-100 dark:active:bg-gray-700'>
+                <div className='w-8 h-8 rounded-lg bg-ios-orange flex items-center justify-center mr-3 shrink-0'>
+                  <svg
+                    className='w-[18px] h-[18px] text-white'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
+                    />
+                  </svg>
+                </div>
+                <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                  News
+                </span>
+                {newsLoading && Object.keys(newsData).length === 0 && (
+                  <span className='ml-2 text-[12px] text-gray-400 dark:text-gray-500'>
+                    Loading…
+                  </span>
+                )}
                 <svg
-                  className='w-[18px] h-[18px] text-white'
+                  className={`w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto transition-transform duration-200 ${
+                    newsOpen ? "rotate-180" : ""
+                  }`}
                   fill='none'
                   viewBox='0 0 24 24'
                   stroke='currentColor'
@@ -611,174 +662,176 @@ export default function HomePage() {
                   <path
                     strokeLinecap='round'
                     strokeLinejoin='round'
-                    d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
+                    d='M19 9l-7 7-7-7'
                   />
                 </svg>
-              </div>
-              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                News
-              </span>
-              <svg
-                className={`w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto transition-transform duration-200 ${
-                  newsOpen ? "rotate-180" : ""
-                }`}
-                fill='none'
-                viewBox='0 0 24 24'
-                stroke='currentColor'
-                strokeWidth={2}>
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  d='M19 9l-7 7-7-7'
-                />
-              </svg>
-            </button>
+              </button>
 
-            {newsOpen && (
-              <div className='border-t border-gray-200/60 dark:border-gray-700/60'>
-                {Object.entries(newsData).map(([url, items]) => {
-                  if (items.length === 0) return null;
-                  const sourceName = formatSourceName(url);
-                  const isSourceOpen = openSources[url] ?? false;
-                  return (
-                    <div key={url}>
-                      <div className='flex items-center border-b border-gray-200/50 dark:border-gray-700/50'>
-                        <button
-                          onClick={() =>
-                            setOpenSources((prev) => ({
-                              ...prev,
-                              [url]: !prev[url],
-                            }))
-                          }
-                          className='flex-1 flex items-center px-4 py-2.5 active:bg-gray-100 dark:active:bg-gray-700'>
-                          <span className='text-[15px] font-semibold text-gray-700 dark:text-gray-300'>
-                            {sourceName}
-                          </span>
-                          <span className='ml-1.5 text-[12px] text-gray-400 dark:text-gray-500'>
-                            {items.length}
-                          </span>
-                          <svg
-                            className={`w-3.5 h-3.5 text-gray-400 dark:text-gray-500 ml-auto transition-transform duration-200 ${
-                              isSourceOpen ? "rotate-180" : ""
-                            }`}
-                            fill='none'
-                            viewBox='0 0 24 24'
-                            stroke='currentColor'
-                            strokeWidth={2}>
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              d='M19 9l-7 7-7-7'
-                            />
-                          </svg>
-                        </button>
-                        {isSourceOpen && (
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              resetHiddenHeadlines(url);
-                              const sources = getNewsSources();
-                              const source = sources.find((s) => s.url === url);
-                              if (source) {
-                                const fresh = await fetchNewsForSource(source);
-                                setNewsData((prev) => ({
-                                  ...prev,
-                                  [url]: fresh,
-                                }));
-                              }
-                            }}
-                            className='px-3 py-1.5 mr-3 text-[12px] text-ios-blue active:opacity-60'
-                            title='Reset hidden headlines'>
-                            <svg
-                              className='w-4 h-4'
-                              fill='none'
-                              viewBox='0 0 24 24'
-                              stroke='currentColor'
-                              strokeWidth={2}>
-                              <path
-                                strokeLinecap='round'
-                                strokeLinejoin='round'
-                                d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
-                              />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                      {isSourceOpen &&
-                        items.map((item, i) => (
-                          <div
-                            key={i}
-                            className={`flex items-center gap-3 px-4 py-2.5 ${
-                              i < items.length - 1
-                                ? "border-b border-gray-200/50 dark:border-gray-700/50"
-                                : ""
-                            }`}>
-                            <a
-                              href={item.link}
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='flex items-center gap-3 flex-1 min-w-0 active:bg-gray-100 dark:active:bg-gray-700'>
-                              {item.image ? (
-                                <img
-                                  src={item.image}
-                                  alt=''
-                                  className='w-12 h-12 rounded-lg object-cover shrink-0 bg-gray-200 dark:bg-gray-700'
-                                  onError={(e) => {
-                                    (
-                                      e.target as HTMLImageElement
-                                    ).style.display = "none";
-                                  }}
-                                />
-                              ) : (
-                                <span className='text-[14px] text-ios-blue shrink-0'>
-                                  •
-                                </span>
-                              )}
-                              <span className='text-[15px] text-gray-900 dark:text-white leading-snug line-clamp-2'>
-                                {item.title}
-                              </span>
-                            </a>
+              {newsOpen && (
+                <div className='border-t border-gray-200/60 dark:border-gray-700/60'>
+                  {newsLoading && Object.keys(newsData).length === 0 ? (
+                    /* Loading skeleton */
+                    <div className='px-4 py-3 space-y-3'>
+                      {[1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className='animate-pulse flex items-center gap-3'>
+                          <div className='w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700' />
+                          <div className='flex-1 space-y-2'>
+                            <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />
+                            <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2' />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    Object.entries(newsData).map(([url, items]) => {
+                      if (items.length === 0) return null;
+                      const sourceName = formatSourceName(url);
+                      const isSourceOpen = openSources[url] ?? false;
+                      return (
+                        <div key={url}>
+                          <div className='flex items-center border-b border-gray-200/50 dark:border-gray-700/50'>
                             <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                hideHeadline(url, item.link);
-                                const sources = getNewsSources();
-                                const source = sources.find(
-                                  (s) => s.url === url,
-                                );
-                                if (source) {
-                                  const updated =
-                                    await fetchNewsForSource(source);
-                                  setNewsData((prev) => ({
-                                    ...prev,
-                                    [url]: updated,
-                                  }));
-                                }
-                              }}
-                              className='p-1.5 rounded-full text-gray-400 dark:text-gray-500 active:bg-gray-200 dark:active:bg-gray-600 shrink-0'
-                              title='Dismiss headline'>
+                              onClick={() =>
+                                setOpenSources((prev) => ({
+                                  ...prev,
+                                  [url]: !prev[url],
+                                }))
+                              }
+                              className='flex-1 flex items-center px-4 py-2.5 active:bg-gray-100 dark:active:bg-gray-700'>
+                              <span className='text-[15px] font-semibold text-gray-700 dark:text-gray-300'>
+                                {sourceName}
+                              </span>
+                              <span className='ml-1.5 text-[12px] text-gray-400 dark:text-gray-500'>
+                                {items.length}
+                              </span>
                               <svg
-                                className='w-3.5 h-3.5'
+                                className={`w-3.5 h-3.5 text-gray-400 dark:text-gray-500 ml-auto transition-transform duration-200 ${
+                                  isSourceOpen ? "rotate-180" : ""
+                                }`}
                                 fill='none'
                                 viewBox='0 0 24 24'
                                 stroke='currentColor'
-                                strokeWidth={2.5}>
+                                strokeWidth={2}>
                                 <path
                                   strokeLinecap='round'
                                   strokeLinejoin='round'
-                                  d='M6 18L18 6M6 6l12 12'
+                                  d='M19 9l-7 7-7-7'
                                 />
                               </svg>
                             </button>
+                            {isSourceOpen && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  resetHiddenHeadlines(url);
+                                  const sources = getNewsSources();
+                                  const source = sources.find(
+                                    (s) => s.url === url,
+                                  );
+                                  if (source) {
+                                    const fresh =
+                                      await fetchNewsForSource(source);
+                                    setNewsData((prev) => ({
+                                      ...prev,
+                                      [url]: fresh,
+                                    }));
+                                  }
+                                }}
+                                className='px-3 py-1.5 mr-3 text-[12px] text-ios-blue active:opacity-60'
+                                title='Reset hidden headlines'>
+                                <svg
+                                  className='w-4 h-4'
+                                  fill='none'
+                                  viewBox='0 0 24 24'
+                                  stroke='currentColor'
+                                  strokeWidth={2}>
+                                  <path
+                                    strokeLinecap='round'
+                                    strokeLinejoin='round'
+                                    d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
+                                  />
+                                </svg>
+                              </button>
+                            )}
                           </div>
-                        ))}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+                          {isSourceOpen &&
+                            items.map((item, i) => (
+                              <div
+                                key={i}
+                                className={`flex items-center gap-3 px-4 py-2.5 ${
+                                  i < items.length - 1
+                                    ? "border-b border-gray-200/50 dark:border-gray-700/50"
+                                    : ""
+                                }`}>
+                                <a
+                                  href={item.link}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                  className='flex items-center gap-3 flex-1 min-w-0 active:bg-gray-100 dark:active:bg-gray-700'>
+                                  {item.image ? (
+                                    <img
+                                      src={item.image}
+                                      alt=''
+                                      className='w-12 h-12 rounded-lg object-cover shrink-0 bg-gray-200 dark:bg-gray-700'
+                                      onError={(e) => {
+                                        (
+                                          e.target as HTMLImageElement
+                                        ).style.display = "none";
+                                      }}
+                                    />
+                                  ) : (
+                                    <span className='text-[14px] text-ios-blue shrink-0'>
+                                      •
+                                    </span>
+                                  )}
+                                  <span className='text-[15px] text-gray-900 dark:text-white leading-snug line-clamp-2'>
+                                    {item.title}
+                                  </span>
+                                </a>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    hideHeadline(url, item.link);
+                                    const sources = getNewsSources();
+                                    const source = sources.find(
+                                      (s) => s.url === url,
+                                    );
+                                    if (source) {
+                                      const updated =
+                                        await fetchNewsForSource(source);
+                                      setNewsData((prev) => ({
+                                        ...prev,
+                                        [url]: updated,
+                                      }));
+                                    }
+                                  }}
+                                  className='p-1.5 rounded-full text-gray-400 dark:text-gray-500 active:bg-gray-200 dark:active:bg-gray-600 shrink-0'
+                                  title='Dismiss headline'>
+                                  <svg
+                                    className='w-3.5 h-3.5'
+                                    fill='none'
+                                    viewBox='0 0 24 24'
+                                    stroke='currentColor'
+                                    strokeWidth={2.5}>
+                                    <path
+                                      strokeLinecap='round'
+                                      strokeLinejoin='round'
+                                      d='M6 18L18 6M6 6l12 12'
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            ))}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
         <EntryForm
           date={selectedDate}

@@ -80,6 +80,40 @@ export function removeNewsSource(url: string): void {
   window.dispatchEvent(new Event('newsConfigUpdated'));
 }
 
+/** Update a news source (e.g. change URL or count) */
+export function updateNewsSource(oldUrl: string, updated: NewsSource): void {
+  const sources = getNewsSources();
+  const norm = oldUrl.trim().toLowerCase().replace(/\/$/, '');
+  const idx = sources.findIndex(s => s.url.trim().toLowerCase().replace(/\/$/, '') === norm);
+  if (idx === -1) return;
+  // Clear old cache if URL changed
+  if (sources[idx].url !== updated.url) {
+    localStorage.removeItem(cacheKeyFor(oldUrl));
+  }
+  sources[idx] = { url: updated.url.trim(), count: updated.count };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(sources));
+  syncNewsToSupabase();
+  window.dispatchEvent(new Event('newsConfigUpdated'));
+}
+
+// ─── News visibility toggle ─────────────────────────────
+
+const VISIBLE_KEY = 'news_visible';
+
+/** Check if news section should be visible on front page */
+export function getNewsVisible(): boolean {
+  if (typeof window === 'undefined') return true;
+  const stored = localStorage.getItem(VISIBLE_KEY);
+  if (stored === null) return true; // default visible
+  return stored === 'true';
+}
+
+/** Toggle news section visibility on front page */
+export function setNewsVisible(visible: boolean): void {
+  localStorage.setItem(VISIBLE_KEY, visible ? 'true' : 'false');
+  window.dispatchEvent(new Event('newsConfigUpdated'));
+}
+
 export function clearAllNewsSources(): void {
   const sources = getNewsSources();
   sources.forEach(s => localStorage.removeItem(cacheKeyFor(s.url)));
@@ -221,6 +255,22 @@ export async function fetchAllNews(): Promise<Record<string, NewsItem[]>> {
       results[src.url] = items;
     }),
   );
+  return results;
+}
+
+/** Get cached news instantly (no network). Returns whatever is in cache. */
+export function getCachedAllNews(): Record<string, NewsItem[]> {
+  const sources = getNewsSources();
+  if (sources.length === 0) return {};
+  const results: Record<string, NewsItem[]> = {};
+  for (const src of sources) {
+    const hidden = getHiddenHeadlines(src.url);
+    const cached = getCachedNews(src.url);
+    if (cached) {
+      const filtered = cached.filter(item => !hidden.has(item.link));
+      results[src.url] = filtered.slice(0, src.count);
+    }
+  }
   return results;
 }
 

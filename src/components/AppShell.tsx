@@ -291,8 +291,8 @@ export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const { viewingUser } = useApp();
   const isSpying = viewingUser !== null;
-  const [showSplash, setShowSplash] = useState(true);
-  const [hasSeenSplash, setHasSeenSplash] = useState(false);
+  const [showSplash, setShowSplash] = useState(false);
+  const [splashChecked, setSplashChecked] = useState(false);
   const initialPathRef = useRef<string | null>(null);
 
   // Redirect to Today tab ONLY on PWA first load if it started at /settings (cached from old install)
@@ -404,18 +404,18 @@ export function AppShell({ children }: AppShellProps) {
   }, [pullDistance, isRefreshing, router]);
 
   useEffect(() => {
-    // Check if user has seen splash before in this session
-    const seen = sessionStorage.getItem("hasSeenSplash");
-    if (seen) {
-      setShowSplash(false);
-      setHasSeenSplash(true);
-    }
+    // Only show splash once per 24 hours
+    const lastShown = localStorage.getItem("splashLastShown");
+    const cooldown = 24 * 60 * 60 * 1000; // 24 hours
+    const shouldShow =
+      !lastShown || Date.now() - parseInt(lastShown, 10) > cooldown;
+    setShowSplash(shouldShow);
+    setSplashChecked(true);
   }, []);
 
   const handleSplashComplete = () => {
-    sessionStorage.setItem("hasSeenSplash", "true");
+    localStorage.setItem("splashLastShown", Date.now().toString());
     setShowSplash(false);
-    setHasSeenSplash(true);
   };
 
   const tabItems = [
@@ -461,7 +461,7 @@ export function AppShell({ children }: AppShellProps) {
         pullDistance={pullDistance}
         isRefreshing={isRefreshing}
       />
-      {showSplash && !hasSeenSplash && (
+      {showSplash && splashChecked && (
         <SplashScreen onComplete={handleSplashComplete} />
       )}
       <BackgroundLogo />
