@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -36,112 +36,11 @@ import {
   fetchNewsForSource,
   formatSourceName,
   loadNewsFromSupabase,
-  hideHeadline,
   resetHiddenHeadlines,
   getCachedAllNews,
   getNewsVisible,
   NewsItem,
 } from "@/lib/news";
-
-// Swipeable news headline row
-function NewsHeadlineRow({
-  item,
-  isLast,
-  onDismiss,
-}: {
-  item: NewsItem;
-  isLast: boolean;
-  onDismiss: () => void;
-}) {
-  const rowRef = useRef<HTMLDivElement>(null);
-  const startX = useRef(0);
-  const currentX = useRef(0);
-  const [swiped, setSwiped] = useState(false);
-
-  return (
-    <div
-      className={`relative overflow-hidden ${
-        !isLast ? "border-b border-gray-200/50 dark:border-gray-700/50" : ""
-      }`}>
-      {/* Delete action behind */}
-      <div className='absolute right-0 top-0 bottom-0 w-20 bg-ios-red flex items-center justify-center'>
-        <svg
-          className='w-4.5 h-4.5 text-white'
-          fill='none'
-          viewBox='0 0 24 24'
-          stroke='currentColor'
-          strokeWidth={2}>
-          <path
-            strokeLinecap='round'
-            strokeLinejoin='round'
-            d='M6 18L18 6M6 6l12 12'
-          />
-        </svg>
-      </div>
-      {/* Swipeable content */}
-      <div
-        ref={rowRef}
-        className='relative bg-white dark:bg-ios-card-dark transition-transform duration-200'
-        onTouchStart={(e) => {
-          startX.current = e.touches[0].clientX;
-          currentX.current = e.touches[0].clientX;
-        }}
-        onTouchMove={(e) => {
-          if (!rowRef.current) return;
-          currentX.current = e.touches[0].clientX;
-          const diff = startX.current - currentX.current;
-          if (diff > 0) {
-            rowRef.current.style.transition = "none";
-            rowRef.current.style.transform = `translateX(-${Math.min(diff, 90)}px)`;
-          } else {
-            rowRef.current.style.transition = "none";
-            rowRef.current.style.transform = "translateX(0)";
-          }
-        }}
-        onTouchEnd={() => {
-          if (!rowRef.current) return;
-          rowRef.current.style.transition = "transform 0.2s ease";
-          const diff = startX.current - currentX.current;
-          if (diff > 70) {
-            // Animate off screen then dismiss
-            rowRef.current.style.transform = "translateX(-100%)";
-            setTimeout(onDismiss, 200);
-          } else {
-            rowRef.current.style.transform = "translateX(0)";
-            setSwiped(false);
-          }
-        }}
-        onClick={() => {
-          if (swiped && rowRef.current) {
-            rowRef.current.style.transform = "translateX(0)";
-            setSwiped(false);
-          }
-        }}>
-        <a
-          href={item.link}
-          target='_blank'
-          rel='noopener noreferrer'
-          className='flex items-center gap-3 px-4 py-2.5 active:bg-gray-50 dark:active:bg-gray-700/50'>
-          {item.image ? (
-            <img
-              src={item.image}
-              alt=''
-              className='w-12 h-12 rounded-lg object-cover shrink-0 bg-gray-200 dark:bg-gray-700'
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
-          ) : (
-            <span className='text-[14px] text-ios-blue shrink-0'>•</span>
-          )}
-          <span className='text-[15px] text-gray-900 dark:text-white leading-snug line-clamp-2'>
-            {item.title}
-          </span>
-        </a>
-      </div>
-    </div>
-  );
-}
 
 // Get time-based greeting
 function getGreeting(): string {
@@ -231,8 +130,6 @@ export default function HomePage() {
 
   // News state
   const [newsData, setNewsData] = useState<Record<string, NewsItem[]>>({});
-  const [newsOpen, setNewsOpen] = useState(false);
-  const [openSources, setOpenSources] = useState<Record<string, boolean>>({});
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsVisible, setNewsVisibleLocal] = useState(true);
   const newsHasSources = useRef(false);
@@ -317,19 +214,6 @@ export default function HomePage() {
       clearInterval(interval);
     };
   }, []);
-
-  const dismissHeadline = useCallback(
-    async (sourceUrl: string, articleLink: string) => {
-      hideHeadline(sourceUrl, articleLink);
-      const sources = getNewsSources();
-      const source = sources.find((s) => s.url === sourceUrl);
-      if (source) {
-        const updated = await fetchNewsForSource(source);
-        setNewsData((prev) => ({ ...prev, [sourceUrl]: updated }));
-      }
-    },
-    [],
-  );
 
   // Fetch weather on mount and when location changes
   useEffect(() => {
@@ -739,58 +623,16 @@ export default function HomePage() {
           (Object.keys(newsData).length > 0 ||
             newsHasSources.current ||
             newsLoading) && (
-            <div className='mb-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-hidden'>
-              <button
-                onClick={() => setNewsOpen(!newsOpen)}
-                className='w-full flex items-center px-4 py-3 active:bg-gray-100 dark:active:bg-gray-700'>
-                <div className='w-8 h-8 rounded-lg bg-ios-orange flex items-center justify-center mr-3 shrink-0'>
-                  <svg
-                    className='w-[18px] h-[18px] text-white'
-                    fill='none'
-                    viewBox='0 0 24 24'
-                    stroke='currentColor'
-                    strokeWidth={2}>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
-                    />
-                  </svg>
-                </div>
-                <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                  News
-                </span>
-                {newsLoading && Object.keys(newsData).length === 0 && (
-                  <span className='ml-2 text-[12px] text-gray-400 dark:text-gray-500'>
-                    Loading…
-                  </span>
-                )}
-                {!newsLoading && Object.keys(newsData).length > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setNewsFullscreen(true);
-                    }}
-                    className='ml-2 p-1 text-gray-400 dark:text-gray-500 active:text-ios-blue'
-                    title='Expand news'>
-                    <svg
-                      className='w-4 h-4'
-                      fill='none'
-                      viewBox='0 0 24 24'
-                      stroke='currentColor'
-                      strokeWidth={2}>
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5'
-                      />
-                    </svg>
-                  </button>
-                )}
+            <button
+              onClick={() => {
+                if (!newsLoading && Object.keys(newsData).length > 0) {
+                  setNewsFullscreen(true);
+                }
+              }}
+              className='mb-3 w-full flex items-center px-4 py-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 active:bg-gray-100 dark:active:bg-gray-700'>
+              <div className='w-8 h-8 rounded-lg bg-ios-orange flex items-center justify-center mr-3 shrink-0'>
                 <svg
-                  className={`w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto transition-transform duration-200 ${
-                    newsOpen ? "rotate-180" : ""
-                  }`}
+                  className='w-[18px] h-[18px] text-white'
                   fill='none'
                   viewBox='0 0 24 24'
                   stroke='currentColor'
@@ -798,118 +640,31 @@ export default function HomePage() {
                   <path
                     strokeLinecap='round'
                     strokeLinejoin='round'
-                    d='M19 9l-7 7-7-7'
+                    d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
                   />
                 </svg>
-              </button>
-
-              {newsOpen && (
-                <div className='border-t border-gray-200/60 dark:border-gray-700/60'>
-                  {newsLoading && Object.keys(newsData).length === 0 ? (
-                    /* Loading skeleton */
-                    <div className='px-4 py-3 space-y-3'>
-                      {[1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className='animate-pulse flex items-center gap-3'>
-                          <div className='w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700' />
-                          <div className='flex-1 space-y-2'>
-                            <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded w-3/4' />
-                            <div className='h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2' />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    Object.entries(newsData).map(([url, items]) => {
-                      if (items.length === 0) return null;
-                      const sourceName = formatSourceName(url);
-                      const isSourceOpen = openSources[url] ?? false;
-                      return (
-                        <div key={url}>
-                          <div className='flex items-center border-b border-gray-200/50 dark:border-gray-700/50'>
-                            <button
-                              onClick={() =>
-                                setOpenSources((prev) => ({
-                                  ...prev,
-                                  [url]: !prev[url],
-                                }))
-                              }
-                              className='flex-1 flex items-center px-4 py-2.5 active:bg-gray-100 dark:active:bg-gray-700'>
-                              <span className='text-[15px] font-semibold text-gray-700 dark:text-gray-300'>
-                                {sourceName}
-                              </span>
-                              <span className='ml-1.5 text-[12px] text-gray-400 dark:text-gray-500'>
-                                {items.length}
-                              </span>
-                              <svg
-                                className={`w-3.5 h-3.5 text-gray-400 dark:text-gray-500 ml-auto transition-transform duration-200 ${
-                                  isSourceOpen ? "rotate-180" : ""
-                                }`}
-                                fill='none'
-                                viewBox='0 0 24 24'
-                                stroke='currentColor'
-                                strokeWidth={2}>
-                                <path
-                                  strokeLinecap='round'
-                                  strokeLinejoin='round'
-                                  d='M19 9l-7 7-7-7'
-                                />
-                              </svg>
-                            </button>
-                            {isSourceOpen && (
-                              <button
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  resetHiddenHeadlines(url);
-                                  const sources = getNewsSources();
-                                  const source = sources.find(
-                                    (s) => s.url === url,
-                                  );
-                                  if (source) {
-                                    const fresh =
-                                      await fetchNewsForSource(source);
-                                    setNewsData((prev) => ({
-                                      ...prev,
-                                      [url]: fresh,
-                                    }));
-                                  }
-                                }}
-                                className='px-3 py-1.5 mr-3 text-[12px] text-ios-blue active:opacity-60'
-                                title='Reset hidden headlines'>
-                                <svg
-                                  className='w-4 h-4'
-                                  fill='none'
-                                  viewBox='0 0 24 24'
-                                  stroke='currentColor'
-                                  strokeWidth={2}>
-                                  <path
-                                    strokeLinecap='round'
-                                    strokeLinejoin='round'
-                                    d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
-                                  />
-                                </svg>
-                              </button>
-                            )}
-                          </div>
-                          {isSourceOpen &&
-                            items.map((item, i) => (
-                              <NewsHeadlineRow
-                                key={item.link || i}
-                                item={item}
-                                isLast={i === items.length - 1}
-                                onDismiss={() =>
-                                  dismissHeadline(url, item.link)
-                                }
-                              />
-                            ))}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+              </div>
+              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                News
+              </span>
+              {newsLoading && Object.keys(newsData).length === 0 && (
+                <span className='ml-2 text-[12px] text-gray-400 dark:text-gray-500'>
+                  Loading…
+                </span>
               )}
-            </div>
+              <svg
+                className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5'
+                />
+              </svg>
+            </button>
           )}
 
         {/* Fullscreen News Modal */}
@@ -931,15 +686,21 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
-            <div className='max-w-lg mx-auto pb-8'>
-              {Object.entries(newsData).map(([url, items]) => {
+            <div className='pb-8'>
+              {Object.entries(newsData).map(([url, items], idx) => {
                 if (items.length === 0) return null;
                 return (
-                  <div key={url} className='mb-4'>
-                    <div className='flex items-center justify-between px-4 py-2.5 bg-white/60 dark:bg-ios-card-dark/60 border-b border-gray-200/50 dark:border-gray-700/50'>
-                      <span className='text-[15px] font-semibold text-gray-700 dark:text-gray-300'>
+                  <div
+                    key={url}
+                    className={
+                      idx > 0
+                        ? "mt-10 border-t-4 border-gray-300 dark:border-gray-600 pt-6"
+                        : ""
+                    }>
+                    <div className='flex items-center justify-between px-4 pb-4'>
+                      <h3 className='text-[28px] font-extrabold text-gray-900 dark:text-white tracking-tight'>
                         {formatSourceName(url)}
-                      </span>
+                      </h3>
                       <button
                         onClick={async () => {
                           resetHiddenHeadlines(url);
@@ -953,7 +714,7 @@ export default function HomePage() {
                         className='p-1.5 text-ios-blue active:opacity-60'
                         title='Reset hidden'>
                         <svg
-                          className='w-4 h-4'
+                          className='w-5 h-5'
                           fill='none'
                           viewBox='0 0 24 24'
                           stroke='currentColor'
@@ -966,48 +727,46 @@ export default function HomePage() {
                         </svg>
                       </button>
                     </div>
-                    {items.map((item, i) => (
-                      <a
-                        key={item.link || i}
-                        href={item.link}
-                        target='_blank'
-                        rel='noopener noreferrer'
-                        className={`block bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 ${
-                          i < items.length - 1
-                            ? "border-b border-gray-200/40 dark:border-gray-700/40"
-                            : ""
-                        }`}>
-                        {item.image && (
-                          <img
-                            src={item.image}
-                            alt=''
-                            className='w-full h-44 object-cover bg-gray-200 dark:bg-gray-700'
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display =
-                                "none";
-                            }}
-                          />
-                        )}
-                        <div className='px-4 py-3'>
-                          <p className='text-[16px] font-medium text-gray-900 dark:text-white leading-snug'>
-                            {item.title}
-                          </p>
-                          {item.pubDate && (
-                            <p className='text-[12px] text-gray-400 dark:text-gray-500 mt-1'>
-                              {new Date(item.pubDate).toLocaleDateString(
-                                "nb-NO",
-                                {
-                                  day: "numeric",
-                                  month: "short",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                },
-                              )}
-                            </p>
+                    <div className='grid grid-cols-2 gap-3 px-4'>
+                      {items.map((item, i) => (
+                        <a
+                          key={item.link || i}
+                          href={item.link}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm'>
+                          {item.image && (
+                            <img
+                              src={item.image}
+                              alt=''
+                              className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                              }}
+                            />
                           )}
-                        </div>
-                      </a>
-                    ))}
+                          <div className='px-3 py-2.5'>
+                            <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3'>
+                              {item.title}
+                            </p>
+                            {item.pubDate && (
+                              <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
+                                {new Date(item.pubDate).toLocaleDateString(
+                                  "nb-NO",
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </p>
+                            )}
+                          </div>
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 );
               })}

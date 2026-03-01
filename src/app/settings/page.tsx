@@ -1658,7 +1658,7 @@ export default function SettingsPage() {
                                 className='w-full px-3 py-2 bg-white dark:bg-gray-700 rounded-lg text-[15px] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-ios-blue'
                               />
                               <div className='flex gap-1.5'>
-                                {[3, 5, 8, 10, 15].map((n) => (
+                                {[4, 6, 8, 10, 14, 20].map((n) => (
                                   <button
                                     key={n}
                                     onClick={() => setEditNewsCountValue(n)}
