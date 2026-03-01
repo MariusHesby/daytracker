@@ -6,6 +6,7 @@ import { supabase } from './supabase';
 const STORAGE_KEY = 'news_sources';
 const CACHE_PREFIX = 'news_cache_';
 const HIDDEN_PREFIX = 'news_hidden_';
+const READ_PREFIX = 'news_read_';
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 export interface NewsSource {
@@ -211,6 +212,36 @@ export function resetHiddenHeadlines(sourceUrl: string): void {
   localStorage.removeItem(hiddenKeyFor(sourceUrl));
   // Also clear cache so fresh articles are fetched
   localStorage.removeItem(cacheKeyFor(sourceUrl));
+}
+
+// ─── Read headlines ──────────────────────────────────────
+
+function readKeyFor(url: string): string {
+  return READ_PREFIX + url.trim().toLowerCase().replace(/\/$/, '');
+}
+
+/** Get the set of read article links for a source */
+export function getReadHeadlines(sourceUrl: string): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(readKeyFor(sourceUrl));
+    if (!stored) return new Set();
+    return new Set(JSON.parse(stored));
+  } catch {
+    return new Set();
+  }
+}
+
+/** Mark a specific headline as read (by link) for a source */
+export function markHeadlineRead(sourceUrl: string, articleLink: string): void {
+  const read = getReadHeadlines(sourceUrl);
+  read.add(articleLink);
+  localStorage.setItem(readKeyFor(sourceUrl), JSON.stringify([...read]));
+}
+
+/** Reset read headlines for a source */
+export function resetReadHeadlines(sourceUrl: string): void {
+  localStorage.removeItem(readKeyFor(sourceUrl));
 }
 
 // ─── Fetch news ──────────────────────────────────────────

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -39,8 +39,129 @@ import {
   resetHiddenHeadlines,
   getCachedAllNews,
   getNewsVisible,
+  markHeadlineRead,
+  getReadHeadlines,
+  resetReadHeadlines,
   NewsItem,
 } from "@/lib/news";
+
+// News card with slide-to-mark-as-read
+function NewsCard({
+  item,
+  onMarkRead,
+}: {
+  item: NewsItem;
+  onMarkRead: () => void;
+}) {
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const startX = useRef(0);
+  const [sliderX, setSliderX] = useState(0);
+  const [trackWidth, setTrackWidth] = useState(0);
+  const isDragging = useRef(false);
+
+  const thumbSize = 32;
+  const maxSlide = trackWidth - thumbSize - 4; // 4 for padding
+
+  return (
+    <div className='rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark shadow-sm flex flex-col'>
+      <a
+        href={item.link}
+        target='_blank'
+        rel='noopener noreferrer'
+        className='block active:bg-gray-50 dark:active:bg-gray-800 flex-1'>
+        {item.image && (
+          <img
+            src={item.image}
+            alt=''
+            className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
+        )}
+        <div className='px-3 py-2.5'>
+          <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3'>
+            {item.title}
+          </p>
+          {item.pubDate && (
+            <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
+              {new Date(item.pubDate).toLocaleDateString("nb-NO", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          )}
+        </div>
+      </a>
+      {/* Slide to mark as read */}
+      <div className='px-2.5 pb-2.5 pt-1'>
+        <div
+          ref={trackRef}
+          className='relative h-9 rounded-full bg-gray-100 dark:bg-gray-700/60 overflow-hidden'
+          onTouchStart={(e) => {
+            e.stopPropagation();
+          }}>
+          {/* Background label */}
+          <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
+            <span
+              className='text-[11px] font-medium tracking-wide uppercase transition-opacity duration-150'
+              style={{ color: sliderX > maxSlide * 0.3 ? 'transparent' : undefined }}
+            >
+              <span className='text-gray-400 dark:text-gray-500'>slide → read</span>
+            </span>
+          </div>
+          {/* Green fill */}
+          <div
+            className='absolute left-0 top-0 bottom-0 rounded-full bg-ios-green/20 dark:bg-ios-green/30 transition-all duration-75'
+            style={{ width: sliderX + thumbSize / 2 + 2 }}
+          />
+          {/* Thumb */}
+          <div
+            ref={sliderRef}
+            className='absolute top-[2px] left-[2px] w-8 h-8 rounded-full bg-white dark:bg-gray-300 shadow-md flex items-center justify-center cursor-grab active:cursor-grabbing select-none touch-none'
+            style={{
+              transform: `translateX(${sliderX}px)`,
+              transition: isDragging.current ? 'none' : 'transform 0.25s ease',
+            }}
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              isDragging.current = true;
+              startX.current = e.touches[0].clientX - sliderX;
+              if (trackRef.current) {
+                setTrackWidth(trackRef.current.offsetWidth);
+              }
+            }}
+            onTouchMove={(e) => {
+              if (!isDragging.current) return;
+              e.stopPropagation();
+              e.preventDefault();
+              const x = e.touches[0].clientX - startX.current;
+              const max = (trackRef.current?.offsetWidth || 200) - thumbSize - 4;
+              setSliderX(Math.max(0, Math.min(x, max)));
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              isDragging.current = false;
+              const max = (trackRef.current?.offsetWidth || 200) - thumbSize - 4;
+              if (sliderX >= max * 0.85) {
+                setSliderX(max);
+                setTimeout(onMarkRead, 200);
+              } else {
+                setSliderX(0);
+              }
+            }}>
+            <svg className='w-4 h-4 text-ios-green' fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2.5}>
+              <path strokeLinecap='round' strokeLinejoin='round' d='M5 13l4 4L19 7' />
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Get time-based greeting
 function getGreeting(): string {
@@ -134,6 +255,50 @@ export default function HomePage() {
   const [newsVisible, setNewsVisibleLocal] = useState(true);
   const newsHasSources = useRef(false);
   const [newsFullscreen, setNewsFullscreen] = useState(false);
+  const [readHeadlines, setReadHeadlines] = useState<Record<string, Set<string>>>({});
+
+  // Load read headlines when news data changes
+  useEffect(() => {
+    const readMap: Record<string, Set<string>> = {};
+    for (const url of Object.keys(newsData)) {
+      readMap[url] = getReadHeadlines(url);
+    }
+    setReadHeadlines(readMap);
+  }, [newsData]);
+
+  // Lock body scroll when fullscreen news is open
+  useEffect(() => {
+    if (newsFullscreen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.style.top = `-${window.scrollY}px`;
+    } else {
+      const scrollY = document.body.style.top;
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+      window.scrollTo(0, parseInt(scrollY || '0') * -1);
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.top = '';
+    };
+  }, [newsFullscreen]);
+
+  const handleMarkRead = useCallback((sourceUrl: string, articleLink: string) => {
+    markHeadlineRead(sourceUrl, articleLink);
+    setReadHeadlines(prev => {
+      const updated = { ...prev };
+      const set = new Set(prev[sourceUrl] || []);
+      set.add(articleLink);
+      updated[sourceUrl] = set;
+      return updated;
+    });
+  }, []);
 
   // Load favorite team and next fixture
   useEffect(() => {
@@ -669,7 +834,10 @@ export default function HomePage() {
 
         {/* Fullscreen News Modal */}
         {newsFullscreen && (
-          <div className='fixed inset-0 z-50 bg-ios-bg dark:bg-ios-bg-dark overflow-y-auto'>
+          <div
+            className='fixed inset-0 z-50 bg-ios-bg dark:bg-ios-bg-dark overflow-y-auto overscroll-none touch-pan-y'
+            data-scrollable
+            onTouchMove={(e) => e.stopPropagation()}>
             <div className='sticky top-0 z-10 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60'>
               <div
                 className='flex items-center justify-between px-4 py-3'
@@ -688,7 +856,9 @@ export default function HomePage() {
             </div>
             <div className='pb-8'>
               {Object.entries(newsData).map(([url, items], idx) => {
-                if (items.length === 0) return null;
+                const sourceRead = readHeadlines[url] || new Set<string>();
+                const unreadItems = items.filter(item => !sourceRead.has(item.link));
+                if (unreadItems.length === 0 && items.length === 0) return null;
                 return (
                   <div
                     key={url}
@@ -701,72 +871,64 @@ export default function HomePage() {
                       <h3 className='text-[28px] font-extrabold text-gray-900 dark:text-white tracking-tight'>
                         {formatSourceName(url)}
                       </h3>
-                      <button
-                        onClick={async () => {
-                          resetHiddenHeadlines(url);
-                          const sources = getNewsSources();
-                          const source = sources.find((s) => s.url === url);
-                          if (source) {
-                            const fresh = await fetchNewsForSource(source);
-                            setNewsData((prev) => ({ ...prev, [url]: fresh }));
-                          }
-                        }}
-                        className='p-1.5 text-ios-blue active:opacity-60'
-                        title='Reset hidden'>
-                        <svg
-                          className='w-5 h-5'
-                          fill='none'
-                          viewBox='0 0 24 24'
-                          stroke='currentColor'
-                          strokeWidth={2}>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className='grid grid-cols-2 gap-3 px-4'>
-                      {items.map((item, i) => (
-                        <a
-                          key={item.link || i}
-                          href={item.link}
-                          target='_blank'
-                          rel='noopener noreferrer'
-                          className='block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm'>
-                          {item.image && (
-                            <img
-                              src={item.image}
-                              alt=''
-                              className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display =
-                                  "none";
-                              }}
+                      <div className='flex items-center gap-2'>
+                        {sourceRead.size > 0 && (
+                          <button
+                            onClick={() => {
+                              resetReadHeadlines(url);
+                              setReadHeadlines(prev => {
+                                const updated = { ...prev };
+                                updated[url] = new Set();
+                                return updated;
+                              });
+                            }}
+                            className='text-[13px] text-ios-blue active:opacity-60'
+                            title='Show read articles'>
+                            Show read ({sourceRead.size})
+                          </button>
+                        )}
+                        <button
+                          onClick={async () => {
+                            resetHiddenHeadlines(url);
+                            const sources = getNewsSources();
+                            const source = sources.find((s) => s.url === url);
+                            if (source) {
+                              const fresh = await fetchNewsForSource(source);
+                              setNewsData((prev) => ({ ...prev, [url]: fresh }));
+                            }
+                          }}
+                          className='p-1.5 text-ios-blue active:opacity-60'
+                          title='Reset hidden'>
+                          <svg
+                            className='w-5 h-5'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'
+                            strokeWidth={2}>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
                             />
-                          )}
-                          <div className='px-3 py-2.5'>
-                            <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3'>
-                              {item.title}
-                            </p>
-                            {item.pubDate && (
-                              <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
-                                {new Date(item.pubDate).toLocaleDateString(
-                                  "nb-NO",
-                                  {
-                                    day: "numeric",
-                                    month: "short",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
-                                )}
-                              </p>
-                            )}
-                          </div>
-                        </a>
-                      ))}
+                          </svg>
+                        </button>
+                      </div>
                     </div>
+                    {unreadItems.length === 0 ? (
+                      <p className='px-4 py-6 text-center text-[14px] text-gray-400 dark:text-gray-500'>
+                        All caught up! ✓
+                      </p>
+                    ) : (
+                      <div className='grid grid-cols-2 gap-3 px-4'>
+                        {unreadItems.map((item, i) => (
+                          <NewsCard
+                            key={item.link || i}
+                            item={item}
+                            onMarkRead={() => handleMarkRead(url, item.link)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
