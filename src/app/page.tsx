@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -42,6 +42,106 @@ import {
   getNewsVisible,
   NewsItem,
 } from "@/lib/news";
+
+// Swipeable news headline row
+function NewsHeadlineRow({
+  item,
+  isLast,
+  onDismiss,
+}: {
+  item: NewsItem;
+  isLast: boolean;
+  onDismiss: () => void;
+}) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const startX = useRef(0);
+  const currentX = useRef(0);
+  const [swiped, setSwiped] = useState(false);
+
+  return (
+    <div
+      className={`relative overflow-hidden ${
+        !isLast ? "border-b border-gray-200/50 dark:border-gray-700/50" : ""
+      }`}>
+      {/* Delete action behind */}
+      <div className='absolute right-0 top-0 bottom-0 w-20 bg-ios-red flex items-center justify-center'>
+        <svg
+          className='w-4.5 h-4.5 text-white'
+          fill='none'
+          viewBox='0 0 24 24'
+          stroke='currentColor'
+          strokeWidth={2}>
+          <path
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            d='M6 18L18 6M6 6l12 12'
+          />
+        </svg>
+      </div>
+      {/* Swipeable content */}
+      <div
+        ref={rowRef}
+        className='relative bg-white dark:bg-ios-card-dark transition-transform duration-200'
+        onTouchStart={(e) => {
+          startX.current = e.touches[0].clientX;
+          currentX.current = e.touches[0].clientX;
+        }}
+        onTouchMove={(e) => {
+          if (!rowRef.current) return;
+          currentX.current = e.touches[0].clientX;
+          const diff = startX.current - currentX.current;
+          if (diff > 0) {
+            rowRef.current.style.transition = "none";
+            rowRef.current.style.transform = `translateX(-${Math.min(diff, 90)}px)`;
+          } else {
+            rowRef.current.style.transition = "none";
+            rowRef.current.style.transform = "translateX(0)";
+          }
+        }}
+        onTouchEnd={() => {
+          if (!rowRef.current) return;
+          rowRef.current.style.transition = "transform 0.2s ease";
+          const diff = startX.current - currentX.current;
+          if (diff > 70) {
+            // Animate off screen then dismiss
+            rowRef.current.style.transform = "translateX(-100%)";
+            setTimeout(onDismiss, 200);
+          } else {
+            rowRef.current.style.transform = "translateX(0)";
+            setSwiped(false);
+          }
+        }}
+        onClick={() => {
+          if (swiped && rowRef.current) {
+            rowRef.current.style.transform = "translateX(0)";
+            setSwiped(false);
+          }
+        }}>
+        <a
+          href={item.link}
+          target='_blank'
+          rel='noopener noreferrer'
+          className='flex items-center gap-3 px-4 py-2.5 active:bg-gray-50 dark:active:bg-gray-700/50'>
+          {item.image ? (
+            <img
+              src={item.image}
+              alt=''
+              className='w-12 h-12 rounded-lg object-cover shrink-0 bg-gray-200 dark:bg-gray-700'
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : (
+            <span className='text-[14px] text-ios-blue shrink-0'>•</span>
+          )}
+          <span className='text-[15px] text-gray-900 dark:text-white leading-snug line-clamp-2'>
+            {item.title}
+          </span>
+        </a>
+      </div>
+    </div>
+  );
+}
 
 // Get time-based greeting
 function getGreeting(): string {
@@ -136,6 +236,7 @@ export default function HomePage() {
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsVisible, setNewsVisibleLocal] = useState(true);
   const newsHasSources = useRef(false);
+  const [newsFullscreen, setNewsFullscreen] = useState(false);
 
   // Load favorite team and next fixture
   useEffect(() => {
@@ -216,6 +317,19 @@ export default function HomePage() {
       clearInterval(interval);
     };
   }, []);
+
+  const dismissHeadline = useCallback(
+    async (sourceUrl: string, articleLink: string) => {
+      hideHeadline(sourceUrl, articleLink);
+      const sources = getNewsSources();
+      const source = sources.find((s) => s.url === sourceUrl);
+      if (source) {
+        const updated = await fetchNewsForSource(source);
+        setNewsData((prev) => ({ ...prev, [sourceUrl]: updated }));
+      }
+    },
+    [],
+  );
 
   // Fetch weather on mount and when location changes
   useEffect(() => {
@@ -651,6 +765,28 @@ export default function HomePage() {
                     Loading…
                   </span>
                 )}
+                {!newsLoading && Object.keys(newsData).length > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNewsFullscreen(true);
+                    }}
+                    className='ml-2 p-1 text-gray-400 dark:text-gray-500 active:text-ios-blue'
+                    title='Expand news'>
+                    <svg
+                      className='w-4 h-4'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5'
+                      />
+                    </svg>
+                  </button>
+                )}
                 <svg
                   className={`w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto transition-transform duration-200 ${
                     newsOpen ? "rotate-180" : ""
@@ -758,71 +894,14 @@ export default function HomePage() {
                           </div>
                           {isSourceOpen &&
                             items.map((item, i) => (
-                              <div
-                                key={i}
-                                className={`flex items-center gap-3 px-4 py-2.5 ${
-                                  i < items.length - 1
-                                    ? "border-b border-gray-200/50 dark:border-gray-700/50"
-                                    : ""
-                                }`}>
-                                <a
-                                  href={item.link}
-                                  target='_blank'
-                                  rel='noopener noreferrer'
-                                  className='flex items-center gap-3 flex-1 min-w-0 active:bg-gray-100 dark:active:bg-gray-700'>
-                                  {item.image ? (
-                                    <img
-                                      src={item.image}
-                                      alt=''
-                                      className='w-12 h-12 rounded-lg object-cover shrink-0 bg-gray-200 dark:bg-gray-700'
-                                      onError={(e) => {
-                                        (
-                                          e.target as HTMLImageElement
-                                        ).style.display = "none";
-                                      }}
-                                    />
-                                  ) : (
-                                    <span className='text-[14px] text-ios-blue shrink-0'>
-                                      •
-                                    </span>
-                                  )}
-                                  <span className='text-[15px] text-gray-900 dark:text-white leading-snug line-clamp-2'>
-                                    {item.title}
-                                  </span>
-                                </a>
-                                <button
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    hideHeadline(url, item.link);
-                                    const sources = getNewsSources();
-                                    const source = sources.find(
-                                      (s) => s.url === url,
-                                    );
-                                    if (source) {
-                                      const updated =
-                                        await fetchNewsForSource(source);
-                                      setNewsData((prev) => ({
-                                        ...prev,
-                                        [url]: updated,
-                                      }));
-                                    }
-                                  }}
-                                  className='p-1.5 rounded-full text-gray-400 dark:text-gray-500 active:bg-gray-200 dark:active:bg-gray-600 shrink-0'
-                                  title='Dismiss headline'>
-                                  <svg
-                                    className='w-3.5 h-3.5'
-                                    fill='none'
-                                    viewBox='0 0 24 24'
-                                    stroke='currentColor'
-                                    strokeWidth={2.5}>
-                                    <path
-                                      strokeLinecap='round'
-                                      strokeLinejoin='round'
-                                      d='M6 18L18 6M6 6l12 12'
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
+                              <NewsHeadlineRow
+                                key={item.link || i}
+                                item={item}
+                                isLast={i === items.length - 1}
+                                onDismiss={() =>
+                                  dismissHeadline(url, item.link)
+                                }
+                              />
                             ))}
                         </div>
                       );
@@ -832,6 +911,109 @@ export default function HomePage() {
               )}
             </div>
           )}
+
+        {/* Fullscreen News Modal */}
+        {newsFullscreen && (
+          <div className='fixed inset-0 z-50 bg-ios-bg dark:bg-ios-bg-dark overflow-y-auto'>
+            <div className='sticky top-0 z-10 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60'>
+              <div
+                className='flex items-center justify-between px-4 py-3'
+                style={{
+                  paddingTop: "max(env(safe-area-inset-top, 12px), 12px)",
+                }}>
+                <h2 className='text-[20px] font-bold text-gray-900 dark:text-white'>
+                  News
+                </h2>
+                <button
+                  onClick={() => setNewsFullscreen(false)}
+                  className='text-[17px] text-ios-blue font-medium active:opacity-60'>
+                  Done
+                </button>
+              </div>
+            </div>
+            <div className='max-w-lg mx-auto pb-8'>
+              {Object.entries(newsData).map(([url, items]) => {
+                if (items.length === 0) return null;
+                return (
+                  <div key={url} className='mb-4'>
+                    <div className='flex items-center justify-between px-4 py-2.5 bg-white/60 dark:bg-ios-card-dark/60 border-b border-gray-200/50 dark:border-gray-700/50'>
+                      <span className='text-[15px] font-semibold text-gray-700 dark:text-gray-300'>
+                        {formatSourceName(url)}
+                      </span>
+                      <button
+                        onClick={async () => {
+                          resetHiddenHeadlines(url);
+                          const sources = getNewsSources();
+                          const source = sources.find((s) => s.url === url);
+                          if (source) {
+                            const fresh = await fetchNewsForSource(source);
+                            setNewsData((prev) => ({ ...prev, [url]: fresh }));
+                          }
+                        }}
+                        className='p-1.5 text-ios-blue active:opacity-60'
+                        title='Reset hidden'>
+                        <svg
+                          className='w-4 h-4'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'
+                          strokeWidth={2}>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    {items.map((item, i) => (
+                      <a
+                        key={item.link || i}
+                        href={item.link}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className={`block bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 ${
+                          i < items.length - 1
+                            ? "border-b border-gray-200/40 dark:border-gray-700/40"
+                            : ""
+                        }`}>
+                        {item.image && (
+                          <img
+                            src={item.image}
+                            alt=''
+                            className='w-full h-44 object-cover bg-gray-200 dark:bg-gray-700'
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
+                            }}
+                          />
+                        )}
+                        <div className='px-4 py-3'>
+                          <p className='text-[16px] font-medium text-gray-900 dark:text-white leading-snug'>
+                            {item.title}
+                          </p>
+                          {item.pubDate && (
+                            <p className='text-[12px] text-gray-400 dark:text-gray-500 mt-1'>
+                              {new Date(item.pubDate).toLocaleDateString(
+                                "nb-NO",
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <EntryForm
           date={selectedDate}
