@@ -246,6 +246,11 @@ export function resetReadHeadlines(sourceUrl: string): void {
 
 // ─── Fetch news ──────────────────────────────────────────
 
+/** Clear cached news for a specific source (forces fresh fetch next time) */
+export function clearCacheForSource(url: string): void {
+  localStorage.removeItem(cacheKeyFor(url));
+}
+
 /** Fetch headlines for a single source, filtering out hidden ones */
 export async function fetchNewsForSource(source: NewsSource): Promise<NewsItem[]> {
   if (!source.url) return [];

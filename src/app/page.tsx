@@ -42,6 +42,7 @@ import {
   markHeadlineRead,
   getReadHeadlines,
   resetReadHeadlines,
+  clearCacheForSource,
   NewsItem,
 } from "@/lib/news";
 
@@ -60,8 +61,8 @@ function NewsCard({
   const [trackWidth, setTrackWidth] = useState(0);
   const isDragging = useRef(false);
 
-  const thumbSize = 32;
-  const maxSlide = trackWidth - thumbSize - 4; // 4 for padding
+  const thumbSize = 22;
+  const maxSlide = trackWidth - thumbSize - 6; // 6 for padding
 
   return (
     <div className='rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark shadow-sm flex flex-col'>
@@ -97,34 +98,34 @@ function NewsCard({
         </div>
       </a>
       {/* Slide to mark as read */}
-      <div className='px-2.5 pb-2.5 pt-1'>
+      <div className='px-2.5 pb-2 pt-0.5'>
         <div
           ref={trackRef}
-          className='relative h-9 rounded-full bg-gray-100 dark:bg-gray-700/60 overflow-hidden'
+          className='relative h-7 rounded-full bg-gray-50 dark:bg-gray-800/50 overflow-hidden'
           onTouchStart={(e) => {
             e.stopPropagation();
           }}>
           {/* Background label */}
           <div className='absolute inset-0 flex items-center justify-center pointer-events-none'>
             <span
-              className='text-[11px] font-medium tracking-wide uppercase transition-opacity duration-150'
+              className='text-[10px] font-medium tracking-wide uppercase transition-opacity duration-150'
               style={{
                 color: sliderX > maxSlide * 0.3 ? "transparent" : undefined,
               }}>
-              <span className='text-gray-400 dark:text-gray-500'>
+              <span className='text-gray-300 dark:text-gray-600'>
                 slide → read
               </span>
             </span>
           </div>
           {/* Green fill */}
           <div
-            className='absolute left-0 top-0 bottom-0 rounded-full bg-ios-green/20 dark:bg-ios-green/30 transition-all duration-75'
+            className='absolute left-0 top-0 bottom-0 rounded-full bg-ios-green/10 dark:bg-ios-green/15 transition-all duration-75'
             style={{ width: sliderX + thumbSize / 2 + 2 }}
           />
           {/* Thumb */}
           <div
             ref={sliderRef}
-            className='absolute top-[2px] left-[2px] w-8 h-8 rounded-full bg-white dark:bg-gray-300 shadow-md flex items-center justify-center cursor-grab active:cursor-grabbing select-none touch-none'
+            className='absolute top-[3px] left-[3px] w-[22px] h-[22px] rounded-full bg-gray-200 dark:bg-gray-600 shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing select-none touch-none'
             style={{
               transform: `translateX(${sliderX}px)`,
               transition: isDragging.current ? "none" : "transform 0.25s ease",
@@ -143,14 +144,14 @@ function NewsCard({
               e.preventDefault();
               const x = e.touches[0].clientX - startX.current;
               const max =
-                (trackRef.current?.offsetWidth || 200) - thumbSize - 4;
+                (trackRef.current?.offsetWidth || 200) - thumbSize - 6;
               setSliderX(Math.max(0, Math.min(x, max)));
             }}
             onTouchEnd={(e) => {
               e.stopPropagation();
               isDragging.current = false;
               const max =
-                (trackRef.current?.offsetWidth || 200) - thumbSize - 4;
+                (trackRef.current?.offsetWidth || 200) - thumbSize - 6;
               if (sliderX >= max * 0.85) {
                 setSliderX(max);
                 setTimeout(onMarkRead, 200);
@@ -159,7 +160,7 @@ function NewsCard({
               }
             }}>
             <svg
-              className='w-4 h-4 text-ios-green'
+              className='w-3 h-3 text-gray-400 dark:text-gray-400'
               fill='none'
               viewBox='0 0 24 24'
               stroke='currentColor'
@@ -910,6 +911,8 @@ export default function HomePage() {
                         )}
                         <button
                           onClick={async () => {
+                            // Clear cache to force fresh fetch from source URL
+                            clearCacheForSource(url);
                             resetHiddenHeadlines(url);
                             const sources = getNewsSources();
                             const source = sources.find((s) => s.url === url);
@@ -922,7 +925,7 @@ export default function HomePage() {
                             }
                           }}
                           className='p-1.5 text-ios-blue active:opacity-60'
-                          title='Reset hidden'>
+                          title='Refresh from source'>
                           <svg
                             className='w-5 h-5'
                             fill='none'
