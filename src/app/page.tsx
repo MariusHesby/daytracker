@@ -855,7 +855,7 @@ export default function HomePage() {
         {/* Fullscreen News Modal */}
         {newsFullscreen && (
           <div
-            className='fixed inset-0 z-50 bg-ios-bg dark:bg-ios-bg-dark overflow-y-auto overflow-x-hidden overscroll-none touch-pan-y'
+            className='fixed inset-0 z-[60] bg-ios-bg dark:bg-ios-bg-dark overflow-y-auto overflow-x-hidden overscroll-none touch-pan-y'
             data-scrollable
             onTouchMove={(e) => e.stopPropagation()}>
             <div className='sticky top-0 z-10 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60'>
