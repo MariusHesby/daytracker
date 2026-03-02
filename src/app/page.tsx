@@ -616,7 +616,7 @@ export default function HomePage() {
                   </div>
 
                   {/* Opponent name */}
-                  <span className='text-[17px] font-medium text-gray-900 dark:text-white shrink-0'>
+                  <span className='text-[17px] font-medium text-gray-900 dark:text-white truncate min-w-0'>
                     {opponent.name}
                   </span>
 
@@ -914,7 +914,7 @@ export default function HomePage() {
                     title='Refresh all'>
                     <svg
                       className={`w-5 h-5 transition-transform ${
-                        refreshingSources.size > 0 ? 'animate-spin' : ''
+                        refreshingSources.size > 0 ? "animate-spin" : ""
                       }`}
                       fill='none'
                       viewBox='0 0 24 24'
@@ -980,7 +980,7 @@ export default function HomePage() {
                         </span>
                         {newCount > 0 && !isExpanded && (
                           <span className='min-w-[22px] h-[22px] px-1.5 flex items-center justify-center rounded-full bg-ios-blue text-white text-[12px] font-bold leading-none shrink-0'>
-                            {newCount > 99 ? '99+' : newCount}
+                            {newCount > 99 ? "99+" : newCount}
                           </span>
                         )}
                       </div>

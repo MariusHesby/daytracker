@@ -576,6 +576,7 @@ body {
   color: var(--ios-label);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 /* Hide number input spinners for cleaner iOS look */
