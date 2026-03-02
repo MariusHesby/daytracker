@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -135,6 +136,9 @@ export default function HomePage() {
   const [newsVisible, setNewsVisibleLocal] = useState(true);
   const newsHasSources = useRef(false);
   const [newsFullscreen, setNewsFullscreen] = useState(false);
+  const [refreshingSources, setRefreshingSources] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Lock body scroll when fullscreen news is open
   useEffect(() => {
@@ -691,120 +695,6 @@ export default function HomePage() {
             </button>
           )}
 
-        {/* Fullscreen News Modal */}
-        {newsFullscreen && (
-          <div
-            className='fixed inset-0 z-[60] bg-ios-bg dark:bg-ios-bg-dark overflow-y-auto overflow-x-hidden overscroll-none touch-pan-y'
-            data-scrollable
-            onTouchMove={(e) => e.stopPropagation()}>
-            <div className='sticky top-0 z-10 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60'>
-              <div
-                className='flex items-center justify-between px-4 py-3'
-                style={{
-                  paddingTop: "max(env(safe-area-inset-top, 12px), 12px)",
-                }}>
-                <h2 className='text-[20px] font-bold text-gray-900 dark:text-white'>
-                  News
-                </h2>
-                <button
-                  onClick={() => setNewsFullscreen(false)}
-                  className='text-[17px] text-ios-blue font-medium active:opacity-60'>
-                  Done
-                </button>
-              </div>
-            </div>
-            <div className='pb-8'>
-              {Object.entries(newsData).map(([url, items], idx) => {
-                if (items.length === 0) return null;
-                return (
-                  <div
-                    key={url}
-                    className={
-                      idx > 0
-                        ? "mt-10 border-t-4 border-gray-300 dark:border-gray-600 pt-6"
-                        : ""
-                    }>
-                    <div className='flex items-center justify-between px-4 pb-4 min-w-0 overflow-hidden'>
-                      <h3 className='text-[28px] font-extrabold text-gray-900 dark:text-white tracking-tight truncate min-w-0'>
-                        {formatSourceName(url)}
-                      </h3>
-                      <button
-                        onClick={async () => {
-                          clearCacheForSource(url);
-                          resetHiddenHeadlines(url);
-                          const sources = getNewsSources();
-                          const source = sources.find((s) => s.url === url);
-                          if (source) {
-                            const fresh = await fetchNewsForSource(source);
-                            setNewsData((prev) => ({
-                              ...prev,
-                              [url]: fresh,
-                            }));
-                          }
-                        }}
-                        className='p-1.5 text-ios-blue active:opacity-60 shrink-0'
-                        title='Refresh from source'>
-                        <svg
-                          className='w-5 h-5'
-                          fill='none'
-                          viewBox='0 0 24 24'
-                          stroke='currentColor'
-                          strokeWidth={2}>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className='grid grid-cols-2 gap-3 px-4'>
-                      {items.map((item, i) => (
-                        <a
-                          key={item.link || i}
-                          href={item.link}
-                          target='_blank'
-                          rel='noopener noreferrer'
-                          className='block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0'>
-                          {item.image && (
-                            <img
-                              src={item.image}
-                              alt=''
-                              className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display =
-                                  "none";
-                              }}
-                            />
-                          )}
-                          <div className='px-3 py-2.5'>
-                            <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
-                              {item.title}
-                            </p>
-                            {item.pubDate && (
-                              <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
-                                {new Date(item.pubDate).toLocaleDateString(
-                                  "nb-NO",
-                                  {
-                                    day: "numeric",
-                                    month: "short",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
-                                )}
-                              </p>
-                            )}
-                          </div>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         <EntryForm
           date={selectedDate}
           viewMode={viewMode}
@@ -940,6 +830,142 @@ export default function HomePage() {
           onClose={() => setShowFootball(false)}
         />
       )}
+
+      {/* Fullscreen News Modal — rendered via portal to escape main's stacking context */}
+      {newsFullscreen &&
+        createPortal(
+          <div
+            className='fixed inset-0 z-[60] bg-ios-bg dark:bg-ios-bg-dark overflow-y-auto overflow-x-hidden overscroll-none touch-pan-y'
+            data-scrollable
+            onTouchMove={(e) => e.stopPropagation()}>
+            <div className='sticky top-0 z-10 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60'>
+              <div
+                className='flex items-center justify-between px-4 py-3'
+                style={{
+                  paddingTop: "max(env(safe-area-inset-top, 12px), 12px)",
+                }}>
+                <h2 className='text-[20px] font-bold text-gray-900 dark:text-white'>
+                  News
+                </h2>
+                <button
+                  onClick={() => setNewsFullscreen(false)}
+                  className='text-[17px] text-ios-blue font-medium active:opacity-60'>
+                  Done
+                </button>
+              </div>
+            </div>
+            <div className='pb-8'>
+              {Object.entries(newsData).map(([url, items], idx) => {
+                if (items.length === 0) return null;
+                return (
+                  <div
+                    key={url}
+                    className={
+                      idx > 0
+                        ? "mt-10 border-t-4 border-gray-300 dark:border-gray-600 pt-6"
+                        : ""
+                    }>
+                    <div className='flex items-center justify-between px-4 pb-4 min-w-0 overflow-hidden'>
+                      <h3 className='text-[28px] font-extrabold text-gray-900 dark:text-white tracking-tight truncate min-w-0'>
+                        {formatSourceName(url)}
+                      </h3>
+                      <button
+                        onClick={async () => {
+                          setRefreshingSources((prev) => {
+                            const next = new Set(prev);
+                            next.add(url);
+                            return next;
+                          });
+                          try {
+                            clearCacheForSource(url);
+                            resetHiddenHeadlines(url);
+                            const sources = getNewsSources();
+                            const source = sources.find(
+                              (s) => s.url === url,
+                            );
+                            if (source) {
+                              const fresh =
+                                await fetchNewsForSource(source);
+                              setNewsData((prev) => ({
+                                ...prev,
+                                [url]: fresh,
+                              }));
+                            }
+                          } finally {
+                            setRefreshingSources((prev) => {
+                              const next = new Set(prev);
+                              next.delete(url);
+                              return next;
+                            });
+                          }
+                        }}
+                        disabled={refreshingSources.has(url)}
+                        className='p-1.5 text-ios-blue active:opacity-60 shrink-0 disabled:opacity-40'
+                        title='Refresh from source'>
+                        <svg
+                          className={`w-5 h-5 transition-transform ${
+                            refreshingSources.has(url)
+                              ? "animate-spin"
+                              : ""
+                          }`}
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'
+                          strokeWidth={2}>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className='grid grid-cols-2 gap-3 px-4'>
+                      {items.map((item, i) => (
+                        <a
+                          key={item.link || i}
+                          href={item.link}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0'>
+                          {item.image && (
+                            <img
+                              src={item.image}
+                              alt=''
+                              className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                              }}
+                            />
+                          )}
+                          <div className='px-3 py-2.5'>
+                            <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
+                              {item.title}
+                            </p>
+                            {item.pubDate && (
+                              <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
+                                {new Date(
+                                  item.pubDate,
+                                ).toLocaleDateString("nb-NO", {
+                                  day: "numeric",
+                                  month: "short",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
