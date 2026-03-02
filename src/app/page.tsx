@@ -880,12 +880,9 @@ export default function HomePage() {
                             clearCacheForSource(url);
                             resetHiddenHeadlines(url);
                             const sources = getNewsSources();
-                            const source = sources.find(
-                              (s) => s.url === url,
-                            );
+                            const source = sources.find((s) => s.url === url);
                             if (source) {
-                              const fresh =
-                                await fetchNewsForSource(source);
+                              const fresh = await fetchNewsForSource(source);
                               setNewsData((prev) => ({
                                 ...prev,
                                 [url]: fresh,
@@ -904,9 +901,7 @@ export default function HomePage() {
                         title='Refresh from source'>
                         <svg
                           className={`w-5 h-5 transition-transform ${
-                            refreshingSources.has(url)
-                              ? "animate-spin"
-                              : ""
+                            refreshingSources.has(url) ? "animate-spin" : ""
                           }`}
                           fill='none'
                           viewBox='0 0 24 24'
@@ -945,14 +940,15 @@ export default function HomePage() {
                             </p>
                             {item.pubDate && (
                               <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
-                                {new Date(
-                                  item.pubDate,
-                                ).toLocaleDateString("nb-NO", {
-                                  day: "numeric",
-                                  month: "short",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
+                                {new Date(item.pubDate).toLocaleDateString(
+                                  "nb-NO",
+                                  {
+                                    day: "numeric",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
                               </p>
                             )}
                           </div>

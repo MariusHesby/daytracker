@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
@@ -69,7 +71,7 @@ async function tryRSS(siteUrl: string, count: number) {
   // First, try to discover feed URL from the HTML page
   try {
     const pageRes = await fetch(siteUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DayTracker/1.0)' },
+      headers: { 'User-Agent': BROWSER_UA },
       signal: AbortSignal.timeout(5000),
     });
     const html = await pageRes.text();
@@ -95,9 +97,23 @@ async function tryRSS(siteUrl: string, count: number) {
 
   // Try common feed paths
   const base = new URL(siteUrl);
+  const pathsToTry: string[] = [];
+
+  // If the URL has a subpath (e.g. /sport/football/leeds-united),
+  // try appending feed paths to the subpath first
+  const subpath = base.pathname.replace(/\/$/, '');
+  if (subpath && subpath !== '') {
+    for (const path of feedPaths) {
+      pathsToTry.push(`${base.origin}${subpath}${path}`);
+    }
+  }
+  // Then try feed paths on the origin
   for (const path of feedPaths) {
+    pathsToTry.push(`${base.origin}${path}`);
+  }
+
+  for (const feedUrl of pathsToTry) {
     try {
-      const feedUrl = `${base.origin}${path}`;
       const items = await parseFeed(feedUrl, count);
       if (items.length > 0) return items;
     } catch {
@@ -110,7 +126,7 @@ async function tryRSS(siteUrl: string, count: number) {
 
 async function parseFeed(feedUrl: string, count: number) {
   const res = await fetch(feedUrl, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DayTracker/1.0)' },
+    headers: { 'User-Agent': BROWSER_UA },
     signal: AbortSignal.timeout(5000),
   });
 
@@ -176,7 +192,7 @@ function extractAttr(xml: string, tag: string, attr: string): string | null {
 async function fetchOgImage(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DayTracker/1.0)' },
+      headers: { 'User-Agent': BROWSER_UA },
       signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) return null;
@@ -256,7 +272,7 @@ function decodeEntities(text: string): string {
 
 async function scrapeHeadlines(siteUrl: string, count: number) {
   const res = await fetch(siteUrl, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; DayTracker/1.0)' },
+    headers: { 'User-Agent': BROWSER_UA },
     signal: AbortSignal.timeout(8000),
   });
 
