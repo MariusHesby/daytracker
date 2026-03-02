@@ -164,12 +164,12 @@
 }
 
 .colorful body,
-.colorful .bg-ios-bg {
+.colorful .bg-ios-bg:not(.colorful-modal-bg) {
   background: transparent !important;
 }
 
 /* Colorful theme - fullscreen modals get a solid opaque background (same as other themes) */
-.colorful .colorful-modal-bg {
+.colorful .colorful-modal-bg.colorful-modal-bg {
   background: #e8f4fc !important;
 }
 
@@ -316,8 +316,8 @@
 }
 
 /* Colorful dark backgrounds override for light theme */
-.colorful .dark\:bg-black,
-.colorful .dark\:bg-ios-bg-dark {
+.colorful .dark\:bg-black:not(.colorful-modal-bg),
+.colorful .dark\:bg-ios-bg-dark:not(.colorful-modal-bg) {
   background: transparent !important;
 }
 
