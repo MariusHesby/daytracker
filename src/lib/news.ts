@@ -244,6 +244,39 @@ export function resetReadHeadlines(sourceUrl: string): void {
   localStorage.removeItem(readKeyFor(sourceUrl));
 }
 
+// ─── Seen articles (for "new" badges) ────────────────────
+
+const SEEN_PREFIX = 'news_seen_';
+
+function seenKeyFor(url: string): string {
+  return SEEN_PREFIX + url.trim().toLowerCase().replace(/\/$/, '');
+}
+
+/** Get the set of previously-seen article links for a source */
+export function getSeenArticles(sourceUrl: string): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(seenKeyFor(sourceUrl));
+    if (!stored) return new Set();
+    return new Set(JSON.parse(stored));
+  } catch {
+    return new Set();
+  }
+}
+
+/** Mark all current articles as seen for a source */
+export function markArticlesSeen(sourceUrl: string, articles: NewsItem[]): void {
+  const links = articles.map(a => a.link).filter(Boolean);
+  localStorage.setItem(seenKeyFor(sourceUrl), JSON.stringify(links));
+}
+
+/** Count how many articles are new (not previously seen) */
+export function countNewArticles(sourceUrl: string, articles: NewsItem[]): number {
+  const seen = getSeenArticles(sourceUrl);
+  if (seen.size === 0) return 0; // First load → don't show badge
+  return articles.filter(a => !seen.has(a.link)).length;
+}
+
 // ─── Fetch news ──────────────────────────────────────────
 
 /** Clear cached news for a specific source (forces fresh fetch next time) */

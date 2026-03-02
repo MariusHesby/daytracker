@@ -41,6 +41,8 @@ import {
   getCachedAllNews,
   getNewsVisible,
   clearCacheForSource,
+  countNewArticles,
+  markArticlesSeen,
   NewsItem,
 } from "@/lib/news";
 
@@ -136,6 +138,10 @@ export default function HomePage() {
   const [newsVisible, setNewsVisibleLocal] = useState(true);
   const newsHasSources = useRef(false);
   const [newsFullscreen, setNewsFullscreen] = useState(false);
+  const [newsFullscreenSource, setNewsFullscreenSource] = useState<
+    string | null
+  >(null);
+  const [newsOpen, setNewsOpen] = useState(false);
   const [refreshingSources, setRefreshingSources] = useState<Set<string>>(
     new Set(),
   );
@@ -651,64 +657,186 @@ export default function HomePage() {
           (Object.keys(newsData).length > 0 ||
             newsHasSources.current ||
             newsLoading) && (
-            <button
-              onClick={() => {
-                if (!newsLoading && Object.keys(newsData).length > 0) {
-                  setNewsFullscreen(true);
-                }
-              }}
-              className='mb-3 w-full flex items-center px-4 py-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 active:bg-gray-100 dark:active:bg-gray-700'>
-              <div className='w-8 h-8 rounded-lg bg-ios-orange flex items-center justify-center mr-3 shrink-0'>
-                <svg
-                  className='w-[18px] h-[18px] text-white'
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  stroke='currentColor'
-                  strokeWidth={2}>
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
-                  />
-                </svg>
-              </div>
-              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                News
-              </span>
-              {newsLoading && Object.keys(newsData).length === 0 ? (
-                <svg
-                  className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto animate-spin'
-                  fill='none'
-                  viewBox='0 0 24 24'>
-                  <circle
-                    className='opacity-25'
-                    cx='12'
-                    cy='12'
-                    r='10'
+            <div className='mb-3 w-full bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-hidden'>
+              {/* Header row */}
+              <button
+                onClick={() => {
+                  const sourceKeys = Object.keys(newsData);
+                  if (newsLoading && sourceKeys.length === 0) return;
+                  if (sourceKeys.length <= 1 && sourceKeys.length > 0) {
+                    // Single source → open fullscreen directly
+                    setNewsFullscreenSource(null);
+                    setNewsFullscreen(true);
+                    // Mark articles as seen
+                    for (const [url, items] of Object.entries(newsData)) {
+                      markArticlesSeen(url, items);
+                    }
+                  } else {
+                    setNewsOpen((prev) => !prev);
+                  }
+                }}
+                className='w-full flex items-center px-4 py-3 active:bg-gray-100 dark:active:bg-gray-700/50'>
+                <div className='relative w-8 h-8 rounded-lg bg-ios-orange flex items-center justify-center mr-3 shrink-0'>
+                  <svg
+                    className='w-[18px] h-[18px] text-white'
+                    fill='none'
+                    viewBox='0 0 24 24'
                     stroke='currentColor'
-                    strokeWidth='3'
-                  />
-                  <path
-                    className='opacity-75'
-                    fill='currentColor'
-                    d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto'
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  stroke='currentColor'
-                  strokeWidth={2}>
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5'
-                  />
-                </svg>
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
+                    />
+                  </svg>
+                  {/* Total new-articles badge */}
+                  {(() => {
+                    const totalNew = Object.entries(newsData).reduce(
+                      (sum, [url, items]) =>
+                        sum + countNewArticles(url, items),
+                      0,
+                    );
+                    return totalNew > 0 ? (
+                      <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-ios-red text-white text-[11px] font-bold leading-none'>
+                        {totalNew > 99 ? "99+" : totalNew}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+                <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                  News
+                </span>
+                {newsLoading && Object.keys(newsData).length === 0 ? (
+                  <svg
+                    className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto animate-spin'
+                    fill='none'
+                    viewBox='0 0 24 24'>
+                    <circle
+                      className='opacity-25'
+                      cx='12'
+                      cy='12'
+                      r='10'
+                      stroke='currentColor'
+                      strokeWidth='3'
+                    />
+                    <path
+                      className='opacity-75'
+                      fill='currentColor'
+                      d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
+                    />
+                  </svg>
+                ) : Object.keys(newsData).length <= 1 ? (
+                  <svg
+                    className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5'
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className={`w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto transition-transform duration-200 ${
+                      newsOpen ? "rotate-180" : ""
+                    }`}
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M19 9l-7 7-7-7'
+                    />
+                  </svg>
+                )}
+              </button>
+
+              {/* Source list dropdown */}
+              {newsOpen && Object.keys(newsData).length > 1 && (
+                <div className='border-t border-gray-200/60 dark:border-gray-700/60'>
+                  {Object.entries(newsData).map(
+                    ([url, items], idx, arr) => {
+                      const newCount = countNewArticles(url, items);
+                      return (
+                        <button
+                          key={url}
+                          onClick={() => {
+                            markArticlesSeen(url, items);
+                            setNewsFullscreenSource(url);
+                            setNewsFullscreen(true);
+                          }}
+                          className={`w-full flex items-center px-4 py-3 active:bg-gray-100 dark:active:bg-gray-700/50 ${
+                            idx < arr.length - 1
+                              ? "border-b border-gray-100 dark:border-gray-800"
+                              : ""
+                          }`}>
+                          <div className='w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3 shrink-0'>
+                            <svg
+                              className='w-4 h-4 text-gray-500 dark:text-gray-400'
+                              fill='none'
+                              viewBox='0 0 24 24'
+                              stroke='currentColor'
+                              strokeWidth={1.5}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9.015 9.015 0 003 12c0-1.605.42-3.113 1.157-4.418'
+                              />
+                            </svg>
+                          </div>
+                          <div className='flex flex-col items-start min-w-0 flex-1'>
+                            <span className='text-[15px] font-medium text-gray-900 dark:text-white truncate w-full text-left'>
+                              {formatSourceName(url)}
+                            </span>
+                            <span className='text-[12px] text-gray-400 dark:text-gray-500'>
+                              {items.length} {items.length === 1 ? "article" : "articles"}
+                            </span>
+                          </div>
+                          <div className='flex items-center gap-2 ml-2 shrink-0'>
+                            {newCount > 0 && (
+                              <span className='min-w-[20px] h-[20px] px-1.5 flex items-center justify-center rounded-full bg-ios-blue text-white text-[12px] font-bold leading-none'>
+                                {newCount}
+                              </span>
+                            )}
+                            <svg
+                              className='w-4 h-4 text-gray-300 dark:text-gray-600'
+                              fill='none'
+                              viewBox='0 0 24 24'
+                              stroke='currentColor'
+                              strokeWidth={2}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M8.25 4.5l7.5 7.5-7.5 7.5'
+                              />
+                            </svg>
+                          </div>
+                        </button>
+                      );
+                    },
+                  )}
+                  {/* Show all button */}
+                  <button
+                    onClick={() => {
+                      for (const [url, items] of Object.entries(newsData)) {
+                        markArticlesSeen(url, items);
+                      }
+                      setNewsFullscreenSource(null);
+                      setNewsFullscreen(true);
+                    }}
+                    className='w-full flex items-center justify-center px-4 py-3 border-t border-gray-200/60 dark:border-gray-700/60 active:bg-gray-100 dark:active:bg-gray-700/50'>
+                    <span className='text-[14px] font-medium text-ios-blue'>
+                      Show All Sources
+                    </span>
+                  </button>
+                </div>
               )}
-            </button>
+            </div>
           )}
 
         <EntryForm
@@ -861,17 +989,27 @@ export default function HomePage() {
                   paddingTop: "max(env(safe-area-inset-top, 12px), 12px)",
                 }}>
                 <h2 className='text-[20px] font-bold text-gray-900 dark:text-white'>
-                  News
+                  {newsFullscreenSource
+                    ? formatSourceName(newsFullscreenSource)
+                    : "News"}
                 </h2>
                 <button
-                  onClick={() => setNewsFullscreen(false)}
+                  onClick={() => {
+                    setNewsFullscreen(false);
+                    setNewsFullscreenSource(null);
+                  }}
                   className='text-[17px] text-ios-blue font-medium active:opacity-60'>
                   Done
                 </button>
               </div>
             </div>
             <div className='pb-8'>
-              {Object.entries(newsData).map(([url, items], idx) => {
+              {Object.entries(newsData)
+                .filter(
+                  ([url]) =>
+                    !newsFullscreenSource || url === newsFullscreenSource,
+                )
+                .map(([url, items], idx) => {
                 if (items.length === 0) return null;
                 return (
                   <div
