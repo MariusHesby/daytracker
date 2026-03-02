@@ -991,7 +991,7 @@ export default function HomePage() {
                           <div className='grid grid-cols-2 gap-3 p-4 bg-gray-50/50 dark:bg-gray-900/30'>
                             {items.map((item, i) => (
                               <a
-                                key={item.link || i}
+                                key={`${item.link}-${i}`}
                                 href={item.link}
                                 target='_blank'
                                 rel='noopener noreferrer'
