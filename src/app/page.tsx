@@ -889,11 +889,11 @@ export default function HomePage() {
                         ? "mt-10 border-t-4 border-gray-300 dark:border-gray-600 pt-6"
                         : ""
                     }>
-                    <div className='flex items-center justify-between px-4 pb-4'>
-                      <h3 className='text-[28px] font-extrabold text-gray-900 dark:text-white tracking-tight'>
+                    <div className='flex items-center justify-between px-4 pb-4 min-w-0 overflow-hidden'>
+                      <h3 className='text-[28px] font-extrabold text-gray-900 dark:text-white tracking-tight truncate min-w-0'>
                         {formatSourceName(url)}
                       </h3>
-                      <div className='flex items-center gap-2'>
+                      <div className='flex items-center gap-2 shrink-0'>
                         {sourceRead.size > 0 && (
                           <button
                             onClick={() => {
