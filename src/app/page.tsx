@@ -667,7 +667,7 @@ export default function HomePage() {
           (Object.keys(newsData).length > 0 ||
             newsHasSources.current ||
             newsLoading) && (
-            <div className='mb-3 w-full bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-hidden'>
+            <div className='mb-3 w-full bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60'>
               <button
                 onClick={() => {
                   if (newsLoading && Object.keys(newsData).length === 0) return;
@@ -884,7 +884,7 @@ export default function HomePage() {
       {newsFullscreen &&
         createPortal(
           <div
-            className='fixed inset-0 z-[60] bg-ios-bg dark:bg-ios-bg-dark overflow-y-auto overflow-x-hidden overscroll-none touch-pan-y'
+            className='fixed inset-0 z-[60] bg-ios-bg dark:bg-ios-bg-dark colorful-modal-bg overflow-y-auto overflow-x-hidden overscroll-none touch-pan-y'
             data-scrollable
             onTouchMove={(e) => e.stopPropagation()}>
             <div className='sticky top-0 z-10 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60'>

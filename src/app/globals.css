@@ -167,6 +167,11 @@
   background: transparent !important;
 }
 
+/* Colorful theme - fullscreen modals show the gradient background */
+.colorful .colorful-modal-bg {
+  background: transparent !important;
+}
+
 /* Liquid Glass effect for header card — iOS 26 inspired */
 .liquid-glass,
 .liquid-glass.liquid-glass {
