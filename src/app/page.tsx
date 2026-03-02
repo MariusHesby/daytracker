@@ -138,6 +138,7 @@ export default function HomePage() {
   const [newsVisible, setNewsVisibleLocal] = useState(true);
   const newsHasSources = useRef(false);
   const [newsFullscreen, setNewsFullscreen] = useState(false);
+  const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [refreshingSources, setRefreshingSources] = useState<Set<string>>(
     new Set(),
   );
@@ -660,6 +661,7 @@ export default function HomePage() {
                   for (const [url, items] of Object.entries(newsData)) {
                     markArticlesSeen(url, items);
                   }
+                  setExpandedSource(null);
                   setNewsFullscreen(true);
                 }}
                 className='w-full flex items-center px-4 py-3 active:bg-gray-100 dark:active:bg-gray-700/50'>
@@ -889,53 +891,106 @@ export default function HomePage() {
               </div>
             </div>
             <div className='pb-8'>
-              {Object.entries(newsData).map(([url, items], idx) => {
-                if (items.length === 0) return null;
-                return (
-                  <div
-                    key={url}
-                    className={
-                      idx > 0
-                        ? "mt-10 border-t-4 border-gray-300 dark:border-gray-600 pt-6"
-                        : ""
-                    }>
-                    <div className='flex items-center justify-between px-4 pb-4 min-w-0 overflow-hidden'>
-                      <h3 className='text-[28px] font-extrabold text-gray-900 dark:text-white tracking-tight truncate min-w-0'>
-                        {formatSourceName(url)}
-                      </h3>
+              {/* Source list — accordion style */}
+              <div className='mx-4 mt-4 rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark border border-gray-200/60 dark:border-gray-700/60'>
+                {Object.entries(newsData).map(([url, items], idx) => {
+                  if (items.length === 0) return null;
+                  const isExpanded = expandedSource === url;
+                  const newCount = countNewArticles(url, items);
+                  return (
+                    <div key={url}>
+                      {/* Source heading row */}
                       <button
-                        onClick={async () => {
-                          setRefreshingSources((prev) => {
-                            const next = new Set(prev);
-                            next.add(url);
-                            return next;
-                          });
-                          try {
-                            clearCacheForSource(url);
-                            resetHiddenHeadlines(url);
-                            const sources = getNewsSources();
-                            const source = sources.find((s) => s.url === url);
-                            if (source) {
-                              const fresh = await fetchNewsForSource(source);
-                              setNewsData((prev) => ({
-                                ...prev,
-                                [url]: fresh,
-                              }));
-                            }
-                          } finally {
-                            setRefreshingSources((prev) => {
-                              const next = new Set(prev);
-                              next.delete(url);
-                              return next;
-                            });
+                        onClick={() => {
+                          if (isExpanded) {
+                            setExpandedSource(null);
+                          } else {
+                            setExpandedSource(url);
+                            markArticlesSeen(url, items);
                           }
                         }}
-                        disabled={refreshingSources.has(url)}
-                        className='p-1.5 text-ios-blue active:opacity-60 shrink-0 disabled:opacity-40'
-                        title='Refresh from source'>
+                        className={`w-full flex items-center px-4 py-3.5 active:bg-gray-50 dark:active:bg-gray-700/50 ${
+                          idx > 0
+                            ? 'border-t border-gray-200/60 dark:border-gray-700/60'
+                            : ''
+                        }`}>
+                        <div className='relative w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3 shrink-0'>
+                          <svg
+                            className='w-4 h-4 text-gray-500 dark:text-gray-400'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'
+                            strokeWidth={1.5}>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              d='M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9.015 9.015 0 003 12c0-1.605.42-3.113 1.157-4.418'
+                            />
+                          </svg>
+                          {newCount > 0 && !isExpanded && (
+                            <span className='absolute -top-1 -right-1 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center rounded-full bg-ios-red text-white text-[10px] font-bold leading-none'>
+                              {newCount > 99 ? '99+' : newCount}
+                            </span>
+                          )}
+                        </div>
+                        <div className='flex-1 min-w-0 text-left'>
+                          <span className='text-[16px] font-semibold text-gray-900 dark:text-white truncate block'>
+                            {formatSourceName(url)}
+                          </span>
+                          <span className='text-[12px] text-gray-400 dark:text-gray-500'>
+                            {items.length} headlines
+                          </span>
+                        </div>
+                        {/* Refresh button */}
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            setRefreshingSources((prev) => {
+                              const next = new Set(prev);
+                              next.add(url);
+                              return next;
+                            });
+                            try {
+                              clearCacheForSource(url);
+                              resetHiddenHeadlines(url);
+                              const sources = getNewsSources();
+                              const source = sources.find((s) => s.url === url);
+                              if (source) {
+                                const fresh = await fetchNewsForSource(source);
+                                setNewsData((prev) => ({
+                                  ...prev,
+                                  [url]: fresh,
+                                }));
+                              }
+                            } finally {
+                              setRefreshingSources((prev) => {
+                                const next = new Set(prev);
+                                next.delete(url);
+                                return next;
+                              });
+                            }
+                          }}
+                          disabled={refreshingSources.has(url)}
+                          className='p-1.5 text-ios-blue active:opacity-60 shrink-0 disabled:opacity-40 mr-1'
+                          title='Refresh'>
+                          <svg
+                            className={`w-4.5 h-4.5 transition-transform ${
+                              refreshingSources.has(url) ? 'animate-spin' : ''
+                            }`}
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'
+                            strokeWidth={2}>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
+                            />
+                          </svg>
+                        </button>
                         <svg
-                          className={`w-5 h-5 transition-transform ${
-                            refreshingSources.has(url) ? "animate-spin" : ""
+                          className={`w-4 h-4 text-gray-300 dark:text-gray-600 shrink-0 transition-transform duration-200 ${
+                            isExpanded ? 'rotate-90' : ''
                           }`}
                           fill='none'
                           viewBox='0 0 24 24'
@@ -944,54 +999,60 @@ export default function HomePage() {
                           <path
                             strokeLinecap='round'
                             strokeLinejoin='round'
-                            d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
+                            d='M8.25 4.5l7.5 7.5-7.5 7.5'
                           />
                         </svg>
                       </button>
-                    </div>
-                    <div className='grid grid-cols-2 gap-3 px-4'>
-                      {items.map((item, i) => (
-                        <a
-                          key={item.link || i}
-                          href={item.link}
-                          target='_blank'
-                          rel='noopener noreferrer'
-                          className='block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0'>
-                          {item.image && (
-                            <img
-                              src={item.image}
-                              alt=''
-                              className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display =
-                                  "none";
-                              }}
-                            />
-                          )}
-                          <div className='px-3 py-2.5'>
-                            <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
-                              {item.title}
-                            </p>
-                            {item.pubDate && (
-                              <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
-                                {new Date(item.pubDate).toLocaleDateString(
-                                  "nb-NO",
-                                  {
-                                    day: "numeric",
-                                    month: "short",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
+
+                      {/* Expanded articles for this source */}
+                      {isExpanded && (
+                        <div className='border-t border-gray-200/60 dark:border-gray-700/60'>
+                          <div className='grid grid-cols-2 gap-3 p-4 bg-gray-50/50 dark:bg-gray-900/30'>
+                            {items.map((item, i) => (
+                              <a
+                                key={item.link || i}
+                                href={item.link}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                className='block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0'>
+                                {item.image && (
+                                  <img
+                                    src={item.image}
+                                    alt=''
+                                    className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display =
+                                        'none';
+                                    }}
+                                  />
                                 )}
-                              </p>
-                            )}
+                                <div className='px-3 py-2.5'>
+                                  <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
+                                    {item.title}
+                                  </p>
+                                  {item.pubDate && (
+                                    <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
+                                      {new Date(item.pubDate).toLocaleDateString(
+                                        'nb-NO',
+                                        {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                        },
+                                      )}
+                                    </p>
+                                  )}
+                                </div>
+                              </a>
+                            ))}
                           </div>
-                        </a>
-                      ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>,
           document.body,
