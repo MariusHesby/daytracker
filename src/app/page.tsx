@@ -900,7 +900,9 @@ export default function HomePage() {
                   return (
                     <div key={url}>
                       {/* Source heading row */}
-                      <button
+                      <div
+                        role='button'
+                        tabIndex={0}
                         onClick={() => {
                           if (isExpanded) {
                             setExpandedSource(null);
@@ -909,10 +911,10 @@ export default function HomePage() {
                             markArticlesSeen(url, items);
                           }
                         }}
-                        className={`w-full flex items-center px-4 py-3.5 active:bg-gray-50 dark:active:bg-gray-700/50 ${
+                        className={`w-full flex items-center px-4 py-3.5 cursor-pointer active:bg-gray-50 dark:active:bg-gray-700/50 ${
                           idx > 0
-                            ? 'border-t border-gray-200/60 dark:border-gray-700/60'
-                            : ''
+                            ? "border-t border-gray-200/60 dark:border-gray-700/60"
+                            : ""
                         }`}>
                         <div className='relative w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3 shrink-0'>
                           <svg
@@ -929,7 +931,7 @@ export default function HomePage() {
                           </svg>
                           {newCount > 0 && !isExpanded && (
                             <span className='absolute -top-1 -right-1 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center rounded-full bg-ios-red text-white text-[10px] font-bold leading-none'>
-                              {newCount > 99 ? '99+' : newCount}
+                              {newCount > 99 ? "99+" : newCount}
                             </span>
                           )}
                         </div>
@@ -975,7 +977,7 @@ export default function HomePage() {
                           title='Refresh'>
                           <svg
                             className={`w-4.5 h-4.5 transition-transform ${
-                              refreshingSources.has(url) ? 'animate-spin' : ''
+                              refreshingSources.has(url) ? "animate-spin" : ""
                             }`}
                             fill='none'
                             viewBox='0 0 24 24'
@@ -990,7 +992,7 @@ export default function HomePage() {
                         </button>
                         <svg
                           className={`w-4 h-4 text-gray-300 dark:text-gray-600 shrink-0 transition-transform duration-200 ${
-                            isExpanded ? 'rotate-90' : ''
+                            isExpanded ? "rotate-90" : ""
                           }`}
                           fill='none'
                           viewBox='0 0 24 24'
@@ -1002,7 +1004,7 @@ export default function HomePage() {
                             d='M8.25 4.5l7.5 7.5-7.5 7.5'
                           />
                         </svg>
-                      </button>
+                      </div>
 
                       {/* Expanded articles for this source */}
                       {isExpanded && (
@@ -1021,8 +1023,9 @@ export default function HomePage() {
                                     alt=''
                                     className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
                                     onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display =
-                                        'none';
+                                      (
+                                        e.target as HTMLImageElement
+                                      ).style.display = "none";
                                     }}
                                   />
                                 )}
@@ -1032,15 +1035,14 @@ export default function HomePage() {
                                   </p>
                                   {item.pubDate && (
                                     <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
-                                      {new Date(item.pubDate).toLocaleDateString(
-                                        'nb-NO',
-                                        {
-                                          day: 'numeric',
-                                          month: 'short',
-                                          hour: '2-digit',
-                                          minute: '2-digit',
-                                        },
-                                      )}
+                                      {new Date(
+                                        item.pubDate,
+                                      ).toLocaleDateString("nb-NO", {
+                                        day: "numeric",
+                                        month: "short",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
                                     </p>
                                   )}
                                 </div>
