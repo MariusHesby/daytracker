@@ -2267,21 +2267,6 @@ export function EntryForm({
                     {completedCount === totalCount && " ✓"}
                   </span>
                 )}
-                <svg
-                  className={cn(
-                    "w-4 h-4 text-gray-400 dark:text-gray-500 transition-transform duration-200",
-                    checklistOpen && "rotate-180",
-                  )}
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  stroke='currentColor'
-                  strokeWidth={2}>
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    d='M19 9l-7 7-7-7'
-                  />
-                </svg>
               </div>
             </div>
 
