@@ -883,11 +883,56 @@ export default function HomePage() {
                 <h2 className='text-[20px] font-bold text-gray-900 dark:text-white'>
                   News
                 </h2>
-                <button
-                  onClick={() => setNewsFullscreen(false)}
-                  className='text-[17px] text-ios-blue font-medium active:opacity-60'>
-                  Done
-                </button>
+                <div className='flex items-center gap-3'>
+                  <button
+                    onClick={async () => {
+                      const sources = getNewsSources();
+                      const allUrls = Object.keys(newsData);
+                      setRefreshingSources(new Set(allUrls));
+                      try {
+                        const results = await Promise.all(
+                          sources.map(async (source) => {
+                            clearCacheForSource(source.url);
+                            resetHiddenHeadlines(source.url);
+                            const fresh = await fetchNewsForSource(source);
+                            return [source.url, fresh] as const;
+                          }),
+                        );
+                        setNewsData((prev) => {
+                          const next = { ...prev };
+                          for (const [url, items] of results) {
+                            next[url] = items;
+                          }
+                          return next;
+                        });
+                      } finally {
+                        setRefreshingSources(new Set());
+                      }
+                    }}
+                    disabled={refreshingSources.size > 0}
+                    className='p-1 text-ios-blue active:opacity-60 disabled:opacity-40'
+                    title='Refresh all'>
+                    <svg
+                      className={`w-5 h-5 transition-transform ${
+                        refreshingSources.size > 0 ? 'animate-spin' : ''
+                      }`}
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setNewsFullscreen(false)}
+                    className='text-[17px] text-ios-blue font-medium active:opacity-60'>
+                    Done
+                  </button>
+                </div>
               </div>
             </div>
             <div className='pb-8'>
@@ -916,7 +961,7 @@ export default function HomePage() {
                             ? "border-t border-gray-200/60 dark:border-gray-700/60"
                             : ""
                         }`}>
-                        <div className='relative w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3 shrink-0'>
+                        <div className='w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3 shrink-0'>
                           <svg
                             className='w-4 h-4 text-gray-500 dark:text-gray-400'
                             fill='none'
@@ -929,81 +974,15 @@ export default function HomePage() {
                               d='M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9.015 9.015 0 003 12c0-1.605.42-3.113 1.157-4.418'
                             />
                           </svg>
-                          {newCount > 0 && !isExpanded && (
-                            <span className='absolute -top-1 -right-1 min-w-[16px] h-[16px] px-0.5 flex items-center justify-center rounded-full bg-ios-red text-white text-[10px] font-bold leading-none'>
-                              {newCount > 99 ? "99+" : newCount}
-                            </span>
-                          )}
                         </div>
-                        <div className='flex-1 min-w-0 text-left'>
-                          <span className='text-[16px] font-semibold text-gray-900 dark:text-white truncate block'>
-                            {formatSourceName(url)}
+                        <span className='text-[16px] font-semibold text-gray-900 dark:text-white truncate flex-1 min-w-0 text-left'>
+                          {formatSourceName(url)}
+                        </span>
+                        {newCount > 0 && !isExpanded && (
+                          <span className='min-w-[22px] h-[22px] px-1.5 flex items-center justify-center rounded-full bg-ios-blue text-white text-[12px] font-bold leading-none shrink-0'>
+                            {newCount > 99 ? '99+' : newCount}
                           </span>
-                          <span className='text-[12px] text-gray-400 dark:text-gray-500'>
-                            {items.length} headlines
-                          </span>
-                        </div>
-                        {/* Refresh button */}
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            setRefreshingSources((prev) => {
-                              const next = new Set(prev);
-                              next.add(url);
-                              return next;
-                            });
-                            try {
-                              clearCacheForSource(url);
-                              resetHiddenHeadlines(url);
-                              const sources = getNewsSources();
-                              const source = sources.find((s) => s.url === url);
-                              if (source) {
-                                const fresh = await fetchNewsForSource(source);
-                                setNewsData((prev) => ({
-                                  ...prev,
-                                  [url]: fresh,
-                                }));
-                              }
-                            } finally {
-                              setRefreshingSources((prev) => {
-                                const next = new Set(prev);
-                                next.delete(url);
-                                return next;
-                              });
-                            }
-                          }}
-                          disabled={refreshingSources.has(url)}
-                          className='p-1.5 text-ios-blue active:opacity-60 shrink-0 disabled:opacity-40 mr-1'
-                          title='Refresh'>
-                          <svg
-                            className={`w-4.5 h-4.5 transition-transform ${
-                              refreshingSources.has(url) ? "animate-spin" : ""
-                            }`}
-                            fill='none'
-                            viewBox='0 0 24 24'
-                            stroke='currentColor'
-                            strokeWidth={2}>
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              d='M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'
-                            />
-                          </svg>
-                        </button>
-                        <svg
-                          className={`w-4 h-4 text-gray-300 dark:text-gray-600 shrink-0 transition-transform duration-200 ${
-                            isExpanded ? "rotate-90" : ""
-                          }`}
-                          fill='none'
-                          viewBox='0 0 24 24'
-                          stroke='currentColor'
-                          strokeWidth={2}>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            d='M8.25 4.5l7.5 7.5-7.5 7.5'
-                          />
-                        </svg>
+                        )}
                       </div>
 
                       {/* Expanded articles for this source */}
