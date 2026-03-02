@@ -43,6 +43,7 @@ import {
   clearCacheForSource,
   countNewArticles,
   markArticlesSeen,
+  getSeenArticles,
   NewsItem,
 } from "@/lib/news";
 
@@ -140,6 +141,9 @@ export default function HomePage() {
   const [newsFullscreen, setNewsFullscreen] = useState(false);
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [refreshingSources, setRefreshingSources] = useState<Set<string>>(
+    new Set(),
+  );
+  const [newArticleLinks, setNewArticleLinks] = useState<Set<string>>(
     new Set(),
   );
 
@@ -964,7 +968,15 @@ export default function HomePage() {
                         onClick={() => {
                           if (isExpanded) {
                             setExpandedSource(null);
+                            setNewArticleLinks(new Set());
                           } else {
+                            const seen = getSeenArticles(url);
+                            if (seen.size > 0) {
+                              const newLinks = new Set(items.filter(a => !seen.has(a.link)).map(a => a.link));
+                              setNewArticleLinks(newLinks);
+                            } else {
+                              setNewArticleLinks(new Set());
+                            }
                             setExpandedSource(url);
                             markArticlesSeen(url, items);
                           }
@@ -1008,7 +1020,11 @@ export default function HomePage() {
                                 href={item.link}
                                 target='_blank'
                                 rel='noopener noreferrer'
-                                className='block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0'>
+                                className={`block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0 ${
+                                  newArticleLinks.has(item.link)
+                                    ? 'ring-2 ring-ios-blue/40 shadow-md shadow-ios-blue/10'
+                                    : ''
+                                }`}>
                                 {item.image && (
                                   <img
                                     src={item.image}
