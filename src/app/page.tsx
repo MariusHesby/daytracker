@@ -65,7 +65,7 @@ function NewsCard({
   const maxSlide = trackWidth - thumbSize - 6; // 6 for padding
 
   return (
-    <div className='rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark shadow-sm flex flex-col'>
+    <div className='rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark shadow-sm flex flex-col min-w-0'>
       <a
         href={item.link}
         target='_blank'
@@ -82,7 +82,7 @@ function NewsCard({
           />
         )}
         <div className='px-3 py-2.5'>
-          <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3'>
+          <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
             {item.title}
           </p>
           {item.pubDate && (
@@ -855,7 +855,7 @@ export default function HomePage() {
         {/* Fullscreen News Modal */}
         {newsFullscreen && (
           <div
-            className='fixed inset-0 z-50 bg-ios-bg dark:bg-ios-bg-dark overflow-y-auto overscroll-none touch-pan-y'
+            className='fixed inset-0 z-50 bg-ios-bg dark:bg-ios-bg-dark overflow-y-auto overflow-x-hidden overscroll-none touch-pan-y'
             data-scrollable
             onTouchMove={(e) => e.stopPropagation()}>
             <div className='sticky top-0 z-10 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60'>

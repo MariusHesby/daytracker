@@ -1757,7 +1757,7 @@ export default function SettingsPage() {
                       Number of headlines
                     </label>
                     <div className='flex gap-2'>
-                      {[3, 5, 8, 10, 15].map((n) => (
+                      {[4, 6, 8, 10, 14, 20].map((n) => (
                         <button
                           key={n}
                           onClick={() => setNewsCount(n)}
