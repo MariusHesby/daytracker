@@ -299,15 +299,21 @@ export async function fetchNewsForSource(source: NewsSource): Promise<NewsItem[]
   }
 
   try {
-    const res = await fetch(`/api/news?url=${encodeURIComponent(source.url)}&count=${fetchCount}`);
-    if (!res.ok) return [];
+    const res = await fetch(`/api/news?url=${encodeURIComponent(source.url)}&count=${fetchCount}`, {
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) {
+      // Return cached data if available on failure
+      return cached ? cached.filter(item => !hidden.has(item.link)).slice(0, source.count) : [];
+    }
     const data = await res.json();
     const items: NewsItem[] = data.items || [];
     setCachedNews(source.url, items);
     const filtered = items.filter(item => !hidden.has(item.link));
     return filtered.slice(0, source.count);
   } catch {
-    return [];
+    // Return cached data if available on failure
+    return cached ? cached.filter(item => !hidden.has(item.link)).slice(0, source.count) : [];
   }
 }
 
@@ -320,8 +326,14 @@ export async function fetchAllNews(): Promise<Record<string, NewsItem[]>> {
   const results: Record<string, NewsItem[]> = {};
   await Promise.all(
     sources.map(async (src) => {
-      const items = await fetchNewsForSource(src);
-      results[src.url] = items;
+      try {
+        const items = await fetchNewsForSource(src);
+        if (items.length > 0) {
+          results[src.url] = items;
+        }
+      } catch {
+        // Skip failed sources — they'll retain their cached data
+      }
     }),
   );
   return results;

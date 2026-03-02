@@ -226,9 +226,22 @@ export default function HomePage() {
         return;
       }
 
-      // Fetch fresh data in background
-      const data = await fetchAllNews();
-      setNewsData(data);
+      // Fetch fresh data in background — merge with existing so failed sources keep cached data
+      const freshData = await fetchAllNews();
+      setNewsData((prev) => {
+        const merged = { ...prev };
+        // Update sources that returned fresh data
+        for (const [url, items] of Object.entries(freshData)) {
+          merged[url] = items;
+        }
+        // Ensure all configured sources are present (even if empty from first load)
+        for (const src of sources) {
+          if (!(src.url in merged)) {
+            merged[src.url] = [];
+          }
+        }
+        return merged;
+      });
       setNewsLoading(false);
     };
 

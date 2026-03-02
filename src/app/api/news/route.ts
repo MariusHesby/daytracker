@@ -72,7 +72,7 @@ async function tryRSS(siteUrl: string, count: number) {
   try {
     const pageRes = await fetch(siteUrl, {
       headers: { 'User-Agent': BROWSER_UA },
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(10000),
     });
     const html = await pageRes.text();
 
@@ -127,7 +127,7 @@ async function tryRSS(siteUrl: string, count: number) {
 async function parseFeed(feedUrl: string, count: number) {
   const res = await fetch(feedUrl, {
     headers: { 'User-Agent': BROWSER_UA },
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!res.ok) return [];
