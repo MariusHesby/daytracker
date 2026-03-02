@@ -163,7 +163,8 @@
   background-attachment: fixed !important;
 }
 
-.colorful body {
+.colorful body,
+.colorful .bg-ios-bg {
   background: transparent !important;
 }
 
@@ -238,7 +239,8 @@
 
 /* Colorful cards - frosted glass with gradient tint */
 .colorful .bg-white,
-.colorful .bg-white\/80 {
+.colorful .bg-white\/80,
+.colorful .bg-white\/90 {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 240, 255, 0.88) 50%, rgba(255, 245, 250, 0.92) 100%) !important;
   backdrop-filter: blur(25px) saturate(200%) !important;
   -webkit-backdrop-filter: blur(25px) saturate(200%) !important;
@@ -267,7 +269,8 @@
 }
 
 /* Colorful backgrounds - tinted frosted glass */
-.colorful .bg-gray-50 {
+.colorful .bg-gray-50,
+.colorful .bg-gray-50\/50 {
   background: linear-gradient(135deg, rgba(255, 250, 255, 0.6), rgba(250, 255, 255, 0.6)) !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
