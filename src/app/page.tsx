@@ -675,23 +675,39 @@ export default function HomePage() {
               <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
                 News
               </span>
-              {newsLoading && Object.keys(newsData).length === 0 && (
-                <span className='ml-2 text-[12px] text-gray-400 dark:text-gray-500'>
-                  Loading…
-                </span>
+              {newsLoading && Object.keys(newsData).length === 0 ? (
+                <svg
+                  className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto animate-spin'
+                  fill='none'
+                  viewBox='0 0 24 24'>
+                  <circle
+                    className='opacity-25'
+                    cx='12'
+                    cy='12'
+                    r='10'
+                    stroke='currentColor'
+                    strokeWidth='3'
+                  />
+                  <path
+                    className='opacity-75'
+                    fill='currentColor'
+                    d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
+                  />
+                </svg>
+              ) : (
+                <svg
+                  className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={2}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5'
+                  />
+                </svg>
               )}
-              <svg
-                className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto'
-                fill='none'
-                viewBox='0 0 24 24'
-                stroke='currentColor'
-                strokeWidth={2}>
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5'
-                />
-              </svg>
             </button>
           )}
 
