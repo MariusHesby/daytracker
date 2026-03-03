@@ -146,6 +146,9 @@ export default function HomePage() {
   const [newArticleLinks, setNewArticleLinks] = useState<Set<string>>(
     new Set(),
   );
+  const [sourceNewCounts, setSourceNewCounts] = useState<Record<string, number>>(
+    {},
+  );
 
   // Lock body scroll when fullscreen news is open
   useEffect(() => {
@@ -675,9 +678,12 @@ export default function HomePage() {
               <button
                 onClick={() => {
                   if (newsLoading && Object.keys(newsData).length === 0) return;
+                  // Capture per-source new counts before opening
+                  const counts: Record<string, number> = {};
                   for (const [url, items] of Object.entries(newsData)) {
-                    markArticlesSeen(url, items);
+                    counts[url] = countNewArticles(url, items);
                   }
+                  setSourceNewCounts(counts);
                   setExpandedSource(null);
                   setNewsFullscreen(true);
                 }}
@@ -957,7 +963,7 @@ export default function HomePage() {
               <div className='mx-4 mt-4 rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark border border-gray-200/60 dark:border-gray-700/60'>
                 {Object.entries(newsData).map(([url, items], idx) => {
                   const isExpanded = expandedSource === url;
-                  const newCount = countNewArticles(url, items);
+                  const newCount = sourceNewCounts[url] || 0;
                   return (
                     <div key={url}>
                       {/* Source heading row */}
@@ -983,6 +989,12 @@ export default function HomePage() {
                             }
                             setExpandedSource(url);
                             markArticlesSeen(url, items);
+                            // Clear the badge for this source
+                            setSourceNewCounts((prev) => {
+                              const next = { ...prev };
+                              delete next[url];
+                              return next;
+                            });
                           }
                         }}
                         className={`w-full flex items-center px-4 py-3.5 cursor-pointer active:bg-gray-50 dark:active:bg-gray-700/50 ${
@@ -1004,10 +1016,11 @@ export default function HomePage() {
                             />
                           </svg>
                         </div>
-                        <span className={`text-[16px] font-semibold truncate flex-1 min-w-0 text-left ${items.length === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                        <span
+                          className={`text-[16px] font-semibold truncate flex-1 min-w-0 text-left ${items.length === 0 ? "text-gray-400 dark:text-gray-500" : "text-gray-900 dark:text-white"}`}>
                           {formatSourceName(url)}
                         </span>
-                        {items.length === 0 ? (
+                        {items.length === 0 && newsLoading ? (
                           <svg
                             className='w-4 h-4 text-gray-300 dark:text-gray-600 animate-spin shrink-0'
                             fill='none'
@@ -1026,6 +1039,10 @@ export default function HomePage() {
                               d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
                             />
                           </svg>
+                        ) : items.length === 0 && !newsLoading ? (
+                          <span className='text-[12px] text-gray-400 dark:text-gray-500 shrink-0'>
+                            No articles
+                          </span>
                         ) : newCount > 0 && !isExpanded ? (
                           <span className='min-w-[22px] h-[22px] px-1.5 flex items-center justify-center rounded-full bg-ios-blue text-white text-[12px] font-bold leading-none shrink-0'>
                             {newCount > 99 ? "99+" : newCount}
