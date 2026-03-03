@@ -956,7 +956,6 @@ export default function HomePage() {
               {/* Source list — accordion style */}
               <div className='mx-4 mt-4 rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark border border-gray-200/60 dark:border-gray-700/60'>
                 {Object.entries(newsData).map(([url, items], idx) => {
-                  if (items.length === 0) return null;
                   const isExpanded = expandedSource === url;
                   const newCount = countNewArticles(url, items);
                   return (
@@ -966,6 +965,7 @@ export default function HomePage() {
                         role='button'
                         tabIndex={0}
                         onClick={() => {
+                          if (items.length === 0) return;
                           if (isExpanded) {
                             setExpandedSource(null);
                             setNewArticleLinks(new Set());
@@ -1004,14 +1004,33 @@ export default function HomePage() {
                             />
                           </svg>
                         </div>
-                        <span className='text-[16px] font-semibold text-gray-900 dark:text-white truncate flex-1 min-w-0 text-left'>
+                        <span className={`text-[16px] font-semibold truncate flex-1 min-w-0 text-left ${items.length === 0 ? 'text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'}`}>
                           {formatSourceName(url)}
                         </span>
-                        {newCount > 0 && !isExpanded && (
+                        {items.length === 0 ? (
+                          <svg
+                            className='w-4 h-4 text-gray-300 dark:text-gray-600 animate-spin shrink-0'
+                            fill='none'
+                            viewBox='0 0 24 24'>
+                            <circle
+                              className='opacity-25'
+                              cx='12'
+                              cy='12'
+                              r='10'
+                              stroke='currentColor'
+                              strokeWidth='3'
+                            />
+                            <path
+                              className='opacity-75'
+                              fill='currentColor'
+                              d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
+                            />
+                          </svg>
+                        ) : newCount > 0 && !isExpanded ? (
                           <span className='min-w-[22px] h-[22px] px-1.5 flex items-center justify-center rounded-full bg-ios-blue text-white text-[12px] font-bold leading-none shrink-0'>
                             {newCount > 99 ? "99+" : newCount}
                           </span>
-                        )}
+                        ) : null}
                       </div>
 
                       {/* Expanded articles for this source */}
