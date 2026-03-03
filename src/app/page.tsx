@@ -972,7 +972,11 @@ export default function HomePage() {
                           } else {
                             const seen = getSeenArticles(url);
                             if (seen.size > 0) {
-                              const newLinks = new Set(items.filter(a => !seen.has(a.link)).map(a => a.link));
+                              const newLinks = new Set(
+                                items
+                                  .filter((a) => !seen.has(a.link))
+                                  .map((a) => a.link),
+                              );
                               setNewArticleLinks(newLinks);
                             } else {
                               setNewArticleLinks(new Set());
@@ -1022,8 +1026,8 @@ export default function HomePage() {
                                 rel='noopener noreferrer'
                                 className={`block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0 ${
                                   newArticleLinks.has(item.link)
-                                    ? 'ring-2 ring-ios-blue/40 shadow-md shadow-ios-blue/10'
-                                    : ''
+                                    ? "ring-2 ring-ios-blue/40 shadow-md shadow-ios-blue/10"
+                                    : ""
                                 }`}>
                                 {item.image && (
                                   <img
