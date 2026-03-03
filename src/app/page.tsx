@@ -146,9 +146,10 @@ export default function HomePage() {
   const [newArticleLinks, setNewArticleLinks] = useState<Set<string>>(
     new Set(),
   );
-  const [sourceNewCounts, setSourceNewCounts] = useState<Record<string, number>>(
-    {},
-  );
+  const [sourceNewCounts, setSourceNewCounts] = useState<
+    Record<string, number>
+  >({});
+  const sourceNewLinksRef = useRef<Record<string, Set<string>>>({});
 
   // Lock body scroll when fullscreen news is open
   useEffect(() => {
@@ -678,12 +679,26 @@ export default function HomePage() {
               <button
                 onClick={() => {
                   if (newsLoading && Object.keys(newsData).length === 0) return;
-                  // Capture per-source new counts before opening
+                  // Capture per-source new counts AND new-article links before opening
                   const counts: Record<string, number> = {};
+                  const linksMap: Record<string, Set<string>> = {};
                   for (const [url, items] of Object.entries(newsData)) {
-                    counts[url] = countNewArticles(url, items);
+                    const seen = getSeenArticles(url);
+                    if (seen.size > 0) {
+                      const newLinks = new Set(
+                        items
+                          .filter((a) => !seen.has(a.link))
+                          .map((a) => a.link),
+                      );
+                      counts[url] = newLinks.size;
+                      linksMap[url] = newLinks;
+                    } else {
+                      counts[url] = 0;
+                      linksMap[url] = new Set();
+                    }
                   }
                   setSourceNewCounts(counts);
+                  sourceNewLinksRef.current = linksMap;
                   setExpandedSource(null);
                   setNewsFullscreen(true);
                 }}
@@ -976,25 +991,19 @@ export default function HomePage() {
                             setExpandedSource(null);
                             setNewArticleLinks(new Set());
                           } else {
-                            const seen = getSeenArticles(url);
-                            if (seen.size > 0) {
-                              const newLinks = new Set(
-                                items
-                                  .filter((a) => !seen.has(a.link))
-                                  .map((a) => a.link),
-                              );
-                              setNewArticleLinks(newLinks);
-                            } else {
-                              setNewArticleLinks(new Set());
-                            }
+                            // Use the links snapshot captured when fullscreen opened
+                            setNewArticleLinks(
+                              sourceNewLinksRef.current[url] || new Set(),
+                            );
                             setExpandedSource(url);
                             markArticlesSeen(url, items);
-                            // Clear the badge for this source
+                            // Clear the badge and links for this source
                             setSourceNewCounts((prev) => {
                               const next = { ...prev };
                               delete next[url];
                               return next;
                             });
+                            delete sourceNewLinksRef.current[url];
                           }
                         }}
                         className={`w-full flex items-center px-4 py-3.5 cursor-pointer active:bg-gray-50 dark:active:bg-gray-700/50 ${
