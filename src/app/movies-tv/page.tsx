@@ -1422,7 +1422,7 @@ export default function MoviesPage() {
         />
       </div>
 
-      <div className='px-4 mb-3 flex gap-2 items-center'>
+      <div className='px-4 mb-4 flex gap-2 items-center'>
         <div className='flex gap-2 flex-1 items-center'>
           {/* Sort dropdown - always visible */}
           <div className='relative'>
