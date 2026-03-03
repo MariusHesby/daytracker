@@ -69,6 +69,10 @@ async function tryRSS(siteUrl: string, count: number) {
   ];
 
   // First, try to discover feed URL from the HTML page
+  const baseUrl = new URL(siteUrl);
+  const siteSubpath = baseUrl.pathname.replace(/\/$/, '');
+  const hasSiteSubpath = siteSubpath.split('/').filter(Boolean).length > 0;
+
   try {
     const pageRes = await fetch(siteUrl, {
       headers: { 'User-Agent': BROWSER_UA },
@@ -83,33 +87,42 @@ async function tryRSS(siteUrl: string, count: number) {
     if (feedMatch) {
       let feedUrl = feedMatch[2];
       if (feedUrl.startsWith('/')) {
-        const base = new URL(siteUrl);
-        feedUrl = `${base.origin}${feedUrl}`;
+        feedUrl = `${baseUrl.origin}${feedUrl}`;
       } else if (!feedUrl.startsWith('http')) {
         feedUrl = `${siteUrl.replace(/\/$/, '')}/${feedUrl}`;
       }
-      const items = await parseFeed(feedUrl, count);
-      if (items.length > 0) return items;
+      // If the user's URL has a subpath, only use the discovered feed if
+      // it is relevant (its path contains part of the subpath). Otherwise
+      // it's likely a site-wide feed that would return unrelated content.
+      const feedPath = new URL(feedUrl).pathname.toLowerCase();
+      const subpathSegments = siteSubpath.toLowerCase().split('/').filter(Boolean);
+      const feedIsRelevant = !hasSiteSubpath || subpathSegments.some(seg => feedPath.includes(seg));
+
+      if (feedIsRelevant) {
+        const items = await parseFeed(feedUrl, count);
+        if (items.length > 0) return items;
+      }
     }
   } catch {
     // ignore and try common paths
   }
 
   // Try common feed paths
-  const base = new URL(siteUrl);
   const pathsToTry: string[] = [];
 
   // If the URL has a subpath (e.g. /sport/football/leeds-united),
   // try appending feed paths to the subpath first
-  const subpath = base.pathname.replace(/\/$/, '');
-  if (subpath && subpath !== '') {
+  if (hasSiteSubpath) {
     for (const path of feedPaths) {
-      pathsToTry.push(`${base.origin}${subpath}${path}`);
+      pathsToTry.push(`${baseUrl.origin}${siteSubpath}${path}`);
     }
   }
-  // Then try feed paths on the origin
-  for (const path of feedPaths) {
-    pathsToTry.push(`${base.origin}${path}`);
+  // Only try origin-level feeds if there's no subpath.
+  // When a subpath is present, origin feeds would return unrelated content.
+  if (!hasSiteSubpath) {
+    for (const path of feedPaths) {
+      pathsToTry.push(`${baseUrl.origin}${path}`);
+    }
   }
 
   for (const feedUrl of pathsToTry) {
