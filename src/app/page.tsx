@@ -248,6 +248,13 @@ export default function HomePage() {
             merged[src.url] = [];
           }
         }
+        // Seed seen-articles for sources that have never been opened.
+        // This establishes a baseline so future new articles get highlighted.
+        for (const [url, items] of Object.entries(merged)) {
+          if (items.length > 0 && getSeenArticles(url).size === 0) {
+            markArticlesSeen(url, items);
+          }
+        }
         return merged;
       });
       setNewsLoading(false);
@@ -1069,11 +1076,16 @@ export default function HomePage() {
                                 href={item.link}
                                 target='_blank'
                                 rel='noopener noreferrer'
-                                className={`block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0 ${
+                                className={`relative block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0 ${
                                   newArticleLinks.has(item.link)
-                                    ? "ring-2 ring-ios-blue/40 shadow-md shadow-ios-blue/10"
+                                    ? "ring-2 ring-ios-blue shadow-md shadow-ios-blue/20"
                                     : ""
                                 }`}>
+                                {newArticleLinks.has(item.link) && (
+                                  <span className='absolute top-2 right-2 z-10 px-1.5 py-0.5 rounded-full bg-ios-blue text-white text-[10px] font-bold leading-none shadow-sm'>
+                                    NY
+                                  </span>
+                                )}
                                 {item.image && (
                                   <img
                                     src={item.image}
