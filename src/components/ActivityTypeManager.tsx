@@ -111,8 +111,9 @@ export const ActivityTypeManager = forwardRef<
   // Timer config state
   const [timerSubjects, setTimerSubjects] = useState<TimerSubject[]>([]);
   const [timerLimitMinutes, setTimerLimitMinutes] = useState<number>(0);
-  const [timerLimitPeriod, setTimerLimitPeriod] = useState<TimerLimitPeriod>('weekly');
-  const [newTimerSubjectName, setNewTimerSubjectName] = useState('');
+  const [timerLimitPeriod, setTimerLimitPeriod] =
+    useState<TimerLimitPeriod>("weekly");
+  const [newTimerSubjectName, setNewTimerSubjectName] = useState("");
   const [showExerciseDropdown, setShowExerciseDropdown] = useState(false);
   const exerciseInputRef = useRef<HTMLInputElement>(null);
 
@@ -144,8 +145,8 @@ export const ActivityTypeManager = forwardRef<
     setCustomExercises([]);
     setTimerSubjects([]);
     setTimerLimitMinutes(0);
-    setTimerLimitPeriod('weekly');
-    setNewTimerSubjectName('');
+    setTimerLimitPeriod("weekly");
+    setNewTimerSubjectName("");
     setNewExerciseName("");
     setNewExerciseCategory("strength");
     setNewExerciseTrackWeight(true);
@@ -229,7 +230,11 @@ export const ActivityTypeManager = forwardRef<
               : undefined,
           timerConfig:
             valueType === "timer" && timerSubjects.length > 0
-              ? { subjects: timerSubjects, limitMinutes: timerLimitMinutes, limitPeriod: timerLimitPeriod }
+              ? {
+                  subjects: timerSubjects,
+                  limitMinutes: timerLimitMinutes,
+                  limitPeriod: timerLimitPeriod,
+                }
               : undefined,
         });
       }
@@ -245,7 +250,11 @@ export const ActivityTypeManager = forwardRef<
             : undefined,
         timerConfig:
           valueType === "timer" && timerSubjects.length > 0
-            ? { subjects: timerSubjects, limitMinutes: timerLimitMinutes, limitPeriod: timerLimitPeriod }
+            ? {
+                subjects: timerSubjects,
+                limitMinutes: timerLimitMinutes,
+                limitPeriod: timerLimitPeriod,
+              }
             : undefined,
       });
     }
@@ -263,7 +272,7 @@ export const ActivityTypeManager = forwardRef<
     setCustomExercises(type.customExercises || []);
     setTimerSubjects(type.timerConfig?.subjects || []);
     setTimerLimitMinutes(type.timerConfig?.limitMinutes || 0);
-    setTimerLimitPeriod(type.timerConfig?.limitPeriod || 'weekly');
+    setTimerLimitPeriod(type.timerConfig?.limitPeriod || "weekly");
     setIsAdding(true);
   };
 
@@ -591,11 +600,17 @@ export const ActivityTypeManager = forwardRef<
                   value={newTimerSubjectName}
                   onChange={(e) => setNewTimerSubjectName(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === "Enter") {
                       e.preventDefault();
                       if (newTimerSubjectName.trim()) {
-                        setTimerSubjects([...timerSubjects, { id: crypto.randomUUID(), name: newTimerSubjectName.trim() }]);
-                        setNewTimerSubjectName('');
+                        setTimerSubjects([
+                          ...timerSubjects,
+                          {
+                            id: crypto.randomUUID(),
+                            name: newTimerSubjectName.trim(),
+                          },
+                        ]);
+                        setNewTimerSubjectName("");
                       }
                     }
                   }}
@@ -606,8 +621,14 @@ export const ActivityTypeManager = forwardRef<
                   type='button'
                   onClick={() => {
                     if (newTimerSubjectName.trim()) {
-                      setTimerSubjects([...timerSubjects, { id: crypto.randomUUID(), name: newTimerSubjectName.trim() }]);
-                      setNewTimerSubjectName('');
+                      setTimerSubjects([
+                        ...timerSubjects,
+                        {
+                          id: crypto.randomUUID(),
+                          name: newTimerSubjectName.trim(),
+                        },
+                      ]);
+                      setNewTimerSubjectName("");
                     }
                   }}
                   className='px-4 py-2 rounded-lg text-[15px] font-medium bg-ios-blue text-white'>
@@ -627,7 +648,11 @@ export const ActivityTypeManager = forwardRef<
                       </span>
                       <button
                         type='button'
-                        onClick={() => setTimerSubjects(timerSubjects.filter(s => s.id !== subject.id))}
+                        onClick={() =>
+                          setTimerSubjects(
+                            timerSubjects.filter((s) => s.id !== subject.id),
+                          )
+                        }
                         className='text-red-500 text-[13px] font-medium'>
                         Remove
                       </button>
@@ -644,7 +669,9 @@ export const ActivityTypeManager = forwardRef<
                 <div className='flex gap-2'>
                   <select
                     value={timerLimitPeriod}
-                    onChange={(e) => setTimerLimitPeriod(e.target.value as TimerLimitPeriod)}
+                    onChange={(e) =>
+                      setTimerLimitPeriod(e.target.value as TimerLimitPeriod)
+                    }
                     className='flex-1 px-3 py-2 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'>
                     <option value='daily'>Per Day</option>
                     <option value='weekly'>Per Week</option>
@@ -653,7 +680,7 @@ export const ActivityTypeManager = forwardRef<
                   <div className='flex items-center gap-1'>
                     <input
                       type='number'
-                      value={Math.floor(timerLimitMinutes / 60) || ''}
+                      value={Math.floor(timerLimitMinutes / 60) || ""}
                       onChange={(e) => {
                         const hours = parseInt(e.target.value) || 0;
                         const mins = timerLimitMinutes % 60;
@@ -666,9 +693,12 @@ export const ActivityTypeManager = forwardRef<
                     <span className='text-[13px] text-gray-500'>h</span>
                     <input
                       type='number'
-                      value={timerLimitMinutes % 60 || ''}
+                      value={timerLimitMinutes % 60 || ""}
                       onChange={(e) => {
-                        const mins = Math.min(59, parseInt(e.target.value) || 0);
+                        const mins = Math.min(
+                          59,
+                          parseInt(e.target.value) || 0,
+                        );
                         const hours = Math.floor(timerLimitMinutes / 60);
                         setTimerLimitMinutes(hours * 60 + mins);
                       }}

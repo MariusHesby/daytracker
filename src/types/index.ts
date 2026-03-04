@@ -113,6 +113,7 @@ export interface TimerConfig {
 export interface TimerEntry {
   subjectId: string;
   minutes: number; // Time used this day
+  subtractMinutes?: number; // Time to subtract (e.g. music time)
 }
 
 export interface TimerData {

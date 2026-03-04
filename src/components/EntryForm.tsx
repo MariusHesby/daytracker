@@ -2037,28 +2037,37 @@ export function EntryForm({
 
         // Find existing timer entry for this day
         const existingTimerEntry = entries.find(
-          (e) =>
-            e.activityTypeId === type.id && e.date === date && e.timerData,
+          (e) => e.activityTypeId === type.id && e.date === date && e.timerData,
         );
         const timerEntries = existingTimerEntry?.timerData?.entries || [];
 
-        // Calculate total minutes for this day
-        const totalMinutesToday = timerEntries.reduce((sum, te) => sum + te.minutes, 0);
-
-        const handleTimerChange = async (subjectId: string, minutes: number) => {
-          const updatedEntries: TimerEntry[] = type.timerConfig!.subjects.map((subject) => {
-            if (subject.id === subjectId) {
-              return { subjectId: subject.id, minutes: Math.max(0, minutes) };
-            }
-            const existing = timerEntries.find((te) => te.subjectId === subject.id);
-            return { subjectId: subject.id, minutes: existing?.minutes || 0 };
-          });
+        const handleTimerChange = async (
+          subjectId: string,
+          minutes: number,
+          subtractMinutes?: number,
+        ) => {
+          const updatedEntries: TimerEntry[] = type.timerConfig!.subjects.map(
+            (subject) => {
+              if (subject.id === subjectId) {
+                return { subjectId: subject.id, minutes: Math.max(0, minutes), subtractMinutes: subtractMinutes ?? (timerEntries.find(te => te.subjectId === subject.id)?.subtractMinutes || 0) };
+              }
+              const existing = timerEntries.find(
+                (te) => te.subjectId === subject.id,
+              );
+              return { subjectId: subject.id, minutes: existing?.minutes || 0, subtractMinutes: existing?.subtractMinutes || 0 };
+            },
+          );
 
           const timerData: TimerData = { entries: updatedEntries };
-          const totalMins = updatedEntries.reduce((sum, te) => sum + te.minutes, 0);
-          const hours = Math.floor(totalMins / 60);
-          const mins = totalMins % 60;
-          const valueStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+          // Build value string showing each subject's net time
+          const parts = type.timerConfig!.subjects.map((subject) => {
+            const entry = updatedEntries.find(e => e.subjectId === subject.id);
+            const net = Math.max(0, (entry?.minutes || 0) - (entry?.subtractMinutes || 0));
+            const h = Math.floor(net / 60);
+            const m = net % 60;
+            return `${subject.name}: ${h > 0 ? `${h}h ${m}m` : `${m}m`}`;
+          });
+          const valueStr = parts.join(', ');
 
           if (existingTimerEntry) {
             await updateEntry({
@@ -2076,44 +2085,66 @@ export function EntryForm({
           }
         };
 
-        const formatMinutes = (mins: number) => {
-          const h = Math.floor(mins / 60);
-          const m = mins % 60;
-          if (h > 0) return `${h}h ${m}m`;
-          return `${m}m`;
+        const handleSubtractChange = async (
+          subjectId: string,
+          subtractMinutes: number,
+        ) => {
+          const existing = timerEntries.find(te => te.subjectId === subjectId);
+          const minutes = existing?.minutes || 0;
+          handleTimerChange(subjectId, minutes, Math.max(0, subtractMinutes));
         };
 
         return (
-          <div className='pt-3 space-y-3'>
+          <div className='pt-3 space-y-4'>
             {/* Per-subject time inputs */}
             {type.timerConfig.subjects.map((subject) => {
-              const subjectEntry = timerEntries.find((te) => te.subjectId === subject.id);
+              const subjectEntry = timerEntries.find(
+                (te) => te.subjectId === subject.id,
+              );
               const subjectMinutes = subjectEntry?.minutes || 0;
               const subjectHours = Math.floor(subjectMinutes / 60);
               const subjectMins = subjectMinutes % 60;
+              const subtractTotal = subjectEntry?.subtractMinutes || 0;
+              const subtractH = Math.floor(subtractTotal / 60);
+              const subtractM = subtractTotal % 60;
+              const netMinutes = Math.max(0, subjectMinutes - subtractTotal);
+              const netH = Math.floor(netMinutes / 60);
+              const netM = netMinutes % 60;
 
               return (
-                <div key={subject.id} className='space-y-1.5'>
-                  <label className='text-[13px] font-medium text-gray-700 dark:text-gray-300'>
-                    {subject.name}
-                  </label>
+                <div key={subject.id} className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 space-y-2'>
+                  <div className='flex items-center justify-between'>
+                    <label className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                      {subject.name}
+                    </label>
+                    {subjectMinutes > 0 && (
+                      <span className={cn(
+                        'text-[15px] font-semibold',
+                        subtractTotal > 0 ? 'text-ios-blue' : 'text-gray-900 dark:text-white'
+                      )}>
+                        {netH > 0 ? `${netH}h ${netM}m` : `${netM}m`}
+                      </span>
+                    )}
+                  </div>
+                  {/* Time input */}
                   <div className='flex items-center gap-2'>
+                    <span className='text-[12px] text-gray-400 w-10'>Time</span>
                     <div className='flex items-center gap-1 flex-1'>
                       <input
                         type='number'
-                        value={subjectHours || ''}
+                        value={subjectHours || ""}
                         onChange={(e) => {
                           const h = parseInt(e.target.value) || 0;
                           handleTimerChange(subject.id, h * 60 + subjectMins);
                         }}
                         placeholder='0'
                         min='0'
-                        className='w-16 px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
+                        className='w-14 px-2 py-1.5 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
                       />
                       <span className='text-[13px] text-gray-500'>h</span>
                       <input
                         type='number'
-                        value={subjectMins || ''}
+                        value={subjectMins || ""}
                         onChange={(e) => {
                           const m = Math.min(59, parseInt(e.target.value) || 0);
                           handleTimerChange(subject.id, subjectHours * 60 + m);
@@ -2121,61 +2152,67 @@ export function EntryForm({
                         placeholder='0'
                         min='0'
                         max='59'
-                        className='w-16 px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
+                        className='w-14 px-2 py-1.5 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
                       />
                       <span className='text-[13px] text-gray-500'>m</span>
                     </div>
-                    {/* Quick-add buttons */}
-                    <div className='flex gap-1'>
-                      {[15, 30, 60].map((addMins) => (
-                        <button
-                          key={addMins}
-                          type='button'
-                          onClick={() => handleTimerChange(subject.id, subjectMinutes + addMins)}
-                          className='px-2 py-1.5 rounded-md text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-ios-blue hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors'>
-                          +{addMins >= 60 ? `${addMins / 60}h` : `${addMins}m`}
-                        </button>
-                      ))}
-                    </div>
                   </div>
+                  {/* Subtract input - only show when time > 0 */}
+                  {subjectMinutes > 0 && (
+                    <div className='flex items-center gap-2'>
+                      <span className='text-[12px] text-ios-red w-10'>− Sub</span>
+                      <div className='flex items-center gap-1 flex-1'>
+                        <input
+                          type='number'
+                          value={subtractH || ""}
+                          onChange={(e) => {
+                            const h = parseInt(e.target.value) || 0;
+                            handleSubtractChange(subject.id, h * 60 + subtractM);
+                          }}
+                          placeholder='0'
+                          min='0'
+                          className='w-14 px-2 py-1.5 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-red/50 text-center'
+                        />
+                        <span className='text-[13px] text-gray-500'>h</span>
+                        <input
+                          type='number'
+                          value={subtractM || ""}
+                          onChange={(e) => {
+                            const m = Math.min(59, parseInt(e.target.value) || 0);
+                            handleSubtractChange(subject.id, subtractH * 60 + m);
+                          }}
+                          placeholder='0'
+                          min='0'
+                          max='59'
+                          className='w-14 px-2 py-1.5 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-red/50 text-center'
+                        />
+                        <span className='text-[13px] text-gray-500'>m</span>
+                      </div>
+                    </div>
+                  )}
+                  {/* Limit progress for this subject */}
+                  {subjectMinutes > 0 && type.timerConfig.limitMinutes > 0 && type.timerConfig.limitPeriod === 'daily' && (
+                    <div className='pt-1'>
+                      <div className='h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            netMinutes > type.timerConfig.limitMinutes
+                              ? "bg-ios-red"
+                              : netMinutes > type.timerConfig.limitMinutes * 0.8
+                                ? "bg-ios-orange"
+                                : "bg-ios-green",
+                          )}
+                          style={{
+                            width: `${Math.min(100, (netMinutes / type.timerConfig.limitMinutes) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
-
-            {/* Daily total summary */}
-            {totalMinutesToday > 0 && (
-              <div className='pt-2 border-t border-gray-200 dark:border-gray-700'>
-                <div className='flex items-center justify-between'>
-                  <span className='text-[13px] text-gray-500 dark:text-gray-400'>
-                    Total today
-                  </span>
-                  <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
-                    {formatMinutes(totalMinutesToday)}
-                  </span>
-                </div>
-                {type.timerConfig.limitMinutes > 0 && type.timerConfig.limitPeriod === 'daily' && (
-                  <div className='mt-1.5'>
-                    <div className='flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 mb-1'>
-                      <span>{formatMinutes(totalMinutesToday)} / {formatMinutes(type.timerConfig.limitMinutes)}</span>
-                      <span>{Math.min(100, Math.round((totalMinutesToday / type.timerConfig.limitMinutes) * 100))}%</span>
-                    </div>
-                    <div className='h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
-                      <div
-                        className={cn(
-                          'h-full rounded-full transition-all',
-                          totalMinutesToday > type.timerConfig.limitMinutes
-                            ? 'bg-ios-red'
-                            : totalMinutesToday > type.timerConfig.limitMinutes * 0.8
-                              ? 'bg-ios-orange'
-                              : 'bg-ios-green'
-                        )}
-                        style={{ width: `${Math.min(100, (totalMinutesToday / type.timerConfig.limitMinutes) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         );
       }
@@ -2929,17 +2966,24 @@ export function EntryForm({
                   // Show count if exercises logged, or nothing if just quick-check (icon will show green)
                   return count > 0 ? `${count}` : null;
                 }
-                // For timer types, show total time today
+                // For timer types, show per-subject net time
                 if (isTimer && hasSavedValues) {
                   const timerEntry = entries.find(
-                    (e) => e.activityTypeId === type.id && e.date === date && e.timerData,
+                    (e) =>
+                      e.activityTypeId === type.id &&
+                      e.date === date &&
+                      e.timerData,
                   );
-                  if (timerEntry?.timerData?.entries) {
-                    const totalMins = timerEntry.timerData.entries.reduce((sum, te) => sum + te.minutes, 0);
-                    if (totalMins > 0) {
-                      const h = Math.floor(totalMins / 60);
-                      const m = totalMins % 60;
-                      return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;
+                  if (timerEntry?.timerData?.entries && type.timerConfig?.subjects) {
+                    const hasData = timerEntry.timerData.entries.some(te => te.minutes > 0);
+                    if (hasData) {
+                      return type.timerConfig.subjects.map(s => {
+                        const te = timerEntry.timerData!.entries.find(e => e.subjectId === s.id);
+                        const net = Math.max(0, (te?.minutes || 0) - (te?.subtractMinutes || 0));
+                        const h = Math.floor(net / 60);
+                        const m = net % 60;
+                        return `${s.name[0]}: ${h > 0 ? `${h}h${m > 0 ? `${m}` : ''}` : `${m}m`}`;
+                      }).join(' ');
                     }
                   }
                   return type.name;
@@ -3641,24 +3685,36 @@ export function EntryForm({
                             </button>
                           </div>
                         )}
-                        {/* Timer - show total time today */}
-                        {isTimer && hasSavedValues && (
+                        {/* Timer - show per-subject net time */}
+                        {isTimer &&
+                          hasSavedValues &&
                           (() => {
                             const timerEntry = entries.find(
-                              (e) => e.activityTypeId === type.id && e.date === date && e.timerData,
+                              (e) =>
+                                e.activityTypeId === type.id &&
+                                e.date === date &&
+                                e.timerData,
                             );
-                            if (!timerEntry?.timerData?.entries) return null;
-                            const totalMins = timerEntry.timerData.entries.reduce((sum, te) => sum + te.minutes, 0);
-                            if (totalMins <= 0) return null;
-                            const h = Math.floor(totalMins / 60);
-                            const m = totalMins % 60;
+                            if (!timerEntry?.timerData?.entries || !type.timerConfig?.subjects) return null;
+                            const hasData = timerEntry.timerData.entries.some(te => te.minutes > 0);
+                            if (!hasData) return null;
                             return (
-                              <span className='text-[15px] text-ios-green shrink-0'>
-                                {h > 0 ? `${h}h ${m}m` : `${m}m`}
+                              <span className='text-[13px] text-ios-green shrink-0'>
+                                {type.timerConfig.subjects.map((s, i) => {
+                                  const te = timerEntry.timerData!.entries.find(e => e.subjectId === s.id);
+                                  const net = Math.max(0, (te?.minutes || 0) - (te?.subtractMinutes || 0));
+                                  const h = Math.floor(net / 60);
+                                  const m = net % 60;
+                                  return (
+                                    <span key={s.id}>
+                                      {i > 0 && ' · '}
+                                      {s.name[0]}: {h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`}
+                                    </span>
+                                  );
+                                })}
                               </span>
                             );
-                          })()
-                        )}
+                          })()}
                         {/* Boolean value display (show check or x if saved) */}
                         {type.valueType === "boolean" && hasSavedValues && (
                           <span
