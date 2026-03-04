@@ -96,11 +96,34 @@ export interface ChecklistData {
   items: ChecklistItem[];
 }
 
+// Timer/screen time tracking
+export type TimerLimitPeriod = 'daily' | 'weekly' | 'monthly';
+
+export interface TimerSubject {
+  id: string;
+  name: string; // e.g., "Theodor", "Abel"
+}
+
+export interface TimerConfig {
+  subjects: TimerSubject[];
+  limitMinutes: number; // Max allowed time
+  limitPeriod: TimerLimitPeriod; // Per day, week, or month
+}
+
+export interface TimerEntry {
+  subjectId: string;
+  minutes: number; // Time used this day
+}
+
+export interface TimerData {
+  entries: TimerEntry[];
+}
+
 export interface ActivityType {
   id: string;
   name: string;
   icon?: string;
-  valueType: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood' | 'nutrition' | 'workout' | 'checklist';
+  valueType: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood' | 'nutrition' | 'workout' | 'checklist' | 'timer';
   unit?: string; // e.g., "km", "minutes", "glasses"
   order?: number; // For custom ordering
   isDefault?: boolean; // True for built-in activity types that can't be deleted
@@ -110,6 +133,7 @@ export interface ActivityType {
   mergedNutritionGoal?: NutritionGoal; // Common goal for all merged nutrition activities
   customExercises?: CustomExercise[]; // Custom exercises for workout type
   workoutRoutines?: WorkoutRoutine[]; // Workout routines/groups for organizing exercises
+  timerConfig?: TimerConfig; // Config for timer/screen time type
   createdAt: Date;
 }
 
@@ -132,6 +156,8 @@ export interface LogEntry {
   workoutData?: WorkoutData;
   // Checklist data
   checklistData?: ChecklistData;
+  // Timer/screen time data
+  timerData?: TimerData;
   createdAt: Date;
   updatedAt: Date;
 }

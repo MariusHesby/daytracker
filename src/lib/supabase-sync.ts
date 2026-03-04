@@ -21,6 +21,7 @@ export function dbToActivityType(db: DbActivityType): ActivityType {
     nutritionGoal: db.nutrition_goal || undefined,
     customExercises: db.custom_exercises ? (db.custom_exercises as unknown as ActivityType['customExercises']) : undefined,
     workoutRoutines: db.workout_routines ? (db.workout_routines as unknown as ActivityType['workoutRoutines']) : undefined,
+    timerConfig: db.timer_config ? (db.timer_config as unknown as ActivityType['timerConfig']) : undefined,
     createdAt: new Date(db.created_at),
   };
 }
@@ -41,6 +42,7 @@ export function dbToLogEntry(db: DbLogEntry): LogEntry {
     nutritionData: db.nutrition_data ? (db.nutrition_data as unknown as LogEntry['nutritionData']) : undefined,
     workoutData: db.workout_data ? (db.workout_data as unknown as LogEntry['workoutData']) : undefined,
     checklistData: db.checklist_data ? (db.checklist_data as unknown as LogEntry['checklistData']) : undefined,
+    timerData: db.timer_data ? (db.timer_data as unknown as LogEntry['timerData']) : undefined,
     createdAt: new Date(db.created_at),
     updatedAt: new Date(db.updated_at),
   };
@@ -103,8 +105,8 @@ export async function addActivityTypeToSupabase(
       nutrition_goal: type.nutritionGoal || null,
       custom_exercises: type.customExercises || null,
       workout_routines: type.workoutRoutines || null,
-    })
-    .select()
+      timer_config: type.timerConfig || null,
+    })    .select()
     .single();
 
   if (error) throwError(error, "Database operation failed");
@@ -125,6 +127,7 @@ export async function updateActivityTypeInSupabase(type: ActivityType): Promise<
       nutrition_goal: type.nutritionGoal || null,
       custom_exercises: type.customExercises || null,
       workout_routines: type.workoutRoutines || null,
+      timer_config: type.timerConfig || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', type.id);
@@ -226,6 +229,7 @@ export async function addEntryToSupabase(
       nutrition_data: entry.nutritionData || null,
       workout_data: entry.workoutData || null,
       checklist_data: entry.checklistData || null,
+      timer_data: entry.timerData || null,
     })
     .select()
     .single();
@@ -251,6 +255,7 @@ export async function updateEntryInSupabase(entry: LogEntry): Promise<LogEntry> 
       nutrition_data: entry.nutritionData || null,
       workout_data: entry.workoutData || null,
       checklist_data: entry.checklistData || null,
+      timer_data: entry.timerData || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', entry.id)

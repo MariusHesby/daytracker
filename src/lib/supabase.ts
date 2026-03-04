@@ -71,7 +71,7 @@ export interface DbActivityType {
   user_id: string;
   name: string;
   icon: string | null;
-  value_type: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood' | 'nutrition' | 'workout';
+  value_type: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood' | 'nutrition' | 'workout' | 'timer';
   unit: string | null;
   sort_order: number | null;
   is_default: boolean;
@@ -79,6 +79,7 @@ export interface DbActivityType {
   nutrition_goal: Record<string, number> | null;
   custom_exercises: Record<string, unknown>[] | null;
   workout_routines: Record<string, unknown>[] | null;
+  timer_config: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -99,6 +100,7 @@ export interface DbLogEntry {
   nutrition_data: Record<string, unknown> | null;
   workout_data: Record<string, unknown> | null;
   checklist_data: Record<string, unknown> | null;
+  timer_data: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }

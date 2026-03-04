@@ -21,6 +21,8 @@ import {
   WorkoutRoutine,
   ChecklistItem,
   ChecklistData,
+  TimerData,
+  TimerEntry,
   ROUTINE_COLORS,
   COMMON_EXERCISES,
 } from "@/types";
@@ -2021,6 +2023,162 @@ export function EntryForm({
           </div>
         );
       }
+
+      case "timer": {
+        if (!type.timerConfig?.subjects?.length) {
+          return (
+            <div className='pt-3'>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                No subjects configured. Edit this activity type to add subjects.
+              </p>
+            </div>
+          );
+        }
+
+        // Find existing timer entry for this day
+        const existingTimerEntry = entries.find(
+          (e) =>
+            e.activityTypeId === type.id && e.date === date && e.timerData,
+        );
+        const timerEntries = existingTimerEntry?.timerData?.entries || [];
+
+        // Calculate total minutes for this day
+        const totalMinutesToday = timerEntries.reduce((sum, te) => sum + te.minutes, 0);
+
+        const handleTimerChange = async (subjectId: string, minutes: number) => {
+          const updatedEntries: TimerEntry[] = type.timerConfig!.subjects.map((subject) => {
+            if (subject.id === subjectId) {
+              return { subjectId: subject.id, minutes: Math.max(0, minutes) };
+            }
+            const existing = timerEntries.find((te) => te.subjectId === subject.id);
+            return { subjectId: subject.id, minutes: existing?.minutes || 0 };
+          });
+
+          const timerData: TimerData = { entries: updatedEntries };
+          const totalMins = updatedEntries.reduce((sum, te) => sum + te.minutes, 0);
+          const hours = Math.floor(totalMins / 60);
+          const mins = totalMins % 60;
+          const valueStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+          if (existingTimerEntry) {
+            await updateEntry({
+              ...existingTimerEntry,
+              timerData,
+              value: valueStr,
+            });
+          } else {
+            await addEntry({
+              date,
+              activityTypeId: type.id,
+              value: valueStr,
+              timerData,
+            });
+          }
+        };
+
+        const formatMinutes = (mins: number) => {
+          const h = Math.floor(mins / 60);
+          const m = mins % 60;
+          if (h > 0) return `${h}h ${m}m`;
+          return `${m}m`;
+        };
+
+        return (
+          <div className='pt-3 space-y-3'>
+            {/* Per-subject time inputs */}
+            {type.timerConfig.subjects.map((subject) => {
+              const subjectEntry = timerEntries.find((te) => te.subjectId === subject.id);
+              const subjectMinutes = subjectEntry?.minutes || 0;
+              const subjectHours = Math.floor(subjectMinutes / 60);
+              const subjectMins = subjectMinutes % 60;
+
+              return (
+                <div key={subject.id} className='space-y-1.5'>
+                  <label className='text-[13px] font-medium text-gray-700 dark:text-gray-300'>
+                    {subject.name}
+                  </label>
+                  <div className='flex items-center gap-2'>
+                    <div className='flex items-center gap-1 flex-1'>
+                      <input
+                        type='number'
+                        value={subjectHours || ''}
+                        onChange={(e) => {
+                          const h = parseInt(e.target.value) || 0;
+                          handleTimerChange(subject.id, h * 60 + subjectMins);
+                        }}
+                        placeholder='0'
+                        min='0'
+                        className='w-16 px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
+                      />
+                      <span className='text-[13px] text-gray-500'>h</span>
+                      <input
+                        type='number'
+                        value={subjectMins || ''}
+                        onChange={(e) => {
+                          const m = Math.min(59, parseInt(e.target.value) || 0);
+                          handleTimerChange(subject.id, subjectHours * 60 + m);
+                        }}
+                        placeholder='0'
+                        min='0'
+                        max='59'
+                        className='w-16 px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
+                      />
+                      <span className='text-[13px] text-gray-500'>m</span>
+                    </div>
+                    {/* Quick-add buttons */}
+                    <div className='flex gap-1'>
+                      {[15, 30, 60].map((addMins) => (
+                        <button
+                          key={addMins}
+                          type='button'
+                          onClick={() => handleTimerChange(subject.id, subjectMinutes + addMins)}
+                          className='px-2 py-1.5 rounded-md text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-ios-blue hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors'>
+                          +{addMins >= 60 ? `${addMins / 60}h` : `${addMins}m`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Daily total summary */}
+            {totalMinutesToday > 0 && (
+              <div className='pt-2 border-t border-gray-200 dark:border-gray-700'>
+                <div className='flex items-center justify-between'>
+                  <span className='text-[13px] text-gray-500 dark:text-gray-400'>
+                    Total today
+                  </span>
+                  <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                    {formatMinutes(totalMinutesToday)}
+                  </span>
+                </div>
+                {type.timerConfig.limitMinutes > 0 && type.timerConfig.limitPeriod === 'daily' && (
+                  <div className='mt-1.5'>
+                    <div className='flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400 mb-1'>
+                      <span>{formatMinutes(totalMinutesToday)} / {formatMinutes(type.timerConfig.limitMinutes)}</span>
+                      <span>{Math.min(100, Math.round((totalMinutesToday / type.timerConfig.limitMinutes) * 100))}%</span>
+                    </div>
+                    <div className='h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all',
+                          totalMinutesToday > type.timerConfig.limitMinutes
+                            ? 'bg-ios-red'
+                            : totalMinutesToday > type.timerConfig.limitMinutes * 0.8
+                              ? 'bg-ios-orange'
+                              : 'bg-ios-green'
+                        )}
+                        style={{ width: `${Math.min(100, (totalMinutesToday / type.timerConfig.limitMinutes) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }
     }
   };
 
@@ -2505,6 +2663,7 @@ export function EntryForm({
           const isCheckmark = type.valueType === "checkmark";
           const isCounter = type.valueType === "counter";
           const isChecklist = type.valueType === "checklist";
+          const isTimer = type.valueType === "timer";
 
           return (
             <div className='mb-4 bg-white dark:bg-ios-card-dark rounded-2xl shadow-lg shadow-black/5 dark:shadow-black/20 overflow-visible relative z-10'>
@@ -2538,13 +2697,14 @@ export function EntryForm({
 
               {/* Content */}
               <div className='px-4 pb-4'>
-                {/* Saved values with delete option - not for mood, workout, checkmark, counter, or checklist type */}
+                {/* Saved values with delete option - not for mood, workout, checkmark, counter, checklist, or timer type */}
                 {hasSavedValues &&
                   !isMood &&
                   !isWorkout &&
                   !isCheckmark &&
                   !isCounter &&
-                  !isChecklist && (
+                  !isChecklist &&
+                  !isTimer && (
                     <div className='flex flex-wrap gap-2 pt-1 pb-3'>
                       {typeSavedValues.map((saved) => (
                         <span
@@ -2600,6 +2760,7 @@ export function EntryForm({
               const isMood = type.valueType === "mood";
               const isCounter = type.valueType === "counter";
               const isChecklist = type.valueType === "checklist";
+              const isTimer = type.valueType === "timer";
 
               // Check if workout has any data being entered
               const workoutHasEnteredData =
@@ -2768,6 +2929,21 @@ export function EntryForm({
                   // Show count if exercises logged, or nothing if just quick-check (icon will show green)
                   return count > 0 ? `${count}` : null;
                 }
+                // For timer types, show total time today
+                if (isTimer && hasSavedValues) {
+                  const timerEntry = entries.find(
+                    (e) => e.activityTypeId === type.id && e.date === date && e.timerData,
+                  );
+                  if (timerEntry?.timerData?.entries) {
+                    const totalMins = timerEntry.timerData.entries.reduce((sum, te) => sum + te.minutes, 0);
+                    if (totalMins > 0) {
+                      const h = Math.floor(totalMins / 60);
+                      const m = totalMins % 60;
+                      return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`;
+                    }
+                  }
+                  return type.name;
+                }
                 // For nutrition types with goals, show percentage progress (use combined if merge is enabled)
                 if (
                   isNutrition &&
@@ -2875,7 +3051,9 @@ export function EntryForm({
                       ? displayText
                       : isNutrition && type.nutritionGoal && displayText
                         ? displayText
-                        : type.name}
+                        : isTimer && displayText
+                          ? displayText
+                          : type.name}
                   </span>
                   {isSkipped && (
                     <div className='w-1.5 h-1.5 rounded-full bg-ios-red' />
@@ -2945,6 +3123,7 @@ export function EntryForm({
               const isNutrition = type.valueType === "nutrition";
               const isWorkout = type.valueType === "workout";
               const isChecklist = type.valueType === "checklist";
+              const isTimer = type.valueType === "timer";
 
               // Check if workout has any data being entered (not yet saved)
               const workoutHasEnteredData =
@@ -3461,6 +3640,24 @@ export function EntryForm({
                               +
                             </button>
                           </div>
+                        )}
+                        {/* Timer - show total time today */}
+                        {isTimer && hasSavedValues && (
+                          (() => {
+                            const timerEntry = entries.find(
+                              (e) => e.activityTypeId === type.id && e.date === date && e.timerData,
+                            );
+                            if (!timerEntry?.timerData?.entries) return null;
+                            const totalMins = timerEntry.timerData.entries.reduce((sum, te) => sum + te.minutes, 0);
+                            if (totalMins <= 0) return null;
+                            const h = Math.floor(totalMins / 60);
+                            const m = totalMins % 60;
+                            return (
+                              <span className='text-[15px] text-ios-green shrink-0'>
+                                {h > 0 ? `${h}h ${m}m` : `${m}m`}
+                              </span>
+                            );
+                          })()
                         )}
                         {/* Boolean value display (show check or x if saved) */}
                         {type.valueType === "boolean" && hasSavedValues && (

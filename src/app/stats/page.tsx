@@ -934,6 +934,71 @@ export default function StatsPage() {
     setSelectedChecklistItem(null);
   }, [timeRange, selectedActivityId]);
 
+  // Check if selected activity is timer type
+  const isTimerType = useMemo(() => {
+    if (!selectedStat) return false;
+    const selectedType = getActivityType(selectedStat.activityTypeId);
+    return selectedType?.valueType === "timer";
+  }, [selectedStat, getActivityType]);
+
+  // Calculate timer stats for the period
+  const timerStats = useMemo(() => {
+    if (!selectedStat || !isTimerType) return null;
+
+    const selectedType = getActivityType(selectedStat.activityTypeId);
+    if (!selectedType?.timerConfig) return null;
+
+    const subjects = selectedType.timerConfig.subjects;
+    const limitMinutes = selectedType.timerConfig.limitMinutes;
+    const limitPeriod = selectedType.timerConfig.limitPeriod;
+
+    // Calculate per-subject totals for the period
+    const subjectTotals = new Map<string, number>();
+    subjects.forEach(s => subjectTotals.set(s.id, 0));
+
+    // Collect daily data for the chart
+    const dailyData: { date: string; total: number; perSubject: Map<string, number> }[] = [];
+
+    selectedStat.entries.forEach((entry) => {
+      if (entry.timerData?.entries) {
+        const dayPerSubject = new Map<string, number>();
+        let dayTotal = 0;
+        entry.timerData.entries.forEach((te) => {
+          const current = subjectTotals.get(te.subjectId) || 0;
+          subjectTotals.set(te.subjectId, current + te.minutes);
+          dayPerSubject.set(te.subjectId, te.minutes);
+          dayTotal += te.minutes;
+        });
+        if (dayTotal > 0) {
+          dailyData.push({ date: entry.date, total: dayTotal, perSubject: dayPerSubject });
+        }
+      }
+    });
+
+    // Sort daily data by date
+    dailyData.sort((a, b) => a.date.localeCompare(b.date));
+
+    // Calculate grand total
+    let grandTotal = 0;
+    subjectTotals.forEach(v => grandTotal += v);
+
+    // Max daily total for chart scaling
+    const maxDaily = dailyData.length > 0
+      ? Math.max(...dailyData.map(d => d.total))
+      : 1;
+
+    return {
+      subjects,
+      subjectTotals,
+      grandTotal,
+      limitMinutes,
+      limitPeriod,
+      dailyData,
+      maxDaily,
+      daysWithData: dailyData.length,
+    };
+  }, [selectedStat, isTimerType, getActivityType]);
+
   // Calculate workout stats for the period
   const workoutStats = useMemo(() => {
     if (!selectedStat || !isWorkoutType) return null;
@@ -3058,6 +3123,165 @@ export default function StatsPage() {
               </div>
             )}
 
+            {/* Timer Stats View */}
+            {isTimerType && timerStats && timerStats.grandTotal > 0 && (
+              <div className='p-4'>
+                {/* Per-subject breakdown */}
+                <h4 className='text-[13px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3'>
+                  Time Per Subject
+                </h4>
+                <div className='space-y-3 mb-5'>
+                  {timerStats.subjects.map((subject, index) => {
+                    const totalMins = timerStats.subjectTotals.get(subject.id) || 0;
+                    const h = Math.floor(totalMins / 60);
+                    const m = totalMins % 60;
+                    const maxSubjectTotal = Math.max(...Array.from(timerStats.subjectTotals.values()), 1);
+                    const barColor = barColors[index % barColors.length];
+
+                    return (
+                      <div key={subject.id} className='space-y-1'>
+                        <div className='flex items-center justify-between'>
+                          <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                            {subject.name}
+                          </span>
+                          <span className='text-[15px] text-gray-500 dark:text-gray-400'>
+                            {h > 0 ? `${h}h ${m}m` : `${m}m`}
+                          </span>
+                        </div>
+                        <div className='h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
+                          <div
+                            className='h-full rounded-full transition-all'
+                            style={{
+                              width: `${(totalMins / maxSubjectTotal) * 100}%`,
+                              backgroundColor: barColor,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Total and limit */}
+                <div className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 space-y-2'>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-[13px] text-gray-500 dark:text-gray-400'>
+                      Total
+                    </span>
+                    <span className='text-[17px] font-semibold text-gray-900 dark:text-white'>
+                      {Math.floor(timerStats.grandTotal / 60) > 0
+                        ? `${Math.floor(timerStats.grandTotal / 60)}h ${timerStats.grandTotal % 60}m`
+                        : `${timerStats.grandTotal}m`}
+                    </span>
+                  </div>
+
+                  {timerStats.limitMinutes > 0 && (
+                    <>
+                      <div className='flex items-center justify-between'>
+                        <span className='text-[13px] text-gray-500 dark:text-gray-400'>
+                          Limit ({timerStats.limitPeriod === 'daily' ? 'per day' : timerStats.limitPeriod === 'weekly' ? 'per week' : 'per month'})
+                        </span>
+                        <span className='text-[15px] text-gray-500 dark:text-gray-400'>
+                          {Math.floor(timerStats.limitMinutes / 60) > 0
+                            ? `${Math.floor(timerStats.limitMinutes / 60)}h ${timerStats.limitMinutes % 60}m`
+                            : `${timerStats.limitMinutes}m`}
+                        </span>
+                      </div>
+                      {(() => {
+                        // Calculate remaining based on period
+                        const usedPct = Math.min(100, Math.round((timerStats.grandTotal / timerStats.limitMinutes) * 100));
+                        const remaining = Math.max(0, timerStats.limitMinutes - timerStats.grandTotal);
+                        const remainH = Math.floor(remaining / 60);
+                        const remainM = remaining % 60;
+                        const overLimit = timerStats.grandTotal > timerStats.limitMinutes;
+
+                        return (
+                          <>
+                            <div className='flex items-center justify-between'>
+                              <span className='text-[13px] text-gray-500 dark:text-gray-400'>
+                                {overLimit ? 'Over limit' : 'Remaining'}
+                              </span>
+                              <span className={cn(
+                                'text-[15px] font-medium',
+                                overLimit ? 'text-ios-red' : 'text-ios-green'
+                              )}>
+                                {overLimit
+                                  ? `+${Math.floor((timerStats.grandTotal - timerStats.limitMinutes) / 60) > 0 ? `${Math.floor((timerStats.grandTotal - timerStats.limitMinutes) / 60)}h ` : ''}${(timerStats.grandTotal - timerStats.limitMinutes) % 60}m`
+                                  : remainH > 0 ? `${remainH}h ${remainM}m` : `${remainM}m`}
+                              </span>
+                            </div>
+                            <div className='h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
+                              <div
+                                className={cn(
+                                  'h-full rounded-full transition-all',
+                                  overLimit
+                                    ? 'bg-ios-red'
+                                    : usedPct > 80
+                                      ? 'bg-ios-orange'
+                                      : 'bg-ios-green'
+                                )}
+                                style={{ width: `${usedPct}%` }}
+                              />
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+
+                {/* Daily usage chart */}
+                {timerStats.dailyData.length > 1 && (
+                  <div className='mt-5'>
+                    <h4 className='text-[13px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-3'>
+                      Daily Usage
+                    </h4>
+                    <div className='flex items-end gap-[2px]' style={{ height: '120px' }}>
+                      {timerStats.dailyData.map((day) => {
+                        const heightPct = (day.total / timerStats.maxDaily) * 100;
+                        const h = Math.floor(day.total / 60);
+                        const m = day.total % 60;
+                        const dateObj = new Date(day.date + 'T12:00:00');
+                        const dayLabel = dateObj.toLocaleDateString('en', { weekday: 'narrow' });
+
+                        return (
+                          <div
+                            key={day.date}
+                            className='flex-1 flex flex-col items-center gap-1 min-w-0'
+                            title={`${day.date}: ${h > 0 ? `${h}h ${m}m` : `${m}m`}`}>
+                            <div className='w-full flex items-end' style={{ height: '100px' }}>
+                              <div
+                                className='w-full rounded-t bg-ios-blue/70 dark:bg-ios-blue/50 transition-all min-h-[2px]'
+                                style={{ height: `${heightPct}%` }}
+                              />
+                            </div>
+                            <span className='text-[8px] text-gray-400 dark:text-gray-500'>
+                              {dayLabel}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Average per day */}
+                {timerStats.daysWithData > 0 && (
+                  <div className='mt-3 flex items-center justify-between text-[13px] text-gray-500 dark:text-gray-400'>
+                    <span>Average per day</span>
+                    <span>
+                      {(() => {
+                        const avg = Math.round(timerStats.grandTotal / timerStats.daysWithData);
+                        const h = Math.floor(avg / 60);
+                        const m = avg % 60;
+                        return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                      })()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Top Viewed TV Series Grid */}
             {isTvSeriesType && topViewedSeries.length > 0 && (
               <div className='p-4 border-b border-gray-200/80 dark:border-gray-700/80'>
@@ -3606,8 +3830,8 @@ export default function StatsPage() {
               </div>
             )}
 
-            {/* Value List with Bars - Show for non-workout and non-checklist types (including nutrition) */}
-            {!isWorkoutType && !isChecklistType && (
+            {/* Value List with Bars - Show for non-workout, non-checklist, non-timer types (including nutrition) */}
+            {!isWorkoutType && !isChecklistType && !isTimerType && (
               <div className='p-4'>
                 <h4 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 mb-3'>
                   Tap to see dates

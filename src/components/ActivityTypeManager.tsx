@@ -7,6 +7,9 @@ import {
   NutritionGoal,
   CustomExercise,
   ExerciseCategory,
+  TimerConfig,
+  TimerSubject,
+  TimerLimitPeriod,
   COMMON_EXERCISES,
 } from "@/types";
 import { cn } from "@/lib/utils";
@@ -20,7 +23,8 @@ type ValueType =
   | "mood"
   | "nutrition"
   | "workout"
-  | "checklist";
+  | "checklist"
+  | "timer";
 
 const VALUE_TYPE_OPTIONS: {
   value: ValueType;
@@ -49,6 +53,11 @@ const VALUE_TYPE_OPTIONS: {
     value: "workout",
     label: "Workout",
     description: "Track exercises with sets, reps, weight, distance",
+  },
+  {
+    value: "timer",
+    label: "Time Tracker",
+    description: "Track time per person/item with limits",
   },
 ];
 
@@ -98,6 +107,12 @@ export const ActivityTypeManager = forwardRef<
   const [newExerciseTrackDuration, setNewExerciseTrackDuration] =
     useState(false);
   const [showAddExercise, setShowAddExercise] = useState(false);
+
+  // Timer config state
+  const [timerSubjects, setTimerSubjects] = useState<TimerSubject[]>([]);
+  const [timerLimitMinutes, setTimerLimitMinutes] = useState<number>(0);
+  const [timerLimitPeriod, setTimerLimitPeriod] = useState<TimerLimitPeriod>('weekly');
+  const [newTimerSubjectName, setNewTimerSubjectName] = useState('');
   const [showExerciseDropdown, setShowExerciseDropdown] = useState(false);
   const exerciseInputRef = useRef<HTMLInputElement>(null);
 
@@ -127,6 +142,10 @@ export const ActivityTypeManager = forwardRef<
     setError(null);
     setNutritionGoal({});
     setCustomExercises([]);
+    setTimerSubjects([]);
+    setTimerLimitMinutes(0);
+    setTimerLimitPeriod('weekly');
+    setNewTimerSubjectName('');
     setNewExerciseName("");
     setNewExerciseCategory("strength");
     setNewExerciseTrackWeight(true);
@@ -208,6 +227,10 @@ export const ActivityTypeManager = forwardRef<
             valueType === "workout" && customExercises.length > 0
               ? customExercises
               : undefined,
+          timerConfig:
+            valueType === "timer" && timerSubjects.length > 0
+              ? { subjects: timerSubjects, limitMinutes: timerLimitMinutes, limitPeriod: timerLimitPeriod }
+              : undefined,
         });
       }
     } else {
@@ -219,6 +242,10 @@ export const ActivityTypeManager = forwardRef<
         customExercises:
           valueType === "workout" && customExercises.length > 0
             ? customExercises
+            : undefined,
+        timerConfig:
+          valueType === "timer" && timerSubjects.length > 0
+            ? { subjects: timerSubjects, limitMinutes: timerLimitMinutes, limitPeriod: timerLimitPeriod }
             : undefined,
       });
     }
@@ -234,6 +261,9 @@ export const ActivityTypeManager = forwardRef<
     setUnit(type.unit || "");
     setNutritionGoal(type.nutritionGoal || {});
     setCustomExercises(type.customExercises || []);
+    setTimerSubjects(type.timerConfig?.subjects || []);
+    setTimerLimitMinutes(type.timerConfig?.limitMinutes || 0);
+    setTimerLimitPeriod(type.timerConfig?.limitPeriod || 'weekly');
     setIsAdding(true);
   };
 
@@ -539,6 +569,116 @@ export const ActivityTypeManager = forwardRef<
                     placeholder='e.g. 65'
                     className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                   />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Timer Config for Timer type */}
+          {valueType === "timer" && (
+            <div className='space-y-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
+              <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300'>
+                Subjects / People
+              </p>
+              <p className='text-[13px] text-gray-500'>
+                Add names of people or items to track time for.
+              </p>
+
+              {/* Add Subject Input */}
+              <div className='flex gap-2'>
+                <input
+                  type='text'
+                  value={newTimerSubjectName}
+                  onChange={(e) => setNewTimerSubjectName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (newTimerSubjectName.trim()) {
+                        setTimerSubjects([...timerSubjects, { id: crypto.randomUUID(), name: newTimerSubjectName.trim() }]);
+                        setNewTimerSubjectName('');
+                      }
+                    }
+                  }}
+                  placeholder='e.g. Theodor'
+                  className='flex-1 px-3 py-2 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                />
+                <button
+                  type='button'
+                  onClick={() => {
+                    if (newTimerSubjectName.trim()) {
+                      setTimerSubjects([...timerSubjects, { id: crypto.randomUUID(), name: newTimerSubjectName.trim() }]);
+                      setNewTimerSubjectName('');
+                    }
+                  }}
+                  className='px-4 py-2 rounded-lg text-[15px] font-medium bg-ios-blue text-white'>
+                  Add
+                </button>
+              </div>
+
+              {/* Subject List */}
+              {timerSubjects.length > 0 && (
+                <div className='space-y-1'>
+                  {timerSubjects.map((subject) => (
+                    <div
+                      key={subject.id}
+                      className='flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600'>
+                      <span className='text-[15px] text-gray-900 dark:text-white'>
+                        {subject.name}
+                      </span>
+                      <button
+                        type='button'
+                        onClick={() => setTimerSubjects(timerSubjects.filter(s => s.id !== subject.id))}
+                        className='text-red-500 text-[13px] font-medium'>
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Time Limit Settings */}
+              <div className='pt-2 border-t border-gray-200 dark:border-gray-700'>
+                <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  Time Limit
+                </p>
+                <div className='flex gap-2'>
+                  <select
+                    value={timerLimitPeriod}
+                    onChange={(e) => setTimerLimitPeriod(e.target.value as TimerLimitPeriod)}
+                    className='flex-1 px-3 py-2 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'>
+                    <option value='daily'>Per Day</option>
+                    <option value='weekly'>Per Week</option>
+                    <option value='monthly'>Per Month</option>
+                  </select>
+                  <div className='flex items-center gap-1'>
+                    <input
+                      type='number'
+                      value={Math.floor(timerLimitMinutes / 60) || ''}
+                      onChange={(e) => {
+                        const hours = parseInt(e.target.value) || 0;
+                        const mins = timerLimitMinutes % 60;
+                        setTimerLimitMinutes(hours * 60 + mins);
+                      }}
+                      placeholder='0'
+                      min='0'
+                      className='w-16 px-3 py-2 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
+                    />
+                    <span className='text-[13px] text-gray-500'>h</span>
+                    <input
+                      type='number'
+                      value={timerLimitMinutes % 60 || ''}
+                      onChange={(e) => {
+                        const mins = Math.min(59, parseInt(e.target.value) || 0);
+                        const hours = Math.floor(timerLimitMinutes / 60);
+                        setTimerLimitMinutes(hours * 60 + mins);
+                      }}
+                      placeholder='0'
+                      min='0'
+                      max='59'
+                      className='w-16 px-3 py-2 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
+                    />
+                    <span className='text-[13px] text-gray-500'>m</span>
+                  </div>
                 </div>
               </div>
             </div>
