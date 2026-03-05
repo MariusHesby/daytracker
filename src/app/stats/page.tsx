@@ -768,6 +768,9 @@ export default function StatsPage() {
     string | null
   >(null);
 
+  // Timer period navigation offset (0 = current period, -1 = previous, etc.)
+  const [timerPeriodOffset, setTimerPeriodOffset] = useState(0);
+
   // Get dates for selected checklist item
   const datesForSelectedChecklistItem = useMemo(() => {
     if (!selectedChecklistItem || !checklistStats) return new Set<string>();
@@ -938,6 +941,7 @@ export default function StatsPage() {
   useEffect(() => {
     setSelectedChecklistItem(null);
     setExpandedTimerSubject(null);
+    setTimerPeriodOffset(0);
   }, [timeRange, selectedActivityId]);
 
   // Check if selected activity is timer type
@@ -958,21 +962,78 @@ export default function StatsPage() {
     const limitMinutes = selectedType.timerConfig.limitMinutes;
     const limitPeriod = selectedType.timerConfig.limitPeriod;
 
+    // Compute period date range based on limitPeriod and timerPeriodOffset
+    const now = new Date();
+    let periodStart: string;
+    let periodEnd: string;
+    let periodLabel: string;
+
+    if (limitPeriod === "daily") {
+      const d = new Date(now);
+      d.setDate(d.getDate() + timerPeriodOffset);
+      const ds = d.toISOString().split("T")[0];
+      periodStart = ds;
+      periodEnd = ds;
+      periodLabel = d.toLocaleDateString("en", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      });
+    } else if (limitPeriod === "weekly") {
+      const d = new Date(now);
+      // Go to Monday of current week
+      const dayOfWeek = d.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      d.setDate(d.getDate() + mondayOffset + timerPeriodOffset * 7);
+      periodStart = d.toISOString().split("T")[0];
+      const end = new Date(d);
+      end.setDate(end.getDate() + 6);
+      periodEnd = end.toISOString().split("T")[0];
+      periodLabel = `${d.toLocaleDateString("en", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en", { month: "short", day: "numeric" })}`;
+    } else {
+      // monthly
+      const d = new Date(
+        now.getFullYear(),
+        now.getMonth() + timerPeriodOffset,
+        1,
+      );
+      periodStart = d.toISOString().split("T")[0];
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      periodEnd = end.toISOString().split("T")[0];
+      periodLabel = d.toLocaleDateString("en", {
+        month: "long",
+        year: "numeric",
+      });
+    }
+
+    // Filter entries to the current period
+    const periodEntries = selectedStat.entries.filter(
+      (e) => e.date >= periodStart && e.date <= periodEnd,
+    );
+
     // Per-subject: total net minutes, daily data
-    const subjectStats = new Map<string, {
-      totalNet: number;
-      totalGross: number;
-      totalSubtracted: number;
-      dailyData: { date: string; net: number; gross: number }[];
-      daysWithData: number;
-    }>();
+    const subjectStats = new Map<
+      string,
+      {
+        totalNet: number;
+        totalGross: number;
+        totalSubtracted: number;
+        dailyData: { date: string; net: number; gross: number }[];
+        daysWithData: number;
+      }
+    >();
 
-    subjects.forEach(s => subjectStats.set(s.id, {
-      totalNet: 0, totalGross: 0, totalSubtracted: 0,
-      dailyData: [], daysWithData: 0,
-    }));
+    subjects.forEach((s) =>
+      subjectStats.set(s.id, {
+        totalNet: 0,
+        totalGross: 0,
+        totalSubtracted: 0,
+        dailyData: [],
+        daysWithData: 0,
+      }),
+    );
 
-    selectedStat.entries.forEach((entry) => {
+    periodEntries.forEach((entry) => {
       if (entry.timerData?.entries) {
         entry.timerData.entries.forEach((te) => {
           const stats = subjectStats.get(te.subjectId);
@@ -992,17 +1053,30 @@ export default function StatsPage() {
     });
 
     // Sort each subject's daily data
-    subjectStats.forEach(stats => {
+    subjectStats.forEach((stats) => {
       stats.dailyData.sort((a, b) => a.date.localeCompare(b.date));
     });
+
+    // Check if there's data in previous/next periods
+    const hasPrevData = selectedStat.entries.some(
+      (e) =>
+        e.date < periodStart &&
+        e.timerData?.entries?.some((te) => te.minutes > 0),
+    );
+    const hasNextData = timerPeriodOffset < 0; // Can always go forward until current period
 
     return {
       subjects,
       subjectStats,
       limitMinutes,
       limitPeriod,
+      periodLabel,
+      periodStart,
+      periodEnd,
+      hasPrevData,
+      hasNextData,
     };
-  }, [selectedStat, isTimerType, getActivityType]);
+  }, [selectedStat, isTimerType, getActivityType, timerPeriodOffset]);
 
   // Calculate workout stats for the period
   const workoutStats = useMemo(() => {
@@ -1513,6 +1587,17 @@ export default function StatsPage() {
     "bg-cyan-500",
     "bg-pink-500",
     "bg-orange-500",
+  ];
+
+  const barColorHex = [
+    "#007aff",
+    "#34c759",
+    "#f59e0b",
+    "#ff3b30",
+    "#a855f7",
+    "#06b6d4",
+    "#ec4899",
+    "#f97316",
   ];
 
   return (
@@ -3128,167 +3213,269 @@ export default function StatsPage() {
               </div>
             )}
 
-            {/* Timer Stats View - Individual per subject */}
+            {/* Timer Stats View - Progress bars per subject */}
             {isTimerType && timerStats && (
-              <div className='p-4 space-y-3'>
+              <div className='p-4 space-y-4'>
+                {/* Period navigation */}
+                <div className='flex items-center justify-between'>
+                  <button
+                    onClick={() => setTimerPeriodOffset((o) => o - 1)}
+                    disabled={!timerStats.hasPrevData}
+                    className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                      timerStats.hasPrevData
+                        ? "text-ios-blue active:bg-ios-blue/10"
+                        : "text-gray-300 dark:text-gray-600",
+                    )}>
+                    <svg
+                      className='w-5 h-5'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M15 19l-7-7 7-7'
+                      />
+                    </svg>
+                  </button>
+                  <span className='text-[14px] font-medium text-gray-700 dark:text-gray-300'>
+                    {timerStats.periodLabel}
+                  </span>
+                  <button
+                    onClick={() => setTimerPeriodOffset((o) => o + 1)}
+                    disabled={!timerStats.hasNextData}
+                    className={cn(
+                      "w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                      timerStats.hasNextData
+                        ? "text-ios-blue active:bg-ios-blue/10"
+                        : "text-gray-300 dark:text-gray-600",
+                    )}>
+                    <svg
+                      className='w-5 h-5'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M9 5l7 7-7 7'
+                      />
+                    </svg>
+                  </button>
+                </div>
+
                 {timerStats.subjects.map((subject, index) => {
                   const stats = timerStats.subjectStats.get(subject.id);
-                  if (!stats || stats.totalGross === 0) return null;
+                  if (!stats) return null;
 
                   const isExpanded = expandedTimerSubject === subject.id;
-                  const barColor = barColors[index % barColors.length];
+                  const barColor = barColorHex[index % barColorHex.length];
+                  const subjectLimit =
+                    subject.limitMinutes || timerStats.limitMinutes || 0;
                   const netH = Math.floor(stats.totalNet / 60);
                   const netM = stats.totalNet % 60;
                   const netStr = netH > 0 ? `${netH}h ${netM}m` : `${netM}m`;
+                  const limitH = Math.floor(subjectLimit / 60);
+                  const limitM = subjectLimit % 60;
+                  const limitStr =
+                    subjectLimit > 0
+                      ? limitH > 0
+                        ? `${limitH}h${limitM > 0 ? ` ${limitM}m` : ""}`
+                        : `${limitM}m`
+                      : "";
+                  const usedPct =
+                    subjectLimit > 0
+                      ? Math.min(
+                          100,
+                          Math.round((stats.totalNet / subjectLimit) * 100),
+                        )
+                      : 0;
+                  const overLimit =
+                    subjectLimit > 0 && stats.totalNet > subjectLimit;
 
                   return (
-                    <div key={subject.id} className='rounded-xl bg-gray-50 dark:bg-gray-800/50 overflow-hidden'>
-                      {/* Subject header - clickable */}
+                    <div key={subject.id}>
+                      {/* Subject progress bar - clickable */}
                       <button
-                        onClick={() => setExpandedTimerSubject(isExpanded ? null : subject.id)}
-                        className='w-full flex items-center justify-between p-3'>
-                        <div className='flex items-center gap-2'>
-                          <div className='w-2.5 h-2.5 rounded-full' style={{ backgroundColor: barColor }} />
+                        onClick={() =>
+                          setExpandedTimerSubject(
+                            isExpanded ? null : subject.id,
+                          )
+                        }
+                        className='w-full text-left space-y-1.5'>
+                        <div className='flex items-center justify-between'>
                           <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
                             {subject.name}
                           </span>
-                        </div>
-                        <div className='flex items-center gap-2'>
-                          <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
-                            {netStr}
-                          </span>
-                          <svg
-                            className={cn(
-                              'w-4 h-4 text-gray-400 transition-transform',
-                              isExpanded && 'rotate-180'
+                          <div className='flex items-center gap-1.5'>
+                            <span
+                              className={cn(
+                                "text-[15px] font-semibold",
+                                overLimit
+                                  ? "text-ios-red"
+                                  : "text-gray-900 dark:text-white",
+                              )}>
+                              {stats.totalNet > 0 ? netStr : "0m"}
+                            </span>
+                            {subjectLimit > 0 && (
+                              <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                                / {limitStr}
+                              </span>
                             )}
-                            fill='none'
-                            viewBox='0 0 24 24'
-                            stroke='currentColor'
-                            strokeWidth={2}>
-                            <path strokeLinecap='round' strokeLinejoin='round' d='M19 9l-7 7-7-7' />
-                          </svg>
+                            <svg
+                              className={cn(
+                                "w-3.5 h-3.5 text-gray-400 transition-transform ml-0.5",
+                                isExpanded && "rotate-180",
+                              )}
+                              fill='none'
+                              viewBox='0 0 24 24'
+                              stroke='currentColor'
+                              strokeWidth={2}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M19 9l-7 7-7-7'
+                              />
+                            </svg>
+                          </div>
                         </div>
+                        {subjectLimit > 0 && (
+                          <div className='h-2.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
+                            <div
+                              className='h-full rounded-full transition-all'
+                              style={{
+                                width: `${usedPct}%`,
+                                backgroundColor: overLimit
+                                  ? "#ff3b30"
+                                  : usedPct > 80
+                                    ? "#ff9500"
+                                    : barColor,
+                              }}
+                            />
+                          </div>
+                        )}
+                        {!subjectLimit && stats.totalNet > 0 && (
+                          <div className='h-2.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
+                            <div
+                              className='h-full rounded-full transition-all'
+                              style={{
+                                width: "100%",
+                                backgroundColor: barColor,
+                                opacity: 0.6,
+                              }}
+                            />
+                          </div>
+                        )}
                       </button>
 
-                      {/* Expanded details */}
+                      {/* Expanded: daily breakdown */}
                       {isExpanded && (
-                        <div className='px-3 pb-3 space-y-3'>
-                          {/* Summary stats */}
-                          <div className='space-y-1.5'>
-                            {stats.totalSubtracted > 0 && (
-                              <>
-                                <div className='flex items-center justify-between text-[13px]'>
-                                  <span className='text-gray-500 dark:text-gray-400'>Gross time</span>
-                                  <span className='text-gray-500 dark:text-gray-400'>
-                                    {Math.floor(stats.totalGross / 60) > 0
-                                      ? `${Math.floor(stats.totalGross / 60)}h ${stats.totalGross % 60}m`
-                                      : `${stats.totalGross}m`}
-                                  </span>
-                                </div>
-                                <div className='flex items-center justify-between text-[13px]'>
-                                  <span className='text-ios-red'>Subtracted</span>
-                                  <span className='text-ios-red'>
-                                    −{Math.floor(stats.totalSubtracted / 60) > 0
-                                      ? `${Math.floor(stats.totalSubtracted / 60)}h ${stats.totalSubtracted % 60}m`
-                                      : `${stats.totalSubtracted}m`}
-                                  </span>
-                                </div>
-                              </>
-                            )}
-                            {stats.daysWithData > 0 && (
+                        <div className='mt-2 rounded-xl bg-gray-50 dark:bg-gray-800/50 overflow-hidden'>
+                          {/* Day-by-day list */}
+                          {stats.dailyData.length > 0 ? (
+                            <div className='divide-y divide-gray-200/50 dark:divide-gray-700/50'>
+                              {[...stats.dailyData].reverse().map((day) => {
+                                const h = Math.floor(day.net / 60);
+                                const m = day.net % 60;
+                                const dateObj = new Date(
+                                  day.date + "T12:00:00",
+                                );
+                                const dayStr = dateObj.toLocaleDateString(
+                                  "en",
+                                  {
+                                    weekday: "short",
+                                    month: "short",
+                                    day: "numeric",
+                                  },
+                                );
+                                const dayPct =
+                                  subjectLimit > 0
+                                    ? Math.min(
+                                        100,
+                                        Math.round(
+                                          (day.net / subjectLimit) * 100,
+                                        ),
+                                      )
+                                    : 0;
+                                const dayOver =
+                                  subjectLimit > 0 && day.net > subjectLimit;
+
+                                return (
+                                  <div
+                                    key={day.date}
+                                    className='px-3 py-2 space-y-1'>
+                                    <div className='flex items-center justify-between text-[13px]'>
+                                      <span className='text-gray-600 dark:text-gray-300'>
+                                        {dayStr}
+                                      </span>
+                                      <span
+                                        className={cn(
+                                          "font-medium",
+                                          dayOver
+                                            ? "text-ios-red"
+                                            : "text-gray-900 dark:text-white",
+                                        )}>
+                                        {h > 0 ? `${h}h ${m}m` : `${m}m`}
+                                      </span>
+                                    </div>
+                                    {subjectLimit > 0 && (
+                                      <div className='h-1 rounded-full bg-gray-200 dark:bg-gray-600 overflow-hidden'>
+                                        <div
+                                          className='h-full rounded-full transition-all'
+                                          style={{
+                                            width: `${dayPct}%`,
+                                            backgroundColor: dayOver
+                                              ? "#ff3b30"
+                                              : dayPct > 80
+                                                ? "#ff9500"
+                                                : barColor,
+                                          }}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className='px-3 py-3 text-center text-[13px] text-gray-400 dark:text-gray-500'>
+                              No data this period
+                            </div>
+                          )}
+                          {/* Summary at the bottom */}
+                          {stats.daysWithData > 0 && (
+                            <div className='px-3 py-2 border-t border-gray-200/60 dark:border-gray-700/60 space-y-0.5'>
                               <div className='flex items-center justify-between text-[13px]'>
-                                <span className='text-gray-500 dark:text-gray-400'>Average per day</span>
+                                <span className='text-gray-500 dark:text-gray-400'>
+                                  Average per day
+                                </span>
                                 <span className='text-gray-500 dark:text-gray-400'>
                                   {(() => {
-                                    const avg = Math.round(stats.totalNet / stats.daysWithData);
+                                    const avg = Math.round(
+                                      stats.totalNet / stats.daysWithData,
+                                    );
                                     const h = Math.floor(avg / 60);
                                     const m = avg % 60;
                                     return h > 0 ? `${h}h ${m}m` : `${m}m`;
                                   })()}
                                 </span>
                               </div>
-                            )}
-                            <div className='flex items-center justify-between text-[13px]'>
-                              <span className='text-gray-500 dark:text-gray-400'>Days tracked</span>
-                              <span className='text-gray-500 dark:text-gray-400'>{stats.daysWithData}</span>
-                            </div>
-                          </div>
-
-                          {/* Limit progress */}
-                          {timerStats.limitMinutes > 0 && (
-                            <div className='space-y-1.5'>
-                              {(() => {
-                                const usedPct = Math.min(100, Math.round((stats.totalNet / timerStats.limitMinutes) * 100));
-                                const remaining = Math.max(0, timerStats.limitMinutes - stats.totalNet);
-                                const overLimit = stats.totalNet > timerStats.limitMinutes;
-                                const remainH = Math.floor(remaining / 60);
-                                const remainM = remaining % 60;
-                                const overAmount = stats.totalNet - timerStats.limitMinutes;
-                                const overH = Math.floor(overAmount / 60);
-                                const overM = overAmount % 60;
-
-                                return (
-                                  <>
-                                    <div className='flex items-center justify-between text-[13px]'>
-                                      <span className='text-gray-500 dark:text-gray-400'>
-                                        {overLimit ? 'Over limit' : 'Remaining'}
-                                      </span>
-                                      <span className={cn(
-                                        'font-medium',
-                                        overLimit ? 'text-ios-red' : 'text-ios-green',
-                                      )}>
-                                        {overLimit
-                                          ? `+${overH > 0 ? `${overH}h ` : ''}${overM}m`
-                                          : remainH > 0 ? `${remainH}h ${remainM}m` : `${remainM}m`}
-                                      </span>
-                                    </div>
-                                    <div className='h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
-                                      <div
-                                        className={cn(
-                                          'h-full rounded-full transition-all',
-                                          overLimit ? 'bg-ios-red' : usedPct > 80 ? 'bg-ios-orange' : 'bg-ios-green',
-                                        )}
-                                        style={{ width: `${usedPct}%` }}
-                                      />
-                                    </div>
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          )}
-
-                          {/* Daily chart for this subject */}
-                          {stats.dailyData.length > 1 && (
-                            <div>
-                              <h5 className='text-[11px] text-gray-400 dark:text-gray-500 mb-2'>Daily</h5>
-                              <div className='flex items-end gap-[2px]' style={{ height: '80px' }}>
-                                {stats.dailyData.map((day) => {
-                                  const maxNet = Math.max(...stats.dailyData.map(d => d.net), 1);
-                                  const heightPct = (day.net / maxNet) * 100;
-                                  const h = Math.floor(day.net / 60);
-                                  const m = day.net % 60;
-                                  const dateObj = new Date(day.date + 'T12:00:00');
-                                  const dayLabel = dateObj.toLocaleDateString('en', { weekday: 'narrow' });
-
-                                  return (
-                                    <div
-                                      key={day.date}
-                                      className='flex-1 flex flex-col items-center gap-0.5 min-w-0'
-                                      title={`${day.date}: ${h > 0 ? `${h}h ${m}m` : `${m}m`}`}>
-                                      <div className='w-full flex items-end' style={{ height: '64px' }}>
-                                        <div
-                                          className='w-full rounded-t transition-all min-h-[2px]'
-                                          style={{ height: `${heightPct}%`, backgroundColor: barColor, opacity: 0.7 }}
-                                        />
-                                      </div>
-                                      <span className='text-[7px] text-gray-400 dark:text-gray-500'>
-                                        {dayLabel}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
+                              {stats.totalSubtracted > 0 && (
+                                <div className='flex items-center justify-between text-[13px]'>
+                                  <span className='text-gray-500 dark:text-gray-400'>
+                                    Total subtracted
+                                  </span>
+                                  <span className='text-gray-500 dark:text-gray-400'>
+                                    −
+                                    {Math.floor(stats.totalSubtracted / 60) > 0
+                                      ? `${Math.floor(stats.totalSubtracted / 60)}h ${stats.totalSubtracted % 60}m`
+                                      : `${stats.totalSubtracted}m`}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

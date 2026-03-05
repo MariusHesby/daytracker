@@ -26,7 +26,7 @@ import {
   ROUTINE_COLORS,
   COMMON_EXERCISES,
 } from "@/types";
-import { cn, addDays } from "@/lib/utils";
+import { cn, addDays, getMonday, toDateStr } from "@/lib/utils";
 import { getMediaMetadata } from "@/lib/supabase-sync";
 import { Icon, icons, IconName } from "./Icons";
 import { MediaSearch } from "./MediaSearch";
@@ -59,6 +59,95 @@ interface Particle {
   rotation: number;
   velocityX: number;
   velocityY: number;
+}
+
+/**
+ * Compute the status color for a timer subject based on period progress.
+ * Returns 'green' | 'yellow' | 'red' and the usage/expected ratio.
+ */
+function getTimerSubjectStatus(
+  subjectId: string,
+  limitMinutes: number,
+  limitPeriod: "daily" | "weekly" | "monthly",
+  currentDate: string,
+  allEntries: LogEntry[],
+  activityTypeId: string,
+): {
+  color: "green" | "yellow" | "red";
+  usedMinutes: number;
+  expectedMinutes: number;
+  periodProgress: number;
+  totalDays: number;
+  dayNumber: number;
+} {
+  const d = new Date(currentDate + "T12:00:00");
+
+  let periodStart: string;
+  let dayNumber: number;
+  let totalDays: number;
+
+  if (limitPeriod === "daily") {
+    periodStart = currentDate;
+    dayNumber = 1;
+    totalDays = 1;
+  } else if (limitPeriod === "weekly") {
+    const monday = getMonday(d);
+    periodStart = toDateStr(monday);
+    // dayNumber: Mon=1, Tue=2, ..., Sun=7
+    const dayOfWeek = d.getDay();
+    dayNumber = dayOfWeek === 0 ? 7 : dayOfWeek;
+    totalDays = 7;
+  } else {
+    // monthly
+    periodStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    dayNumber = d.getDate();
+    // Total days in month
+    totalDays = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  }
+
+  // Collect all entries for this activity type within the period up to (and including) current date
+  let usedMinutes = 0;
+  allEntries.forEach((entry) => {
+    if (
+      entry.activityTypeId === activityTypeId &&
+      entry.date >= periodStart &&
+      entry.date <= currentDate &&
+      entry.timerData?.entries
+    ) {
+      const te = entry.timerData.entries.find((e) => e.subjectId === subjectId);
+      if (te) {
+        usedMinutes += Math.max(
+          0,
+          (te.minutes || 0) - (te.subtractMinutes || 0),
+        );
+      }
+    }
+  });
+
+  // Pro-rated expected usage up to current day
+  const expectedMinutes = (limitMinutes / totalDays) * dayNumber;
+  const periodProgress = dayNumber / totalDays;
+
+  // Determine color based on usage vs expected
+  let color: "green" | "yellow" | "red";
+  if (limitMinutes <= 0) {
+    color = "green";
+  } else if (usedMinutes > expectedMinutes * 1.1) {
+    color = "red";
+  } else if (usedMinutes >= expectedMinutes * 0.9) {
+    color = "yellow";
+  } else {
+    color = "green";
+  }
+
+  return {
+    color,
+    usedMinutes,
+    expectedMinutes,
+    periodProgress,
+    totalDays,
+    dayNumber,
+  };
 }
 
 export function EntryForm({
@@ -2049,25 +2138,42 @@ export function EntryForm({
           const updatedEntries: TimerEntry[] = type.timerConfig!.subjects.map(
             (subject) => {
               if (subject.id === subjectId) {
-                return { subjectId: subject.id, minutes: Math.max(0, minutes), subtractMinutes: subtractMinutes ?? (timerEntries.find(te => te.subjectId === subject.id)?.subtractMinutes || 0) };
+                return {
+                  subjectId: subject.id,
+                  minutes: Math.max(0, minutes),
+                  subtractMinutes:
+                    subtractMinutes ??
+                    (timerEntries.find((te) => te.subjectId === subject.id)
+                      ?.subtractMinutes ||
+                      0),
+                };
               }
               const existing = timerEntries.find(
                 (te) => te.subjectId === subject.id,
               );
-              return { subjectId: subject.id, minutes: existing?.minutes || 0, subtractMinutes: existing?.subtractMinutes || 0 };
+              return {
+                subjectId: subject.id,
+                minutes: existing?.minutes || 0,
+                subtractMinutes: existing?.subtractMinutes || 0,
+              };
             },
           );
 
           const timerData: TimerData = { entries: updatedEntries };
           // Build value string showing each subject's net time
           const parts = type.timerConfig!.subjects.map((subject) => {
-            const entry = updatedEntries.find(e => e.subjectId === subject.id);
-            const net = Math.max(0, (entry?.minutes || 0) - (entry?.subtractMinutes || 0));
+            const entry = updatedEntries.find(
+              (e) => e.subjectId === subject.id,
+            );
+            const net = Math.max(
+              0,
+              (entry?.minutes || 0) - (entry?.subtractMinutes || 0),
+            );
             const h = Math.floor(net / 60);
             const m = net % 60;
             return `${subject.name}: ${h > 0 ? `${h}h ${m}m` : `${m}m`}`;
           });
-          const valueStr = parts.join(', ');
+          const valueStr = parts.join(", ");
 
           if (existingTimerEntry) {
             await updateEntry({
@@ -2089,7 +2195,9 @@ export function EntryForm({
           subjectId: string,
           subtractMinutes: number,
         ) => {
-          const existing = timerEntries.find(te => te.subjectId === subjectId);
+          const existing = timerEntries.find(
+            (te) => te.subjectId === subjectId,
+          );
           const minutes = existing?.minutes || 0;
           handleTimerChange(subjectId, minutes, Math.max(0, subtractMinutes));
         };
@@ -2110,21 +2218,78 @@ export function EntryForm({
               const netMinutes = Math.max(0, subjectMinutes - subtractTotal);
               const netH = Math.floor(netMinutes / 60);
               const netM = netMinutes % 60;
+              const subjectLimit =
+                subject.limitMinutes || type.timerConfig.limitMinutes || 0;
 
               return (
-                <div key={subject.id} className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 space-y-2'>
+                <div
+                  key={subject.id}
+                  className='p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 space-y-2'>
                   <div className='flex items-center justify-between'>
                     <label className='text-[15px] font-medium text-gray-900 dark:text-white'>
                       {subject.name}
                     </label>
-                    {subjectMinutes > 0 && (
-                      <span className={cn(
-                        'text-[15px] font-semibold',
-                        subtractTotal > 0 ? 'text-ios-blue' : 'text-gray-900 dark:text-white'
-                      )}>
-                        {netH > 0 ? `${netH}h ${netM}m` : `${netM}m`}
-                      </span>
-                    )}
+                    <div className='flex items-center gap-2'>
+                      {subjectMinutes > 0 && (
+                        <span
+                          className={cn(
+                            "text-[15px] font-semibold",
+                            subtractTotal > 0
+                              ? "text-ios-blue"
+                              : "text-gray-900 dark:text-white",
+                          )}>
+                          {netH > 0 ? `${netH}h ${netM}m` : `${netM}m`}
+                        </span>
+                      )}
+                      {subjectLimit > 0 &&
+                        (() => {
+                          const status = getTimerSubjectStatus(
+                            subject.id,
+                            subjectLimit,
+                            type.timerConfig.limitPeriod || "daily",
+                            date,
+                            entries,
+                            type.id,
+                          );
+                          const remaining = Math.max(
+                            0,
+                            subjectLimit - status.usedMinutes,
+                          );
+                          const over = status.usedMinutes > subjectLimit;
+                          const colorClass =
+                            status.color === "red"
+                              ? "text-red-500"
+                              : status.color === "yellow"
+                                ? "text-yellow-500"
+                                : "text-green-500";
+                          const rH = Math.floor(remaining / 60);
+                          const rM = remaining % 60;
+                          if (over) {
+                            const o = status.usedMinutes - subjectLimit;
+                            const oH = Math.floor(o / 60);
+                            const oM = o % 60;
+                            return (
+                              <span
+                                className={cn(
+                                  "text-[13px] font-medium",
+                                  colorClass,
+                                )}>
+                                +{oH > 0 ? `${oH}h ` : ""}
+                                {oM}m
+                              </span>
+                            );
+                          }
+                          return (
+                            <span
+                              className={cn(
+                                "text-[13px] font-medium",
+                                colorClass,
+                              )}>
+                              {rH > 0 ? `${rH}h ${rM}m left` : `${rM}m left`}
+                            </span>
+                          );
+                        })()}
+                    </div>
                   </div>
                   {/* Time input */}
                   <div className='flex items-center gap-2'>
@@ -2160,14 +2325,19 @@ export function EntryForm({
                   {/* Subtract input - only show when time > 0 */}
                   {subjectMinutes > 0 && (
                     <div className='flex items-center gap-2'>
-                      <span className='text-[12px] text-ios-red w-10'>− Sub</span>
+                      <span className='text-[12px] text-ios-red w-10'>
+                        − Sub
+                      </span>
                       <div className='flex items-center gap-1 flex-1'>
                         <input
                           type='number'
                           value={subtractH || ""}
                           onChange={(e) => {
                             const h = parseInt(e.target.value) || 0;
-                            handleSubtractChange(subject.id, h * 60 + subtractM);
+                            handleSubtractChange(
+                              subject.id,
+                              h * 60 + subtractM,
+                            );
                           }}
                           placeholder='0'
                           min='0'
@@ -2178,8 +2348,14 @@ export function EntryForm({
                           type='number'
                           value={subtractM || ""}
                           onChange={(e) => {
-                            const m = Math.min(59, parseInt(e.target.value) || 0);
-                            handleSubtractChange(subject.id, subtractH * 60 + m);
+                            const m = Math.min(
+                              59,
+                              parseInt(e.target.value) || 0,
+                            );
+                            handleSubtractChange(
+                              subject.id,
+                              subtractH * 60 + m,
+                            );
                           }}
                           placeholder='0'
                           min='0'
@@ -2190,26 +2366,76 @@ export function EntryForm({
                       </div>
                     </div>
                   )}
-                  {/* Limit progress for this subject */}
-                  {subjectMinutes > 0 && type.timerConfig.limitMinutes > 0 && type.timerConfig.limitPeriod === 'daily' && (
-                    <div className='pt-1'>
-                      <div className='h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            netMinutes > type.timerConfig.limitMinutes
-                              ? "bg-ios-red"
-                              : netMinutes > type.timerConfig.limitMinutes * 0.8
-                                ? "bg-ios-orange"
-                                : "bg-ios-green",
+                  {/* Period progress bar for this subject */}
+                  {subjectLimit > 0 &&
+                    (() => {
+                      const status = getTimerSubjectStatus(
+                        subject.id,
+                        subjectLimit,
+                        type.timerConfig.limitPeriod || "daily",
+                        date,
+                        entries,
+                        type.id,
+                      );
+                      const colorClass =
+                        status.color === "red"
+                          ? "bg-red-500"
+                          : status.color === "yellow"
+                            ? "bg-yellow-500"
+                            : "bg-green-500";
+                      const usagePercent = Math.min(
+                        100,
+                        (status.usedMinutes / subjectLimit) * 100,
+                      );
+                      const periodPercent = status.periodProgress * 100;
+                      return (
+                        <div className='pt-1 space-y-0.5'>
+                          <div className='relative h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
+                            {/* Period progress marker */}
+                            {status.totalDays > 1 && (
+                              <div
+                                className='absolute top-0 bottom-0 w-[2px] bg-gray-400 dark:bg-gray-500 z-10'
+                                style={{ left: `${periodPercent}%` }}
+                              />
+                            )}
+                            {/* Usage fill */}
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                colorClass,
+                              )}
+                              style={{ width: `${usagePercent}%` }}
+                            />
+                          </div>
+                          {status.totalDays > 1 && (
+                            <div className='flex justify-between text-[10px] text-gray-400'>
+                              <span>
+                                Day {status.dayNumber}/{status.totalDays}
+                              </span>
+                              <span>
+                                {(() => {
+                                  const usedH = Math.floor(
+                                    status.usedMinutes / 60,
+                                  );
+                                  const usedM = status.usedMinutes % 60;
+                                  const limitH = Math.floor(subjectLimit / 60);
+                                  const limitM = subjectLimit % 60;
+                                  const usedStr =
+                                    usedH > 0
+                                      ? `${usedH}h${usedM > 0 ? ` ${usedM}m` : ""}`
+                                      : `${usedM}m`;
+                                  const limitStr =
+                                    limitH > 0
+                                      ? `${limitH}h${limitM > 0 ? ` ${limitM}m` : ""}`
+                                      : `${limitM}m`;
+                                  return `${usedStr} / ${limitStr}`;
+                                })()}
+                              </span>
+                            </div>
                           )}
-                          style={{
-                            width: `${Math.min(100, (netMinutes / type.timerConfig.limitMinutes) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
+                        </div>
+                      );
+                    })()}
                 </div>
               );
             })}
@@ -2966,27 +3192,9 @@ export function EntryForm({
                   // Show count if exercises logged, or nothing if just quick-check (icon will show green)
                   return count > 0 ? `${count}` : null;
                 }
-                // For timer types, show per-subject net time
-                if (isTimer && hasSavedValues) {
-                  const timerEntry = entries.find(
-                    (e) =>
-                      e.activityTypeId === type.id &&
-                      e.date === date &&
-                      e.timerData,
-                  );
-                  if (timerEntry?.timerData?.entries && type.timerConfig?.subjects) {
-                    const hasData = timerEntry.timerData.entries.some(te => te.minutes > 0);
-                    if (hasData) {
-                      return type.timerConfig.subjects.map(s => {
-                        const te = timerEntry.timerData!.entries.find(e => e.subjectId === s.id);
-                        const net = Math.max(0, (te?.minutes || 0) - (te?.subtractMinutes || 0));
-                        const h = Math.floor(net / 60);
-                        const m = net % 60;
-                        return `${s.name[0]}: ${h > 0 ? `${h}h${m > 0 ? `${m}` : ''}` : `${m}m`}`;
-                      }).join(' ');
-                    }
-                  }
-                  return type.name;
+                // For timer types, don't show text - colored circles are rendered separately
+                if (isTimer && type.timerConfig?.subjects) {
+                  return null;
                 }
                 // For nutrition types with goals, show percentage progress (use combined if merge is enabled)
                 if (
@@ -3095,10 +3303,48 @@ export function EntryForm({
                       ? displayText
                       : isNutrition && type.nutritionGoal && displayText
                         ? displayText
-                        : isTimer && displayText
-                          ? displayText
-                          : type.name}
+                        : type.name}
                   </span>
+                  {/* Timer status circles */}
+                  {isTimer &&
+                    type.timerConfig?.subjects &&
+                    type.timerConfig.subjects.some(
+                      (s) =>
+                        (s.limitMinutes ||
+                          type.timerConfig!.limitMinutes ||
+                          0) > 0,
+                    ) && (
+                      <div className='flex items-center gap-1'>
+                        {type.timerConfig.subjects.map((s) => {
+                          const limit =
+                            s.limitMinutes ||
+                            type.timerConfig!.limitMinutes ||
+                            0;
+                          const status = getTimerSubjectStatus(
+                            s.id,
+                            limit,
+                            type.timerConfig!.limitPeriod || "daily",
+                            date,
+                            entries,
+                            type.id,
+                          );
+                          const bgColor =
+                            limit <= 0
+                              ? "bg-gray-300 dark:bg-gray-600"
+                              : status.color === "red"
+                                ? "bg-red-500"
+                                : status.color === "yellow"
+                                  ? "bg-yellow-500"
+                                  : "bg-green-500";
+                          return (
+                            <div
+                              key={s.id}
+                              className={cn("w-2 h-2 rounded-full", bgColor)}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
                   {isSkipped && (
                     <div className='w-1.5 h-1.5 rounded-full bg-ios-red' />
                   )}
@@ -3685,36 +3931,49 @@ export function EntryForm({
                             </button>
                           </div>
                         )}
-                        {/* Timer - show per-subject net time */}
+                        {/* Timer - show colored status circles */}
                         {isTimer &&
-                          hasSavedValues &&
-                          (() => {
-                            const timerEntry = entries.find(
-                              (e) =>
-                                e.activityTypeId === type.id &&
-                                e.date === date &&
-                                e.timerData,
-                            );
-                            if (!timerEntry?.timerData?.entries || !type.timerConfig?.subjects) return null;
-                            const hasData = timerEntry.timerData.entries.some(te => te.minutes > 0);
-                            if (!hasData) return null;
-                            return (
-                              <span className='text-[13px] text-ios-green shrink-0'>
-                                {type.timerConfig.subjects.map((s, i) => {
-                                  const te = timerEntry.timerData!.entries.find(e => e.subjectId === s.id);
-                                  const net = Math.max(0, (te?.minutes || 0) - (te?.subtractMinutes || 0));
-                                  const h = Math.floor(net / 60);
-                                  const m = net % 60;
-                                  return (
-                                    <span key={s.id}>
-                                      {i > 0 && ' · '}
-                                      {s.name[0]}: {h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ''}` : `${m}m`}
-                                    </span>
-                                  );
-                                })}
-                              </span>
-                            );
-                          })()}
+                          type.timerConfig?.subjects &&
+                          type.timerConfig.subjects.some(
+                            (s) =>
+                              (s.limitMinutes ||
+                                type.timerConfig!.limitMinutes ||
+                                0) > 0,
+                          ) && (
+                            <div className='flex items-center gap-1.5 shrink-0'>
+                              {type.timerConfig.subjects.map((s) => {
+                                const limit =
+                                  s.limitMinutes ||
+                                  type.timerConfig!.limitMinutes ||
+                                  0;
+                                const status = getTimerSubjectStatus(
+                                  s.id,
+                                  limit,
+                                  type.timerConfig!.limitPeriod || "daily",
+                                  date,
+                                  entries,
+                                  type.id,
+                                );
+                                const bgColor =
+                                  limit <= 0
+                                    ? "bg-gray-300 dark:bg-gray-600"
+                                    : status.color === "red"
+                                      ? "bg-red-500"
+                                      : status.color === "yellow"
+                                        ? "bg-yellow-500"
+                                        : "bg-green-500";
+                                return (
+                                  <div
+                                    key={s.id}
+                                    className={cn(
+                                      "w-2.5 h-2.5 rounded-full",
+                                      bgColor,
+                                    )}
+                                  />
+                                );
+                              })}
+                            </div>
+                          )}
                         {/* Boolean value display (show check or x if saved) */}
                         {type.valueType === "boolean" && hasSavedValues && (
                           <span
@@ -3739,11 +3998,12 @@ export function EntryForm({
                         !isLast &&
                           "border-b border-gray-200/80 dark:border-gray-700/80",
                       )}>
-                      {/* Saved values with delete option - not for mood, workout, or checklist type */}
+                      {/* Saved values with delete option - not for mood, workout, checklist, or timer type */}
                       {hasSavedValues &&
                         !isMood &&
                         !isWorkout &&
-                        !isChecklist && (
+                        !isChecklist &&
+                        !isTimer && (
                           <div className='flex flex-wrap gap-2 pt-1 pb-3'>
                             {typeSavedValues.map((saved) => (
                               <span

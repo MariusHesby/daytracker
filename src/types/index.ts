@@ -102,11 +102,12 @@ export type TimerLimitPeriod = 'daily' | 'weekly' | 'monthly';
 export interface TimerSubject {
   id: string;
   name: string; // e.g., "Theodor", "Abel"
+  limitMinutes?: number; // Per-subject time limit (overrides global)
 }
 
 export interface TimerConfig {
   subjects: TimerSubject[];
-  limitMinutes: number; // Max allowed time
+  limitMinutes: number; // Global/fallback max allowed time (deprecated in favor of per-subject)
   limitPeriod: TimerLimitPeriod; // Per day, week, or month
 }
 

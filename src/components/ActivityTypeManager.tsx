@@ -232,7 +232,10 @@ export const ActivityTypeManager = forwardRef<
             valueType === "timer" && timerSubjects.length > 0
               ? {
                   subjects: timerSubjects,
-                  limitMinutes: timerLimitMinutes,
+                  limitMinutes: Math.max(
+                    0,
+                    ...timerSubjects.map((s) => s.limitMinutes || 0),
+                  ),
                   limitPeriod: timerLimitPeriod,
                 }
               : undefined,
@@ -252,7 +255,10 @@ export const ActivityTypeManager = forwardRef<
           valueType === "timer" && timerSubjects.length > 0
             ? {
                 subjects: timerSubjects,
-                limitMinutes: timerLimitMinutes,
+                limitMinutes: Math.max(
+                  0,
+                  ...timerSubjects.map((s) => s.limitMinutes || 0),
+                ),
                 limitPeriod: timerLimitPeriod,
               }
             : undefined,
@@ -639,77 +645,97 @@ export const ActivityTypeManager = forwardRef<
               {/* Subject List */}
               {timerSubjects.length > 0 && (
                 <div className='space-y-1'>
-                  {timerSubjects.map((subject) => (
-                    <div
-                      key={subject.id}
-                      className='flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600'>
-                      <span className='text-[15px] text-gray-900 dark:text-white'>
-                        {subject.name}
-                      </span>
-                      <button
-                        type='button'
-                        onClick={() =>
-                          setTimerSubjects(
-                            timerSubjects.filter((s) => s.id !== subject.id),
-                          )
-                        }
-                        className='text-red-500 text-[13px] font-medium'>
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                  {timerSubjects.map((subject) => {
+                    const subjectLimit = subject.limitMinutes || 0;
+                    const limitH = Math.floor(subjectLimit / 60);
+                    const limitM = subjectLimit % 60;
+                    return (
+                      <div
+                        key={subject.id}
+                        className='p-2.5 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 space-y-2'>
+                        <div className='flex items-center justify-between'>
+                          <span className='text-[15px] text-gray-900 dark:text-white'>
+                            {subject.name}
+                          </span>
+                          <button
+                            type='button'
+                            onClick={() =>
+                              setTimerSubjects(
+                                timerSubjects.filter(
+                                  (s) => s.id !== subject.id,
+                                ),
+                              )
+                            }
+                            className='text-red-500 text-[13px] font-medium'>
+                            Remove
+                          </button>
+                        </div>
+                        <div className='flex items-center gap-1.5'>
+                          <span className='text-[12px] text-gray-400 shrink-0'>
+                            Limit
+                          </span>
+                          <input
+                            type='number'
+                            value={limitH || ""}
+                            onChange={(e) => {
+                              const h = parseInt(e.target.value) || 0;
+                              setTimerSubjects(
+                                timerSubjects.map((s) =>
+                                  s.id === subject.id
+                                    ? { ...s, limitMinutes: h * 60 + limitM }
+                                    : s,
+                                ),
+                              );
+                            }}
+                            placeholder='0'
+                            min='0'
+                            className='w-12 px-2 py-1 rounded-lg text-[14px] bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
+                          />
+                          <span className='text-[12px] text-gray-400'>h</span>
+                          <input
+                            type='number'
+                            value={limitM || ""}
+                            onChange={(e) => {
+                              const m = Math.min(
+                                59,
+                                parseInt(e.target.value) || 0,
+                              );
+                              setTimerSubjects(
+                                timerSubjects.map((s) =>
+                                  s.id === subject.id
+                                    ? { ...s, limitMinutes: limitH * 60 + m }
+                                    : s,
+                                ),
+                              );
+                            }}
+                            placeholder='0'
+                            min='0'
+                            max='59'
+                            className='w-12 px-2 py-1 rounded-lg text-[14px] bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
+                          />
+                          <span className='text-[12px] text-gray-400'>m</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-              {/* Time Limit Settings */}
+              {/* Limit Period Settings */}
               <div className='pt-2 border-t border-gray-200 dark:border-gray-700'>
                 <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                  Time Limit
+                  Limit Period
                 </p>
-                <div className='flex gap-2'>
-                  <select
-                    value={timerLimitPeriod}
-                    onChange={(e) =>
-                      setTimerLimitPeriod(e.target.value as TimerLimitPeriod)
-                    }
-                    className='flex-1 px-3 py-2 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'>
-                    <option value='daily'>Per Day</option>
-                    <option value='weekly'>Per Week</option>
-                    <option value='monthly'>Per Month</option>
-                  </select>
-                  <div className='flex items-center gap-1'>
-                    <input
-                      type='number'
-                      value={Math.floor(timerLimitMinutes / 60) || ""}
-                      onChange={(e) => {
-                        const hours = parseInt(e.target.value) || 0;
-                        const mins = timerLimitMinutes % 60;
-                        setTimerLimitMinutes(hours * 60 + mins);
-                      }}
-                      placeholder='0'
-                      min='0'
-                      className='w-16 px-3 py-2 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
-                    />
-                    <span className='text-[13px] text-gray-500'>h</span>
-                    <input
-                      type='number'
-                      value={timerLimitMinutes % 60 || ""}
-                      onChange={(e) => {
-                        const mins = Math.min(
-                          59,
-                          parseInt(e.target.value) || 0,
-                        );
-                        const hours = Math.floor(timerLimitMinutes / 60);
-                        setTimerLimitMinutes(hours * 60 + mins);
-                      }}
-                      placeholder='0'
-                      min='0'
-                      max='59'
-                      className='w-16 px-3 py-2 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
-                    />
-                    <span className='text-[13px] text-gray-500'>m</span>
-                  </div>
-                </div>
+                <select
+                  value={timerLimitPeriod}
+                  onChange={(e) =>
+                    setTimerLimitPeriod(e.target.value as TimerLimitPeriod)
+                  }
+                  className='w-full px-3 py-2 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'>
+                  <option value='daily'>Per Day</option>
+                  <option value='weekly'>Per Week</option>
+                  <option value='monthly'>Per Month</option>
+                </select>
               </div>
             </div>
           )}

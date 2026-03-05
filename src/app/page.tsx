@@ -140,6 +140,9 @@ export default function HomePage() {
   const newsHasSources = useRef(false);
   const [newsFullscreen, setNewsFullscreen] = useState(false);
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
+  const [newsViewMode, setNewsViewMode] = useState<
+    "all" | "accordion" | "expanded"
+  >("all");
   const [refreshingSources, setRefreshingSources] = useState<Set<string>>(
     new Set(),
   );
@@ -723,16 +726,14 @@ export default function HomePage() {
                       d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
                     />
                   </svg>
-                  {/* Total new-articles badge */}
+                  {/* Subtle unread indicator dot */}
                   {(() => {
                     const totalNew = Object.entries(newsData).reduce(
                       (sum, [url, items]) => sum + countNewArticles(url, items),
                       0,
                     );
                     return totalNew > 0 ? (
-                      <span className='absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-ios-red text-white text-[11px] font-bold leading-none'>
-                        {totalNew > 99 ? "99+" : totalNew}
-                      </span>
+                      <span className='absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-ios-red ring-2 ring-white dark:ring-gray-900' />
                     ) : null;
                   })()}
                 </div>
@@ -973,157 +974,408 @@ export default function HomePage() {
                     </svg>
                   </button>
                   <button
-                    onClick={() => setNewsFullscreen(false)}
+                    onClick={() => {
+                      // Mark all articles as seen when closing
+                      for (const [url, items] of Object.entries(newsData)) {
+                        if (items.length > 0) {
+                          markArticlesSeen(url, items);
+                        }
+                      }
+                      // Clear new counts and links
+                      setSourceNewCounts({});
+                      sourceNewLinksRef.current = {};
+                      setNewsFullscreen(false);
+                    }}
                     className='text-[17px] text-ios-blue font-medium active:opacity-60'>
                     Done
                   </button>
                 </div>
               </div>
+              {/* View mode segmented control */}
+              <div className='flex items-center justify-center px-4 pb-3'>
+                <div className='inline-flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5'>
+                  {/* Mode 1: All articles, no headings */}
+                  <button
+                    onClick={() => setNewsViewMode("all")}
+                    className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                      newsViewMode === "all"
+                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                        : "text-gray-500 dark:text-gray-400"
+                    }`}
+                    title='New articles'>
+                    <svg
+                      className='w-4 h-4'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z'
+                      />
+                    </svg>
+                  </button>
+                  {/* Mode 2: Accordion (expand one source) */}
+                  <button
+                    onClick={() => setNewsViewMode("accordion")}
+                    className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                      newsViewMode === "accordion"
+                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                        : "text-gray-500 dark:text-gray-400"
+                    }`}
+                    title='By source'>
+                    <svg
+                      className='w-4 h-4'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M3 7h4m0 0V3m0 4L3 3m18 4h-4m0 0V3m0 4l4-4M3 17h4m0 0v4m0-4L3 21m18-4h-4m0 0v4m0-4l4 4'
+                      />
+                    </svg>
+                  </button>
+                  {/* Mode 3: All expanded with headings */}
+                  <button
+                    onClick={() => setNewsViewMode("expanded")}
+                    className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                      newsViewMode === "expanded"
+                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                        : "text-gray-500 dark:text-gray-400"
+                    }`}
+                    title='All expanded'>
+                    <svg
+                      className='w-4 h-4'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M4 6h16M4 12h16M4 18h16'
+                      />
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M8 9h8M8 15h8'
+                        strokeWidth={1.5}
+                        strokeOpacity={0.5}
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             </div>
             <div className='pb-8'>
-              {/* Source list — accordion style */}
-              <div className='mx-4 mt-4 rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark border border-gray-200/60 dark:border-gray-700/60'>
-                {Object.entries(newsData).map(([url, items], idx) => {
-                  const isExpanded = expandedSource === url;
-                  const newCount = sourceNewCounts[url] || 0;
-                  return (
-                    <div key={url}>
-                      {/* Source heading row */}
-                      <div
-                        role='button'
-                        tabIndex={0}
-                        onClick={() => {
-                          if (items.length === 0) return;
-                          if (isExpanded) {
-                            setExpandedSource(null);
-                            setNewArticleLinks(new Set());
-                          } else {
-                            // Use the links snapshot captured when fullscreen opened
-                            setNewArticleLinks(
-                              sourceNewLinksRef.current[url] || new Set(),
-                            );
-                            setExpandedSource(url);
-                            markArticlesSeen(url, items);
-                            // Clear the badge and links for this source
-                            setSourceNewCounts((prev) => {
-                              const next = { ...prev };
-                              delete next[url];
-                              return next;
-                            });
-                            delete sourceNewLinksRef.current[url];
-                          }
-                        }}
-                        className={`w-full flex items-center px-4 py-3.5 cursor-pointer active:bg-gray-50 dark:active:bg-gray-700/50 ${
-                          idx > 0
-                            ? "border-t border-gray-200/60 dark:border-gray-700/60"
-                            : ""
-                        }`}>
-                        <div className='w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3 shrink-0'>
-                          <svg
-                            className='w-4 h-4 text-gray-500 dark:text-gray-400'
-                            fill='none'
-                            viewBox='0 0 24 24'
-                            stroke='currentColor'
-                            strokeWidth={1.5}>
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              d='M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9.015 9.015 0 003 12c0-1.605.42-3.113 1.157-4.418'
-                            />
-                          </svg>
-                        </div>
-                        <span
-                          className={`text-[16px] font-semibold truncate flex-1 min-w-0 text-left ${items.length === 0 ? "text-gray-400 dark:text-gray-500" : "text-gray-900 dark:text-white"}`}>
-                          {formatSourceName(url)}
-                        </span>
-                        {items.length === 0 && newsLoading ? (
-                          <svg
-                            className='w-4 h-4 text-gray-300 dark:text-gray-600 animate-spin shrink-0'
-                            fill='none'
-                            viewBox='0 0 24 24'>
-                            <circle
-                              className='opacity-25'
-                              cx='12'
-                              cy='12'
-                              r='10'
-                              stroke='currentColor'
-                              strokeWidth='3'
-                            />
-                            <path
-                              className='opacity-75'
-                              fill='currentColor'
-                              d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
-                            />
-                          </svg>
-                        ) : items.length === 0 && !newsLoading ? (
-                          <span className='text-[12px] text-gray-400 dark:text-gray-500 shrink-0'>
-                            No articles
-                          </span>
-                        ) : newCount > 0 && !isExpanded ? (
-                          <span className='min-w-[22px] h-[22px] px-1.5 flex items-center justify-center rounded-full bg-ios-blue text-white text-[12px] font-bold leading-none shrink-0'>
-                            {newCount > 99 ? "99+" : newCount}
-                          </span>
-                        ) : null}
+              {/* Mode 1: New articles only — no source headings, mixed feed */}
+              {newsViewMode === "all" &&
+                (() => {
+                  // Collect only NEW (unseen) articles from all sources
+                  const allArticles = Object.entries(newsData).flatMap(
+                    ([url, items]) => {
+                      const newLinks = sourceNewLinksRef.current[url];
+                      if (!newLinks || newLinks.size === 0) return [];
+                      return items
+                        .filter((item) => newLinks.has(item.link))
+                        .map((item) => ({ ...item, sourceUrl: url }));
+                    },
+                  );
+                  // Sort by date, newest first
+                  allArticles.sort((a, b) => {
+                    if (!a.pubDate && !b.pubDate) return 0;
+                    if (!a.pubDate) return 1;
+                    if (!b.pubDate) return -1;
+                    return (
+                      new Date(b.pubDate).getTime() -
+                      new Date(a.pubDate).getTime()
+                    );
+                  });
+                  if (allArticles.length === 0) {
+                    return (
+                      <div className='mx-4 mt-4 text-center text-gray-400 dark:text-gray-500 text-[15px] py-12'>
+                        {newsLoading
+                          ? "Loading articles..."
+                          : "No new articles"}
                       </div>
-
-                      {/* Expanded articles for this source */}
-                      {isExpanded && (
-                        <div className='border-t border-gray-200/60 dark:border-gray-700/60'>
-                          <div className='grid grid-cols-2 gap-3 p-4 bg-gray-50/50 dark:bg-gray-900/30'>
-                            {items.map((item, i) => (
-                              <a
-                                key={`${item.link}-${i}`}
-                                href={item.link}
-                                target='_blank'
-                                rel='noopener noreferrer'
-                                className={`relative block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0 ${
-                                  newArticleLinks.has(item.link)
-                                    ? "ring-2 ring-ios-blue shadow-md shadow-ios-blue/20"
-                                    : ""
-                                }`}>
-                                {newArticleLinks.has(item.link) && (
-                                  <span className='absolute top-2 right-2 z-10 px-1.5 py-0.5 rounded-full bg-ios-blue text-white text-[10px] font-bold leading-none shadow-sm'>
-                                    NY
+                    );
+                  }
+                  return (
+                    <div className='grid grid-cols-2 gap-3 mx-4 mt-4'>
+                      {allArticles.map((item, i) => (
+                        <a
+                          key={`${item.link}-${i}`}
+                          href={item.link}
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='relative block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm border border-gray-200/60 dark:border-gray-700/60 min-w-0'>
+                          {item.image && (
+                            <img
+                              src={item.image}
+                              alt=''
+                              className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                              }}
+                            />
+                          )}
+                          <div className='px-3 py-2.5'>
+                            <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
+                              {item.title}
+                            </p>
+                            <div className='flex items-center gap-1.5 mt-1'>
+                              <span className='text-[10px] text-gray-400 dark:text-gray-500 font-medium'>
+                                {formatSourceName(item.sourceUrl)}
+                              </span>
+                              {item.pubDate && (
+                                <>
+                                  <span className='text-[10px] text-gray-300 dark:text-gray-600'>
+                                    ·
                                   </span>
-                                )}
-                                {item.image && (
-                                  <img
-                                    src={item.image}
-                                    alt=''
-                                    className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
-                                    onError={(e) => {
-                                      (
-                                        e.target as HTMLImageElement
-                                      ).style.display = "none";
-                                    }}
-                                  />
-                                )}
-                                <div className='px-3 py-2.5'>
-                                  <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
-                                    {item.title}
-                                  </p>
-                                  {item.pubDate && (
-                                    <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
-                                      {new Date(
-                                        item.pubDate,
-                                      ).toLocaleDateString("nb-NO", {
+                                  <span className='text-[10px] text-gray-400 dark:text-gray-500'>
+                                    {new Date(item.pubDate).toLocaleDateString(
+                                      "nb-NO",
+                                      {
                                         day: "numeric",
                                         month: "short",
                                         hour: "2-digit",
                                         minute: "2-digit",
-                                      })}
-                                    </p>
-                                  )}
-                                </div>
-                              </a>
-                            ))}
+                                      },
+                                    )}
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        </a>
+                      ))}
                     </div>
                   );
-                })}
-              </div>
+                })()}
+
+              {/* Mode 2: Accordion — expand one source at a time (original) */}
+              {newsViewMode === "accordion" && (
+                <div className='mx-4 mt-4 rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark border border-gray-200/60 dark:border-gray-700/60'>
+                  {Object.entries(newsData).map(([url, items], idx) => {
+                    const isExpanded = expandedSource === url;
+                    const newCount = sourceNewCounts[url] || 0;
+                    return (
+                      <div key={url}>
+                        {/* Source heading row */}
+                        <div
+                          role='button'
+                          tabIndex={0}
+                          onClick={() => {
+                            if (items.length === 0) return;
+                            if (isExpanded) {
+                              setExpandedSource(null);
+                              setNewArticleLinks(new Set());
+                            } else {
+                              setNewArticleLinks(
+                                sourceNewLinksRef.current[url] || new Set(),
+                              );
+                              setExpandedSource(url);
+                              markArticlesSeen(url, items);
+                              setSourceNewCounts((prev) => {
+                                const next = { ...prev };
+                                delete next[url];
+                                return next;
+                              });
+                              delete sourceNewLinksRef.current[url];
+                            }
+                          }}
+                          className={`w-full flex items-center px-4 py-3.5 cursor-pointer active:bg-gray-50 dark:active:bg-gray-700/50 ${
+                            idx > 0
+                              ? "border-t border-gray-200/60 dark:border-gray-700/60"
+                              : ""
+                          }`}>
+                          <div className='w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center mr-3 shrink-0'>
+                            <svg
+                              className='w-4 h-4 text-gray-500 dark:text-gray-400'
+                              fill='none'
+                              viewBox='0 0 24 24'
+                              stroke='currentColor'
+                              strokeWidth={1.5}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9.015 9.015 0 003 12c0-1.605.42-3.113 1.157-4.418'
+                              />
+                            </svg>
+                          </div>
+                          <span
+                            className={`text-[16px] font-semibold truncate flex-1 min-w-0 text-left ${items.length === 0 ? "text-gray-400 dark:text-gray-500" : "text-gray-900 dark:text-white"}`}>
+                            {formatSourceName(url)}
+                          </span>
+                          {items.length === 0 && newsLoading ? (
+                            <svg
+                              className='w-4 h-4 text-gray-300 dark:text-gray-600 animate-spin shrink-0'
+                              fill='none'
+                              viewBox='0 0 24 24'>
+                              <circle
+                                className='opacity-25'
+                                cx='12'
+                                cy='12'
+                                r='10'
+                                stroke='currentColor'
+                                strokeWidth='3'
+                              />
+                              <path
+                                className='opacity-75'
+                                fill='currentColor'
+                                d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
+                              />
+                            </svg>
+                          ) : items.length === 0 && !newsLoading ? (
+                            <span className='text-[12px] text-gray-400 dark:text-gray-500 shrink-0'>
+                              No articles
+                            </span>
+                          ) : newCount > 0 && !isExpanded ? (
+                            <span className='min-w-[22px] h-[22px] px-1.5 flex items-center justify-center rounded-full bg-ios-blue text-white text-[12px] font-bold leading-none shrink-0'>
+                              {newCount > 99 ? "99+" : newCount}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        {/* Expanded articles for this source */}
+                        {isExpanded && (
+                          <div className='border-t border-gray-200/60 dark:border-gray-700/60'>
+                            <div className='grid grid-cols-2 gap-3 p-4 bg-gray-50/50 dark:bg-gray-900/30'>
+                              {items.map((item, i) => (
+                                <a
+                                  key={`${item.link}-${i}`}
+                                  href={item.link}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                  className={`relative block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0 ${
+                                    newArticleLinks.has(item.link)
+                                      ? "ring-2 ring-ios-blue shadow-md shadow-ios-blue/20"
+                                      : ""
+                                  }`}>
+                                  {newArticleLinks.has(item.link) && (
+                                    <span className='absolute top-2 right-2 z-10 px-1.5 py-0.5 rounded-full bg-ios-blue text-white text-[10px] font-bold leading-none shadow-sm'>
+                                      NY
+                                    </span>
+                                  )}
+                                  {item.image && (
+                                    <img
+                                      src={item.image}
+                                      alt=''
+                                      className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
+                                      onError={(e) => {
+                                        (
+                                          e.target as HTMLImageElement
+                                        ).style.display = "none";
+                                      }}
+                                    />
+                                  )}
+                                  <div className='px-3 py-2.5'>
+                                    <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
+                                      {item.title}
+                                    </p>
+                                    {item.pubDate && (
+                                      <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
+                                        {new Date(
+                                          item.pubDate,
+                                        ).toLocaleDateString("nb-NO", {
+                                          day: "numeric",
+                                          month: "short",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </p>
+                                    )}
+                                  </div>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Mode 3: All expanded — all sources open with headings */}
+              {newsViewMode === "expanded" && (
+                <div className='mx-4 mt-4 space-y-4'>
+                  {Object.entries(newsData).map(([url, items]) => {
+                    if (items.length === 0) return null;
+                    // Mark as seen when viewing expanded mode
+                    markArticlesSeen(url, items);
+                    const newLinks =
+                      sourceNewLinksRef.current[url] || new Set<string>();
+                    return (
+                      <div
+                        key={url}
+                        className='rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark border border-gray-200/60 dark:border-gray-700/60'>
+                        {/* Source heading */}
+                        <div className='px-4 py-3 bg-gray-50 dark:bg-gray-800/50'>
+                          <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                            {formatSourceName(url)}
+                          </span>
+                        </div>
+                        {/* Articles grid */}
+                        <div className='grid grid-cols-2 gap-3 p-4'>
+                          {items.map((item, i) => (
+                            <a
+                              key={`${item.link}-${i}`}
+                              href={item.link}
+                              target='_blank'
+                              rel='noopener noreferrer'
+                              className={`relative block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700/40 min-w-0 ${
+                                newLinks.has(item.link)
+                                  ? "ring-2 ring-ios-blue shadow-md shadow-ios-blue/20"
+                                  : ""
+                              }`}>
+                              {newLinks.has(item.link) && (
+                                <span className='absolute top-2 right-2 z-10 px-1.5 py-0.5 rounded-full bg-ios-blue text-white text-[10px] font-bold leading-none shadow-sm'>
+                                  NY
+                                </span>
+                              )}
+                              {item.image && (
+                                <img
+                                  src={item.image}
+                                  alt=''
+                                  className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
+                                  onError={(e) => {
+                                    (
+                                      e.target as HTMLImageElement
+                                    ).style.display = "none";
+                                  }}
+                                />
+                              )}
+                              <div className='px-3 py-2.5'>
+                                <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
+                                  {item.title}
+                                </p>
+                                {item.pubDate && (
+                                  <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
+                                    {new Date(item.pubDate).toLocaleDateString(
+                                      "nb-NO",
+                                      {
+                                        day: "numeric",
+                                        month: "short",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      },
+                                    )}
+                                  </p>
+                                )}
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>,
           document.body,
