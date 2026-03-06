@@ -23,6 +23,7 @@ import {
   ChecklistData,
   TimerData,
   TimerEntry,
+  TimerAdjustment,
   ROUTINE_COLORS,
   COMMON_EXERCISES,
 } from "@/types";
@@ -2130,22 +2131,27 @@ export function EntryForm({
         );
         const timerEntries = existingTimerEntry?.timerData?.entries || [];
 
-        const handleTimerChange = async (
+        const handleTimerSave = async (
           subjectId: string,
-          minutes: number,
-          subtractMinutes?: number,
+          baseMinutes: number,
+          adjustments?: TimerAdjustment[],
         ) => {
+          const adjs = adjustments || [];
+          const addTotal = adjs
+            .filter((a) => a.type === "add")
+            .reduce((sum, a) => sum + a.minutes, 0);
+          const subtractTotal = adjs
+            .filter((a) => a.type === "subtract")
+            .reduce((sum, a) => sum + a.minutes, 0);
+
           const updatedEntries: TimerEntry[] = type.timerConfig!.subjects.map(
             (subject) => {
               if (subject.id === subjectId) {
                 return {
                   subjectId: subject.id,
-                  minutes: Math.max(0, minutes),
-                  subtractMinutes:
-                    subtractMinutes ??
-                    (timerEntries.find((te) => te.subjectId === subject.id)
-                      ?.subtractMinutes ||
-                      0),
+                  minutes: Math.max(0, baseMinutes + addTotal),
+                  subtractMinutes: subtractTotal,
+                  adjustments: adjs.length > 0 ? adjs : undefined,
                 };
               }
               const existing = timerEntries.find(
@@ -2155,12 +2161,12 @@ export function EntryForm({
                 subjectId: subject.id,
                 minutes: existing?.minutes || 0,
                 subtractMinutes: existing?.subtractMinutes || 0,
+                adjustments: existing?.adjustments,
               };
             },
           );
 
           const timerData: TimerData = { entries: updatedEntries };
-          // Build value string showing each subject's net time
           const parts = type.timerConfig!.subjects.map((subject) => {
             const entry = updatedEntries.find(
               (e) => e.subjectId === subject.id,
@@ -2191,17 +2197,6 @@ export function EntryForm({
           }
         };
 
-        const handleSubtractChange = async (
-          subjectId: string,
-          subtractMinutes: number,
-        ) => {
-          const existing = timerEntries.find(
-            (te) => te.subjectId === subjectId,
-          );
-          const minutes = existing?.minutes || 0;
-          handleTimerChange(subjectId, minutes, Math.max(0, subtractMinutes));
-        };
-
         return (
           <div className='pt-3 space-y-4'>
             {/* Per-subject time inputs */}
@@ -2209,17 +2204,59 @@ export function EntryForm({
               const subjectEntry = timerEntries.find(
                 (te) => te.subjectId === subject.id,
               );
-              const subjectMinutes = subjectEntry?.minutes || 0;
-              const subjectHours = Math.floor(subjectMinutes / 60);
-              const subjectMins = subjectMinutes % 60;
-              const subtractTotal = subjectEntry?.subtractMinutes || 0;
-              const subtractH = Math.floor(subtractTotal / 60);
-              const subtractM = subtractTotal % 60;
-              const netMinutes = Math.max(0, subjectMinutes - subtractTotal);
+              const storedMinutes = subjectEntry?.minutes || 0;
+              const storedSubtract = subjectEntry?.subtractMinutes || 0;
+              // Derive adjustments from stored data (backward compat)
+              const adjustments: TimerAdjustment[] =
+                subjectEntry?.adjustments ||
+                (storedSubtract > 0
+                  ? [
+                      {
+                        id: `legacy-${subject.id}`,
+                        type: "subtract" as const,
+                        minutes: storedSubtract,
+                      },
+                    ]
+                  : []);
+              const addTotal = adjustments
+                .filter((a) => a.type === "add")
+                .reduce((sum, a) => sum + a.minutes, 0);
+              const subtractTotal = adjustments
+                .filter((a) => a.type === "subtract")
+                .reduce((sum, a) => sum + a.minutes, 0);
+              const baseMinutes = storedMinutes - addTotal;
+              const baseH = Math.floor(baseMinutes / 60);
+              const baseM = baseMinutes % 60;
+              const netMinutes = Math.max(0, storedMinutes - storedSubtract);
               const netH = Math.floor(netMinutes / 60);
               const netM = netMinutes % 60;
               const subjectLimit =
                 subject.limitMinutes || type.timerConfig.limitMinutes || 0;
+
+              const handleAddAdjustment = (adjType: "add" | "subtract") => {
+                const newAdj: TimerAdjustment = {
+                  id: crypto.randomUUID(),
+                  type: adjType,
+                  minutes: 0,
+                };
+                const updated = [...adjustments, newAdj];
+                handleTimerSave(subject.id, baseMinutes, updated);
+              };
+
+              const handleRemoveAdjustment = (adjId: string) => {
+                const updated = adjustments.filter((a) => a.id !== adjId);
+                handleTimerSave(subject.id, baseMinutes, updated);
+              };
+
+              const handleUpdateAdjustment = (
+                adjId: string,
+                updates: Partial<TimerAdjustment>,
+              ) => {
+                const updated = adjustments.map((a) =>
+                  a.id === adjId ? { ...a, ...updates } : a,
+                );
+                handleTimerSave(subject.id, baseMinutes, updated);
+              };
 
               return (
                 <div
@@ -2230,11 +2267,11 @@ export function EntryForm({
                       {subject.name}
                     </label>
                     <div className='flex items-center gap-2'>
-                      {subjectMinutes > 0 && (
+                      {netMinutes > 0 && (
                         <span
                           className={cn(
                             "text-[15px] font-semibold",
-                            subtractTotal > 0
+                            adjustments.length > 0
                               ? "text-ios-blue"
                               : "text-gray-900 dark:text-white",
                           )}>
@@ -2291,16 +2328,19 @@ export function EntryForm({
                         })()}
                     </div>
                   </div>
-                  {/* Time input */}
-                  <div className='flex items-center gap-2'>
-                    <span className='text-[12px] text-gray-400 w-10'>Time</span>
-                    <div className='flex items-center gap-1 flex-1'>
+                  {/* Time input row with +/- buttons */}
+                  <div className='flex items-center gap-1'>
+                    <div className='flex items-center gap-1'>
                       <input
                         type='number'
-                        value={subjectHours || ""}
+                        value={baseH || ""}
                         onChange={(e) => {
                           const h = parseInt(e.target.value) || 0;
-                          handleTimerChange(subject.id, h * 60 + subjectMins);
+                          handleTimerSave(
+                            subject.id,
+                            h * 60 + baseM,
+                            adjustments,
+                          );
                         }}
                         placeholder='0'
                         min='0'
@@ -2309,10 +2349,14 @@ export function EntryForm({
                       <span className='text-[13px] text-gray-500'>h</span>
                       <input
                         type='number'
-                        value={subjectMins || ""}
+                        value={baseM || ""}
                         onChange={(e) => {
                           const m = Math.min(59, parseInt(e.target.value) || 0);
-                          handleTimerChange(subject.id, subjectHours * 60 + m);
+                          handleTimerSave(
+                            subject.id,
+                            baseH * 60 + m,
+                            adjustments,
+                          );
                         }}
                         placeholder='0'
                         min='0'
@@ -2321,51 +2365,138 @@ export function EntryForm({
                       />
                       <span className='text-[13px] text-gray-500'>m</span>
                     </div>
+                    {/* Add / Subtract buttons */}
+                    <div className='flex items-center gap-2.5 ml-auto'>
+                      <button
+                        type='button'
+                        onClick={() => handleAddAdjustment("add")}
+                        className='w-7 h-7 rounded-full flex items-center justify-center text-ios-green bg-ios-green/10 active:bg-ios-green/20 transition-colors'
+                        title='Add time'>
+                        <svg
+                          className='w-3.5 h-3.5'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'
+                          strokeWidth={2.5}>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            d='M12 4v16m8-8H4'
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        type='button'
+                        onClick={() => handleAddAdjustment("subtract")}
+                        className='w-7 h-7 rounded-full flex items-center justify-center text-ios-red bg-ios-red/10 active:bg-ios-red/20 transition-colors'
+                        title='Subtract time'>
+                        <svg
+                          className='w-3.5 h-3.5'
+                          fill='none'
+                          viewBox='0 0 24 24'
+                          stroke='currentColor'
+                          strokeWidth={2.5}>
+                          <path
+                            strokeLinecap='round'
+                            strokeLinejoin='round'
+                            d='M20 12H4'
+                          />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                  {/* Subtract input - only show when time > 0 */}
-                  {subjectMinutes > 0 && (
-                    <div className='flex items-center gap-2'>
-                      <span className='text-[12px] text-ios-red w-10'>
-                        − Sub
-                      </span>
-                      <div className='flex items-center gap-1 flex-1'>
+                  {/* Adjustment rows */}
+                  {adjustments.map((adj) => {
+                    const adjH = Math.floor(adj.minutes / 60);
+                    const adjM = adj.minutes % 60;
+                    const isAdd = adj.type === "add";
+                    return (
+                      <div
+                        key={adj.id}
+                        className={cn(
+                          "flex items-center gap-1 pl-0 pr-2 py-1 rounded-lg",
+                          isAdd
+                            ? "bg-ios-green/8 dark:bg-ios-green/10"
+                            : "bg-ios-red/8 dark:bg-ios-red/10",
+                        )}>
                         <input
                           type='number'
-                          value={subtractH || ""}
+                          value={adjH || ""}
                           onChange={(e) => {
                             const h = parseInt(e.target.value) || 0;
-                            handleSubtractChange(
-                              subject.id,
-                              h * 60 + subtractM,
-                            );
+                            handleUpdateAdjustment(adj.id, {
+                              minutes: h * 60 + adjM,
+                            });
                           }}
                           placeholder='0'
                           min='0'
-                          className='w-14 px-2 py-1.5 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-red/50 text-center'
+                          className={cn(
+                            "w-14 px-2 py-1.5 rounded-lg text-[15px] text-center text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2",
+                            isAdd
+                              ? "bg-ios-green/5 dark:bg-ios-green/15 focus:ring-ios-green/50"
+                              : "bg-ios-red/5 dark:bg-ios-red/15 focus:ring-ios-red/50",
+                          )}
                         />
                         <span className='text-[13px] text-gray-500'>h</span>
                         <input
                           type='number'
-                          value={subtractM || ""}
+                          value={adjM || ""}
                           onChange={(e) => {
                             const m = Math.min(
                               59,
                               parseInt(e.target.value) || 0,
                             );
-                            handleSubtractChange(
-                              subject.id,
-                              subtractH * 60 + m,
-                            );
+                            handleUpdateAdjustment(adj.id, {
+                              minutes: adjH * 60 + m,
+                            });
                           }}
                           placeholder='0'
                           min='0'
                           max='59'
-                          className='w-14 px-2 py-1.5 rounded-lg text-[15px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-red/50 text-center'
+                          className={cn(
+                            "w-14 px-2 py-1.5 rounded-lg text-[15px] text-center text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2",
+                            isAdd
+                              ? "bg-ios-green/5 dark:bg-ios-green/15 focus:ring-ios-green/50"
+                              : "bg-ios-red/5 dark:bg-ios-red/15 focus:ring-ios-red/50",
+                          )}
                         />
                         <span className='text-[13px] text-gray-500'>m</span>
+                        <input
+                          type='text'
+                          value={adj.comment || ""}
+                          onChange={(e) =>
+                            handleUpdateAdjustment(adj.id, {
+                              comment: e.target.value,
+                            })
+                          }
+                          placeholder='comment...'
+                          className={cn(
+                            "flex-1 min-w-0 px-2 py-1.5 rounded-lg text-[13px] text-gray-900 dark:text-white placeholder:text-gray-300 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-gray-300 dark:focus:ring-gray-600",
+                            isAdd
+                              ? "bg-ios-green/5 dark:bg-ios-green/15"
+                              : "bg-ios-red/5 dark:bg-ios-red/15",
+                          )}
+                        />
+                        <button
+                          type='button'
+                          onClick={() => handleRemoveAdjustment(adj.id)}
+                          className='w-5 h-5 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 shrink-0'>
+                          <svg
+                            className='w-3 h-3'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'
+                            strokeWidth={2.5}>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              d='M6 18L18 6M6 6l12 12'
+                            />
+                          </svg>
+                        </button>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
                   {/* Period progress bar for this subject */}
                   {subjectLimit > 0 &&
                     (() => {

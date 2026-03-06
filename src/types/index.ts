@@ -111,10 +111,18 @@ export interface TimerConfig {
   limitPeriod: TimerLimitPeriod; // Per day, week, or month
 }
 
+export interface TimerAdjustment {
+  id: string;
+  type: 'add' | 'subtract';
+  minutes: number;
+  comment?: string;
+}
+
 export interface TimerEntry {
   subjectId: string;
-  minutes: number; // Time used this day
-  subtractMinutes?: number; // Time to subtract (e.g. music time)
+  minutes: number; // Total positive time (base + add adjustments)
+  subtractMinutes?: number; // Total subtract time (sum of subtract adjustments)
+  adjustments?: TimerAdjustment[]; // Individual add/subtract entries with comments
 }
 
 export interface TimerData {
