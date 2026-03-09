@@ -168,9 +168,19 @@
   background: transparent !important;
 }
 
-/* Colorful theme - fullscreen modals get a solid opaque background (same as other themes) */
+/* Colorful theme - fullscreen modals get the same colorful gradient (opaque, hides content beneath) */
 .colorful .colorful-modal-bg.colorful-modal-bg {
-  background: #e8f4fc !important;
+  background: 
+    radial-gradient(ellipse 120% 100% at 5% 95%, color-mix(in srgb, var(--custom-color-1) 50%, transparent) 0%, color-mix(in srgb, var(--custom-color-1) 20%, transparent) 30%, transparent 70%),
+    radial-gradient(ellipse 100% 120% at 95% 85%, color-mix(in srgb, var(--custom-color-2) 45%, transparent) 0%, color-mix(in srgb, var(--custom-color-2) 15%, transparent) 35%, transparent 70%),
+    radial-gradient(ellipse 130% 110% at 75% 15%, color-mix(in srgb, var(--custom-color-3) 40%, transparent) 0%, color-mix(in srgb, var(--custom-color-3) 12%, transparent) 35%, transparent 70%),
+    radial-gradient(ellipse 110% 130% at 15% 25%, color-mix(in srgb, var(--custom-color-4) 50%, transparent) 0%, color-mix(in srgb, var(--custom-color-4) 15%, transparent) 35%, transparent 70%),
+    radial-gradient(ellipse 100% 90% at 50% 50%, color-mix(in srgb, var(--custom-color-5) 25%, transparent) 0%, color-mix(in srgb, var(--custom-color-5) 8%, transparent) 40%, transparent 70%),
+    linear-gradient(180deg, 
+      color-mix(in srgb, var(--custom-color-4) 20%, white) 0%, 
+      color-mix(in srgb, var(--custom-color-5) 15%, white) 50%, 
+      color-mix(in srgb, var(--custom-color-2) 15%, white) 100%) !important;
+  background-attachment: fixed !important;
 }
 
 /* Liquid Glass effect for header card — iOS 26 inspired */

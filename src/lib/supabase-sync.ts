@@ -22,6 +22,7 @@ export function dbToActivityType(db: DbActivityType): ActivityType {
     customExercises: db.custom_exercises ? (db.custom_exercises as unknown as ActivityType['customExercises']) : undefined,
     workoutRoutines: db.workout_routines ? (db.workout_routines as unknown as ActivityType['workoutRoutines']) : undefined,
     timerConfig: db.timer_config ? (db.timer_config as unknown as ActivityType['timerConfig']) : undefined,
+    checklistRepeat: (db.checklist_repeat as ActivityType['checklistRepeat']) || undefined,
     createdAt: new Date(db.created_at),
   };
 }
@@ -106,6 +107,7 @@ export async function addActivityTypeToSupabase(
       custom_exercises: type.customExercises || null,
       workout_routines: type.workoutRoutines || null,
       timer_config: type.timerConfig || null,
+      checklist_repeat: type.checklistRepeat || null,
     })    .select()
     .single();
 
@@ -128,6 +130,7 @@ export async function updateActivityTypeInSupabase(type: ActivityType): Promise<
       custom_exercises: type.customExercises || null,
       workout_routines: type.workoutRoutines || null,
       timer_config: type.timerConfig || null,
+      checklist_repeat: type.checklistRepeat || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', type.id);

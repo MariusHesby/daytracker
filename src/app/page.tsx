@@ -1124,7 +1124,7 @@ export default function HomePage() {
                             />
                           )}
                           <div className='px-3 py-2.5'>
-                            <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
+                            <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-4 break-words'>
                               {item.title}
                             </p>
                             <div className='flex items-center gap-1.5 mt-1'>
@@ -1159,7 +1159,7 @@ export default function HomePage() {
 
               {/* Mode 2: Accordion — expand one source at a time (original) */}
               {newsViewMode === "accordion" && (
-                <div className='mx-4 mt-4 rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark border border-gray-200/60 dark:border-gray-700/60'>
+                <div className='mt-4 overflow-hidden border-y border-gray-200/60 dark:border-gray-700/60 bg-white/80 dark:bg-ios-card-dark'>
                   {Object.entries(newsData).map(([url, items], idx) => {
                     const isExpanded = expandedSource === url;
                     const newCount = sourceNewCounts[url] || 0;
@@ -1243,56 +1243,64 @@ export default function HomePage() {
 
                         {/* Expanded articles for this source */}
                         {isExpanded && (
-                          <div className='border-t border-gray-200/60 dark:border-gray-700/60'>
-                            <div className='grid grid-cols-2 gap-3 p-4 bg-gray-50/50 dark:bg-gray-900/30'>
-                              {items.map((item, i) => (
-                                <a
-                                  key={`${item.link}-${i}`}
-                                  href={item.link}
-                                  target='_blank'
-                                  rel='noopener noreferrer'
-                                  className={`relative block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm min-w-0 ${
-                                    newArticleLinks.has(item.link)
-                                      ? "ring-2 ring-ios-blue shadow-md shadow-ios-blue/20"
-                                      : ""
-                                  }`}>
-                                  {newArticleLinks.has(item.link) && (
-                                    <span className='absolute top-2 right-2 z-10 px-1.5 py-0.5 rounded-full bg-ios-blue text-white text-[10px] font-bold leading-none shadow-sm'>
-                                      NY
+                          <div className='grid grid-cols-2 gap-3 px-4 pb-4 pt-2'>
+                            {items.map((item, i) => (
+                              <a
+                                key={`${item.link}-${i}`}
+                                href={item.link}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                className={`relative block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm border border-gray-200/60 dark:border-gray-700/60 min-w-0 ${
+                                  newArticleLinks.has(item.link)
+                                    ? "ring-2 ring-ios-blue shadow-md shadow-ios-blue/20"
+                                    : ""
+                                }`}>
+                                {newArticleLinks.has(item.link) && (
+                                  <span className='absolute top-2 right-2 z-10 px-1.5 py-0.5 rounded-full bg-ios-blue text-white text-[10px] font-bold leading-none shadow-sm'>
+                                    NY
+                                  </span>
+                                )}
+                                {item.image && (
+                                  <img
+                                    src={item.image}
+                                    alt=''
+                                    className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
+                                    onError={(e) => {
+                                      (
+                                        e.target as HTMLImageElement
+                                      ).style.display = "none";
+                                    }}
+                                  />
+                                )}
+                                <div className='px-3 py-2.5'>
+                                  <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-4 break-words'>
+                                    {item.title}
+                                  </p>
+                                  <div className='flex items-center gap-1.5 mt-1'>
+                                    <span className='text-[10px] text-gray-400 dark:text-gray-500 font-medium'>
+                                      {formatSourceName(url)}
                                     </span>
-                                  )}
-                                  {item.image && (
-                                    <img
-                                      src={item.image}
-                                      alt=''
-                                      className='w-full h-36 object-cover bg-gray-200 dark:bg-gray-700'
-                                      onError={(e) => {
-                                        (
-                                          e.target as HTMLImageElement
-                                        ).style.display = "none";
-                                      }}
-                                    />
-                                  )}
-                                  <div className='px-3 py-2.5'>
-                                    <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
-                                      {item.title}
-                                    </p>
                                     {item.pubDate && (
-                                      <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
-                                        {new Date(
-                                          item.pubDate,
-                                        ).toLocaleDateString("nb-NO", {
-                                          day: "numeric",
-                                          month: "short",
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })}
-                                      </p>
+                                      <>
+                                        <span className='text-[10px] text-gray-300 dark:text-gray-600'>
+                                          ·
+                                        </span>
+                                        <span className='text-[10px] text-gray-400 dark:text-gray-500'>
+                                          {new Date(
+                                            item.pubDate,
+                                          ).toLocaleDateString("nb-NO", {
+                                            day: "numeric",
+                                            month: "short",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                          })}
+                                        </span>
+                                      </>
                                     )}
                                   </div>
-                                </a>
-                              ))}
-                            </div>
+                                </div>
+                              </a>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -1303,7 +1311,7 @@ export default function HomePage() {
 
               {/* Mode 3: All expanded — all sources open with headings */}
               {newsViewMode === "expanded" && (
-                <div className='mx-4 mt-4 space-y-4'>
+                <div className='mx-4 mt-4 space-y-8'>
                   {Object.entries(newsData).map(([url, items]) => {
                     if (items.length === 0) return null;
                     // Mark as seen when viewing expanded mode
@@ -1311,24 +1319,22 @@ export default function HomePage() {
                     const newLinks =
                       sourceNewLinksRef.current[url] || new Set<string>();
                     return (
-                      <div
-                        key={url}
-                        className='rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark border border-gray-200/60 dark:border-gray-700/60'>
+                      <div key={url}>
                         {/* Source heading */}
-                        <div className='px-4 py-3 bg-gray-50 dark:bg-gray-800/50'>
-                          <span className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                        <div className='mb-3'>
+                          <span className='text-[15px] font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide'>
                             {formatSourceName(url)}
                           </span>
                         </div>
                         {/* Articles grid */}
-                        <div className='grid grid-cols-2 gap-3 p-4'>
+                        <div className='grid grid-cols-2 gap-3'>
                           {items.map((item, i) => (
                             <a
                               key={`${item.link}-${i}`}
                               href={item.link}
                               target='_blank'
                               rel='noopener noreferrer'
-                              className={`relative block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700/40 min-w-0 ${
+                              className={`relative block rounded-xl overflow-hidden bg-white dark:bg-ios-card-dark active:bg-gray-50 dark:active:bg-gray-800 shadow-sm border border-gray-200/60 dark:border-gray-700/60 min-w-0 ${
                                 newLinks.has(item.link)
                                   ? "ring-2 ring-ios-blue shadow-md shadow-ios-blue/20"
                                   : ""
@@ -1351,22 +1357,31 @@ export default function HomePage() {
                                 />
                               )}
                               <div className='px-3 py-2.5'>
-                                <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-3 break-words'>
+                                <p className='text-[14px] font-semibold text-gray-900 dark:text-white leading-snug line-clamp-4 break-words'>
                                   {item.title}
                                 </p>
-                                {item.pubDate && (
-                                  <p className='text-[11px] text-gray-400 dark:text-gray-500 mt-1'>
-                                    {new Date(item.pubDate).toLocaleDateString(
-                                      "nb-NO",
-                                      {
-                                        day: "numeric",
-                                        month: "short",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      },
-                                    )}
-                                  </p>
-                                )}
+                                <div className='flex items-center gap-1.5 mt-1'>
+                                  <span className='text-[10px] text-gray-400 dark:text-gray-500 font-medium'>
+                                    {formatSourceName(url)}
+                                  </span>
+                                  {item.pubDate && (
+                                    <>
+                                      <span className='text-[10px] text-gray-300 dark:text-gray-600'>
+                                        ·
+                                      </span>
+                                      <span className='text-[10px] text-gray-400 dark:text-gray-500'>
+                                        {new Date(
+                                          item.pubDate,
+                                        ).toLocaleDateString("nb-NO", {
+                                          day: "numeric",
+                                          month: "short",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             </a>
                           ))}

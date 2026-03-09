@@ -96,6 +96,9 @@ export interface ChecklistData {
   items: ChecklistItem[];
 }
 
+// Checklist repeat frequency
+export type ChecklistRepeat = 'none' | 'daily' | 'weekly' | 'monthly';
+
 // Timer/screen time tracking
 export type TimerLimitPeriod = 'daily' | 'weekly' | 'monthly';
 
@@ -144,6 +147,7 @@ export interface ActivityType {
   customExercises?: CustomExercise[]; // Custom exercises for workout type
   workoutRoutines?: WorkoutRoutine[]; // Workout routines/groups for organizing exercises
   timerConfig?: TimerConfig; // Config for timer/screen time type
+  checklistRepeat?: ChecklistRepeat; // Repeat frequency for checklist type
   createdAt: Date;
 }
 

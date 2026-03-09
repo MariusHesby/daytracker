@@ -10,6 +10,7 @@ import {
   TimerConfig,
   TimerSubject,
   TimerLimitPeriod,
+  ChecklistRepeat,
   COMMON_EXERCISES,
 } from "@/types";
 import { cn } from "@/lib/utils";
@@ -117,6 +118,10 @@ export const ActivityTypeManager = forwardRef<
   const [showExerciseDropdown, setShowExerciseDropdown] = useState(false);
   const exerciseInputRef = useRef<HTMLInputElement>(null);
 
+  // Checklist repeat state
+  const [checklistRepeat, setChecklistRepeat] =
+    useState<ChecklistRepeat>("none");
+
   const setIsAdding = (value: boolean) => {
     setIsAddingState(value);
     onAddingChange?.(value);
@@ -154,6 +159,7 @@ export const ActivityTypeManager = forwardRef<
     setNewExerciseTrackDistance(false);
     setNewExerciseTrackDuration(false);
     setShowAddExercise(false);
+    setChecklistRepeat("none");
   };
 
   const handleAddExercise = () => {
@@ -239,6 +245,10 @@ export const ActivityTypeManager = forwardRef<
                   limitPeriod: timerLimitPeriod,
                 }
               : undefined,
+          checklistRepeat:
+            valueType === "checklist" && checklistRepeat !== "none"
+              ? checklistRepeat
+              : undefined,
         });
       }
     } else {
@@ -262,6 +272,10 @@ export const ActivityTypeManager = forwardRef<
                 limitPeriod: timerLimitPeriod,
               }
             : undefined,
+        checklistRepeat:
+          valueType === "checklist" && checklistRepeat !== "none"
+            ? checklistRepeat
+            : undefined,
       });
     }
 
@@ -279,6 +293,7 @@ export const ActivityTypeManager = forwardRef<
     setTimerSubjects(type.timerConfig?.subjects || []);
     setTimerLimitMinutes(type.timerConfig?.limitMinutes || 0);
     setTimerLimitPeriod(type.timerConfig?.limitPeriod || "weekly");
+    setChecklistRepeat(type.checklistRepeat || "none");
     setIsAdding(true);
   };
 
@@ -501,6 +516,42 @@ export const ActivityTypeManager = forwardRef<
               </div>
             )}
           </div>
+
+          {/* Checklist Repeat */}
+          {valueType === "checklist" && (
+            <div className='space-y-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
+              <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300'>
+                Repeat Checklist
+              </p>
+              <p className='text-[13px] text-gray-500'>
+                Automatically add the same items to each new day/week/month.
+                Items from the most recent checklist will be used as a template.
+              </p>
+              <div className='grid grid-cols-4 gap-2'>
+                {(
+                  [
+                    { value: "none", label: "Off" },
+                    { value: "daily", label: "Daily" },
+                    { value: "weekly", label: "Weekly" },
+                    { value: "monthly", label: "Monthly" },
+                  ] as const
+                ).map((option) => (
+                  <button
+                    key={option.value}
+                    type='button'
+                    onClick={() => setChecklistRepeat(option.value)}
+                    className={cn(
+                      "py-2 rounded-lg text-[14px] font-medium transition-all",
+                      checklistRepeat === option.value
+                        ? "bg-ios-blue text-white shadow-sm"
+                        : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600",
+                    )}>
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Nutrition Goals */}
           {valueType === "nutrition" && (

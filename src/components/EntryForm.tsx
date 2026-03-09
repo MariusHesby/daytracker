@@ -21,6 +21,7 @@ import {
   WorkoutRoutine,
   ChecklistItem,
   ChecklistData,
+  ChecklistRepeat,
   TimerData,
   TimerEntry,
   TimerAdjustment,
@@ -269,7 +270,10 @@ export function EntryForm({
   // Checklist new item text input state
   const [newChecklistItemText, setNewChecklistItemText] = useState("");
   const [showChecklistDropdown, setShowChecklistDropdown] = useState(false);
-  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [openChecklists, setOpenChecklists] = useState<Set<string>>(new Set());
+
+  // Track which dates have had checklist auto-populated to avoid re-running
+  const checklistAutoPopulatedRef = useRef<Set<string>>(new Set());
 
   // Get checklist suggestions from all entries with checklist data
   const checklistSuggestions = useMemo(() => {
@@ -510,8 +514,28 @@ export function EntryForm({
         (t) => t.valueType === "checklist",
       );
 
+      // Re-fetch fresh entries from the database to avoid stale state
+      let freshEntries = entries;
+      try {
+        const { getEntries } = await import("@/lib/db");
+        const { getEntriesFromSupabase } = await import("@/lib/supabase-sync");
+        if (user) {
+          freshEntries = await getEntriesFromSupabase(user.id, date, nextDay);
+        } else {
+          freshEntries = await getEntries(date, nextDay);
+        }
+      } catch {
+        // Fall back to state entries if re-fetch fails
+        console.warn(
+          "Failed to re-fetch entries for checklist carry-forward, using state",
+        );
+      }
+      const freshDateEntries = freshEntries.filter(
+        (e) => e.date === date && !e.isWatchlist,
+      );
+
       for (const checklistType of checklistTypes) {
-        const checklistEntry = dateEntries.find(
+        const checklistEntry = freshDateEntries.find(
           (e) =>
             e.activityTypeId === checklistType.id && e.checklistData?.items,
         );
@@ -523,7 +547,9 @@ export function EntryForm({
 
           if (uncompletedItems.length > 0) {
             // Check if there's already a checklist entry for the next day
-            const nextDayEntries = entries.filter((e) => e.date === nextDay);
+            const nextDayEntries = freshEntries.filter(
+              (e) => e.date === nextDay,
+            );
             const existingNextDayEntry = nextDayEntries.find(
               (e) =>
                 e.activityTypeId === checklistType.id && e.checklistData?.items,
@@ -570,6 +596,9 @@ export function EntryForm({
         }
       }
 
+      // Re-load entries to reflect carry-forward changes
+      await loadEntriesForDateRange(date, addDays(date, 1));
+
       // Clear workout localStorage since day is now locked
       localStorage.removeItem(`workout-data-${date}`);
       localStorage.removeItem(`workout-expanded-${date}`);
@@ -612,6 +641,154 @@ export function EntryForm({
     }
     setGoalCelebratedTypes(new Set()); // Reset celebrations for new date
   }, [date, loadEntriesForDateRange]);
+
+  // Auto-populate repeating checklists when entries load for a new date
+  useEffect(() => {
+    if (isViewingOther || isLocked) return;
+
+    const repeatChecklistTypes = allActivityTypes.filter(
+      (t) =>
+        t.valueType === "checklist" &&
+        t.checklistRepeat &&
+        t.checklistRepeat !== "none",
+    );
+    if (repeatChecklistTypes.length === 0) return;
+
+    const autoPopulateChecklists = async () => {
+      for (const type of repeatChecklistTypes) {
+        const cacheKey = `${date}-${type.id}`;
+        if (checklistAutoPopulatedRef.current.has(cacheKey)) continue;
+
+        // Check if there's already a checklist entry for the current date
+        const existingEntry = entries.find(
+          (e) =>
+            e.activityTypeId === type.id && e.date === date && e.checklistData,
+        );
+        if (existingEntry) {
+          checklistAutoPopulatedRef.current.add(cacheKey);
+          continue;
+        }
+
+        // Determine if we should auto-populate based on repeat frequency
+        const shouldPopulate = (() => {
+          const d = new Date(date + "T12:00:00");
+          const repeat = type.checklistRepeat!;
+
+          if (repeat === "daily") return true;
+
+          if (repeat === "weekly") {
+            // Check if there's already an entry this week (loaded entries may span today+tomorrow only)
+            const monday = getMonday(d);
+            const mondayStr = toDateStr(monday);
+            const hasThisWeek = entries.some(
+              (e) =>
+                e.activityTypeId === type.id &&
+                e.date >= mondayStr &&
+                e.date < date &&
+                e.checklistData,
+            );
+            return !hasThisWeek;
+          }
+
+          if (repeat === "monthly") {
+            const monthStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+            const hasThisMonth = entries.some(
+              (e) =>
+                e.activityTypeId === type.id &&
+                e.date >= monthStart &&
+                e.date < date &&
+                e.checklistData,
+            );
+            return !hasThisMonth;
+          }
+
+          return false;
+        })();
+
+        if (!shouldPopulate) {
+          checklistAutoPopulatedRef.current.add(cacheKey);
+          continue;
+        }
+
+        // Find the most recent previous checklist entry for this type
+        try {
+          let previousEntries: LogEntry[] = [];
+          const searchStart = addDays(date, -90);
+          const searchEnd = addDays(date, -1);
+
+          if (user) {
+            const { getEntriesFromSupabase } =
+              await import("@/lib/supabase-sync");
+            previousEntries = await getEntriesFromSupabase(
+              user.id,
+              searchStart,
+              searchEnd,
+            );
+          } else {
+            const { getEntries } = await import("@/lib/db");
+            previousEntries = await getEntries(searchStart, searchEnd);
+          }
+
+          // Find most recent checklist entry for this type
+          const templateEntry = previousEntries
+            .filter(
+              (e) =>
+                e.activityTypeId === type.id &&
+                e.checklistData?.items &&
+                e.checklistData.items.length > 0,
+            )
+            .sort((a, b) => b.date.localeCompare(a.date))[0];
+
+          if (templateEntry?.checklistData?.items) {
+            // Re-check that no entry was created in the meantime (race condition guard)
+            const stillNoEntry = !entries.find(
+              (e) =>
+                e.activityTypeId === type.id &&
+                e.date === date &&
+                e.checklistData,
+            );
+
+            if (stillNoEntry) {
+              const templateItems: ChecklistItem[] =
+                templateEntry.checklistData.items.map((item) => ({
+                  id: crypto.randomUUID(),
+                  text: item.text,
+                  completed: false,
+                }));
+
+              // Remove duplicate texts
+              const uniqueItems = templateItems.filter(
+                (item, index, self) =>
+                  self.findIndex((i) => i.text === item.text) === index,
+              );
+
+              await addEntry({
+                date,
+                activityTypeId: type.id,
+                value: `0/${uniqueItems.length}`,
+                checklistData: { items: uniqueItems },
+              });
+            }
+          }
+
+          checklistAutoPopulatedRef.current.add(cacheKey);
+        } catch (err) {
+          console.warn("Failed to auto-populate checklist:", err);
+          checklistAutoPopulatedRef.current.add(cacheKey);
+        }
+      }
+    };
+
+    autoPopulateChecklists();
+  }, [
+    date,
+    entries,
+    allActivityTypes,
+    isViewingOther,
+    isLocked,
+    user,
+    addEntry,
+  ]);
 
   useEffect(() => {
     const dateEntries = entries.filter(
@@ -2677,16 +2854,6 @@ export function EntryForm({
         ).length;
         const totalCount = checklistItems.length;
 
-        // Next day items
-        const nextDayEntry = entries.find(
-          (e) =>
-            e.activityTypeId === type.id &&
-            e.date === nextDay &&
-            e.checklistData,
-        );
-        const nextDayItems = nextDayEntry?.checklistData?.items || [];
-        const nextDayCompleted = nextDayItems.filter((i) => i.completed).length;
-
         const handleAddItem = async () => {
           if (!newChecklistItemText.trim()) return;
 
@@ -2750,38 +2917,8 @@ export function EntryForm({
           }
         };
 
-        // Next day toggle/delete handlers
-        const handleToggleNextDayItem = async (itemId: string) => {
-          if (!nextDayEntry) return;
-          const updatedItems = nextDayItems.map((item) =>
-            item.id === itemId ? { ...item, completed: !item.completed } : item,
-          );
-          await updateEntry({
-            ...nextDayEntry,
-            checklistData: { items: updatedItems },
-            value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
-          });
-        };
-
-        const handleDeleteNextDayItem = async (itemId: string) => {
-          if (!nextDayEntry) return;
-          const updatedItems = nextDayItems.filter(
-            (item) => item.id !== itemId,
-          );
-          if (updatedItems.length === 0) {
-            await deleteEntry(nextDayEntry.id);
-          } else {
-            await updateEntry({
-              ...nextDayEntry,
-              checklistData: { items: updatedItems },
-              value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
-            });
-          }
-        };
-
-        // Don't render if locked and no items
-        if (isLocked && totalCount === 0 && nextDayItems.length === 0)
-          return null;
+        // Don't render if hidden type with no items
+        if (type.hidden && totalCount === 0) return null;
 
         return (
           <div
@@ -2790,7 +2927,14 @@ export function EntryForm({
             {/* Header — tap to open/close */}
             <div
               className='flex items-center px-4 py-3 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700'
-              onClick={() => setChecklistOpen((prev) => !prev)}>
+              onClick={() =>
+                setOpenChecklists((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(type.id)) next.delete(type.id);
+                  else next.add(type.id);
+                  return next;
+                })
+              }>
               <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
                 {type.icon &&
                   (type.icon in icons ? (
@@ -2812,6 +2956,15 @@ export function EntryForm({
               <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
                 {type.name}
               </span>
+              {type.checklistRepeat && type.checklistRepeat !== "none" && (
+                <span className='ml-1.5 text-[11px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full'>
+                  {type.checklistRepeat === "daily"
+                    ? "↻ Daily"
+                    : type.checklistRepeat === "weekly"
+                      ? "↻ Weekly"
+                      : "↻ Monthly"}
+                </span>
+              )}
               <div className='ml-auto flex items-center gap-2'>
                 {totalCount > 0 && (
                   <span className='text-[13px] text-gray-400 dark:text-gray-500'>
@@ -2823,7 +2976,7 @@ export function EntryForm({
             </div>
 
             {/* Today's checklist items — collapsible */}
-            {checklistOpen && (totalCount > 0 || !isLocked) && (
+            {openChecklists.has(type.id) && (
               <div className='px-4 pb-3'>
                 {checklistItems.length > 0 && (
                   <div className='space-y-1'>
@@ -2885,156 +3038,84 @@ export function EntryForm({
                 )}
 
                 {/* Add new item with autocomplete */}
-                {!isLocked && (
-                  <div className='relative mt-2'>
-                    <div className='flex items-center gap-2'>
-                      <input
-                        type='text'
-                        value={newChecklistItemText}
-                        onChange={(e) => {
-                          setNewChecklistItemText(e.target.value);
-                          setShowChecklistDropdown(true);
-                        }}
-                        onFocus={() => setShowChecklistDropdown(true)}
-                        onBlur={() =>
-                          setTimeout(() => setShowChecklistDropdown(false), 200)
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleAddItem();
-                            setShowChecklistDropdown(false);
-                          }
-                          if (e.key === "Escape") {
-                            setShowChecklistDropdown(false);
-                          }
-                        }}
-                        placeholder='Add new item...'
-                        className='flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-[15px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                      />
-                      <button
-                        onClick={() => {
+                <div className='relative mt-2'>
+                  <div className='flex items-center gap-2'>
+                    <input
+                      type='text'
+                      value={newChecklistItemText}
+                      onChange={(e) => {
+                        setNewChecklistItemText(e.target.value);
+                        setShowChecklistDropdown(true);
+                      }}
+                      onFocus={() => setShowChecklistDropdown(true)}
+                      onBlur={() =>
+                        setTimeout(() => setShowChecklistDropdown(false), 200)
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
                           handleAddItem();
                           setShowChecklistDropdown(false);
-                        }}
-                        disabled={!newChecklistItemText.trim()}
-                        className={cn(
-                          "px-4 py-2 rounded-lg text-[15px] font-medium transition-colors",
-                          newChecklistItemText.trim()
-                            ? "bg-ios-blue text-white"
-                            : "bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500",
-                        )}>
-                        Add
-                      </button>
-                    </div>
-                    {/* Autocomplete dropdown */}
-                    {showChecklistDropdown &&
-                      (() => {
-                        const filteredSuggestions = newChecklistItemText.trim()
-                          ? checklistSuggestions.filter((sugg) =>
-                              sugg.value
-                                .toLowerCase()
-                                .includes(newChecklistItemText.toLowerCase()),
-                            )
-                          : checklistSuggestions;
-                        const showDropdown =
-                          filteredSuggestions.length > 0 &&
-                          !filteredSuggestions.some(
-                            (s) =>
-                              s.value.toLowerCase() ===
-                              newChecklistItemText.toLowerCase().trim(),
-                          );
-                        if (!showDropdown) return null;
-                        return (
-                          <div className='absolute left-0 right-12 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50 max-h-48 overflow-y-auto'>
-                            {filteredSuggestions.slice(0, 10).map((sugg) => (
-                              <button
-                                key={sugg.value}
-                                onClick={() => {
-                                  setNewChecklistItemText(sugg.value);
-                                  setShowChecklistDropdown(false);
-                                }}
-                                className='w-full px-3 py-2.5 text-left text-[15px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center justify-between'>
-                                <span>{sugg.value}</span>
-                                <span className='text-[13px] text-gray-400 dark:text-gray-500'>
-                                  ({sugg.count}×)
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        );
-                      })()}
+                        }
+                        if (e.key === "Escape") {
+                          setShowChecklistDropdown(false);
+                        }
+                      }}
+                      placeholder='Add new item...'
+                      className='flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-[15px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                    />
+                    <button
+                      onClick={() => {
+                        handleAddItem();
+                        setShowChecklistDropdown(false);
+                      }}
+                      disabled={!newChecklistItemText.trim()}
+                      className={cn(
+                        "px-4 py-2 rounded-lg text-[15px] font-medium transition-colors",
+                        newChecklistItemText.trim()
+                          ? "bg-ios-blue text-white"
+                          : "bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500",
+                      )}>
+                      Add
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Tomorrow's checklist items */}
-            {checklistOpen && nextDayItems.length > 0 && (
-              <div className='border-t border-gray-200/60 dark:border-gray-700/60'>
-                <div className='flex items-center px-4 py-2'>
-                  <span className='text-[13px] font-medium text-gray-400 dark:text-gray-500'>
-                    Tomorrow
-                  </span>
-                  <span className='ml-auto text-[12px] text-gray-400 dark:text-gray-500'>
-                    {nextDayCompleted}/{nextDayItems.length}
-                  </span>
-                </div>
-                <div className='px-4 pb-3 space-y-1'>
-                  {nextDayItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className='flex items-center gap-3 py-1.5 px-1 group'>
-                      <button
-                        onClick={() => handleToggleNextDayItem(item.id)}
-                        className={cn(
-                          "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                          item.completed
-                            ? "bg-ios-green/70 border-ios-green/70"
-                            : "border-gray-300/60 dark:border-gray-600/60",
-                        )}>
-                        {item.completed && (
-                          <svg
-                            className='w-3 h-3 text-white'
-                            fill='none'
-                            viewBox='0 0 24 24'
-                            stroke='currentColor'
-                            strokeWidth={3}>
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              d='M5 13l4 4L19 7'
-                            />
-                          </svg>
-                        )}
-                      </button>
-                      <span
-                        className={cn(
-                          "flex-1 text-[14px]",
-                          item.completed
-                            ? "text-gray-300 dark:text-gray-600 line-through"
-                            : "text-gray-500 dark:text-gray-400",
-                        )}>
-                        {item.text}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteNextDayItem(item.id)}
-                        className='w-5 h-5 rounded-full flex items-center justify-center text-gray-200 dark:text-gray-700 active:text-ios-red transition-colors'>
-                        <svg
-                          className='w-2.5 h-2.5'
-                          fill='none'
-                          viewBox='0 0 24 24'
-                          stroke='currentColor'
-                          strokeWidth={1.5}>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            d='M6 18L18 6M6 6l12 12'
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
+                  {/* Autocomplete dropdown */}
+                  {showChecklistDropdown &&
+                    (() => {
+                      const filteredSuggestions = newChecklistItemText.trim()
+                        ? checklistSuggestions.filter((sugg) =>
+                            sugg.value
+                              .toLowerCase()
+                              .includes(newChecklistItemText.toLowerCase()),
+                          )
+                        : checklistSuggestions;
+                      const showDropdown =
+                        filteredSuggestions.length > 0 &&
+                        !filteredSuggestions.some(
+                          (s) =>
+                            s.value.toLowerCase() ===
+                            newChecklistItemText.toLowerCase().trim(),
+                        );
+                      if (!showDropdown) return null;
+                      return (
+                        <div className='absolute left-0 right-12 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50 max-h-48 overflow-y-auto'>
+                          {filteredSuggestions.slice(0, 10).map((sugg) => (
+                            <button
+                              key={sugg.value}
+                              onClick={() => {
+                                setNewChecklistItemText(sugg.value);
+                                setShowChecklistDropdown(false);
+                              }}
+                              className='w-full px-3 py-2.5 text-left text-[15px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center justify-between'>
+                              <span>{sugg.value}</span>
+                              <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                                ({sugg.count}×)
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                 </div>
               </div>
             )}
