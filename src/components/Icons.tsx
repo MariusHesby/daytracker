@@ -34,6 +34,10 @@ import {
   Utensils,
   Circle,
   Rabbit,
+  Brain,
+  Bell,
+  Clock,
+  CookingPot,
   type LucideIcon,
 } from "lucide-react";
 
@@ -71,6 +75,10 @@ const lucideIcons: Record<string, LucideIcon> = {
   restaurant: Utensils,
   run: Rabbit,
   ball: Circle,
+  brain: Brain,
+  bell: Bell,
+  clock: Clock,
+  hotFood: CookingPot,
 };
 
 // Legacy icons object for backwards compatibility
