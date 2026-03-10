@@ -555,6 +555,103 @@ export default function HomePage() {
 
       {/* Main Content */}
       <main className='px-4 pb-24'>
+        {/* News Section — always on top when activated */}
+        {newsVisible &&
+          (Object.keys(newsData).length > 0 ||
+            newsHasSources.current ||
+            newsLoading) && (
+            <div className='mb-3 w-full bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60'>
+              <button
+                onClick={() => {
+                  if (newsLoading && Object.keys(newsData).length === 0) return;
+                  // Capture per-source new counts AND new-article links before opening
+                  const counts: Record<string, number> = {};
+                  const linksMap: Record<string, Set<string>> = {};
+                  for (const [url, items] of Object.entries(newsData)) {
+                    const seen = getSeenArticles(url);
+                    if (seen.size > 0) {
+                      const newLinks = new Set(
+                        items
+                          .filter((a) => !seen.has(a.link))
+                          .map((a) => a.link),
+                      );
+                      counts[url] = newLinks.size;
+                      linksMap[url] = newLinks;
+                    } else {
+                      counts[url] = 0;
+                      linksMap[url] = new Set();
+                    }
+                  }
+                  setSourceNewCounts(counts);
+                  sourceNewLinksRef.current = linksMap;
+                  setExpandedSource(null);
+                  setNewsFullscreen(true);
+                }}
+                className='w-full flex items-center px-4 py-3 active:bg-gray-100 dark:active:bg-gray-700/50'>
+                <div className='relative w-8 h-8 rounded-lg bg-ios-orange flex items-center justify-center mr-3 shrink-0'>
+                  <svg
+                    className='w-[18px] h-[18px] text-white'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
+                    />
+                  </svg>
+                  {/* Subtle unread indicator dot */}
+                  {(() => {
+                    const totalNew = Object.entries(newsData).reduce(
+                      (sum, [url, items]) => sum + countNewArticles(url, items),
+                      0,
+                    );
+                    return totalNew > 0 ? (
+                      <span className='absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-ios-red ring-2 ring-white dark:ring-gray-900' />
+                    ) : null;
+                  })()}
+                </div>
+                <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                  News
+                </span>
+                {newsLoading && Object.keys(newsData).length === 0 ? (
+                  <svg
+                    className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto animate-spin'
+                    fill='none'
+                    viewBox='0 0 24 24'>
+                    <circle
+                      className='opacity-25'
+                      cx='12'
+                      cy='12'
+                      r='10'
+                      stroke='currentColor'
+                      strokeWidth='3'
+                    />
+                    <path
+                      className='opacity-75'
+                      fill='currentColor'
+                      d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5'
+                    />
+                  </svg>
+                )}
+              </button>
+            </div>
+          )}
+
         {/* Matchday Football Activity — only fixtures on the selected date */}
         {user &&
           !isViewingOther &&
@@ -679,103 +776,6 @@ export default function HomePage() {
               );
             });
           })()}
-
-        {/* News Section */}
-        {newsVisible &&
-          (Object.keys(newsData).length > 0 ||
-            newsHasSources.current ||
-            newsLoading) && (
-            <div className='mb-3 w-full bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60'>
-              <button
-                onClick={() => {
-                  if (newsLoading && Object.keys(newsData).length === 0) return;
-                  // Capture per-source new counts AND new-article links before opening
-                  const counts: Record<string, number> = {};
-                  const linksMap: Record<string, Set<string>> = {};
-                  for (const [url, items] of Object.entries(newsData)) {
-                    const seen = getSeenArticles(url);
-                    if (seen.size > 0) {
-                      const newLinks = new Set(
-                        items
-                          .filter((a) => !seen.has(a.link))
-                          .map((a) => a.link),
-                      );
-                      counts[url] = newLinks.size;
-                      linksMap[url] = newLinks;
-                    } else {
-                      counts[url] = 0;
-                      linksMap[url] = new Set();
-                    }
-                  }
-                  setSourceNewCounts(counts);
-                  sourceNewLinksRef.current = linksMap;
-                  setExpandedSource(null);
-                  setNewsFullscreen(true);
-                }}
-                className='w-full flex items-center px-4 py-3 active:bg-gray-100 dark:active:bg-gray-700/50'>
-                <div className='relative w-8 h-8 rounded-lg bg-ios-orange flex items-center justify-center mr-3 shrink-0'>
-                  <svg
-                    className='w-[18px] h-[18px] text-white'
-                    fill='none'
-                    viewBox='0 0 24 24'
-                    stroke='currentColor'
-                    strokeWidth={2}>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
-                    />
-                  </svg>
-                  {/* Subtle unread indicator dot */}
-                  {(() => {
-                    const totalNew = Object.entries(newsData).reduce(
-                      (sum, [url, items]) => sum + countNewArticles(url, items),
-                      0,
-                    );
-                    return totalNew > 0 ? (
-                      <span className='absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-ios-red ring-2 ring-white dark:ring-gray-900' />
-                    ) : null;
-                  })()}
-                </div>
-                <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                  News
-                </span>
-                {newsLoading && Object.keys(newsData).length === 0 ? (
-                  <svg
-                    className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto animate-spin'
-                    fill='none'
-                    viewBox='0 0 24 24'>
-                    <circle
-                      className='opacity-25'
-                      cx='12'
-                      cy='12'
-                      r='10'
-                      stroke='currentColor'
-                      strokeWidth='3'
-                    />
-                    <path
-                      className='opacity-75'
-                      fill='currentColor'
-                      d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z'
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    className='w-4 h-4 text-gray-400 dark:text-gray-500 ml-auto'
-                    fill='none'
-                    viewBox='0 0 24 24'
-                    stroke='currentColor'
-                    strokeWidth={2}>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      d='M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5'
-                    />
-                  </svg>
-                )}
-              </button>
-            </div>
-          )}
 
         <EntryForm
           date={selectedDate}

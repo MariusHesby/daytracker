@@ -34,6 +34,7 @@ function UserRow({
   userStats,
   isLast,
   isAdmin,
+  showDetails,
   swipedUserId,
   setSwipedUserId,
   onDelete,
@@ -43,6 +44,7 @@ function UserRow({
   userStats: UserStats;
   isLast: boolean;
   isAdmin: boolean;
+  showDetails: boolean;
   swipedUserId: string | null;
   setSwipedUserId: (id: string | null) => void;
   onDelete: () => void;
@@ -127,31 +129,32 @@ function UserRow({
             setSwipedUserId(null);
           }
         }}>
-        <div className='flex items-start gap-3'>
+        <div className='flex items-center gap-3'>
           <Avatar avatar={userStats.avatar} size='md' />
           <div className='flex-1 min-w-0'>
-            <p className='text-[17px] font-medium text-gray-900 dark:text-white truncate'>
+            <p className='text-[17px] font-semibold text-gray-900 dark:text-white truncate'>
               {userStats.fullName}
             </p>
-            <p className='text-[14px] text-gray-500 dark:text-gray-400 truncate'>
+            <p className='text-[13px] text-gray-500 dark:text-gray-400 truncate'>
               {userStats.email}
             </p>
-            <div className='flex flex-wrap gap-x-3 gap-y-1 mt-1'>
-              <span className='text-[12px] text-gray-400'>
-                Joined: {formatDate(userStats.createdAt)}
-              </span>
-              <span className='text-[12px] text-gray-400'>
-                Last: {formatDateShort(userStats.lastActiveDate)}
-              </span>
-            </div>
+            {showDetails && (
+              <div className='flex flex-wrap gap-x-3 mt-0.5'>
+                <span className='text-[11px] text-gray-400 dark:text-gray-500'>
+                  Joined {formatDate(userStats.createdAt)}
+                </span>
+                <span className='text-[11px] text-gray-400 dark:text-gray-500'>
+                  Last active {formatDateShort(userStats.lastActiveDate)}
+                </span>
+              </div>
+            )}
           </div>
-          <div className='text-right shrink-0'>
-            <p className='text-[17px] font-medium text-gray-900 dark:text-white'>
+          <div className='text-right shrink-0 pl-2'>
+            <p className='text-[20px] font-semibold tabular-nums text-gray-900 dark:text-white leading-tight'>
               {userStats.totalEntries}
             </p>
-            <p className='text-[12px] text-gray-400'>entries</p>
-            <p className='text-[12px] text-gray-400 mt-1'>
-              {userStats.daysActive} days
+            <p className='text-[11px] text-gray-400 dark:text-gray-500'>
+              {userStats.daysActive}d
             </p>
           </div>
         </div>
@@ -174,6 +177,7 @@ export default function AdminPage() {
   const [userToDelete, setUserToDelete] = useState<UserStats | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [swipedUserId, setSwipedUserId] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   // Check if current user is admin
   const isAdmin = user?.email === ADMIN_EMAIL;
@@ -557,6 +561,28 @@ export default function AdminPage() {
                   Users ({users.length})
                 </h2>
                 <div className='flex items-center gap-2'>
+                  <button
+                    onClick={() => setShowDetails(!showDetails)}
+                    className={cn(
+                      "p-1 rounded-md transition-colors",
+                      showDetails
+                        ? "text-ios-blue"
+                        : "text-gray-400 dark:text-gray-500",
+                    )}
+                    title={showDetails ? "Hide details" : "Show details"}>
+                    <svg
+                      className='w-4.5 h-4.5'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+                      />
+                    </svg>
+                  </button>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
@@ -581,6 +607,7 @@ export default function AdminPage() {
                     userStats={userStats}
                     isLast={index === sortedUsers.length - 1}
                     isAdmin={userStats.email === ADMIN_EMAIL}
+                    showDetails={showDetails}
                     swipedUserId={swipedUserId}
                     setSwipedUserId={setSwipedUserId}
                     onDelete={() => setUserToDelete(userStats)}

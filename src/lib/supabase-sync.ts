@@ -23,6 +23,8 @@ export function dbToActivityType(db: DbActivityType): ActivityType {
     workoutRoutines: db.workout_routines ? (db.workout_routines as unknown as ActivityType['workoutRoutines']) : undefined,
     timerConfig: db.timer_config ? (db.timer_config as unknown as ActivityType['timerConfig']) : undefined,
     checklistRepeat: (db.checklist_repeat as ActivityType['checklistRepeat']) || undefined,
+    checklistTemplate: db.checklist_template ? (db.checklist_template as unknown as ActivityType['checklistTemplate']) : undefined,
+    standalone: db.standalone || false,
     createdAt: new Date(db.created_at),
   };
 }
@@ -108,6 +110,8 @@ export async function addActivityTypeToSupabase(
       workout_routines: type.workoutRoutines || null,
       timer_config: type.timerConfig || null,
       checklist_repeat: type.checklistRepeat || null,
+      checklist_template: type.checklistTemplate || null,
+      standalone: type.standalone || false,
     })    .select()
     .single();
 
@@ -131,6 +135,8 @@ export async function updateActivityTypeInSupabase(type: ActivityType): Promise<
       workout_routines: type.workoutRoutines || null,
       timer_config: type.timerConfig || null,
       checklist_repeat: type.checklistRepeat || null,
+      checklist_template: type.checklistTemplate || null,
+      standalone: type.standalone || false,
       updated_at: new Date().toISOString(),
     })
     .eq('id', type.id);
@@ -263,10 +269,10 @@ export async function updateEntryInSupabase(entry: LogEntry): Promise<LogEntry> 
     })
     .eq('id', entry.id)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throwError(error, "Database operation failed");
-  return dbToLogEntry(data);
+  return data ? dbToLogEntry(data) : entry;
 }
 
 export async function deleteEntryFromSupabase(id: string): Promise<void> {

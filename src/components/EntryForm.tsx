@@ -561,6 +561,7 @@ export function EntryForm({
                 id: crypto.randomUUID(),
                 text: item.text,
                 completed: false,
+                addedDate: item.addedDate, // Preserve addedDate for repeating items
               }),
             );
 
@@ -590,6 +591,41 @@ export function EntryForm({
                 activityTypeId: checklistType.id,
                 value: `0/${itemsForNextDay.length}`,
                 checklistData: { items: itemsForNextDay },
+              });
+            }
+          }
+        }
+
+        // For repeating checklists: ensure tomorrow has an entry from template
+        // (in case auto-populate didn't run yet)
+        if (
+          checklistType.checklistRepeat &&
+          checklistType.checklistRepeat !== "none" &&
+          checklistType.checklistTemplate &&
+          checklistType.checklistTemplate.length > 0
+        ) {
+          const nextDayHasEntry = freshEntries.some(
+            (e) =>
+              e.activityTypeId === checklistType.id &&
+              e.date === nextDay &&
+              e.checklistData,
+          );
+          if (!nextDayHasEntry) {
+            const templateItems = checklistType.checklistTemplate
+              .filter((t) => t.addedDate <= nextDay)
+              .map((t) => ({
+                id: crypto.randomUUID(),
+                text: t.text,
+                completed: false,
+                addedDate: t.addedDate,
+              }));
+
+            if (templateItems.length > 0) {
+              await addEntry({
+                date: nextDay,
+                activityTypeId: checklistType.id,
+                value: `0/${templateItems.length}`,
+                checklistData: { items: templateItems },
               });
             }
           }
@@ -642,9 +678,22 @@ export function EntryForm({
     setGoalCelebratedTypes(new Set()); // Reset celebrations for new date
   }, [date, loadEntriesForDateRange]);
 
-  // Auto-populate repeating checklists when entries load for a new date
+  // Auto-populate repeating checklists: only create TOMORROW's entry from template.
+  // Never auto-creates entries for today — today's entry is either:
+  //   - Created yesterday by this same logic (as "tomorrow")
+  //   - Created by carry-forward when locking the previous day
+  //   - Manually created by the user adding items
+  // This prevents the delete-all bug (auto-populate can't re-create today's entry).
+  //
+  // IMPORTANT: This effect deliberately does NOT depend on `entries`.
+  // It checks the DB directly for tomorrow's entry to avoid re-running on every
+  // entry mutation (which caused items to reappear after delete-all).
   useEffect(() => {
-    if (isViewingOther || isLocked) return;
+    if (isViewingOther) return;
+
+    // Only auto-populate when viewing today (not browsing history/future)
+    const today = toDateStr(new Date());
+    if (date !== today) return;
 
     const repeatChecklistTypes = allActivityTypes.filter(
       (t) =>
@@ -654,55 +703,52 @@ export function EntryForm({
     );
     if (repeatChecklistTypes.length === 0) return;
 
+    const tomorrow = addDays(date, 1);
+
     const autoPopulateChecklists = async () => {
       for (const type of repeatChecklistTypes) {
-        const cacheKey = `${date}-${type.id}`;
+        const cacheKey = `tomorrow-${tomorrow}-${type.id}`;
         if (checklistAutoPopulatedRef.current.has(cacheKey)) continue;
 
-        // Check if there's already a checklist entry for the current date
-        const existingEntry = entries.find(
-          (e) =>
-            e.activityTypeId === type.id && e.date === date && e.checklistData,
-        );
-        if (existingEntry) {
+        // Check the DB directly for tomorrow's entry (not state, to avoid dep on entries)
+        let tomorrowHasEntry = false;
+        try {
+          if (user) {
+            const { getEntriesFromSupabase } =
+              await import("@/lib/supabase-sync");
+            const tomorrowEntries = await getEntriesFromSupabase(
+              user.id,
+              tomorrow,
+              tomorrow,
+            );
+            tomorrowHasEntry = tomorrowEntries.some(
+              (e) => e.activityTypeId === type.id && e.checklistData,
+            );
+          } else {
+            const { getEntries } = await import("@/lib/db");
+            const tomorrowEntries = await getEntries(tomorrow, tomorrow);
+            tomorrowHasEntry = tomorrowEntries.some(
+              (e) => e.activityTypeId === type.id && e.checklistData,
+            );
+          }
+        } catch {
+          // If DB check fails, skip to be safe
+          checklistAutoPopulatedRef.current.add(cacheKey);
+          continue;
+        }
+
+        if (tomorrowHasEntry) {
           checklistAutoPopulatedRef.current.add(cacheKey);
           continue;
         }
 
         // Determine if we should auto-populate based on repeat frequency
         const shouldPopulate = (() => {
-          const d = new Date(date + "T12:00:00");
           const repeat = type.checklistRepeat!;
-
           if (repeat === "daily") return true;
-
-          if (repeat === "weekly") {
-            // Check if there's already an entry this week (loaded entries may span today+tomorrow only)
-            const monday = getMonday(d);
-            const mondayStr = toDateStr(monday);
-            const hasThisWeek = entries.some(
-              (e) =>
-                e.activityTypeId === type.id &&
-                e.date >= mondayStr &&
-                e.date < date &&
-                e.checklistData,
-            );
-            return !hasThisWeek;
-          }
-
-          if (repeat === "monthly") {
-            const monthStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-            const hasThisMonth = entries.some(
-              (e) =>
-                e.activityTypeId === type.id &&
-                e.date >= monthStart &&
-                e.date < date &&
-                e.checklistData,
-            );
-            return !hasThisMonth;
-          }
-
-          return false;
+          // For weekly/monthly, we just check if template exists — the template
+          // is the source of truth. The entry will only be created if template has items.
+          return true;
         })();
 
         if (!shouldPopulate) {
@@ -710,85 +756,44 @@ export function EntryForm({
           continue;
         }
 
-        // Find the most recent previous checklist entry for this type
+        // Get the template — only proceed if it exists and has items
+        const template = type.checklistTemplate;
+        if (!template || template.length === 0) {
+          checklistAutoPopulatedRef.current.add(cacheKey);
+          continue;
+        }
+
         try {
-          let previousEntries: LogEntry[] = [];
-          const searchStart = addDays(date, -90);
-          const searchEnd = addDays(date, -1);
+          // Filter template items: only include items added on or before tomorrow
+          const itemsForDate = template
+            .filter((t) => t.addedDate <= tomorrow)
+            .map((t) => ({
+              id: crypto.randomUUID(),
+              text: t.text,
+              completed: false,
+              addedDate: t.addedDate,
+            }));
 
-          if (user) {
-            const { getEntriesFromSupabase } =
-              await import("@/lib/supabase-sync");
-            previousEntries = await getEntriesFromSupabase(
-              user.id,
-              searchStart,
-              searchEnd,
-            );
-          } else {
-            const { getEntries } = await import("@/lib/db");
-            previousEntries = await getEntries(searchStart, searchEnd);
-          }
-
-          // Find most recent checklist entry for this type
-          const templateEntry = previousEntries
-            .filter(
-              (e) =>
-                e.activityTypeId === type.id &&
-                e.checklistData?.items &&
-                e.checklistData.items.length > 0,
-            )
-            .sort((a, b) => b.date.localeCompare(a.date))[0];
-
-          if (templateEntry?.checklistData?.items) {
-            // Re-check that no entry was created in the meantime (race condition guard)
-            const stillNoEntry = !entries.find(
-              (e) =>
-                e.activityTypeId === type.id &&
-                e.date === date &&
-                e.checklistData,
-            );
-
-            if (stillNoEntry) {
-              const templateItems: ChecklistItem[] =
-                templateEntry.checklistData.items.map((item) => ({
-                  id: crypto.randomUUID(),
-                  text: item.text,
-                  completed: false,
-                }));
-
-              // Remove duplicate texts
-              const uniqueItems = templateItems.filter(
-                (item, index, self) =>
-                  self.findIndex((i) => i.text === item.text) === index,
-              );
-
-              await addEntry({
-                date,
-                activityTypeId: type.id,
-                value: `0/${uniqueItems.length}`,
-                checklistData: { items: uniqueItems },
-              });
-            }
+          if (itemsForDate.length > 0) {
+            await addEntry({
+              date: tomorrow,
+              activityTypeId: type.id,
+              value: `0/${itemsForDate.length}`,
+              checklistData: { items: itemsForDate },
+            });
           }
 
           checklistAutoPopulatedRef.current.add(cacheKey);
         } catch (err) {
-          console.warn("Failed to auto-populate checklist:", err);
+          console.warn("Failed to auto-populate checklist for tomorrow:", err);
           checklistAutoPopulatedRef.current.add(cacheKey);
         }
       }
     };
 
     autoPopulateChecklists();
-  }, [
-    date,
-    entries,
-    allActivityTypes,
-    isViewingOther,
-    isLocked,
-    user,
-    addEntry,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, allActivityTypes, isViewingOther, user, addEntry]);
 
   useEffect(() => {
     const dateEntries = entries.filter(
@@ -2070,10 +2075,12 @@ export function EntryForm({
         const handleAddItem = async () => {
           if (!newChecklistItemText.trim()) return;
 
+          const itemText = newChecklistItemText.trim();
           const newItem: ChecklistItem = {
             id: crypto.randomUUID(),
-            text: newChecklistItemText.trim(),
+            text: itemText,
             completed: false,
+            addedDate: date,
           };
 
           const updatedItems = [...checklistItems, newItem];
@@ -2093,6 +2100,59 @@ export function EntryForm({
               checklistData,
             });
           }
+
+          // If repeating checklist, update master template
+          if (type.checklistRepeat && type.checklistRepeat !== "none") {
+            let currentTemplate = type.checklistTemplate || [];
+            // Bootstrap template from existing items if empty
+            if (currentTemplate.length === 0) {
+              currentTemplate = checklistItems.map((item) => ({
+                text: item.text,
+                addedDate: item.addedDate || date,
+              }));
+            }
+            if (!currentTemplate.some((t) => t.text === itemText)) {
+              const updatedTemplate = [
+                ...currentTemplate,
+                { text: itemText, addedDate: date },
+              ];
+              await updateActivityType({
+                ...type,
+                checklistTemplate: updatedTemplate,
+              });
+
+              // Also update tomorrow's existing entry if one was already created
+              const tomorrow = addDays(date, 1);
+              const tomorrowEntry = entries.find(
+                (e) =>
+                  e.activityTypeId === type.id &&
+                  e.date === tomorrow &&
+                  e.checklistData,
+              );
+              if (tomorrowEntry) {
+                const tomorrowTexts = new Set(
+                  tomorrowEntry.checklistData?.items?.map((i) => i.text) || [],
+                );
+                if (!tomorrowTexts.has(itemText)) {
+                  const tomorrowItems = [
+                    ...(tomorrowEntry.checklistData?.items || []),
+                    {
+                      id: crypto.randomUUID(),
+                      text: itemText,
+                      completed: false,
+                      addedDate: date,
+                    },
+                  ];
+                  await updateEntry({
+                    ...tomorrowEntry,
+                    checklistData: { items: tomorrowItems },
+                    value: `${tomorrowItems.filter((i) => i.completed).length}/${tomorrowItems.length}`,
+                  });
+                }
+              }
+            }
+          }
+
           setNewChecklistItemText("");
         };
 
@@ -2114,12 +2174,53 @@ export function EntryForm({
         const handleDeleteItem = async (itemId: string) => {
           if (!existingEntry) return;
 
+          const deletedItem = checklistItems.find((item) => item.id === itemId);
           const updatedItems = checklistItems.filter(
             (item) => item.id !== itemId,
           );
 
+          // For repeating checklists: update master template + tomorrow's entry
+          if (
+            deletedItem &&
+            type.checklistRepeat &&
+            type.checklistRepeat !== "none"
+          ) {
+            if (type.checklistTemplate) {
+              const updatedTemplate = type.checklistTemplate.filter(
+                (t) => t.text !== deletedItem.text,
+              );
+              await updateActivityType({
+                ...type,
+                checklistTemplate: updatedTemplate,
+              });
+            }
+
+            // Also remove from tomorrow's existing entry if one was already created
+            const tomorrow = addDays(date, 1);
+            const tomorrowEntry = entries.find(
+              (e) =>
+                e.activityTypeId === type.id &&
+                e.date === tomorrow &&
+                e.checklistData,
+            );
+            if (tomorrowEntry) {
+              const tomorrowItems = (
+                tomorrowEntry.checklistData?.items || []
+              ).filter((i) => i.text !== deletedItem.text);
+              if (tomorrowItems.length === 0) {
+                await deleteEntry(tomorrowEntry.id);
+              } else {
+                await updateEntry({
+                  ...tomorrowEntry,
+                  checklistData: { items: tomorrowItems },
+                  value: `${tomorrowItems.filter((i) => i.completed).length}/${tomorrowItems.length}`,
+                });
+              }
+            }
+          }
+
+          // Update or delete the current entry
           if (updatedItems.length === 0) {
-            // Delete the entry if no items left
             await deleteEntry(existingEntry.id);
           } else {
             const checklistData: ChecklistData = { items: updatedItems };
@@ -2827,23 +2928,144 @@ export function EntryForm({
     }
   };
 
-  // Get checklist types for standalone section
-  const checklistTypes = allActivityTypes.filter(
+  // Get standalone types (shown as separate cards above the grouped section)
+  const standaloneTypes = allActivityTypes.filter(
     (t) =>
-      t.valueType === "checklist" &&
+      t.standalone &&
       (!t.hidden ||
         (savedValues[t.id] || []).length > 0 ||
         entries.some(
           (e) =>
-            e.activityTypeId === t.id && e.date === date && e.checklistData,
+            e.activityTypeId === t.id &&
+            e.date === date &&
+            (e.checklistData || e.value),
         )),
+  );
+  // Split into checklist standalone and other standalone
+  const standaloneChecklistTypes = standaloneTypes.filter(
+    (t) => t.valueType === "checklist",
+  );
+  const standaloneOtherTypes = standaloneTypes.filter(
+    (t) => t.valueType !== "checklist",
   );
   const nextDay = addDays(date, 1);
 
   return (
     <>
-      {/* Standalone Checklist / Todo Section — separated like matchday */}
-      {checklistTypes.map((type) => {
+      {/* Standalone Sections — separate cards like matchday/news */}
+
+      {/* Non-checklist standalone types */}
+      {standaloneOtherTypes.map((type) => {
+        const typeSavedValues = savedValues[type.id] || [];
+        const hasSavedValues = typeSavedValues.length > 0;
+        const isCheckmark = type.valueType === "checkmark";
+        const isMood = type.valueType === "mood";
+        const isWorkout = type.valueType === "workout";
+        const isTimer = type.valueType === "timer";
+
+        // Summary for header
+        const displayValue =
+          isCheckmark && hasSavedValues
+            ? typeSavedValues[0].value === "skipped"
+              ? "✗"
+              : "✓"
+            : hasSavedValues
+              ? `${typeSavedValues.length}`
+              : null;
+
+        if (type.hidden && !hasSavedValues) return null;
+
+        return (
+          <div
+            key={type.id}
+            className='mb-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
+            {/* Header — tap to expand/collapse */}
+            <div
+              className='flex items-center px-4 py-3 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700'
+              onClick={() => {
+                if (isCheckmark) {
+                  handleCheckmarkToggle(type.id, typeSavedValues);
+                } else {
+                  setExpandedTypeId(
+                    expandedTypeId === type.id ? null : type.id,
+                  );
+                }
+              }}>
+              <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
+                {type.icon &&
+                  (type.icon in icons ? (
+                    <Icon
+                      name={type.icon as IconName}
+                      className={cn(
+                        "w-6 h-6",
+                        hasSavedValues ? "text-ios-green" : "text-ios-blue",
+                      )}
+                    />
+                  ) : (
+                    <span className='text-xl'>{type.icon}</span>
+                  ))}
+              </div>
+              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                {type.name}
+              </span>
+              <div className='ml-auto flex items-center gap-2'>
+                {displayValue && (
+                  <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                    {displayValue}
+                  </span>
+                )}
+                {!isCheckmark && (
+                  <svg
+                    className={cn(
+                      "w-4 h-4 text-gray-400 transition-transform",
+                      expandedTypeId === type.id && "rotate-180",
+                    )}
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M19 9l-7 7-7-7'
+                    />
+                  </svg>
+                )}
+              </div>
+            </div>
+
+            {/* Expanded content */}
+            {expandedTypeId === type.id && !isCheckmark && (
+              <div className='px-4 pb-4'>
+                {hasSavedValues && !isMood && !isWorkout && !isTimer && (
+                  <div className='flex flex-wrap gap-2 pb-3'>
+                    {typeSavedValues.map((saved) => (
+                      <span
+                        key={saved.id}
+                        className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
+                        {formatValue(saved.value, type.id)}
+                        <button
+                          type='button'
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeSavedValue(type.id, saved.id);
+                          }}
+                          className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {renderExpandedInput(type)}
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Standalone Checklist types */}
+      {standaloneChecklistTypes.map((type) => {
         const existingEntry = entries.find(
           (e) =>
             e.activityTypeId === type.id && e.date === date && e.checklistData,
@@ -2857,10 +3079,12 @@ export function EntryForm({
         const handleAddItem = async () => {
           if (!newChecklistItemText.trim()) return;
 
+          const itemText = newChecklistItemText.trim();
           const newItem: ChecklistItem = {
             id: crypto.randomUUID(),
-            text: newChecklistItemText.trim(),
+            text: itemText,
             completed: false,
+            addedDate: date,
           };
 
           const updatedItems = [...checklistItems, newItem];
@@ -2880,6 +3104,59 @@ export function EntryForm({
               checklistData,
             });
           }
+
+          // If repeating checklist, update master template
+          if (type.checklistRepeat && type.checklistRepeat !== "none") {
+            let currentTemplate = type.checklistTemplate || [];
+            // Bootstrap template from existing items if empty
+            if (currentTemplate.length === 0) {
+              currentTemplate = checklistItems.map((item) => ({
+                text: item.text,
+                addedDate: item.addedDate || date,
+              }));
+            }
+            if (!currentTemplate.some((t) => t.text === itemText)) {
+              const updatedTemplate = [
+                ...currentTemplate,
+                { text: itemText, addedDate: date },
+              ];
+              await updateActivityType({
+                ...type,
+                checklistTemplate: updatedTemplate,
+              });
+
+              // Also update tomorrow's existing entry if one was already created
+              const tomorrow = addDays(date, 1);
+              const tomorrowEntry = entries.find(
+                (e) =>
+                  e.activityTypeId === type.id &&
+                  e.date === tomorrow &&
+                  e.checklistData,
+              );
+              if (tomorrowEntry) {
+                const tomorrowTexts = new Set(
+                  tomorrowEntry.checklistData?.items?.map((i) => i.text) || [],
+                );
+                if (!tomorrowTexts.has(itemText)) {
+                  const tomorrowItems = [
+                    ...(tomorrowEntry.checklistData?.items || []),
+                    {
+                      id: crypto.randomUUID(),
+                      text: itemText,
+                      completed: false,
+                      addedDate: date,
+                    },
+                  ];
+                  await updateEntry({
+                    ...tomorrowEntry,
+                    checklistData: { items: tomorrowItems },
+                    value: `${tomorrowItems.filter((i) => i.completed).length}/${tomorrowItems.length}`,
+                  });
+                }
+              }
+            }
+          }
+
           setNewChecklistItemText("");
         };
 
@@ -2901,10 +3178,52 @@ export function EntryForm({
         const handleDeleteItem = async (itemId: string) => {
           if (!existingEntry) return;
 
+          const deletedItem = checklistItems.find((item) => item.id === itemId);
           const updatedItems = checklistItems.filter(
             (item) => item.id !== itemId,
           );
 
+          // For repeating checklists: update master template + tomorrow's entry
+          if (
+            deletedItem &&
+            type.checklistRepeat &&
+            type.checklistRepeat !== "none"
+          ) {
+            if (type.checklistTemplate) {
+              const updatedTemplate = type.checklistTemplate.filter(
+                (t) => t.text !== deletedItem.text,
+              );
+              await updateActivityType({
+                ...type,
+                checklistTemplate: updatedTemplate,
+              });
+            }
+
+            // Also remove from tomorrow's existing entry if one was already created
+            const tomorrow = addDays(date, 1);
+            const tomorrowEntry = entries.find(
+              (e) =>
+                e.activityTypeId === type.id &&
+                e.date === tomorrow &&
+                e.checklistData,
+            );
+            if (tomorrowEntry) {
+              const tomorrowItems = (
+                tomorrowEntry.checklistData?.items || []
+              ).filter((i) => i.text !== deletedItem.text);
+              if (tomorrowItems.length === 0) {
+                await deleteEntry(tomorrowEntry.id);
+              } else {
+                await updateEntry({
+                  ...tomorrowEntry,
+                  checklistData: { items: tomorrowItems },
+                  value: `${tomorrowItems.filter((i) => i.completed).length}/${tomorrowItems.length}`,
+                });
+              }
+            }
+          }
+
+          // Update or delete the current entry
           if (updatedItems.length === 0) {
             await deleteEntry(existingEntry.id);
           } else {
@@ -3211,8 +3530,8 @@ export function EntryForm({
         <div className='grid grid-cols-4 gap-3.5'>
           {allActivityTypes
             .filter((type) => {
-              // Checklist types are shown in the standalone section above
-              if (type.valueType === "checklist") return false;
+              // Standalone types are shown in the standalone section above
+              if (type.standalone) return false;
               // Show if currently expanded (user is adding data)
               if (expandedTypeId === type.id) return true;
               // When day is locked: only show activities that have data
@@ -3599,8 +3918,8 @@ export function EntryForm({
         <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible'>
           {allActivityTypes
             .filter((type) => {
-              // Checklist types are shown in the standalone section above
-              if (type.valueType === "checklist") return false;
+              // Standalone types are shown in the standalone section above
+              if (type.standalone) return false;
               // Show if currently expanded (user is adding data)
               if (expandedTypeId === type.id) return true;
               // When day is locked: only show activities that have data

@@ -81,6 +81,8 @@ export interface DbActivityType {
   workout_routines: Record<string, unknown>[] | null;
   timer_config: Record<string, unknown> | null;
   checklist_repeat: string | null;
+  checklist_template: Record<string, unknown>[] | null;
+  standalone: boolean;
   created_at: string;
   updated_at: string;
 }

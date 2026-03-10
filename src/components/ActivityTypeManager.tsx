@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useRef, useImperativeHandle, forwardRef } from "react";
+import React, {
+  useState,
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+} from "react";
 import { useApp } from "@/context/AppContext";
 import {
   ActivityType,
@@ -122,6 +127,9 @@ export const ActivityTypeManager = forwardRef<
   const [checklistRepeat, setChecklistRepeat] =
     useState<ChecklistRepeat>("none");
 
+  // Standalone state
+  const [standalone, setStandalone] = useState(false);
+
   // Swipe-to-delete state
   const [swipedId, setSwipedId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -167,6 +175,7 @@ export const ActivityTypeManager = forwardRef<
     setNewExerciseTrackDuration(false);
     setShowAddExercise(false);
     setChecklistRepeat("none");
+    setStandalone(false);
   };
 
   const handleAddExercise = () => {
@@ -256,6 +265,7 @@ export const ActivityTypeManager = forwardRef<
             valueType === "checklist" && checklistRepeat !== "none"
               ? checklistRepeat
               : undefined,
+          standalone,
         });
       }
     } else {
@@ -283,6 +293,7 @@ export const ActivityTypeManager = forwardRef<
           valueType === "checklist" && checklistRepeat !== "none"
             ? checklistRepeat
             : undefined,
+        standalone,
       });
     }
 
@@ -301,6 +312,7 @@ export const ActivityTypeManager = forwardRef<
     setTimerLimitMinutes(type.timerConfig?.limitMinutes || 0);
     setTimerLimitPeriod(type.timerConfig?.limitPeriod || "weekly");
     setChecklistRepeat(type.checklistRepeat || "none");
+    setStandalone(type.standalone || false);
     setIsAdding(true);
   };
 
@@ -406,7 +418,7 @@ export const ActivityTypeManager = forwardRef<
     <div className='space-y-4'>
       {/* Add/Edit Form */}
       {isAdding && (
-        <form onSubmit={handleSubmit} className='px-4 pb-4 space-y-4'>
+        <form onSubmit={handleSubmit} className='px-4 pb-4 pt-3 space-y-4'>
           <div>
             <label className='block text-[13px] font-normal text-gray-500 dark:text-gray-400 mb-1 px-1'>
               Name *
@@ -579,6 +591,32 @@ export const ActivityTypeManager = forwardRef<
               </div>
             </div>
           )}
+
+          {/* Standalone Toggle */}
+          <div className='flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
+            <div>
+              <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300'>
+                Standalone
+              </p>
+              <p className='text-[13px] text-gray-500'>
+                Show as separate card on the front page
+              </p>
+            </div>
+            <button
+              type='button'
+              onClick={() => setStandalone(!standalone)}
+              className={cn(
+                "relative w-[51px] h-[31px] rounded-full transition-colors duration-200",
+                standalone ? "bg-ios-green" : "bg-gray-300 dark:bg-gray-600",
+              )}>
+              <span
+                className={cn(
+                  "absolute top-[2px] left-[2px] w-[27px] h-[27px] rounded-full bg-white shadow-sm transition-transform duration-200",
+                  standalone && "translate-x-[20px]",
+                )}
+              />
+            </button>
+          </div>
 
           {/* Nutrition Goals */}
           {valueType === "nutrition" && (
@@ -1111,161 +1149,196 @@ export const ActivityTypeManager = forwardRef<
 
       {/* Activity Types List */}
       <div>
-        {activityTypes.map((type, index) => {
-          const isDragging = draggedIndex === index;
-          const isDragOver = dragOverIndex === index;
-          const isLast = index === activityTypes.length - 1;
-          const isSwiped = swipedId === type.id;
+        {/* Standalone types header */}
+        {activityTypes.some((t) => t.standalone) && (
+          <div className='px-4 pt-3 pb-1.5'>
+            <p className='text-[12px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500'>
+              Standalone
+            </p>
+          </div>
+        )}
+        {[...activityTypes]
+          .sort((a, b) => {
+            // Standalone types first
+            if (a.standalone && !b.standalone) return -1;
+            if (!a.standalone && b.standalone) return 1;
+            return 0;
+          })
+          .map((type, index, sortedTypes) => {
+            const originalIndex = activityTypes.indexOf(type);
+            const isDragging = draggedIndex === originalIndex;
+            const isDragOver = dragOverIndex === originalIndex;
+            const isLast = index === sortedTypes.length - 1;
+            const isSwiped = swipedId === type.id;
+            // Show "Grouped" header before first non-standalone type
+            const showGroupedHeader =
+              !type.standalone &&
+              (index === 0 || sortedTypes[index - 1]?.standalone);
 
-          return (
-            <div
-              key={type.id}
-              className={cn(
-                "relative overflow-hidden",
-                !isLast &&
-                  "border-b border-gray-200/80 dark:border-gray-700/80",
-              )}>
-              {/* Delete button behind the row */}
-              {!type.isDefault && (
-                <div className='absolute right-0 top-0 bottom-0 flex items-center'>
-                  <button
-                    onClick={() => setDeleteConfirmId(type.id)}
-                    className='h-full px-5 bg-ios-red text-white text-[15px] font-medium flex items-center'>
-                    Delete
-                  </button>
-                </div>
-              )}
-
-              {/* Swipeable row content */}
-              <div
-                draggable
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragEnd={handleDragEnd}
-                onDragEnter={(e) => handleDragEnter(e, index)}
-                onDragLeave={handleDragLeave}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, index)}
-                onTouchStart={(e) => handleTouchStart(e, type.id)}
-                onTouchMove={(e) => handleTouchMove(e, type.id)}
-                onTouchEnd={handleTouchEnd}
-                onClick={() => {
-                  if (swipedId && swipedId !== type.id) setSwipedId(null);
-                }}
-                style={{
-                  transform:
-                    isSwiped && !type.isDefault
-                      ? "translateX(-80px)"
-                      : "translateX(0)",
-                  transition:
-                    "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-                }}
-                className={cn(
-                  "relative flex items-center min-h-14 px-4 bg-white dark:bg-ios-card-dark",
-                  "cursor-grab active:cursor-grabbing",
-                  isDragging && "opacity-50",
-                  isDragOver && "bg-ios-blue/10",
-                )}>
-                {/* Drag handle */}
-                <div className='text-gray-400 dark:text-gray-500 mr-3'>
-                  <svg
-                    className='w-5 h-5'
-                    fill='currentColor'
-                    viewBox='0 0 24 24'>
-                    <path d='M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z' />
-                  </svg>
-                </div>
-
-                {/* Icon */}
-                <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
-                  <span className='text-ios-blue'>{renderIcon(type.icon)}</span>
-                </div>
-
-                {/* Content */}
-                <div className='flex-1 py-3 flex items-center justify-between'>
-                  <div className='flex-1 min-w-0'>
-                    <p
-                      className={cn(
-                        "text-[17px]",
-                        type.hidden
-                          ? "text-gray-400 dark:text-gray-500"
-                          : "text-gray-900 dark:text-white",
-                      )}>
-                      {type.name}
-                    </p>
-                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
-                      {VALUE_TYPE_OPTIONS.find(
-                        (o) => o.value === type.valueType,
-                      )?.label || type.valueType}
+            return (
+              <React.Fragment key={type.id}>
+                {showGroupedHeader && (
+                  <div className='px-4 pt-3 pb-1.5'>
+                    <p className='text-[12px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500'>
+                      Grouped
                     </p>
                   </div>
+                )}
+                <div
+                  className={cn(
+                    "relative overflow-hidden",
+                    !isLast &&
+                      "border-b border-gray-200/80 dark:border-gray-700/80",
+                  )}>
+                  {/* Delete button behind the row */}
+                  {!type.isDefault && (
+                    <div className='absolute right-0 top-0 bottom-0 flex items-center'>
+                      <button
+                        onClick={() => setDeleteConfirmId(type.id)}
+                        className='h-full px-5 bg-ios-red text-white text-[15px] font-medium flex items-center'>
+                        Delete
+                      </button>
+                    </div>
+                  )}
 
-                  {/* Edit/Hide buttons */}
-                  <div className='flex items-center gap-1'>
-                    <button
-                      onClick={() => handleEdit(type)}
-                      className='p-2 text-ios-blue rounded-lg'
-                      title='Edit'>
+                  {/* Swipeable row content */}
+                  <div
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, originalIndex)}
+                    onDragEnd={handleDragEnd}
+                    onDragEnter={(e) => handleDragEnter(e, originalIndex)}
+                    onDragLeave={handleDragLeave}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, originalIndex)}
+                    onTouchStart={(e) => handleTouchStart(e, type.id)}
+                    onTouchMove={(e) => handleTouchMove(e, type.id)}
+                    onTouchEnd={handleTouchEnd}
+                    onClick={() => {
+                      if (swipedId && swipedId !== type.id) setSwipedId(null);
+                    }}
+                    style={{
+                      transform:
+                        isSwiped && !type.isDefault
+                          ? "translateX(-80px)"
+                          : "translateX(0)",
+                      transition:
+                        "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                    }}
+                    className={cn(
+                      "relative flex items-center min-h-14 px-4 bg-white dark:bg-ios-card-dark",
+                      "cursor-grab active:cursor-grabbing",
+                      isDragging && "opacity-50",
+                      isDragOver && "bg-ios-blue/10",
+                    )}>
+                    {/* Drag handle */}
+                    <div className='text-gray-400 dark:text-gray-500 mr-3'>
                       <svg
                         className='w-5 h-5'
-                        fill='none'
-                        stroke='currentColor'
+                        fill='currentColor'
                         viewBox='0 0 24 24'>
-                        <path
-                          strokeLinecap='round'
-                          strokeLinejoin='round'
-                          strokeWidth={2}
-                          d='M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z'
-                        />
+                        <path d='M8 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM8 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 6a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0zM14 18a2 2 0 1 1-4 0 2 2 0 0 1 4 0z' />
                       </svg>
-                    </button>
-                    {/* Hide/Show button */}
-                    <button
-                      onClick={() => toggleActivityTypeHidden(type.id)}
-                      className={cn(
-                        "p-2 rounded-lg",
-                        type.hidden ? "text-gray-400" : "text-ios-orange",
-                      )}
-                      title={type.hidden ? "Show" : "Hide"}>
-                      {type.hidden ? (
-                        <svg
-                          className='w-5 h-5'
-                          fill='none'
-                          stroke='currentColor'
-                          viewBox='0 0 24 24'>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            strokeWidth={2}
-                            d='M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21'
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className='w-5 h-5'
-                          fill='none'
-                          stroke='currentColor'
-                          viewBox='0 0 24 24'>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            strokeWidth={2}
-                            d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'
-                          />
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            strokeWidth={2}
-                            d='M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
-                          />
-                        </svg>
-                      )}
-                    </button>
+                    </div>
+
+                    {/* Icon */}
+                    <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
+                      <span className='text-ios-blue'>
+                        {renderIcon(type.icon)}
+                      </span>
+                    </div>
+
+                    {/* Content */}
+                    <div className='flex-1 py-3 flex items-center justify-between'>
+                      <div className='flex-1 min-w-0'>
+                        <p
+                          className={cn(
+                            "text-[17px]",
+                            type.hidden
+                              ? "text-gray-400 dark:text-gray-500"
+                              : "text-gray-900 dark:text-white",
+                          )}>
+                          {type.name}
+                        </p>
+                        <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                          {VALUE_TYPE_OPTIONS.find(
+                            (o) => o.value === type.valueType,
+                          )?.label || type.valueType}
+                          {type.standalone && (
+                            <span className='ml-1.5 text-[11px] text-ios-blue'>
+                              • Standalone
+                            </span>
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Edit/Hide buttons */}
+                      <div className='flex items-center gap-1'>
+                        <button
+                          onClick={() => handleEdit(type)}
+                          className='p-2 text-ios-blue rounded-lg'
+                          title='Edit'>
+                          <svg
+                            className='w-5 h-5'
+                            fill='none'
+                            stroke='currentColor'
+                            viewBox='0 0 24 24'>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              strokeWidth={2}
+                              d='M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z'
+                            />
+                          </svg>
+                        </button>
+                        {/* Hide/Show button */}
+                        <button
+                          onClick={() => toggleActivityTypeHidden(type.id)}
+                          className={cn(
+                            "p-2 rounded-lg",
+                            type.hidden ? "text-gray-400" : "text-ios-orange",
+                          )}
+                          title={type.hidden ? "Show" : "Hide"}>
+                          {type.hidden ? (
+                            <svg
+                              className='w-5 h-5'
+                              fill='none'
+                              stroke='currentColor'
+                              viewBox='0 0 24 24'>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                strokeWidth={2}
+                                d='M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21'
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              className='w-5 h-5'
+                              fill='none'
+                              stroke='currentColor'
+                              viewBox='0 0 24 24'>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                strokeWidth={2}
+                                d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'
+                              />
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                strokeWidth={2}
+                                d='M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
+                              />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          );
-        })}
+              </React.Fragment>
+            );
+          })}
       </div>
 
       {/* Delete Confirmation Modal */}

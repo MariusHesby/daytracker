@@ -89,6 +89,13 @@ export interface ChecklistItem {
   id: string;
   text: string;
   completed: boolean;
+  addedDate?: string; // YYYY-MM-DD date when item was first added (for repeating checklists)
+}
+
+// Template item for repeating checklists (stored on ActivityType)
+export interface ChecklistTemplateItem {
+  text: string;
+  addedDate: string; // YYYY-MM-DD date when item was first added
 }
 
 // Checklist data for bullet list entries
@@ -148,6 +155,8 @@ export interface ActivityType {
   workoutRoutines?: WorkoutRoutine[]; // Workout routines/groups for organizing exercises
   timerConfig?: TimerConfig; // Config for timer/screen time type
   checklistRepeat?: ChecklistRepeat; // Repeat frequency for checklist type
+  checklistTemplate?: ChecklistTemplateItem[]; // Master template for repeating checklists
+  standalone?: boolean; // If true, shown as separate card on front page (not grouped)
   createdAt: Date;
 }
 
@@ -208,5 +217,5 @@ export const DEFAULT_ACTIVITY_TYPES: Omit<ActivityType, 'id' | 'createdAt'>[] = 
   { name: 'Nutrition', icon: 'meal', valueType: 'nutrition', isDefault: false, order: 2 },
   { name: 'Sleep', icon: 'sleep', valueType: 'mood', isDefault: false, hidden: true, order: 3 },
   { name: 'Workout', icon: 'workout', valueType: 'workout', isDefault: true, order: 4 },
-  { name: 'Todo', icon: 'checklist', valueType: 'checklist', isDefault: true, order: 5 },
+  { name: 'Todo', icon: 'checklist', valueType: 'checklist', isDefault: true, standalone: true, order: 5 },
 ];
