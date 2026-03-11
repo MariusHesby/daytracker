@@ -535,18 +535,17 @@ export function EntryForm({
       );
 
       for (const checklistType of checklistTypes) {
-        const checklistEntry = freshDateEntries.find(
-          (e) =>
-            e.activityTypeId === checklistType.id && e.checklistData?.items,
-        );
+        const isRepeating =
+          checklistType.checklistRepeat &&
+          checklistType.checklistRepeat !== "none";
 
-        if (checklistEntry?.checklistData?.items) {
-          const uncompletedItems = checklistEntry.checklistData.items.filter(
-            (item) => !item.completed,
-          );
-
-          if (uncompletedItems.length > 0) {
-            // Check if there's already a checklist entry for the next day
+        if (isRepeating) {
+          // Repeating checklists: create tomorrow from template with ALL items unchecked.
+          // Don't carry forward uncompleted items — user starts fresh each day.
+          if (
+            checklistType.checklistTemplate &&
+            checklistType.checklistTemplate.length > 0
+          ) {
             const nextDayEntries = freshEntries.filter(
               (e) => e.date === nextDay,
             );
@@ -555,62 +554,6 @@ export function EntryForm({
                 e.activityTypeId === checklistType.id && e.checklistData?.items,
             );
 
-            // Reset the uncompleted items (set completed to false) for the new day
-            const itemsForNextDay: ChecklistItem[] = uncompletedItems.map(
-              (item) => ({
-                id: crypto.randomUUID(),
-                text: item.text,
-                completed: false,
-                addedDate: item.addedDate, // Preserve addedDate for repeating items
-              }),
-            );
-
-            if (existingNextDayEntry) {
-              // Merge with existing items, avoiding duplicates
-              const existingTexts = new Set(
-                existingNextDayEntry.checklistData?.items?.map((i) => i.text) ||
-                  [],
-              );
-              const newItems = itemsForNextDay.filter(
-                (item) => !existingTexts.has(item.text),
-              );
-              const mergedItems = [
-                ...(existingNextDayEntry.checklistData?.items || []),
-                ...newItems,
-              ];
-
-              await updateEntry({
-                ...existingNextDayEntry,
-                checklistData: { items: mergedItems },
-                value: `${mergedItems.filter((i) => i.completed).length}/${mergedItems.length}`,
-              });
-            } else {
-              // Create new entry for next day
-              await addEntry({
-                date: nextDay,
-                activityTypeId: checklistType.id,
-                value: `0/${itemsForNextDay.length}`,
-                checklistData: { items: itemsForNextDay },
-              });
-            }
-          }
-        }
-
-        // For repeating checklists: ensure tomorrow has an entry from template
-        // (in case auto-populate didn't run yet)
-        if (
-          checklistType.checklistRepeat &&
-          checklistType.checklistRepeat !== "none" &&
-          checklistType.checklistTemplate &&
-          checklistType.checklistTemplate.length > 0
-        ) {
-          const nextDayHasEntry = freshEntries.some(
-            (e) =>
-              e.activityTypeId === checklistType.id &&
-              e.date === nextDay &&
-              e.checklistData,
-          );
-          if (!nextDayHasEntry) {
             const templateItems = checklistType.checklistTemplate
               .filter((t) => t.addedDate <= nextDay)
               .map((t) => ({
@@ -621,12 +564,81 @@ export function EntryForm({
               }));
 
             if (templateItems.length > 0) {
-              await addEntry({
-                date: nextDay,
-                activityTypeId: checklistType.id,
-                value: `0/${templateItems.length}`,
-                checklistData: { items: templateItems },
-              });
+              if (existingNextDayEntry) {
+                // Replace with full template (all items unchecked)
+                await updateEntry({
+                  ...existingNextDayEntry,
+                  checklistData: { items: templateItems },
+                  value: `0/${templateItems.length}`,
+                });
+              } else {
+                await addEntry({
+                  date: nextDay,
+                  activityTypeId: checklistType.id,
+                  value: `0/${templateItems.length}`,
+                  checklistData: { items: templateItems },
+                });
+              }
+            }
+          }
+        } else {
+          // Non-repeating checklists: carry forward only uncompleted items
+          const checklistEntry = freshDateEntries.find(
+            (e) =>
+              e.activityTypeId === checklistType.id && e.checklistData?.items,
+          );
+
+          if (checklistEntry?.checklistData?.items) {
+            const uncompletedItems = checklistEntry.checklistData.items.filter(
+              (item) => !item.completed,
+            );
+
+            if (uncompletedItems.length > 0) {
+              const nextDayEntries = freshEntries.filter(
+                (e) => e.date === nextDay,
+              );
+              const existingNextDayEntry = nextDayEntries.find(
+                (e) =>
+                  e.activityTypeId === checklistType.id &&
+                  e.checklistData?.items,
+              );
+
+              const itemsForNextDay: ChecklistItem[] = uncompletedItems.map(
+                (item) => ({
+                  id: crypto.randomUUID(),
+                  text: item.text,
+                  completed: false,
+                  addedDate: item.addedDate,
+                }),
+              );
+
+              if (existingNextDayEntry) {
+                const existingTexts = new Set(
+                  existingNextDayEntry.checklistData?.items?.map(
+                    (i) => i.text,
+                  ) || [],
+                );
+                const newItems = itemsForNextDay.filter(
+                  (item) => !existingTexts.has(item.text),
+                );
+                const mergedItems = [
+                  ...(existingNextDayEntry.checklistData?.items || []),
+                  ...newItems,
+                ];
+
+                await updateEntry({
+                  ...existingNextDayEntry,
+                  checklistData: { items: mergedItems },
+                  value: `${mergedItems.filter((i) => i.completed).length}/${mergedItems.length}`,
+                });
+              } else {
+                await addEntry({
+                  date: nextDay,
+                  activityTypeId: checklistType.id,
+                  value: `0/${itemsForNextDay.length}`,
+                  checklistData: { items: itemsForNextDay },
+                });
+              }
             }
           }
         }

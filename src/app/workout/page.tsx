@@ -254,6 +254,52 @@ function WorkoutPageContent() {
 
   const savedExercises = savedWorkoutEntry?.workoutData?.exercises || [];
 
+  // Build a map of last workout data per exercise (from the most recent previous workout)
+  const lastWorkoutDataByExercise = useMemo(() => {
+    if (!workoutType) return {};
+    const result: Record<
+      string,
+      Array<{
+        reps?: number;
+        weight?: number;
+        distance?: number;
+        duration?: number;
+      }>
+    > = {};
+
+    // Find all workout entries for this type, sorted by date descending
+    const workoutEntries = entries
+      .filter(
+        (e) =>
+          e.activityTypeId === workoutType.id &&
+          e.workoutData?.exercises?.length &&
+          e.date < currentDate,
+      )
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    // For each exercise, find the most recent entry that has data for it
+    for (const entry of workoutEntries) {
+      for (const ex of entry.workoutData!.exercises) {
+        if (result[ex.name]) continue; // Already have data for this exercise
+        if (ex.setsData && ex.setsData.length > 0) {
+          result[ex.name] = ex.setsData;
+        } else if (
+          ex.sets &&
+          (ex.reps || ex.weight || ex.distance || ex.duration)
+        ) {
+          // Legacy format: expand single values to set count
+          result[ex.name] = Array.from({ length: ex.sets }, () => ({
+            reps: ex.reps,
+            weight: ex.weight,
+            distance: ex.distance,
+            duration: ex.duration,
+          }));
+        }
+      }
+    }
+    return result;
+  }, [entries, workoutType, currentDate]);
+
   // Load saved data on mount (only when editing)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -456,10 +502,21 @@ function WorkoutPageContent() {
   // Add set
   const addSet = (exerciseName: string) => {
     const sets = workoutData[exerciseName] || [{}];
-    const lastSet = sets[sets.length - 1] || {};
+    const histSets = lastWorkoutDataByExercise[exerciseName];
+
+    // Fill any empty existing sets with their history data (converts placeholders to real values)
+    const updatedSets = sets.map((s, i) => {
+      const isEmpty = !s.reps && !s.weight && !s.distance && !s.duration;
+      if (isEmpty && histSets && histSets[i]) {
+        return { ...histSets[i] };
+      }
+      return s;
+    });
+
+    // Add a new empty set — it will show placeholders from the next history set
     setWorkoutData((prev) => ({
       ...prev,
-      [exerciseName]: [...sets, { ...lastSet }],
+      [exerciseName]: [...updatedSets, {}],
     }));
   };
 
@@ -752,6 +809,7 @@ function WorkoutPageContent() {
               const isExpanded = expandedExercises.has(exercise.name);
               const hasData = exerciseHasData(exercise.name);
               const sets = workoutData[exercise.name] || [{}];
+              const lastSets = lastWorkoutDataByExercise[exercise.name] || [];
 
               return (
                 <div
@@ -965,7 +1023,9 @@ function WorkoutPageContent() {
                                     )
                                   }
                                   onFocus={(e) => e.target.select()}
-                                  placeholder='0'
+                                  placeholder={
+                                    lastSets[index]?.reps?.toString() || "0"
+                                  }
                                   className={cn(
                                     "w-full bg-gray-100 dark:bg-gray-800 rounded-lg text-center font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue",
                                     compactView
@@ -1001,7 +1061,9 @@ function WorkoutPageContent() {
                                     )
                                   }
                                   onFocus={(e) => e.target.select()}
-                                  placeholder='0'
+                                  placeholder={
+                                    lastSets[index]?.weight?.toString() || "0"
+                                  }
                                   className={cn(
                                     "w-full bg-gray-100 dark:bg-gray-800 rounded-lg text-center font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue",
                                     compactView
@@ -1037,7 +1099,9 @@ function WorkoutPageContent() {
                                     )
                                   }
                                   onFocus={(e) => e.target.select()}
-                                  placeholder='0'
+                                  placeholder={
+                                    lastSets[index]?.distance?.toString() || "0"
+                                  }
                                   className={cn(
                                     "w-full bg-gray-100 dark:bg-gray-800 rounded-lg text-center font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue",
                                     compactView
@@ -1073,7 +1137,9 @@ function WorkoutPageContent() {
                                     )
                                   }
                                   onFocus={(e) => e.target.select()}
-                                  placeholder='0'
+                                  placeholder={
+                                    lastSets[index]?.duration?.toString() || "0"
+                                  }
                                   className={cn(
                                     "w-full bg-gray-100 dark:bg-gray-800 rounded-lg text-center font-bold text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue",
                                     compactView
