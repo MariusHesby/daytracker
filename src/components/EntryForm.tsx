@@ -267,32 +267,52 @@ export function EntryForm({
 
   const [showAddHiddenModal, setShowAddHiddenModal] = useState(false);
 
-  // Checklist new item text input state
-  const [newChecklistItemText, setNewChecklistItemText] = useState("");
+  // Checklist new item text input state (per activity type)
+  const [checklistItemTexts, setChecklistItemTexts] = useState<
+    Record<string, string>
+  >({});
   const [showChecklistDropdown, setShowChecklistDropdown] = useState(false);
+  const [activeChecklistTypeId, setActiveChecklistTypeId] = useState<
+    string | null
+  >(null);
   const [openChecklists, setOpenChecklists] = useState<Set<string>>(new Set());
 
   // Track which dates have had checklist auto-populated to avoid re-running
   const checklistAutoPopulatedRef = useRef<Set<string>>(new Set());
 
-  // Get checklist suggestions from all entries with checklist data
-  const checklistSuggestions = useMemo(() => {
-    const itemCounts = new Map<string, number>();
+  // Helper to get/set per-activity-type checklist input text
+  const getChecklistText = (typeId: string) => checklistItemTexts[typeId] || "";
+  const setChecklistText = (typeId: string, text: string) => {
+    setChecklistItemTexts((prev) => ({ ...prev, [typeId]: text }));
+  };
+
+  // Get checklist suggestions per activity type
+  const checklistSuggestionsByType = useMemo(() => {
+    const result: Record<string, Array<{ value: string; count: number }>> = {};
     entries.forEach((entry) => {
-      if (entry.checklistData?.items) {
+      if (entry.checklistData?.items && entry.activityTypeId) {
+        const typeId = entry.activityTypeId;
+        if (!result[typeId]) result[typeId] = [];
         entry.checklistData.items.forEach((item) => {
           const text = item.text.trim();
           if (text) {
-            itemCounts.set(text, (itemCounts.get(text) || 0) + 1);
+            const existing = result[typeId].find((s) => s.value === text);
+            if (existing) {
+              existing.count++;
+            } else {
+              result[typeId].push({ value: text, count: 1 });
+            }
           }
         });
       }
     });
-    // Sort by count descending and return top 10
-    return Array.from(itemCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([text, count]) => ({ value: text, count }));
+    // Sort each type's suggestions by count descending, top 10
+    for (const typeId of Object.keys(result)) {
+      result[typeId] = result[typeId]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+    }
+    return result;
   }, [entries]);
 
   // Clean up old day-hidden-activities localStorage keys (migration)
@@ -2084,10 +2104,14 @@ export function EntryForm({
         ).length;
         const totalCount = checklistItems.length;
 
+        const currentChecklistText = getChecklistText(type.id);
         const handleAddItem = async () => {
-          if (!newChecklistItemText.trim()) return;
+          if (!currentChecklistText.trim()) return;
 
-          const itemText = newChecklistItemText.trim();
+          const itemText = currentChecklistText.trim();
+          // Clear input immediately
+          setChecklistText(type.id, "");
+
           const newItem: ChecklistItem = {
             id: crypto.randomUUID(),
             text: itemText,
@@ -2115,57 +2139,59 @@ export function EntryForm({
 
           // If repeating checklist, update master template
           if (type.checklistRepeat && type.checklistRepeat !== "none") {
-            let currentTemplate = type.checklistTemplate || [];
-            // Bootstrap template from existing items if empty
-            if (currentTemplate.length === 0) {
-              currentTemplate = checklistItems.map((item) => ({
-                text: item.text,
-                addedDate: item.addedDate || date,
-              }));
-            }
-            if (!currentTemplate.some((t) => t.text === itemText)) {
-              const updatedTemplate = [
-                ...currentTemplate,
-                { text: itemText, addedDate: date },
-              ];
-              await updateActivityType({
-                ...type,
-                checklistTemplate: updatedTemplate,
-              });
+            try {
+              let currentTemplate = type.checklistTemplate || [];
+              // Bootstrap template from existing items if empty
+              if (currentTemplate.length === 0) {
+                currentTemplate = checklistItems.map((item) => ({
+                  text: item.text,
+                  addedDate: item.addedDate || date,
+                }));
+              }
+              if (!currentTemplate.some((t) => t.text === itemText)) {
+                const updatedTemplate = [
+                  ...currentTemplate,
+                  { text: itemText, addedDate: date },
+                ];
+                await updateActivityType({
+                  ...type,
+                  checklistTemplate: updatedTemplate,
+                });
 
-              // Also update tomorrow's existing entry if one was already created
-              const tomorrow = addDays(date, 1);
-              const tomorrowEntry = entries.find(
-                (e) =>
-                  e.activityTypeId === type.id &&
-                  e.date === tomorrow &&
-                  e.checklistData,
-              );
-              if (tomorrowEntry) {
-                const tomorrowTexts = new Set(
-                  tomorrowEntry.checklistData?.items?.map((i) => i.text) || [],
+                // Also update tomorrow's existing entry if one was already created
+                const tomorrow = addDays(date, 1);
+                const tomorrowEntry = entries.find(
+                  (e) =>
+                    e.activityTypeId === type.id &&
+                    e.date === tomorrow &&
+                    e.checklistData,
                 );
-                if (!tomorrowTexts.has(itemText)) {
-                  const tomorrowItems = [
-                    ...(tomorrowEntry.checklistData?.items || []),
-                    {
-                      id: crypto.randomUUID(),
-                      text: itemText,
-                      completed: false,
-                      addedDate: date,
-                    },
-                  ];
-                  await updateEntry({
-                    ...tomorrowEntry,
-                    checklistData: { items: tomorrowItems },
-                    value: `${tomorrowItems.filter((i) => i.completed).length}/${tomorrowItems.length}`,
-                  });
+                if (tomorrowEntry) {
+                  const tomorrowTexts = new Set(
+                    tomorrowEntry.checklistData?.items?.map((i) => i.text) || [],
+                  );
+                  if (!tomorrowTexts.has(itemText)) {
+                    const tomorrowItems = [
+                      ...(tomorrowEntry.checklistData?.items || []),
+                      {
+                        id: crypto.randomUUID(),
+                        text: itemText,
+                        completed: false,
+                        addedDate: date,
+                      },
+                    ];
+                    await updateEntry({
+                      ...tomorrowEntry,
+                      checklistData: { items: tomorrowItems },
+                      value: `${tomorrowItems.filter((i) => i.completed).length}/${tomorrowItems.length}`,
+                    });
+                  }
                 }
               }
+            } catch (err) {
+              console.error("Failed to update checklist template:", err);
             }
           }
-
-          setNewChecklistItemText("");
         };
 
         const handleToggleItem = async (itemId: string) => {
@@ -2321,12 +2347,16 @@ export function EntryForm({
               <div className='flex items-center gap-2'>
                 <input
                   type='text'
-                  value={newChecklistItemText}
+                  value={currentChecklistText}
                   onChange={(e) => {
-                    setNewChecklistItemText(e.target.value);
+                    setChecklistText(type.id, e.target.value);
                     setShowChecklistDropdown(true);
+                    setActiveChecklistTypeId(type.id);
                   }}
-                  onFocus={() => setShowChecklistDropdown(true)}
+                  onFocus={() => {
+                    setShowChecklistDropdown(true);
+                    setActiveChecklistTypeId(type.id);
+                  }}
                   onBlur={() =>
                     setTimeout(() => setShowChecklistDropdown(false), 200)
                   }
@@ -2348,10 +2378,10 @@ export function EntryForm({
                     handleAddItem();
                     setShowChecklistDropdown(false);
                   }}
-                  disabled={!newChecklistItemText.trim()}
+                  disabled={!currentChecklistText.trim()}
                   className={cn(
                     "px-4 py-2 rounded-lg text-[15px] font-medium transition-colors",
-                    newChecklistItemText.trim()
+                    currentChecklistText.trim()
                       ? "bg-ios-blue text-white"
                       : "bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500",
                   )}>
@@ -2360,22 +2390,25 @@ export function EntryForm({
               </div>
               {/* Autocomplete dropdown */}
               {showChecklistDropdown &&
+                activeChecklistTypeId === type.id &&
                 (() => {
+                  const typeSuggestions =
+                    checklistSuggestionsByType[type.id] || [];
                   // Filter suggestions based on what the user is typing
-                  const filteredSuggestions = newChecklistItemText.trim()
-                    ? checklistSuggestions.filter((sugg) =>
+                  const filteredSuggestions = currentChecklistText.trim()
+                    ? typeSuggestions.filter((sugg) =>
                         sugg.value
                           .toLowerCase()
-                          .includes(newChecklistItemText.toLowerCase()),
+                          .includes(currentChecklistText.toLowerCase()),
                       )
-                    : checklistSuggestions;
+                    : typeSuggestions;
                   // Don't show if exact match or no suggestions
                   const showDropdown =
                     filteredSuggestions.length > 0 &&
                     !filteredSuggestions.some(
                       (s) =>
                         s.value.toLowerCase() ===
-                        newChecklistItemText.toLowerCase().trim(),
+                        currentChecklistText.toLowerCase().trim(),
                     );
 
                   if (!showDropdown) return null;
@@ -2386,7 +2419,7 @@ export function EntryForm({
                         <button
                           key={sugg.value}
                           onClick={() => {
-                            setNewChecklistItemText(sugg.value);
+                            setChecklistText(type.id, sugg.value);
                             setShowChecklistDropdown(false);
                           }}
                           className='w-full px-3 py-2.5 text-left text-[15px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center justify-between'>
@@ -3088,10 +3121,14 @@ export function EntryForm({
         ).length;
         const totalCount = checklistItems.length;
 
+        const standaloneChecklistText = getChecklistText(type.id);
         const handleAddItem = async () => {
-          if (!newChecklistItemText.trim()) return;
+          if (!standaloneChecklistText.trim()) return;
 
-          const itemText = newChecklistItemText.trim();
+          const itemText = standaloneChecklistText.trim();
+          // Clear input immediately
+          setChecklistText(type.id, "");
+
           const newItem: ChecklistItem = {
             id: crypto.randomUUID(),
             text: itemText,
@@ -3119,57 +3156,59 @@ export function EntryForm({
 
           // If repeating checklist, update master template
           if (type.checklistRepeat && type.checklistRepeat !== "none") {
-            let currentTemplate = type.checklistTemplate || [];
-            // Bootstrap template from existing items if empty
-            if (currentTemplate.length === 0) {
-              currentTemplate = checklistItems.map((item) => ({
-                text: item.text,
-                addedDate: item.addedDate || date,
-              }));
-            }
-            if (!currentTemplate.some((t) => t.text === itemText)) {
-              const updatedTemplate = [
-                ...currentTemplate,
-                { text: itemText, addedDate: date },
-              ];
-              await updateActivityType({
-                ...type,
-                checklistTemplate: updatedTemplate,
-              });
+            try {
+              let currentTemplate = type.checklistTemplate || [];
+              // Bootstrap template from existing items if empty
+              if (currentTemplate.length === 0) {
+                currentTemplate = checklistItems.map((item) => ({
+                  text: item.text,
+                  addedDate: item.addedDate || date,
+                }));
+              }
+              if (!currentTemplate.some((t) => t.text === itemText)) {
+                const updatedTemplate = [
+                  ...currentTemplate,
+                  { text: itemText, addedDate: date },
+                ];
+                await updateActivityType({
+                  ...type,
+                  checklistTemplate: updatedTemplate,
+                });
 
-              // Also update tomorrow's existing entry if one was already created
-              const tomorrow = addDays(date, 1);
-              const tomorrowEntry = entries.find(
-                (e) =>
-                  e.activityTypeId === type.id &&
-                  e.date === tomorrow &&
-                  e.checklistData,
-              );
-              if (tomorrowEntry) {
-                const tomorrowTexts = new Set(
-                  tomorrowEntry.checklistData?.items?.map((i) => i.text) || [],
+                // Also update tomorrow's existing entry if one was already created
+                const tomorrow = addDays(date, 1);
+                const tomorrowEntry = entries.find(
+                  (e) =>
+                    e.activityTypeId === type.id &&
+                    e.date === tomorrow &&
+                    e.checklistData,
                 );
-                if (!tomorrowTexts.has(itemText)) {
-                  const tomorrowItems = [
-                    ...(tomorrowEntry.checklistData?.items || []),
-                    {
-                      id: crypto.randomUUID(),
-                      text: itemText,
-                      completed: false,
-                      addedDate: date,
-                    },
-                  ];
-                  await updateEntry({
-                    ...tomorrowEntry,
-                    checklistData: { items: tomorrowItems },
-                    value: `${tomorrowItems.filter((i) => i.completed).length}/${tomorrowItems.length}`,
-                  });
+                if (tomorrowEntry) {
+                  const tomorrowTexts = new Set(
+                    tomorrowEntry.checklistData?.items?.map((i) => i.text) || [],
+                  );
+                  if (!tomorrowTexts.has(itemText)) {
+                    const tomorrowItems = [
+                      ...(tomorrowEntry.checklistData?.items || []),
+                      {
+                        id: crypto.randomUUID(),
+                        text: itemText,
+                        completed: false,
+                        addedDate: date,
+                      },
+                    ];
+                    await updateEntry({
+                      ...tomorrowEntry,
+                      checklistData: { items: tomorrowItems },
+                      value: `${tomorrowItems.filter((i) => i.completed).length}/${tomorrowItems.length}`,
+                    });
+                  }
                 }
               }
+            } catch (err) {
+              console.error("Failed to update checklist template:", err);
             }
           }
-
-          setNewChecklistItemText("");
         };
 
         const handleToggleItem = async (itemId: string) => {
@@ -3373,12 +3412,16 @@ export function EntryForm({
                   <div className='flex items-center gap-2'>
                     <input
                       type='text'
-                      value={newChecklistItemText}
+                      value={standaloneChecklistText}
                       onChange={(e) => {
-                        setNewChecklistItemText(e.target.value);
+                        setChecklistText(type.id, e.target.value);
                         setShowChecklistDropdown(true);
+                        setActiveChecklistTypeId(type.id);
                       }}
-                      onFocus={() => setShowChecklistDropdown(true)}
+                      onFocus={() => {
+                        setShowChecklistDropdown(true);
+                        setActiveChecklistTypeId(type.id);
+                      }}
                       onBlur={() =>
                         setTimeout(() => setShowChecklistDropdown(false), 200)
                       }
@@ -3400,10 +3443,10 @@ export function EntryForm({
                         handleAddItem();
                         setShowChecklistDropdown(false);
                       }}
-                      disabled={!newChecklistItemText.trim()}
+                      disabled={!standaloneChecklistText.trim()}
                       className={cn(
                         "px-4 py-2 rounded-lg text-[15px] font-medium transition-colors",
-                        newChecklistItemText.trim()
+                        standaloneChecklistText.trim()
                           ? "bg-ios-blue text-white"
                           : "bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500",
                       )}>
@@ -3412,20 +3455,23 @@ export function EntryForm({
                   </div>
                   {/* Autocomplete dropdown */}
                   {showChecklistDropdown &&
+                    activeChecklistTypeId === type.id &&
                     (() => {
-                      const filteredSuggestions = newChecklistItemText.trim()
-                        ? checklistSuggestions.filter((sugg) =>
+                      const typeSuggestions =
+                        checklistSuggestionsByType[type.id] || [];
+                      const filteredSuggestions = standaloneChecklistText.trim()
+                        ? typeSuggestions.filter((sugg) =>
                             sugg.value
                               .toLowerCase()
-                              .includes(newChecklistItemText.toLowerCase()),
+                              .includes(standaloneChecklistText.toLowerCase()),
                           )
-                        : checklistSuggestions;
+                        : typeSuggestions;
                       const showDropdown =
                         filteredSuggestions.length > 0 &&
                         !filteredSuggestions.some(
                           (s) =>
                             s.value.toLowerCase() ===
-                            newChecklistItemText.toLowerCase().trim(),
+                            standaloneChecklistText.toLowerCase().trim(),
                         );
                       if (!showDropdown) return null;
                       return (
@@ -3434,7 +3480,7 @@ export function EntryForm({
                             <button
                               key={sugg.value}
                               onClick={() => {
-                                setNewChecklistItemText(sugg.value);
+                                setChecklistText(type.id, sugg.value);
                                 setShowChecklistDropdown(false);
                               }}
                               className='w-full px-3 py-2.5 text-left text-[15px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center justify-between'>
