@@ -53,12 +53,37 @@ export function WeatherForecastPopup({
     };
   }, [isOpen]);
 
-  // Scroll to beginning when day changes
+  // Compute "now" index for scrolling
+  const getNowIndex = useCallback(() => {
+    if (dayOffset !== 0 || !forecast) return -1;
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+    const hr = now.getHours();
+    const filtered = (forecast.hourly ?? []).filter((h) => {
+      const hDate = h.time.split("T")[0];
+      if (hDate !== todayStr) return false;
+      const hHour = parseInt(h.time.split("T")[1].split(":")[0]);
+      return hHour >= hr - 4;
+    });
+    return filtered.findIndex(
+      (h) => parseInt(h.time.split("T")[1].split(":")[0]) === hr,
+    );
+  }, [dayOffset, forecast]);
+
+  // Scroll to "Now" (or beginning) when day changes or data loads
   useEffect(() => {
-    if (scrollRef.current) {
+    if (!scrollRef.current || loading) return;
+    const idx = getNowIndex();
+    if (dayOffset === 0 && idx >= 0) {
+      // Center "Now" in the carousel
+      const targetScroll = idx * itemWidth;
+      scrollRef.current.scrollTo({ left: targetScroll, behavior: "auto" });
+      setScrollX(targetScroll);
+    } else {
       scrollRef.current.scrollTo({ left: 0, behavior: "smooth" });
+      setScrollX(0);
     }
-  }, [dayOffset]);
+  }, [dayOffset, loading, getNowIndex, itemWidth]);
 
   const handleScroll = useCallback(() => {
     if (scrollRef.current) {
@@ -73,13 +98,13 @@ export function WeatherForecastPopup({
   targetDate.setDate(targetDate.getDate() + dayOffset);
   const targetStr = targetDate.toISOString().split("T")[0];
 
-  // Get hours for the selected day
+  // Get hours for the selected day (include 4 hours before "now" for today)
   const currentHour = new Date().getHours();
   const dayHours: HourlyForecast[] = (forecast?.hourly ?? []).filter((h) => {
     const hDate = h.time.split("T")[0];
     if (hDate !== targetStr) return false;
     const hHour = parseInt(h.time.split("T")[1].split(":")[0]);
-    if (dayOffset === 0) return hHour >= currentHour;
+    if (dayOffset === 0) return hHour >= currentHour - 4;
     return true;
   });
 
@@ -107,28 +132,21 @@ export function WeatherForecastPopup({
 
   const maxDays = Math.min((forecast?.daily?.length ?? 1) - 1, 7);
 
-  // Smooth scale with interpolation based on scroll position
+  // Smooth scale with cosine interpolation based on scroll position
   const getSmoothedScale = (index: number) => {
     const containerWidth = scrollRef.current?.clientWidth ?? 360;
     const centerX = scrollX + containerWidth / 2;
     const itemCenterX = index * itemWidth + itemWidth / 2;
     const distance = Math.abs(centerX - itemCenterX);
-
     const normalizedDist = distance / itemWidth;
-    if (normalizedDist < 0.3) return 3;
-    if (normalizedDist < 1) {
-      const t = (normalizedDist - 0.3) / 0.7;
-      return 3 - t * 1;
-    }
-    if (normalizedDist < 1.8) {
-      const t = (normalizedDist - 1) / 0.8;
-      return 2 - t * 0.6;
-    }
-    if (normalizedDist < 2.8) {
-      const t = (normalizedDist - 1.8) / 1;
-      return 1.4 - t * 0.4;
-    }
-    return 1;
+
+    // Cosine-based smooth falloff from 3 (center) to 1 (far)
+    const maxRange = 3;
+    if (normalizedDist >= maxRange) return 1;
+    const t = normalizedDist / maxRange;
+    // Cosine ease: smooth curve from 1.0 at center to 0.0 at edge
+    const ease = (1 + Math.cos(t * Math.PI)) / 2;
+    return 1 + ease * 2; // maps to 3 at center, 1 at edge
   };
 
   return (
@@ -156,7 +174,15 @@ export function WeatherForecastPopup({
                 : "text-gray-300 dark:text-gray-700"
             }`}
             disabled={dayOffset === 0}>
-            <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.5' strokeLinecap='round' strokeLinejoin='round'>
+            <svg
+              width='20'
+              height='20'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2.5'
+              strokeLinecap='round'
+              strokeLinejoin='round'>
               <polyline points='15 18 9 12 15 6' />
             </svg>
           </button>
@@ -182,7 +208,15 @@ export function WeatherForecastPopup({
                 : "text-gray-300 dark:text-gray-700"
             }`}
             disabled={dayOffset >= maxDays}>
-            <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2.5' strokeLinecap='round' strokeLinejoin='round'>
+            <svg
+              width='20'
+              height='20'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2.5'
+              strokeLinecap='round'
+              strokeLinejoin='round'>
               <polyline points='9 18 15 12 9 6' />
             </svg>
           </button>
@@ -193,7 +227,10 @@ export function WeatherForecastPopup({
           <div className='px-5 pb-2'>
             <div className='flex items-center justify-center gap-2'>
               <span className='text-[13px] text-gray-500 dark:text-gray-400 font-medium'>
-                {getWeatherCondition(dailySummary.weatherCode, true).description}
+                {
+                  getWeatherCondition(dailySummary.weatherCode, true)
+                    .description
+                }
               </span>
               {dailySummary.precipitationProbability > 0 && (
                 <span className='text-[12px] text-blue-400'>
@@ -209,7 +246,9 @@ export function WeatherForecastPopup({
           {loading ? (
             <div className='flex flex-col items-center justify-center py-16 gap-3'>
               <div className='w-8 h-8 border-3 border-ios-blue border-t-transparent rounded-full animate-spin' />
-              <span className='text-[13px] text-gray-400'>Loading forecast...</span>
+              <span className='text-[13px] text-gray-400'>
+                Loading forecast...
+              </span>
             </div>
           ) : !forecast ? (
             <div className='flex flex-col items-center justify-center py-16 gap-2'>
@@ -256,8 +295,10 @@ export function WeatherForecastPopup({
                         className='flex flex-col items-center gap-0.5'
                         style={{
                           transform: `scale(${visualScale})`,
-                          transition: "transform 100ms ease-out, opacity 100ms ease-out",
-                          opacity: scale < 1.2 ? 0.4 : scale < 1.5 ? 0.6 : scale < 2 ? 0.8 : 1,
+                          transition:
+                            "transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 200ms cubic-bezier(0.25, 0.1, 0.25, 1)",
+                          willChange: "transform, opacity",
+                          opacity: Math.max(0.35, (scale - 1) / 2),
                         }}>
                         <span
                           className={`font-semibold leading-none ${
@@ -270,7 +311,8 @@ export function WeatherForecastPopup({
                         <span
                           className='leading-none my-1.5 block'
                           style={{
-                            fontSize: isLarge ? "72px" : isMedium ? "48px" : "32px",
+                            fontSize: `${Math.round(24 + (scale - 1) * 24)}px`,
+                            transition: "font-size 200ms cubic-bezier(0.25, 0.1, 0.25, 1)",
                           }}>
                           {condition.icon}
                         </span>
@@ -315,8 +357,7 @@ export function WeatherForecastPopup({
                         ? scrollRef.current.scrollWidth -
                           scrollRef.current.clientWidth
                         : 1;
-                      const progress =
-                        maxScroll > 0 ? scrollX / maxScroll : 0;
+                      const progress = maxScroll > 0 ? scrollX / maxScroll : 0;
                       const dotPosition =
                         totalDots > 1 ? i / (totalDots - 1) : 0;
                       const dotDistance = Math.abs(progress - dotPosition);
