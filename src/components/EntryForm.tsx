@@ -2168,7 +2168,8 @@ export function EntryForm({
                 );
                 if (tomorrowEntry) {
                   const tomorrowTexts = new Set(
-                    tomorrowEntry.checklistData?.items?.map((i) => i.text) || [],
+                    tomorrowEntry.checklistData?.items?.map((i) => i.text) ||
+                      [],
                   );
                   if (!tomorrowTexts.has(itemText)) {
                     const tomorrowItems = [
@@ -3185,7 +3186,8 @@ export function EntryForm({
                 );
                 if (tomorrowEntry) {
                   const tomorrowTexts = new Set(
-                    tomorrowEntry.checklistData?.items?.map((i) => i.text) || [],
+                    tomorrowEntry.checklistData?.items?.map((i) => i.text) ||
+                      [],
                   );
                   if (!tomorrowTexts.has(itemText)) {
                     const tomorrowItems = [

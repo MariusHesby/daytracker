@@ -395,28 +395,22 @@ export default function HomePage() {
                 setNameVariant((prev) => (prev + 1) % variants.length);
               }}
               className='relative overflow-hidden rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
-              {/* Weather emoji - large background on right side */}
-              {weather && !isViewingOther && locationName && (
-                <div className='absolute right-7 top-1/2 -translate-y-1/2 pointer-events-none select-none'>
-                  <span className='leading-none text-[56px]'>
-                    {
-                      getWeatherCondition(weather.weatherCode, weather.isDay)
-                        .icon
-                    }
-                  </span>
-                </div>
-              )}
-
-              {/* Temperature - top right inside card (tap to open forecast) */}
+              {/* Weather area - emoji + temperature (tap to open forecast) */}
               {weather && !isViewingOther && locationName && (
                 <div
-                  className='absolute top-2 right-3 z-10 cursor-pointer active:opacity-60 transition-opacity'
+                  className='absolute right-0 top-0 bottom-0 w-[45%] z-10 cursor-pointer active:opacity-60 transition-opacity flex flex-col items-end justify-center pr-5'
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowForecast(true);
                   }}>
-                  <span className='text-[15px] font-semibold text-gray-500 dark:text-gray-400 leading-none'>
+                  <span className='text-[15px] font-semibold text-gray-500 dark:text-gray-400 leading-none absolute top-2 right-3'>
                     {weather.temperature}°
+                  </span>
+                  <span className='leading-none text-[56px] select-none mr-2'>
+                    {
+                      getWeatherCondition(weather.weatherCode, weather.isDay)
+                        .icon
+                    }
                   </span>
                 </div>
               )}
