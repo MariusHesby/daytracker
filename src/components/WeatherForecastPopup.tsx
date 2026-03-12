@@ -132,7 +132,7 @@ export function WeatherForecastPopup({
   };
 
   return (
-    <div className='fixed inset-0 z-50 flex items-end justify-center sm:items-center'>
+    <div className='fixed inset-0 z-50 flex items-center justify-center'>
       {/* Backdrop */}
       <div
         className='absolute inset-0 bg-black/50 backdrop-blur-md'
@@ -140,7 +140,7 @@ export function WeatherForecastPopup({
       />
 
       {/* Popup */}
-      <div className='relative w-full max-w-md mx-0 sm:mx-4 bg-white/90 dark:bg-gray-900/95 backdrop-blur-xl rounded-t-3xl sm:rounded-3xl overflow-hidden animate-in slide-in-from-bottom duration-300 shadow-2xl'>
+      <div className='relative w-full max-w-md mx-4 bg-white/90 dark:bg-gray-900/95 backdrop-blur-xl rounded-3xl overflow-hidden animate-in slide-in-from-bottom duration-300 shadow-2xl'>
         {/* Drag handle */}
         <div className='flex justify-center pt-3 pb-1 sm:hidden'>
           <div className='w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600' />
