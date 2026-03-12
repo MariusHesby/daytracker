@@ -139,8 +139,9 @@ export function WeatherForecastPopup({
   // Smooth scale with cosine interpolation based on scroll position
   const getSmoothedScale = (index: number) => {
     const containerWidth = scrollRef.current?.clientWidth ?? 360;
+    const leftPadding = containerWidth / 2 - itemWidth / 2;
     const centerX = scrollX + containerWidth / 2;
-    const itemCenterX = index * itemWidth + itemWidth / 2;
+    const itemCenterX = leftPadding + index * itemWidth + itemWidth / 2;
     const distance = Math.abs(centerX - itemCenterX);
     const normalizedDist = distance / itemWidth;
 
