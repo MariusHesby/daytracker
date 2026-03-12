@@ -77,10 +77,14 @@ export function WeatherForecastPopup({
     if (dayOffset === 0 && idx >= 0) {
       // Center "Now" in the carousel
       const targetScroll = idx * itemWidth;
-      scrollRef.current.scrollTo({ left: targetScroll, behavior: "auto" });
+      // Set scrollX immediately so scale renders correctly on first paint
       setScrollX(targetScroll);
+      // Use rAF to ensure DOM is ready before scrolling
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollTo({ left: targetScroll, behavior: "auto" });
+      });
     } else {
-      scrollRef.current.scrollTo({ left: 0, behavior: "smooth" });
+      scrollRef.current.scrollTo({ left: 0, behavior: "auto" });
       setScrollX(0);
     }
   }, [dayOffset, loading, getNowIndex, itemWidth]);
@@ -312,7 +316,8 @@ export function WeatherForecastPopup({
                           className='leading-none my-1.5 block'
                           style={{
                             fontSize: `${Math.round(24 + (scale - 1) * 24)}px`,
-                            transition: "font-size 200ms cubic-bezier(0.25, 0.1, 0.25, 1)",
+                            transition:
+                              "font-size 200ms cubic-bezier(0.25, 0.1, 0.25, 1)",
                           }}>
                           {condition.icon}
                         </span>
