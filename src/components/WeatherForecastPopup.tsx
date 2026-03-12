@@ -53,33 +53,38 @@ export function WeatherForecastPopup({
     };
   }, [isOpen]);
 
-  // Compute "now" index for scrolling
-  const getNowIndex = useCallback(() => {
-    if (dayOffset !== 0 || !forecast) return -1;
+  // Compute initial scroll index: "now" for today, same hour for future days
+  const getInitialScrollIndex = useCallback(() => {
+    if (!forecast) return -1;
     const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
     const hr = now.getHours();
+
+    const target = new Date();
+    target.setDate(target.getDate() + dayOffset);
+    const targetStr = target.toISOString().split("T")[0];
+
     const filtered = (forecast.hourly ?? []).filter((h) => {
       const hDate = h.time.split("T")[0];
-      if (hDate !== todayStr) return false;
+      if (hDate !== targetStr) return false;
       const hHour = parseInt(h.time.split("T")[1].split(":")[0]);
-      return hHour >= hr - 4;
+      if (dayOffset === 0) return hHour >= hr - 4;
+      return true;
     });
-    return filtered.findIndex(
+
+    // Find the hour matching current hour
+    const idx = filtered.findIndex(
       (h) => parseInt(h.time.split("T")[1].split(":")[0]) === hr,
     );
+    return idx >= 0 ? idx : 0;
   }, [dayOffset, forecast]);
 
-  // Scroll to "Now" (or beginning) when day changes or data loads
+  // Scroll to target hour when day changes or data loads
   useEffect(() => {
     if (!scrollRef.current || loading) return;
-    const idx = getNowIndex();
-    if (dayOffset === 0 && idx >= 0) {
-      // Center "Now" in the carousel
+    const idx = getInitialScrollIndex();
+    if (idx >= 0) {
       const targetScroll = idx * itemWidth;
-      // Set scrollX immediately so scale renders correctly on first paint
       setScrollX(targetScroll);
-      // Use rAF to ensure DOM is ready before scrolling
       requestAnimationFrame(() => {
         scrollRef.current?.scrollTo({ left: targetScroll, behavior: "auto" });
       });
@@ -87,7 +92,7 @@ export function WeatherForecastPopup({
       scrollRef.current.scrollTo({ left: 0, behavior: "auto" });
       setScrollX(0);
     }
-  }, [dayOffset, loading, getNowIndex, itemWidth]);
+  }, [dayOffset, loading, getInitialScrollIndex, itemWidth]);
 
   const handleScroll = useCallback(() => {
     if (scrollRef.current) {
