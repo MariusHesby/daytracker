@@ -25,6 +25,7 @@ export function WeatherForecastPopup({
   const [dayOffset, setDayOffset] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrollX, setScrollX] = useState(0);
+  const rafRef = useRef<number>(0);
   const itemWidth = 80;
 
   useEffect(() => {
@@ -95,9 +96,12 @@ export function WeatherForecastPopup({
   }, [dayOffset, loading, getInitialScrollIndex, itemWidth]);
 
   const handleScroll = useCallback(() => {
-    if (scrollRef.current) {
-      setScrollX(scrollRef.current.scrollLeft);
-    }
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        setScrollX(scrollRef.current.scrollLeft);
+      }
+    });
   }, []);
 
   if (!isOpen) return null;
@@ -292,9 +296,18 @@ export function WeatherForecastPopup({
                     parseInt(h.time.split("T")[1].split(":")[0]) ===
                       now.getHours();
                   const scale = getSmoothedScale(i);
-                  const isLarge = scale > 2.5;
-                  const isMedium = scale > 1.5 && scale <= 2.5;
                   const visualScale = 0.55 + (scale - 1) * 0.225;
+                  // Continuous interpolation for sizes (GPU-friendly via transform)
+                  const emojiScale = 1 + (scale - 1) * 1; // 1x at edge → 3x at center
+                  const tempScale = 0.47 + (scale - 1) * 0.265; // ~0.47x at edge → ~1x at center based on 32px base
+                  const opacity = Math.max(0.35, (scale - 1) / 2);
+                  // Smooth description fade (starts appearing at scale 2.2, fully visible at 2.8)
+                  const descOpacity = Math.max(
+                    0,
+                    Math.min(1, (scale - 2.2) / 0.6),
+                  );
+                  // Smooth hour label scale
+                  const hourScale = 0.81 + (scale - 1) * 0.095; // 13px→16px mapped to scale of 16px base
 
                   return (
                     <div
@@ -305,43 +318,48 @@ export function WeatherForecastPopup({
                         className='flex flex-col items-center gap-0.5'
                         style={{
                           transform: `scale(${visualScale})`,
-                          transition:
-                            "transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 200ms cubic-bezier(0.25, 0.1, 0.25, 1)",
+                          opacity,
                           willChange: "transform, opacity",
-                          opacity: Math.max(0.35, (scale - 1) / 2),
                         }}>
                         <span
-                          className={`font-semibold leading-none ${
+                          className={`font-semibold leading-none text-[16px] ${
                             isNow
                               ? "text-ios-blue"
                               : "text-gray-500 dark:text-gray-400"
-                          } ${isLarge ? "text-[16px]" : "text-[13px]"}`}>
+                          }`}
+                          style={{
+                            transform: `scale(${hourScale})`,
+                            willChange: "transform",
+                          }}>
                           {isNow ? "Now" : formatHour(h.time)}
                         </span>
                         <span
-                          className='leading-none my-1.5 block'
+                          className='leading-none my-1.5 block text-[24px]'
                           style={{
-                            fontSize: `${Math.round(24 + (scale - 1) * 24)}px`,
-                            transition:
-                              "font-size 200ms cubic-bezier(0.25, 0.1, 0.25, 1)",
+                            transform: `scale(${emojiScale})`,
+                            willChange: "transform",
                           }}>
                           {condition.icon}
                         </span>
                         <span
-                          className={`font-bold leading-none ${
-                            isLarge
-                              ? "text-[32px] text-gray-900 dark:text-white"
-                              : isMedium
-                                ? "text-[20px] text-gray-800 dark:text-gray-200"
-                                : "text-[15px] text-gray-600 dark:text-gray-400"
-                          }`}>
+                          className='font-bold leading-none text-[32px] text-gray-900 dark:text-white'
+                          style={{
+                            transform: `scale(${tempScale})`,
+                            opacity: 0.4 + opacity * 0.6,
+                            willChange: "transform, opacity",
+                          }}>
                           {h.temperature}°
                         </span>
-                        {isLarge && (
-                          <span className='text-[12px] text-gray-400 dark:text-gray-500 font-medium mt-1 whitespace-nowrap'>
-                            {condition.description}
-                          </span>
-                        )}
+                        <span
+                          className='text-[12px] text-gray-400 dark:text-gray-500 font-medium mt-1 whitespace-nowrap'
+                          style={{
+                            opacity: descOpacity,
+                            transform: `scale(${0.8 + descOpacity * 0.2})`,
+                            willChange: "transform, opacity",
+                            pointerEvents: descOpacity < 0.1 ? "none" : "auto",
+                          }}>
+                          {condition.description}
+                        </span>
                       </div>
                     </div>
                   );

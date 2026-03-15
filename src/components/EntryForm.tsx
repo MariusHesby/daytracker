@@ -3024,7 +3024,7 @@ export function EntryForm({
         return (
           <div
             key={type.id}
-            className='mb-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
+            className='mb-2 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
             {/* Header — tap to expand/collapse */}
             <div
               className='flex items-center px-4 py-3 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700'
@@ -3295,7 +3295,7 @@ export function EntryForm({
         return (
           <div
             key={type.id}
-            className='mb-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
+            className='mb-2 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
             {/* Header — tap to open/close */}
             <div
               className='flex items-center px-4 py-3 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700'

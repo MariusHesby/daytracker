@@ -554,7 +554,7 @@ export default function HomePage() {
           (Object.keys(newsData).length > 0 ||
             newsHasSources.current ||
             newsLoading) && (
-            <div className='mb-3 w-full bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60'>
+            <div className='mb-2 w-full bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60'>
               <button
                 onClick={() => {
                   if (newsLoading && Object.keys(newsData).length === 0) return;
@@ -705,7 +705,7 @@ export default function HomePage() {
                 <div
                   key={fixture.id}
                   onClick={() => setShowFootball(true)}
-                  className='flex items-center px-4 py-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 mb-3 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer'>
+                  className='flex items-center px-4 py-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 mb-2 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer'>
                   {/* Icon: W/D/L for played, H/A for upcoming */}
                   <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
                     {live ? (

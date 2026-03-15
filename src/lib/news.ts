@@ -118,7 +118,7 @@ export function setNewsVisible(visible: boolean): void {
 export function clearAllNewsSources(): void {
   const sources = getNewsSources();
   sources.forEach(s => localStorage.removeItem(cacheKeyFor(s.url)));
-  localStorage.removeItem(STORAGE_KEY);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
   syncNewsToSupabase();
   window.dispatchEvent(new Event('newsConfigUpdated'));
 }
@@ -169,8 +169,9 @@ export async function loadNewsFromSupabase(): Promise<void> {
 
     const settings = data.settings as Record<string, unknown>;
 
-    // Only load from Supabase if localStorage is empty (avoids overwriting local edits)
-    if (settings.news_sources && getNewsSources().length === 0) {
+    // Only seed from Supabase on fresh install (key missing from localStorage).
+    // If the key exists (even as "[]"), the user has made local edits – don't overwrite.
+    if (settings.news_sources && localStorage.getItem(STORAGE_KEY) === null) {
       const sources = settings.news_sources as NewsSource[];
       if (Array.isArray(sources) && sources.length > 0) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(sources));
