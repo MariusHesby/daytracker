@@ -322,7 +322,7 @@ export function WeatherForecastPopup({
                           willChange: "transform, opacity",
                         }}>
                         <span
-                          className={`font-semibold leading-none text-[16px] ${
+                          className={`font-semibold leading-none text-[16px] relative z-10 ${
                             isNow
                               ? "text-ios-blue"
                               : "text-gray-500 dark:text-gray-400"
@@ -333,14 +333,20 @@ export function WeatherForecastPopup({
                           }}>
                           {isNow ? "Now" : formatHour(h.time)}
                         </span>
-                        <span
-                          className='leading-none my-1.5 block text-[24px]'
+                        <div
+                          className='leading-none my-1.5 flex items-center justify-center text-[24px]'
                           style={{
-                            transform: `scale(${emojiScale})`,
-                            willChange: "transform",
+                            width: `${24 * emojiScale}px`,
+                            height: `${24 * emojiScale}px`,
                           }}>
-                          {condition.icon}
-                        </span>
+                          <span
+                            style={{
+                              fontSize: `${24 * emojiScale}px`,
+                              lineHeight: 1,
+                            }}>
+                            {condition.icon}
+                          </span>
+                        </div>
                         <span
                           className='font-bold leading-none text-[32px] text-gray-900 dark:text-white'
                           style={{

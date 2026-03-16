@@ -118,10 +118,19 @@ function getTimerSubjectStatus(
     ) {
       const te = entry.timerData.entries.find((e) => e.subjectId === subjectId);
       if (te) {
-        usedMinutes += Math.max(
-          0,
-          (te.minutes || 0) - (te.subtractMinutes || 0),
-        );
+        // te.minutes = baseInput + addTotal (stored format)
+        // te.subtractMinutes = subtractTotal
+        // Adds increase the budget, subtracts decrease it.
+        // effectiveUsed = baseInput - addTotal + subtractTotal
+        //               = (te.minutes - addTotal) - addTotal + subtractTotal
+        const adjs = te.adjustments || [];
+        const adjAdd = adjs
+          .filter((a) => a.type === "add")
+          .reduce((s, a) => s + a.minutes, 0);
+        const adjSub = adjs
+          .filter((a) => a.type === "subtract")
+          .reduce((s, a) => s + a.minutes, 0);
+        usedMinutes += (te.minutes || 0) - 2 * adjAdd + adjSub;
       }
     }
   });
@@ -4208,7 +4217,7 @@ export function EntryForm({
                   {/* Activity row */}
                   <div
                     className={cn(
-                      "flex items-center min-h-[48px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
+                      "flex items-center min-h-[52px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
                       isExpanded && "bg-gray-50 dark:bg-gray-800",
                       !isLast &&
                         !isExpanded &&
