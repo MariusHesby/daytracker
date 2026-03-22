@@ -286,6 +286,13 @@ export function clearCacheForSource(url: string): void {
 }
 
 /** Fetch headlines for a single source, filtering out hidden ones */
+export class SourceBlockedError extends Error {
+  constructor(url: string) {
+    super(`Site blocks automated access: ${url}`);
+    this.name = 'SourceBlockedError';
+  }
+}
+
 export async function fetchNewsForSource(source: NewsSource): Promise<NewsItem[]> {
   if (!source.url) return [];
 
@@ -308,23 +315,28 @@ export async function fetchNewsForSource(source: NewsSource): Promise<NewsItem[]
       return cached ? cached.filter(item => !hidden.has(item.link)).slice(0, source.count) : [];
     }
     const data = await res.json();
+    if (data.blocked) {
+      throw new SourceBlockedError(source.url);
+    }
     const items: NewsItem[] = data.items || [];
     setCachedNews(source.url, items);
     const filtered = items.filter(item => !hidden.has(item.link));
     return filtered.slice(0, source.count);
-  } catch {
+  } catch (err) {
+    if (err instanceof SourceBlockedError) throw err;
     // Return cached data if available on failure
     return cached ? cached.filter(item => !hidden.has(item.link)).slice(0, source.count) : [];
   }
 }
 
 /** Fetch headlines for ALL configured sources.
- *  Returns a map: displayName → NewsItem[] */
-export async function fetchAllNews(): Promise<Record<string, NewsItem[]>> {
+ *  Returns a map: displayName → NewsItem[], plus a set of blocked source URLs */
+export async function fetchAllNews(): Promise<{ results: Record<string, NewsItem[]>; blocked: Set<string> }> {
   const sources = getNewsSources();
-  if (sources.length === 0) return {};
+  if (sources.length === 0) return { results: {}, blocked: new Set() };
 
   const results: Record<string, NewsItem[]> = {};
+  const blocked = new Set<string>();
   await Promise.all(
     sources.map(async (src) => {
       try {
@@ -332,12 +344,15 @@ export async function fetchAllNews(): Promise<Record<string, NewsItem[]>> {
         if (items.length > 0) {
           results[src.url] = items;
         }
-      } catch {
+      } catch (err) {
+        if (err instanceof SourceBlockedError) {
+          blocked.add(src.url);
+        }
         // Skip failed sources — they'll retain their cached data
       }
     }),
   );
-  return results;
+  return { results, blocked };
 }
 
 /** Get cached news instantly (no network). Returns whatever is in cache. */

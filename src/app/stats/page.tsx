@@ -1018,6 +1018,7 @@ export default function StatsPage() {
         totalNet: number;
         totalGross: number;
         totalSubtracted: number;
+        totalAdded: number;
         dailyData: { date: string; net: number; gross: number }[];
         daysWithData: number;
       }
@@ -1028,6 +1029,7 @@ export default function StatsPage() {
         totalNet: 0,
         totalGross: 0,
         totalSubtracted: 0,
+        totalAdded: 0,
         dailyData: [],
         daysWithData: 0,
       }),
@@ -1038,14 +1040,24 @@ export default function StatsPage() {
         entry.timerData.entries.forEach((te) => {
           const stats = subjectStats.get(te.subjectId);
           if (!stats) return;
-          const gross = te.minutes || 0;
+          const storedMinutes = te.minutes || 0;
           const subtract = te.subtractMinutes || 0;
-          const net = Math.max(0, gross - subtract);
-          stats.totalNet += net;
-          stats.totalGross += gross;
+          // storedMinutes includes add adjustments, so strip them for base usage
+          const adjs = te.adjustments || [];
+          const adjAdd = adjs
+            .filter((a) => a.type === "add")
+            .reduce((s, a) => s + a.minutes, 0);
+          const baseUsage = Math.max(0, storedMinutes - adjAdd);
+          stats.totalNet += baseUsage;
+          stats.totalGross += baseUsage;
           stats.totalSubtracted += subtract;
-          if (gross > 0) {
-            stats.dailyData.push({ date: entry.date, net, gross });
+          stats.totalAdded += adjAdd;
+          if (baseUsage > 0 || adjAdd > 0 || subtract > 0) {
+            stats.dailyData.push({
+              date: entry.date,
+              net: baseUsage,
+              gross: baseUsage,
+            });
             stats.daysWithData++;
           }
         });
@@ -3275,8 +3287,14 @@ export default function StatsPage() {
                   const barColor = barColorHex[index % barColorHex.length];
                   const subjectLimit =
                     subject.limitMinutes || timerStats.limitMinutes || 0;
-                  const netH = Math.floor(stats.totalNet / 60);
-                  const netM = stats.totalNet % 60;
+                  // Effective budget usage: base + subtracted - added
+                  const effectiveUsage = Math.max(
+                    0,
+                    stats.totalNet + stats.totalSubtracted - stats.totalAdded,
+                  );
+                  const displayTotal = effectiveUsage;
+                  const netH = Math.floor(displayTotal / 60);
+                  const netM = displayTotal % 60;
                   const netStr = netH > 0 ? `${netH}h ${netM}m` : `${netM}m`;
                   const limitH = Math.floor(subjectLimit / 60);
                   const limitM = subjectLimit % 60;
@@ -3290,11 +3308,11 @@ export default function StatsPage() {
                     subjectLimit > 0
                       ? Math.min(
                           100,
-                          Math.round((stats.totalNet / subjectLimit) * 100),
+                          Math.round((effectiveUsage / subjectLimit) * 100),
                         )
                       : 0;
                   const overLimit =
-                    subjectLimit > 0 && stats.totalNet > subjectLimit;
+                    subjectLimit > 0 && effectiveUsage > subjectLimit;
 
                   return (
                     <div key={subject.id}>
@@ -3318,7 +3336,9 @@ export default function StatsPage() {
                                   ? "text-ios-red"
                                   : "text-gray-900 dark:text-white",
                               )}>
-                              {stats.totalNet > 0 ? netStr : "0m"}
+                              {stats.totalNet > 0 || displayTotal > 0
+                                ? netStr
+                                : "0m"}
                             </span>
                             {subjectLimit > 0 && (
                               <span className='text-[13px] text-gray-400 dark:text-gray-500'>
@@ -3357,7 +3377,7 @@ export default function StatsPage() {
                             />
                           </div>
                         )}
-                        {!subjectLimit && stats.totalNet > 0 && (
+                        {!subjectLimit && displayTotal > 0 && (
                           <div className='h-2.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
                             <div
                               className='h-full rounded-full transition-all'
@@ -3463,6 +3483,19 @@ export default function StatsPage() {
                                   })()}
                                 </span>
                               </div>
+                              {stats.totalAdded > 0 && (
+                                <div className='flex items-center justify-between text-[13px]'>
+                                  <span className='text-gray-500 dark:text-gray-400'>
+                                    Total added
+                                  </span>
+                                  <span className='text-gray-500 dark:text-gray-400'>
+                                    +
+                                    {Math.floor(stats.totalAdded / 60) > 0
+                                      ? `${Math.floor(stats.totalAdded / 60)}h ${stats.totalAdded % 60}m`
+                                      : `${stats.totalAdded}m`}
+                                  </span>
+                                </div>
+                              )}
                               {stats.totalSubtracted > 0 && (
                                 <div className='flex items-center justify-between text-[13px]'>
                                   <span className='text-gray-500 dark:text-gray-400'>

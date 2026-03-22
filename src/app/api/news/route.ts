@@ -25,6 +25,17 @@ export async function GET(request: NextRequest) {
       items = await scrapeHeadlines(targetUrl, count);
     }
 
+    // If still empty, check if the site is blocking us (Cloudflare etc.)
+    if (items.length === 0) {
+      const blocked = await checkIfBlocked(targetUrl);
+      if (blocked) {
+        return NextResponse.json(
+          { items: [], blocked: true, error: 'This site blocks automated access (bot protection)' },
+          { status: 200 },
+        );
+      }
+    }
+
     // For items missing images, try fetching og:image from the article page
     const needImages = items.filter(it => !it.image).slice(0, 5); // limit to 5 fetches
     if (needImages.length > 0) {
@@ -51,6 +62,28 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error('News fetch error:', err);
     return NextResponse.json({ error: 'Failed to fetch news' }, { status: 500 });
+  }
+}
+
+// ─── Bot-protection detection ────────────────────────────
+
+async function checkIfBlocked(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': BROWSER_UA },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.status === 403 || res.status === 503) {
+      const html = await res.text();
+      // Cloudflare challenge markers
+      if (html.includes('cf_chl') || html.includes('cf-browser-verification') ||
+          html.includes('challenge-platform') || html.includes('Just a moment')) {
+        return true;
+      }
+    }
+    return false;
+  } catch {
+    return false;
   }
 }
 

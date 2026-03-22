@@ -50,6 +50,14 @@ import {
   setNewsVisible,
   NewsSource,
 } from "@/lib/news";
+import {
+  getScreenTimeConfig,
+  setScreenTimeConfig,
+  loadScreenTimeFromSupabase,
+  ScreenTimeConfig,
+  ScreenTimeSubject,
+  ScreenTimePeriod,
+} from "@/lib/screentime";
 
 export default function SettingsPage() {
   const {
@@ -104,6 +112,17 @@ export default function SettingsPage() {
   const [editNewsUrlValue, setEditNewsUrlValue] = useState("");
   const [editNewsCountValue, setEditNewsCountValue] = useState(5);
 
+  // Screen Time state
+  const [screenTimeExpanded, setScreenTimeExpanded] = useState(false);
+  const [screenTimeConfig, setScreenTimeConfigState] =
+    useState<ScreenTimeConfig>({
+      enabled: false,
+      subjects: [],
+      limitPeriod: "weekly",
+      intervalMinutes: 15,
+    });
+  const [stNewSubjectName, setStNewSubjectName] = useState("");
+
   // Location/Weather state
   const [locationExpanded, setLocationExpanded] = useState(false);
   const [storedLocation, setStoredLocationState] =
@@ -147,6 +166,15 @@ export default function SettingsPage() {
       setNewsVisibleOnFront(getNewsVisible());
     };
     loadNews();
+  }, []);
+
+  // Load screen time config on mount
+  useEffect(() => {
+    const load = async () => {
+      await loadScreenTimeFromSupabase();
+      setScreenTimeConfigState(getScreenTimeConfig());
+    };
+    load();
   }, []);
 
   // Debounced team search
@@ -1554,6 +1582,307 @@ export default function SettingsPage() {
                       )}
                     </>
                   )}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Screen Time Section */}
+        <section className='mb-6'>
+          <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
+            Screen Time
+          </h2>
+          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+            <button
+              onClick={() => setScreenTimeExpanded(!screenTimeExpanded)}
+              className='w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
+              <div className='flex items-center gap-3'>
+                <div className='w-8 h-8 rounded-lg bg-purple-500 flex items-center justify-center'>
+                  <svg
+                    className='w-[18px] h-[18px] text-white'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z'
+                    />
+                  </svg>
+                </div>
+                <div className='text-left'>
+                  <span className='text-[17px] text-gray-900 dark:text-white'>
+                    Screen Time
+                  </span>
+                  <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                    {screenTimeConfig.enabled
+                      ? `${screenTimeConfig.subjects.length} subject${screenTimeConfig.subjects.length !== 1 ? "s" : ""}`
+                      : "Track screen time per person"}
+                  </p>
+                </div>
+              </div>
+              <svg
+                className={cn(
+                  "w-5 h-5 text-gray-400 transition-transform",
+                  screenTimeExpanded && "rotate-90",
+                )}
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M9 5l7 7-7 7'
+                />
+              </svg>
+            </button>
+
+            {screenTimeExpanded && (
+              <div className='border-t border-gray-200/80 dark:border-gray-700/80'>
+                <div className='px-4 py-3 space-y-4'>
+                  {/* Enable toggle */}
+                  <div className='flex items-center justify-between py-1'>
+                    <span className='text-[15px] text-gray-900 dark:text-white'>
+                      Show on front page
+                    </span>
+                    <button
+                      onClick={() => {
+                        const next = {
+                          ...screenTimeConfig,
+                          enabled: !screenTimeConfig.enabled,
+                        };
+                        setScreenTimeConfigState(next);
+                        setScreenTimeConfig(next);
+                      }}
+                      className={cn(
+                        "relative w-[51px] h-[31px] rounded-full transition-colors duration-200",
+                        screenTimeConfig.enabled
+                          ? "bg-ios-green"
+                          : "bg-gray-300 dark:bg-gray-600",
+                      )}>
+                      <span
+                        className={cn(
+                          "absolute top-[2px] left-[2px] w-[27px] h-[27px] bg-white rounded-full shadow transition-transform duration-200",
+                          screenTimeConfig.enabled && "translate-x-[20px]",
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Subjects / People */}
+                  <div>
+                    <h3 className='text-[15px] font-semibold text-gray-900 dark:text-white mb-1'>
+                      Subjects / People
+                    </h3>
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-3'>
+                      Add names of people or items to track time for.
+                    </p>
+
+                    {/* Add new subject */}
+                    <div className='flex gap-2 mb-3'>
+                      <input
+                        type='text'
+                        value={stNewSubjectName}
+                        onChange={(e) => setStNewSubjectName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && stNewSubjectName.trim()) {
+                            const newSubject: ScreenTimeSubject = {
+                              id: Date.now().toString(36),
+                              name: stNewSubjectName.trim(),
+                              limitMinutes: 840,
+                            };
+                            const next = {
+                              ...screenTimeConfig,
+                              subjects: [
+                                ...screenTimeConfig.subjects,
+                                newSubject,
+                              ],
+                            };
+                            setScreenTimeConfigState(next);
+                            setScreenTimeConfig(next);
+                            setStNewSubjectName("");
+                          }
+                        }}
+                        placeholder='e.g. Theodor'
+                        className='flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-[15px] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                      />
+                      <button
+                        onClick={() => {
+                          if (!stNewSubjectName.trim()) return;
+                          const newSubject: ScreenTimeSubject = {
+                            id: Date.now().toString(36),
+                            name: stNewSubjectName.trim(),
+                            limitMinutes: 840,
+                          };
+                          const next = {
+                            ...screenTimeConfig,
+                            subjects: [
+                              ...screenTimeConfig.subjects,
+                              newSubject,
+                            ],
+                          };
+                          setScreenTimeConfigState(next);
+                          setScreenTimeConfig(next);
+                          setStNewSubjectName("");
+                        }}
+                        className={cn(
+                          "px-5 py-2.5 rounded-xl text-[15px] font-medium",
+                          stNewSubjectName.trim()
+                            ? "bg-ios-blue text-white active:opacity-80"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500",
+                        )}>
+                        Add
+                      </button>
+                    </div>
+
+                    {/* Subject list */}
+                    {screenTimeConfig.subjects.map((subject) => (
+                      <div
+                        key={subject.id}
+                        className='bg-gray-100/80 dark:bg-gray-800/80 rounded-xl px-4 py-3 mb-2'>
+                        <div className='flex items-center justify-between mb-2'>
+                          <span className='text-[16px] font-medium text-gray-900 dark:text-white'>
+                            {subject.name}
+                          </span>
+                          <button
+                            onClick={() => {
+                              const next = {
+                                ...screenTimeConfig,
+                                subjects: screenTimeConfig.subjects.filter(
+                                  (s) => s.id !== subject.id,
+                                ),
+                              };
+                              setScreenTimeConfigState(next);
+                              setScreenTimeConfig(next);
+                            }}
+                            className='text-ios-red text-[14px] font-medium'>
+                            Remove
+                          </button>
+                        </div>
+                        {/* Limit input */}
+                        <div className='flex items-center gap-2'>
+                          <span className='text-[14px] text-gray-500 dark:text-gray-400'>
+                            Limit
+                          </span>
+                          <input
+                            type='number'
+                            value={Math.floor((subject.limitMinutes || 0) / 60)}
+                            onChange={(e) => {
+                              const hours = parseInt(e.target.value) || 0;
+                              const mins = (subject.limitMinutes || 0) % 60;
+                              const next = {
+                                ...screenTimeConfig,
+                                subjects: screenTimeConfig.subjects.map((s) =>
+                                  s.id === subject.id
+                                    ? { ...s, limitMinutes: hours * 60 + mins }
+                                    : s,
+                                ),
+                              };
+                              setScreenTimeConfigState(next);
+                              setScreenTimeConfig(next);
+                            }}
+                            className='w-16 px-2 py-1.5 bg-white dark:bg-gray-700 rounded-lg text-center text-[15px] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                            min={0}
+                          />
+                          <span className='text-[14px] text-gray-500 dark:text-gray-400'>
+                            h
+                          </span>
+                          <input
+                            type='number'
+                            value={(subject.limitMinutes || 0) % 60}
+                            onChange={(e) => {
+                              const mins = Math.min(
+                                59,
+                                Math.max(0, parseInt(e.target.value) || 0),
+                              );
+                              const hours = Math.floor(
+                                (subject.limitMinutes || 0) / 60,
+                              );
+                              const next = {
+                                ...screenTimeConfig,
+                                subjects: screenTimeConfig.subjects.map((s) =>
+                                  s.id === subject.id
+                                    ? { ...s, limitMinutes: hours * 60 + mins }
+                                    : s,
+                                ),
+                              };
+                              setScreenTimeConfigState(next);
+                              setScreenTimeConfig(next);
+                            }}
+                            className='w-16 px-2 py-1.5 bg-white dark:bg-gray-700 rounded-lg text-center text-[15px] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                            min={0}
+                            max={59}
+                          />
+                          <span className='text-[14px] text-gray-500 dark:text-gray-400'>
+                            m
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Limit Period */}
+                  <div>
+                    <h3 className='text-[15px] font-semibold text-gray-900 dark:text-white mb-2'>
+                      Limit Period
+                    </h3>
+                    <select
+                      value={screenTimeConfig.limitPeriod}
+                      onChange={(e) => {
+                        const next = {
+                          ...screenTimeConfig,
+                          limitPeriod: e.target.value as ScreenTimePeriod,
+                        };
+                        setScreenTimeConfigState(next);
+                        setScreenTimeConfig(next);
+                      }}
+                      className='w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-[15px] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-ios-blue appearance-none'
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "right 12px center",
+                        backgroundSize: "20px",
+                      }}>
+                      <option value='daily'>Per Day</option>
+                      <option value='weekly'>Per Week</option>
+                      <option value='monthly'>Per Month</option>
+                    </select>
+                  </div>
+
+                  {/* Time Interval */}
+                  <div>
+                    <h3 className='text-[15px] font-semibold text-gray-900 dark:text-white mb-1'>
+                      Time Interval
+                    </h3>
+                    <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2'>
+                      Minutes to add or subtract per tap.
+                    </p>
+                    <div className='flex items-center gap-3'>
+                      {[5, 10, 15, 30, 60].map((val) => (
+                        <button
+                          key={val}
+                          onClick={() => {
+                            const next = {
+                              ...screenTimeConfig,
+                              intervalMinutes: val,
+                            };
+                            setScreenTimeConfigState(next);
+                            setScreenTimeConfig(next);
+                          }}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-[14px] font-medium transition-colors",
+                            (screenTimeConfig.intervalMinutes || 15) === val
+                              ? "bg-ios-blue text-white"
+                              : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
+                          )}>
+                          {val}m
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

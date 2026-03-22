@@ -12,7 +12,7 @@ import {
   Avatar,
   NotificationBell,
 } from "@/components";
-import { addDays, formatDate } from "@/lib/utils";
+import { addDays, cn, formatDate } from "@/lib/utils";
 import { IOSModal } from "@/components/ios";
 import { WeatherForecastPopup } from "@/components/WeatherForecastPopup";
 import {
@@ -35,6 +35,7 @@ import {
   getNewsSources,
   fetchAllNews,
   fetchNewsForSource,
+  SourceBlockedError,
   formatSourceName,
   loadNewsFromSupabase,
   resetHiddenHeadlines,
@@ -46,6 +47,17 @@ import {
   getSeenArticles,
   NewsItem,
 } from "@/lib/news";
+import {
+  getScreenTimeConfig,
+  loadScreenTimeFromSupabase,
+  ScreenTimeConfig,
+  getPeriodDates,
+  setMinutesForSubject,
+  getMinutesForSubject,
+  getSubjectStatus,
+  formatMinutes,
+  getDayLabel,
+} from "@/lib/screentime";
 
 // Get time-based greeting
 function getGreeting(): string {
@@ -153,6 +165,15 @@ export default function HomePage() {
     Record<string, number>
   >({});
   const sourceNewLinksRef = useRef<Record<string, Set<string>>>({});
+  const [blockedSources, setBlockedSources] = useState<Set<string>>(new Set());
+
+  // Screen Time state
+  const [showScreenTime, setShowScreenTime] = useState(false);
+  const [screenTimeConfig, setScreenTimeConfigLocal] =
+    useState<ScreenTimeConfig | null>(null);
+  const [screenTimeSelectedSubject, setScreenTimeSelectedSubject] = useState<
+    string | null
+  >(null);
 
   // Lock body scroll when fullscreen news is open
   useEffect(() => {
@@ -238,7 +259,8 @@ export default function HomePage() {
       }
 
       // Fetch fresh data in background — merge with existing so failed sources keep cached data
-      const freshData = await fetchAllNews();
+      const { results: freshData, blocked } = await fetchAllNews();
+      if (blocked.size > 0) setBlockedSources(blocked);
       setNewsData((prev) => {
         const merged = { ...prev };
         // Update sources that returned fresh data
@@ -275,6 +297,25 @@ export default function HomePage() {
       window.removeEventListener("newsConfigUpdated", handleConfigUpdate);
       clearInterval(interval);
     };
+  }, []);
+
+  // Load screen time config
+  useEffect(() => {
+    const load = async () => {
+      await loadScreenTimeFromSupabase();
+      const cfg = getScreenTimeConfig();
+      setScreenTimeConfigLocal(cfg);
+      if (cfg.subjects.length > 0) {
+        setScreenTimeSelectedSubject(cfg.subjects[0].id);
+      }
+    };
+    load();
+    const handler = () => {
+      const cfg = getScreenTimeConfig();
+      setScreenTimeConfigLocal(cfg);
+    };
+    window.addEventListener("screenTimeConfigUpdated", handler);
+    return () => window.removeEventListener("screenTimeConfigUpdated", handler);
   }, []);
 
   // Fetch weather on mount and when location changes
@@ -513,6 +554,27 @@ export default function HomePage() {
                   className='absolute inset-0 w-full h-full opacity-0 cursor-pointer'
                 />
               </label>
+              {/* Screen Time icon */}
+              {screenTimeConfig?.enabled &&
+                screenTimeConfig.subjects.length > 0 && (
+                  <button
+                    onClick={() => setShowScreenTime(true)}
+                    className='text-gray-400 dark:text-gray-500 active:opacity-60 transition-opacity'
+                    title='Screen Time'>
+                    <svg
+                      className='w-6 h-6'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z'
+                      />
+                    </svg>
+                  </button>
+                )}
             </div>
           )}
           {/* Title or spacer when not logged in / viewing other */}
@@ -954,8 +1016,9 @@ export default function HomePage() {
                       const sources = getNewsSources();
                       const allUrls = Object.keys(newsData);
                       setRefreshingSources(new Set(allUrls));
+                      const newBlocked = new Set<string>();
                       try {
-                        const results = await Promise.all(
+                        const results = await Promise.allSettled(
                           sources.map(async (source) => {
                             clearCacheForSource(source.url);
                             resetHiddenHeadlines(source.url);
@@ -965,11 +1028,27 @@ export default function HomePage() {
                         );
                         setNewsData((prev) => {
                           const next = { ...prev };
-                          for (const [url, items] of results) {
-                            next[url] = items;
+                          for (const r of results) {
+                            if (r.status === "fulfilled") {
+                              const [url, items] = r.value;
+                              next[url] = items;
+                            } else if (r.reason instanceof SourceBlockedError) {
+                              const url = r.reason.message.replace(
+                                "Site blocks automated access: ",
+                                "",
+                              );
+                              newBlocked.add(url);
+                            }
                           }
                           return next;
                         });
+                        if (newBlocked.size > 0) {
+                          setBlockedSources((prev) => {
+                            const next = new Set(prev);
+                            newBlocked.forEach((u) => next.add(u));
+                            return next;
+                          });
+                        }
                       } finally {
                         setRefreshingSources(new Set());
                       }
@@ -1251,7 +1330,9 @@ export default function HomePage() {
                             </svg>
                           ) : items.length === 0 && !newsLoading ? (
                             <span className='text-[12px] text-gray-400 dark:text-gray-500 shrink-0'>
-                              No articles
+                              {blockedSources.has(url)
+                                ? "Blocked by site"
+                                : "No articles"}
                             </span>
                           ) : newCount > 0 && !isExpanded ? (
                             <span className='min-w-[22px] h-[22px] px-1.5 flex items-center justify-center rounded-full bg-ios-blue text-white text-[12px] font-bold leading-none shrink-0'>
@@ -1414,6 +1495,242 @@ export default function HomePage() {
           </div>,
           document.body,
         )}
+
+      {/* Screen Time Full Page */}
+      {showScreenTime &&
+        screenTimeConfig &&
+        screenTimeConfig.subjects.length > 0 &&
+        (() => {
+          const config = screenTimeConfig;
+          const subject =
+            config.subjects.find((s) => s.id === screenTimeSelectedSubject) ||
+            config.subjects[0];
+          const periodDates = getPeriodDates(selectedDate, config.limitPeriod);
+          const today = new Date().toISOString().split("T")[0];
+          const status = getSubjectStatus(
+            selectedDate,
+            subject.id,
+            subject.limitMinutes,
+            config.limitPeriod,
+          );
+          const periodLabel =
+            config.limitPeriod === "daily"
+              ? "Today"
+              : config.limitPeriod === "weekly"
+                ? "This Week"
+                : "This Month";
+          const interval = config.intervalMinutes || 15;
+
+          return createPortal(
+            <div className='fixed inset-0 z-[60] bg-ios-bg dark:bg-ios-bg-dark colorful-modal-bg overflow-y-auto overflow-x-hidden overscroll-none touch-pan-y'>
+              {/* Header */}
+              <div className='sticky top-0 z-10 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60'>
+                <div className='px-4 py-3 flex items-center justify-between'>
+                  <div className='w-12' />
+                  <h1 className='text-[17px] font-semibold text-gray-900 dark:text-white'>
+                    Screen Time
+                  </h1>
+                  <button
+                    onClick={() => setShowScreenTime(false)}
+                    className='text-ios-blue text-[17px] font-normal'>
+                    Done
+                  </button>
+                </div>
+
+                {/* Subject picker */}
+                {config.subjects.length > 1 && (
+                  <div className='px-4 pb-3 flex gap-2'>
+                    {config.subjects.map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => setScreenTimeSelectedSubject(s.id)}
+                        className={cn(
+                          "px-4 py-1.5 rounded-full text-[14px] font-medium transition-colors",
+                          screenTimeSelectedSubject === s.id
+                            ? "bg-ios-blue text-white"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300",
+                        )}>
+                        {s.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className='px-4 py-4 space-y-4'>
+                {/* Summary card */}
+                <div className='bg-white/80 dark:bg-ios-card-dark rounded-2xl p-4'>
+                  <div className='flex items-center justify-between mb-3'>
+                    <h2 className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                      {subject.name} — {periodLabel}
+                    </h2>
+                    <span
+                      className={cn(
+                        "text-[13px] font-semibold px-2 py-0.5 rounded-full",
+                        status.color === "green"
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                          : status.color === "yellow"
+                            ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400"
+                            : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
+                      )}>
+                      {formatMinutes(status.usedMinutes)} /{" "}
+                      {formatMinutes(subject.limitMinutes)}
+                    </span>
+                  </div>
+                  {/* Progress bar */}
+                  <div className='h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden'>
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        status.color === "green"
+                          ? "bg-green-500"
+                          : status.color === "yellow"
+                            ? "bg-yellow-500"
+                            : "bg-red-500",
+                      )}
+                      style={{
+                        width: `${Math.min(100, subject.limitMinutes > 0 ? (status.usedMinutes / subject.limitMinutes) * 100 : 0)}%`,
+                      }}
+                    />
+                  </div>
+                  <div className='flex justify-between mt-1'>
+                    <span className='text-[12px] text-gray-500 dark:text-gray-400'>
+                      Day {status.dayNumber} of {status.totalDays}
+                    </span>
+                    <span className='text-[12px] text-gray-500 dark:text-gray-400'>
+                      Expected:{" "}
+                      {formatMinutes(Math.round(status.expectedMinutes))}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Day-by-day entry */}
+                <div className='bg-white/80 dark:bg-ios-card-dark rounded-2xl overflow-hidden'>
+                  <div className='px-4 py-3 border-b border-gray-200/60 dark:border-gray-700/60'>
+                    <h2 className='text-[15px] font-semibold text-gray-900 dark:text-white'>
+                      Log Time
+                    </h2>
+                  </div>
+                  {periodDates.map((d, idx) => {
+                    const mins = getMinutesForSubject(d, subject.id);
+                    const isToday = d === today;
+                    const isPast = d < today;
+                    const dayLabel = getDayLabel(d, config.limitPeriod);
+                    const dateObj = new Date(d + "T12:00:00");
+                    const dateLabel =
+                      config.limitPeriod !== "daily"
+                        ? `${dateObj.getDate()}. ${dateObj.toLocaleDateString("nb-NO", { month: "short" })}`
+                        : dateObj.toLocaleDateString("nb-NO", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "short",
+                          });
+
+                    return (
+                      <div
+                        key={d}
+                        className={cn(
+                          "px-4 py-3 flex items-center justify-between",
+                          idx > 0 &&
+                            "border-t border-gray-200/60 dark:border-gray-700/60",
+                          isToday && "bg-ios-blue/5 dark:bg-ios-blue/10",
+                        )}>
+                        <div className='flex-1 min-w-0'>
+                          <div className='flex items-center gap-2'>
+                            <span
+                              className={cn(
+                                "text-[15px] font-medium",
+                                isToday
+                                  ? "text-ios-blue"
+                                  : isPast
+                                    ? "text-gray-900 dark:text-white"
+                                    : "text-gray-400 dark:text-gray-500",
+                              )}>
+                              {dayLabel}
+                            </span>
+                            {config.limitPeriod !== "daily" && (
+                              <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                                {dateLabel}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className='flex items-center gap-2'>
+                          <button
+                            onClick={() => {
+                              setMinutesForSubject(
+                                d,
+                                subject.id,
+                                Math.max(0, mins - interval),
+                              );
+                              setScreenTimeConfigLocal({ ...config });
+                            }}
+                            className='w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center active:bg-gray-300 dark:active:bg-gray-600'>
+                            <svg
+                              className='w-4 h-4 text-gray-600 dark:text-gray-300'
+                              fill='none'
+                              viewBox='0 0 24 24'
+                              stroke='currentColor'
+                              strokeWidth={2.5}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M20 12H4'
+                              />
+                            </svg>
+                          </button>
+                          <input
+                            type='number'
+                            value={mins}
+                            onChange={(e) => {
+                              const val = Math.max(
+                                0,
+                                parseInt(e.target.value) || 0,
+                              );
+                              setMinutesForSubject(d, subject.id, val);
+                              setScreenTimeConfigLocal({ ...config });
+                            }}
+                            className={cn(
+                              "w-16 text-center text-[16px] font-semibold tabular-nums bg-transparent rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-ios-blue",
+                              mins > 0
+                                ? "text-gray-900 dark:text-white"
+                                : "text-gray-300 dark:text-gray-600",
+                            )}
+                            min={0}
+                          />
+                          <button
+                            onClick={() => {
+                              setMinutesForSubject(
+                                d,
+                                subject.id,
+                                mins + interval,
+                              );
+                              setScreenTimeConfigLocal({ ...config });
+                            }}
+                            className='w-8 h-8 rounded-full bg-ios-blue flex items-center justify-center active:opacity-80'>
+                            <svg
+                              className='w-4 h-4 text-white'
+                              fill='none'
+                              viewBox='0 0 24 24'
+                              stroke='currentColor'
+                              strokeWidth={2.5}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M12 4v16m8-8H4'
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          );
+        })()}
     </div>
   );
 }

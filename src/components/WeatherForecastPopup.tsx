@@ -104,6 +104,12 @@ export function WeatherForecastPopup({
     });
   }, []);
 
+  // Scroll back to "now" (today + current hour)
+  const scrollToNow = useCallback(() => {
+    setDayOffset(0);
+    // dayOffset change triggers the scroll-to-index effect
+  }, []);
+
   if (!isOpen) return null;
 
   // Get the date for the current dayOffset
@@ -172,14 +178,18 @@ export function WeatherForecastPopup({
       />
 
       {/* Popup */}
-      <div className='relative w-full max-w-md mx-4 bg-white/90 dark:bg-gray-900/95 backdrop-blur-xl rounded-3xl overflow-hidden animate-in slide-in-from-bottom duration-300 shadow-2xl'>
+      <div
+        onClick={scrollToNow}
+        className='relative w-full max-w-md mx-4 bg-white/90 dark:bg-gray-900/95 backdrop-blur-xl rounded-3xl overflow-hidden animate-in slide-in-from-bottom duration-300 shadow-2xl'>
         {/* Drag handle */}
         <div className='flex justify-center pt-3 pb-1 sm:hidden'>
           <div className='w-10 h-1 rounded-full bg-gray-300 dark:bg-gray-600' />
         </div>
 
         {/* Header with arrows and day label */}
-        <div className='flex items-center justify-between px-5 pt-3 pb-2'>
+        <div
+          className='flex items-center justify-between px-5 pt-3 pb-2'
+          onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => setDayOffset((d) => Math.max(0, d - 1))}
             className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
@@ -275,6 +285,7 @@ export function WeatherForecastPopup({
               <div
                 ref={scrollRef}
                 onScroll={handleScroll}
+                onClick={(e) => e.stopPropagation()}
                 className='flex items-center overflow-x-auto pb-4 pt-2 scrollbar-hide'
                 style={{
                   touchAction: "pan-x",
@@ -416,7 +427,7 @@ export function WeatherForecastPopup({
         </div>
 
         {/* Close button */}
-        <div className='px-5 pb-6 pt-1'>
+        <div className='px-5 pb-6 pt-1' onClick={(e) => e.stopPropagation()}>
           <button
             onClick={onClose}
             className='w-full py-3 rounded-2xl text-[16px] font-semibold text-ios-blue bg-ios-blue/10 active:bg-ios-blue/20 transition-colors'>
