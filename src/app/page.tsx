@@ -1525,11 +1525,14 @@ export default function HomePage() {
             <div className='fixed inset-0 z-[60] bg-ios-bg dark:bg-ios-bg-dark colorful-modal-bg overflow-y-auto overflow-x-hidden overscroll-none touch-pan-y'>
               {/* Header */}
               <div className='sticky top-0 z-10 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60'>
-                <div className='px-4 py-3 flex items-center justify-between'>
-                  <div className='w-12' />
-                  <h1 className='text-[17px] font-semibold text-gray-900 dark:text-white'>
+                <div
+                  className='px-4 py-3 flex items-center justify-between'
+                  style={{
+                    paddingTop: "max(env(safe-area-inset-top, 12px), 12px)",
+                  }}>
+                  <h2 className='text-[20px] font-bold text-gray-900 dark:text-white'>
                     Screen Time
-                  </h1>
+                  </h2>
                   <button
                     onClick={() => setShowScreenTime(false)}
                     className='text-ios-blue text-[17px] font-normal'>
@@ -1539,7 +1542,7 @@ export default function HomePage() {
 
                 {/* Subject picker */}
                 {config.subjects.length > 1 && (
-                  <div className='px-4 pb-3 flex gap-2'>
+                  <div className='px-4 pb-3 flex justify-center gap-2'>
                     {config.subjects.map((s) => (
                       <button
                         key={s.id}
