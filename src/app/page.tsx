@@ -531,7 +531,7 @@ export default function HomePage() {
               </button>
               {/* Calendar date picker */}
               <label
-                className='relative text-gray-400 dark:text-gray-500 active:opacity-60 transition-opacity cursor-pointer'
+                className='relative overflow-hidden text-gray-400 dark:text-gray-500 active:opacity-60 transition-opacity cursor-pointer'
                 title='Jump to date'>
                 <svg
                   className='w-6 h-6'
