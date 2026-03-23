@@ -630,7 +630,7 @@ export default function HomePage() {
       </div>
 
       {/* Date Navigator */}
-      <div className='px-4 pt-2 pb-3'>
+      <div className='px-4 pt-2 pb-2'>
         <DateNavigator date={selectedDate} onChange={setSelectedDate} />
       </div>
 

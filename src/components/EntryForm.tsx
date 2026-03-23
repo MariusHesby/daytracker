@@ -3596,7 +3596,7 @@ export function EntryForm({
 
       {/* Icon Grid View */}
       {viewMode === "icons" && (
-        <div className='grid grid-cols-4 gap-3.5'>
+        <div className='mt-8 grid grid-cols-4 gap-3.5'>
           {allActivityTypes
             .filter((type) => {
               // Standalone types are shown in the standalone section above
@@ -3984,7 +3984,7 @@ export function EntryForm({
 
       {/* List View */}
       {viewMode === "list" && (
-        <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible'>
+        <div className='mt-8 bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-visible'>
           {allActivityTypes
             .filter((type) => {
               // Standalone types are shown in the standalone section above
