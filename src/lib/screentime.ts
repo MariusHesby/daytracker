@@ -248,17 +248,14 @@ export async function loadScreenTimeFromSupabase(): Promise<void> {
       .single();
 
     if (data?.settings?.screentime_config) {
-      // Only load if no local config exists
-      if (localStorage.getItem(CONFIG_KEY) === null) {
-        localStorage.setItem(CONFIG_KEY, JSON.stringify(data.settings.screentime_config));
-      }
+      // Always use cloud config as source of truth
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(data.settings.screentime_config));
     }
 
     if (data?.settings?.screentime_data) {
       for (const [date, dayData] of Object.entries(data.settings.screentime_data)) {
-        if (localStorage.getItem(dataKey(date)) === null) {
-          localStorage.setItem(dataKey(date), JSON.stringify(dayData));
-        }
+        // Always use cloud data as source of truth
+        localStorage.setItem(dataKey(date), JSON.stringify(dayData));
       }
     }
   } catch (err) {
