@@ -43,6 +43,12 @@ interface EntryFormProps {
   onSuccess?: () => void;
   viewMode?: "list" | "icons";
   onViewModeChange?: (mode: "list" | "icons") => void;
+  newsIcon?: {
+    visible: boolean;
+    hasUnread: boolean;
+    loading: boolean;
+    onClick: () => void;
+  };
 }
 
 type SavedValue = {
@@ -166,6 +172,7 @@ export function EntryForm({
   onSuccess,
   viewMode: externalViewMode,
   onViewModeChange,
+  newsIcon,
 }: EntryFormProps) {
   const {
     activityTypes,
@@ -402,10 +409,16 @@ export function EntryForm({
   // Load workout history for placeholders (from previous days)
   useEffect(() => {
     const loadHistory = async () => {
-      const workoutType = activityTypes.find((t) => t.valueType === "workout");
-      if (workoutType) {
-        const history = await getWorkoutHistory(workoutType.id, date);
-        setWorkoutHistoryEntries(history);
+      try {
+        const workoutType = activityTypes.find(
+          (t) => t.valueType === "workout",
+        );
+        if (workoutType) {
+          const history = await getWorkoutHistory(workoutType.id, date);
+          setWorkoutHistoryEntries(history);
+        }
+      } catch (err) {
+        console.error("Failed to load workout history:", err);
       }
     };
     loadHistory();
@@ -3007,185 +3020,269 @@ export function EntryForm({
 
   return (
     <>
-      {/* Standalone Sections — separate cards like matchday/news */}
+      {/* Standalone Sections — separate cards (only in list view) */}
+      {viewMode !== "icons" && (
+        <>
+          {/* Non-checklist standalone types */}
+          {standaloneOtherTypes.map((type) => {
+            const typeSavedValues = savedValues[type.id] || [];
+            const hasSavedValues = typeSavedValues.length > 0;
+            const isCheckmark = type.valueType === "checkmark";
+            const isMood = type.valueType === "mood";
+            const isWorkout = type.valueType === "workout";
+            const isTimer = type.valueType === "timer";
 
-      {/* Non-checklist standalone types */}
-      {standaloneOtherTypes.map((type) => {
-        const typeSavedValues = savedValues[type.id] || [];
-        const hasSavedValues = typeSavedValues.length > 0;
-        const isCheckmark = type.valueType === "checkmark";
-        const isMood = type.valueType === "mood";
-        const isWorkout = type.valueType === "workout";
-        const isTimer = type.valueType === "timer";
+            // Summary for header
+            const displayValue =
+              isCheckmark && hasSavedValues
+                ? typeSavedValues[0].value === "skipped"
+                  ? "✗"
+                  : "✓"
+                : hasSavedValues
+                  ? `${typeSavedValues.length}`
+                  : null;
 
-        // Summary for header
-        const displayValue =
-          isCheckmark && hasSavedValues
-            ? typeSavedValues[0].value === "skipped"
-              ? "✗"
-              : "✓"
-            : hasSavedValues
-              ? `${typeSavedValues.length}`
-              : null;
+            if (type.hidden && !hasSavedValues) return null;
 
-        if (type.hidden && !hasSavedValues) return null;
-
-        return (
-          <div
-            key={type.id}
-            className='mb-2 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
-            {/* Header — tap to expand/collapse */}
-            <div
-              className='flex items-center px-4 py-3 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700'
-              onClick={() => {
-                if (isCheckmark) {
-                  handleCheckmarkToggle(type.id, typeSavedValues);
-                } else {
-                  setExpandedTypeId(
-                    expandedTypeId === type.id ? null : type.id,
-                  );
-                }
-              }}>
-              <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
-                {type.icon &&
-                  (type.icon in icons ? (
-                    <Icon
-                      name={type.icon as IconName}
-                      className={cn(
-                        "w-6 h-6",
-                        hasSavedValues ? "text-ios-green" : "text-ios-blue",
-                      )}
-                    />
-                  ) : (
-                    <span className='text-xl'>{type.icon}</span>
-                  ))}
-              </div>
-              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                {type.name}
-              </span>
-              <div className='ml-auto flex items-center gap-2'>
-                {displayValue && (
-                  <span className='text-[13px] text-gray-400 dark:text-gray-500'>
-                    {displayValue}
+            return (
+              <div
+                key={type.id}
+                className='mb-2 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
+                {/* Header — tap to expand/collapse */}
+                <div
+                  className='flex items-center px-4 py-3 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700'
+                  onClick={() => {
+                    if (isCheckmark) {
+                      handleCheckmarkToggle(type.id, typeSavedValues);
+                    } else {
+                      setExpandedTypeId(
+                        expandedTypeId === type.id ? null : type.id,
+                      );
+                    }
+                  }}>
+                  <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
+                    {type.icon &&
+                      (type.icon in icons ? (
+                        <Icon
+                          name={type.icon as IconName}
+                          className={cn(
+                            "w-6 h-6",
+                            hasSavedValues ? "text-ios-green" : "text-ios-blue",
+                          )}
+                        />
+                      ) : (
+                        <span className='text-xl'>{type.icon}</span>
+                      ))}
+                  </div>
+                  <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                    {type.name}
                   </span>
-                )}
-                {!isCheckmark && (
-                  <svg
-                    className={cn(
-                      "w-4 h-4 text-gray-400 transition-transform",
-                      expandedTypeId === type.id && "rotate-180",
-                    )}
-                    fill='none'
-                    viewBox='0 0 24 24'
-                    stroke='currentColor'
-                    strokeWidth={2}>
-                    <path
-                      strokeLinecap='round'
-                      strokeLinejoin='round'
-                      d='M19 9l-7 7-7-7'
-                    />
-                  </svg>
-                )}
-              </div>
-            </div>
-
-            {/* Expanded content */}
-            {expandedTypeId === type.id && !isCheckmark && (
-              <div className='px-4 pb-4'>
-                {hasSavedValues && !isMood && !isWorkout && !isTimer && (
-                  <div className='flex flex-wrap gap-2 pb-3'>
-                    {typeSavedValues.map((saved) => (
-                      <span
-                        key={saved.id}
-                        className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
-                        {formatValue(saved.value, type.id)}
-                        <button
-                          type='button'
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeSavedValue(type.id, saved.id);
-                          }}
-                          className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
-                          ×
-                        </button>
+                  <div className='ml-auto flex items-center gap-2'>
+                    {displayValue && (
+                      <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                        {displayValue}
                       </span>
-                    ))}
+                    )}
+                    {!isCheckmark && (
+                      <svg
+                        className={cn(
+                          "w-4 h-4 text-gray-400 transition-transform",
+                          expandedTypeId === type.id && "rotate-180",
+                        )}
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        stroke='currentColor'
+                        strokeWidth={2}>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M19 9l-7 7-7-7'
+                        />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+
+                {/* Expanded content */}
+                {expandedTypeId === type.id && !isCheckmark && (
+                  <div className='px-4 pb-4'>
+                    {hasSavedValues && !isMood && !isWorkout && !isTimer && (
+                      <div className='flex flex-wrap gap-2 pb-3'>
+                        {typeSavedValues.map((saved) => (
+                          <span
+                            key={saved.id}
+                            className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[15px] bg-ios-blue text-white'>
+                            {formatValue(saved.value, type.id)}
+                            <button
+                              type='button'
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeSavedValue(type.id, saved.id);
+                              }}
+                              className='w-4 h-4 rounded-full bg-white/30 flex items-center justify-center text-xs'>
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {renderExpandedInput(type)}
                   </div>
                 )}
-                {renderExpandedInput(type)}
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
 
-      {/* Standalone Checklist types */}
-      {standaloneChecklistTypes.map((type) => {
-        const existingEntry = entries.find(
-          (e) =>
-            e.activityTypeId === type.id && e.date === date && e.checklistData,
-        );
-        const checklistItems = existingEntry?.checklistData?.items || [];
-        const completedCount = checklistItems.filter(
-          (item) => item.completed,
-        ).length;
-        const totalCount = checklistItems.length;
+          {/* Standalone Checklist types */}
+          {standaloneChecklistTypes.map((type) => {
+            const existingEntry = entries.find(
+              (e) =>
+                e.activityTypeId === type.id &&
+                e.date === date &&
+                e.checklistData,
+            );
+            const checklistItems = existingEntry?.checklistData?.items || [];
+            const completedCount = checklistItems.filter(
+              (item) => item.completed,
+            ).length;
+            const totalCount = checklistItems.length;
 
-        const standaloneChecklistText = getChecklistText(type.id);
-        const handleAddItem = async () => {
-          if (!standaloneChecklistText.trim()) return;
+            const standaloneChecklistText = getChecklistText(type.id);
+            const handleAddItem = async () => {
+              if (!standaloneChecklistText.trim()) return;
 
-          const itemText = standaloneChecklistText.trim();
-          // Clear input immediately
-          setChecklistText(type.id, "");
+              const itemText = standaloneChecklistText.trim();
+              // Clear input immediately
+              setChecklistText(type.id, "");
 
-          const newItem: ChecklistItem = {
-            id: crypto.randomUUID(),
-            text: itemText,
-            completed: false,
-            addedDate: date,
-          };
+              const newItem: ChecklistItem = {
+                id: crypto.randomUUID(),
+                text: itemText,
+                completed: false,
+                addedDate: date,
+              };
 
-          const updatedItems = [...checklistItems, newItem];
-          const checklistData: ChecklistData = { items: updatedItems };
+              const updatedItems = [...checklistItems, newItem];
+              const checklistData: ChecklistData = { items: updatedItems };
 
-          if (existingEntry) {
-            await updateEntry({
-              ...existingEntry,
-              checklistData,
-              value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
-            });
-          } else {
-            await addEntry({
-              date,
-              activityTypeId: type.id,
-              value: `0/${updatedItems.length}`,
-              checklistData,
-            });
-          }
-
-          // If repeating checklist, update master template
-          if (type.checklistRepeat && type.checklistRepeat !== "none") {
-            try {
-              let currentTemplate = type.checklistTemplate || [];
-              // Bootstrap template from existing items if empty
-              if (currentTemplate.length === 0) {
-                currentTemplate = checklistItems.map((item) => ({
-                  text: item.text,
-                  addedDate: item.addedDate || date,
-                }));
-              }
-              if (!currentTemplate.some((t) => t.text === itemText)) {
-                const updatedTemplate = [
-                  ...currentTemplate,
-                  { text: itemText, addedDate: date },
-                ];
-                await updateActivityType({
-                  ...type,
-                  checklistTemplate: updatedTemplate,
+              if (existingEntry) {
+                await updateEntry({
+                  ...existingEntry,
+                  checklistData,
+                  value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
                 });
+              } else {
+                await addEntry({
+                  date,
+                  activityTypeId: type.id,
+                  value: `0/${updatedItems.length}`,
+                  checklistData,
+                });
+              }
 
-                // Also update tomorrow's existing entry if one was already created
+              // If repeating checklist, update master template
+              if (type.checklistRepeat && type.checklistRepeat !== "none") {
+                try {
+                  let currentTemplate = type.checklistTemplate || [];
+                  // Bootstrap template from existing items if empty
+                  if (currentTemplate.length === 0) {
+                    currentTemplate = checklistItems.map((item) => ({
+                      text: item.text,
+                      addedDate: item.addedDate || date,
+                    }));
+                  }
+                  if (!currentTemplate.some((t) => t.text === itemText)) {
+                    const updatedTemplate = [
+                      ...currentTemplate,
+                      { text: itemText, addedDate: date },
+                    ];
+                    await updateActivityType({
+                      ...type,
+                      checklistTemplate: updatedTemplate,
+                    });
+
+                    // Also update tomorrow's existing entry if one was already created
+                    const tomorrow = addDays(date, 1);
+                    const tomorrowEntry = entries.find(
+                      (e) =>
+                        e.activityTypeId === type.id &&
+                        e.date === tomorrow &&
+                        e.checklistData,
+                    );
+                    if (tomorrowEntry) {
+                      const tomorrowTexts = new Set(
+                        tomorrowEntry.checklistData?.items?.map(
+                          (i) => i.text,
+                        ) || [],
+                      );
+                      if (!tomorrowTexts.has(itemText)) {
+                        const tomorrowItems = [
+                          ...(tomorrowEntry.checklistData?.items || []),
+                          {
+                            id: crypto.randomUUID(),
+                            text: itemText,
+                            completed: false,
+                            addedDate: date,
+                          },
+                        ];
+                        await updateEntry({
+                          ...tomorrowEntry,
+                          checklistData: { items: tomorrowItems },
+                          value: `${tomorrowItems.filter((i) => i.completed).length}/${tomorrowItems.length}`,
+                        });
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.error("Failed to update checklist template:", err);
+                }
+              }
+            };
+
+            const handleToggleItem = async (itemId: string) => {
+              if (!existingEntry) return;
+
+              const updatedItems = checklistItems.map((item) =>
+                item.id === itemId
+                  ? { ...item, completed: !item.completed }
+                  : item,
+              );
+              const checklistData: ChecklistData = { items: updatedItems };
+
+              await updateEntry({
+                ...existingEntry,
+                checklistData,
+                value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
+              });
+            };
+
+            const handleDeleteItem = async (itemId: string) => {
+              if (!existingEntry) return;
+
+              const deletedItem = checklistItems.find(
+                (item) => item.id === itemId,
+              );
+              const updatedItems = checklistItems.filter(
+                (item) => item.id !== itemId,
+              );
+
+              // For repeating checklists: update master template + tomorrow's entry
+              if (
+                deletedItem &&
+                type.checklistRepeat &&
+                type.checklistRepeat !== "none"
+              ) {
+                if (type.checklistTemplate) {
+                  const updatedTemplate = type.checklistTemplate.filter(
+                    (t) => t.text !== deletedItem.text,
+                  );
+                  await updateActivityType({
+                    ...type,
+                    checklistTemplate: updatedTemplate,
+                  });
+                }
+
+                // Also remove from tomorrow's existing entry if one was already created
                 const tomorrow = addDays(date, 1);
                 const tomorrowEntry = entries.find(
                   (e) =>
@@ -3194,20 +3291,12 @@ export function EntryForm({
                     e.checklistData,
                 );
                 if (tomorrowEntry) {
-                  const tomorrowTexts = new Set(
-                    tomorrowEntry.checklistData?.items?.map((i) => i.text) ||
-                      [],
-                  );
-                  if (!tomorrowTexts.has(itemText)) {
-                    const tomorrowItems = [
-                      ...(tomorrowEntry.checklistData?.items || []),
-                      {
-                        id: crypto.randomUUID(),
-                        text: itemText,
-                        completed: false,
-                        addedDate: date,
-                      },
-                    ];
+                  const tomorrowItems = (
+                    tomorrowEntry.checklistData?.items || []
+                  ).filter((i) => i.text !== deletedItem.text);
+                  if (tomorrowItems.length === 0) {
+                    await deleteEntry(tomorrowEntry.id);
+                  } else {
                     await updateEntry({
                       ...tomorrowEntry,
                       checklistData: { items: tomorrowItems },
@@ -3216,300 +3305,240 @@ export function EntryForm({
                   }
                 }
               }
-            } catch (err) {
-              console.error("Failed to update checklist template:", err);
-            }
-          }
-        };
 
-        const handleToggleItem = async (itemId: string) => {
-          if (!existingEntry) return;
-
-          const updatedItems = checklistItems.map((item) =>
-            item.id === itemId ? { ...item, completed: !item.completed } : item,
-          );
-          const checklistData: ChecklistData = { items: updatedItems };
-
-          await updateEntry({
-            ...existingEntry,
-            checklistData,
-            value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
-          });
-        };
-
-        const handleDeleteItem = async (itemId: string) => {
-          if (!existingEntry) return;
-
-          const deletedItem = checklistItems.find((item) => item.id === itemId);
-          const updatedItems = checklistItems.filter(
-            (item) => item.id !== itemId,
-          );
-
-          // For repeating checklists: update master template + tomorrow's entry
-          if (
-            deletedItem &&
-            type.checklistRepeat &&
-            type.checklistRepeat !== "none"
-          ) {
-            if (type.checklistTemplate) {
-              const updatedTemplate = type.checklistTemplate.filter(
-                (t) => t.text !== deletedItem.text,
-              );
-              await updateActivityType({
-                ...type,
-                checklistTemplate: updatedTemplate,
-              });
-            }
-
-            // Also remove from tomorrow's existing entry if one was already created
-            const tomorrow = addDays(date, 1);
-            const tomorrowEntry = entries.find(
-              (e) =>
-                e.activityTypeId === type.id &&
-                e.date === tomorrow &&
-                e.checklistData,
-            );
-            if (tomorrowEntry) {
-              const tomorrowItems = (
-                tomorrowEntry.checklistData?.items || []
-              ).filter((i) => i.text !== deletedItem.text);
-              if (tomorrowItems.length === 0) {
-                await deleteEntry(tomorrowEntry.id);
+              // Update or delete the current entry
+              if (updatedItems.length === 0) {
+                await deleteEntry(existingEntry.id);
               } else {
+                const checklistData: ChecklistData = { items: updatedItems };
                 await updateEntry({
-                  ...tomorrowEntry,
-                  checklistData: { items: tomorrowItems },
-                  value: `${tomorrowItems.filter((i) => i.completed).length}/${tomorrowItems.length}`,
+                  ...existingEntry,
+                  checklistData,
+                  value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
                 });
               }
-            }
-          }
+            };
 
-          // Update or delete the current entry
-          if (updatedItems.length === 0) {
-            await deleteEntry(existingEntry.id);
-          } else {
-            const checklistData: ChecklistData = { items: updatedItems };
-            await updateEntry({
-              ...existingEntry,
-              checklistData,
-              value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
-            });
-          }
-        };
+            // Don't render if hidden type with no items
+            if (type.hidden && totalCount === 0) return null;
 
-        // Don't render if hidden type with no items
-        if (type.hidden && totalCount === 0) return null;
-
-        return (
-          <div
-            key={type.id}
-            className='mb-2 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
-            {/* Header — tap to open/close */}
-            <div
-              className='flex items-center px-4 py-3 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700'
-              onClick={() =>
-                setOpenChecklists((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(type.id)) next.delete(type.id);
-                  else next.add(type.id);
-                  return next;
-                })
-              }>
-              <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
-                {type.icon &&
-                  (type.icon in icons ? (
-                    <Icon
-                      name={type.icon as IconName}
-                      className={cn(
-                        "w-6 h-6",
-                        completedCount === totalCount && totalCount > 0
-                          ? "text-ios-green"
-                          : totalCount > 0
-                            ? "text-ios-orange"
-                            : "text-ios-blue",
-                      )}
-                    />
-                  ) : (
-                    <span className='text-xl'>{type.icon}</span>
-                  ))}
-              </div>
-              <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
-                {type.name}
-              </span>
-              {type.checklistRepeat && type.checklistRepeat !== "none" && (
-                <span className='ml-1.5 text-[11px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full'>
-                  {type.checklistRepeat === "daily"
-                    ? "↻ Daily"
-                    : type.checklistRepeat === "weekly"
-                      ? "↻ Weekly"
-                      : "↻ Monthly"}
-                </span>
-              )}
-              <div className='ml-auto flex items-center gap-2'>
-                {totalCount > 0 && (
-                  <span className='text-[13px] text-gray-400 dark:text-gray-500'>
-                    {completedCount}/{totalCount}
-                    {completedCount === totalCount && " ✓"}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Today's checklist items — collapsible */}
-            {openChecklists.has(type.id) && (
-              <div className='px-4 pb-3'>
-                {checklistItems.length > 0 && (
-                  <div className='space-y-1'>
-                    {checklistItems.map((item) => (
-                      <div
-                        key={item.id}
-                        className='flex items-center gap-3 py-2 px-1 group'>
-                        <button
-                          onClick={() => handleToggleItem(item.id)}
+            return (
+              <div
+                key={type.id}
+                className='mb-2 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
+                {/* Header — tap to open/close */}
+                <div
+                  className='flex items-center px-4 py-3 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700'
+                  onClick={() =>
+                    setOpenChecklists((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(type.id)) next.delete(type.id);
+                      else next.add(type.id);
+                      return next;
+                    })
+                  }>
+                  <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
+                    {type.icon &&
+                      (type.icon in icons ? (
+                        <Icon
+                          name={type.icon as IconName}
                           className={cn(
-                            "w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                            item.completed
-                              ? "bg-ios-green border-ios-green"
-                              : "border-gray-300 dark:border-gray-600",
-                          )}>
-                          {item.completed && (
-                            <svg
-                              className='w-4 h-4 text-white'
-                              fill='none'
-                              viewBox='0 0 24 24'
-                              stroke='currentColor'
-                              strokeWidth={3}>
-                              <path
-                                strokeLinecap='round'
-                                strokeLinejoin='round'
-                                d='M5 13l4 4L19 7'
-                              />
-                            </svg>
+                            "w-6 h-6",
+                            completedCount === totalCount && totalCount > 0
+                              ? "text-ios-green"
+                              : totalCount > 0
+                                ? "text-ios-orange"
+                                : "text-ios-blue",
                           )}
-                        </button>
-                        <span
-                          className={cn(
-                            "flex-1 text-[15px]",
-                            item.completed
-                              ? "text-gray-400 dark:text-gray-500 line-through"
-                              : "text-gray-900 dark:text-white",
-                          )}>
-                          {item.text}
-                        </span>
+                        />
+                      ) : (
+                        <span className='text-xl'>{type.icon}</span>
+                      ))}
+                  </div>
+                  <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                    {type.name}
+                  </span>
+                  {type.checklistRepeat && type.checklistRepeat !== "none" && (
+                    <span className='ml-1.5 text-[11px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded-full'>
+                      {type.checklistRepeat === "daily"
+                        ? "↻ Daily"
+                        : type.checklistRepeat === "weekly"
+                          ? "↻ Weekly"
+                          : "↻ Monthly"}
+                    </span>
+                  )}
+                  <div className='ml-auto flex items-center gap-2'>
+                    {totalCount > 0 && (
+                      <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                        {completedCount}/{totalCount}
+                        {completedCount === totalCount && " ✓"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Today's checklist items — collapsible */}
+                {openChecklists.has(type.id) && (
+                  <div className='px-4 pb-3'>
+                    {checklistItems.length > 0 && (
+                      <div className='space-y-1'>
+                        {checklistItems.map((item) => (
+                          <div
+                            key={item.id}
+                            className='flex items-center gap-3 py-2 px-1 group'>
+                            <button
+                              onClick={() => handleToggleItem(item.id)}
+                              className={cn(
+                                "w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                                item.completed
+                                  ? "bg-ios-green border-ios-green"
+                                  : "border-gray-300 dark:border-gray-600",
+                              )}>
+                              {item.completed && (
+                                <svg
+                                  className='w-4 h-4 text-white'
+                                  fill='none'
+                                  viewBox='0 0 24 24'
+                                  stroke='currentColor'
+                                  strokeWidth={3}>
+                                  <path
+                                    strokeLinecap='round'
+                                    strokeLinejoin='round'
+                                    d='M5 13l4 4L19 7'
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                            <span
+                              className={cn(
+                                "flex-1 text-[15px]",
+                                item.completed
+                                  ? "text-gray-400 dark:text-gray-500 line-through"
+                                  : "text-gray-900 dark:text-white",
+                              )}>
+                              {item.text}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteItem(item.id)}
+                              className='w-6 h-6 rounded-full flex items-center justify-center text-gray-200 dark:text-gray-700 active:text-ios-red transition-colors'>
+                              <svg
+                                className='w-3 h-3'
+                                fill='none'
+                                viewBox='0 0 24 24'
+                                stroke='currentColor'
+                                strokeWidth={1.5}>
+                                <path
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'
+                                  d='M6 18L18 6M6 6l12 12'
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add new item with autocomplete */}
+                    <div className='relative mt-2'>
+                      <div className='flex items-center gap-2'>
+                        <input
+                          type='text'
+                          value={standaloneChecklistText}
+                          onChange={(e) => {
+                            setChecklistText(type.id, e.target.value);
+                            setShowChecklistDropdown(true);
+                            setActiveChecklistTypeId(type.id);
+                          }}
+                          onFocus={() => {
+                            setShowChecklistDropdown(true);
+                            setActiveChecklistTypeId(type.id);
+                          }}
+                          onBlur={() =>
+                            setTimeout(
+                              () => setShowChecklistDropdown(false),
+                              200,
+                            )
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddItem();
+                              setShowChecklistDropdown(false);
+                            }
+                            if (e.key === "Escape") {
+                              setShowChecklistDropdown(false);
+                            }
+                          }}
+                          placeholder='Add new item...'
+                          className='flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-[15px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                        />
                         <button
-                          onClick={() => handleDeleteItem(item.id)}
-                          className='w-6 h-6 rounded-full flex items-center justify-center text-gray-200 dark:text-gray-700 active:text-ios-red transition-colors'>
-                          <svg
-                            className='w-3 h-3'
-                            fill='none'
-                            viewBox='0 0 24 24'
-                            stroke='currentColor'
-                            strokeWidth={1.5}>
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              d='M6 18L18 6M6 6l12 12'
-                            />
-                          </svg>
+                          onClick={() => {
+                            handleAddItem();
+                            setShowChecklistDropdown(false);
+                          }}
+                          disabled={!standaloneChecklistText.trim()}
+                          className={cn(
+                            "px-4 py-2 rounded-lg text-[15px] font-medium transition-colors",
+                            standaloneChecklistText.trim()
+                              ? "bg-ios-blue text-white"
+                              : "bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500",
+                          )}>
+                          Add
                         </button>
                       </div>
-                    ))}
+                      {/* Autocomplete dropdown */}
+                      {showChecklistDropdown &&
+                        activeChecklistTypeId === type.id &&
+                        (() => {
+                          const typeSuggestions =
+                            checklistSuggestionsByType[type.id] || [];
+                          const filteredSuggestions =
+                            standaloneChecklistText.trim()
+                              ? typeSuggestions.filter((sugg) =>
+                                  sugg.value
+                                    .toLowerCase()
+                                    .includes(
+                                      standaloneChecklistText.toLowerCase(),
+                                    ),
+                                )
+                              : typeSuggestions;
+                          const showDropdown =
+                            filteredSuggestions.length > 0 &&
+                            !filteredSuggestions.some(
+                              (s) =>
+                                s.value.toLowerCase() ===
+                                standaloneChecklistText.toLowerCase().trim(),
+                            );
+                          if (!showDropdown) return null;
+                          return (
+                            <div className='absolute left-0 right-12 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50 max-h-48 overflow-y-auto'>
+                              {filteredSuggestions.slice(0, 10).map((sugg) => (
+                                <button
+                                  key={sugg.value}
+                                  onClick={() => {
+                                    setChecklistText(type.id, sugg.value);
+                                    setShowChecklistDropdown(false);
+                                  }}
+                                  className='w-full px-3 py-2.5 text-left text-[15px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center justify-between'>
+                                  <span>{sugg.value}</span>
+                                  <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                                    ({sugg.count}×)
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                    </div>
                   </div>
                 )}
-
-                {/* Add new item with autocomplete */}
-                <div className='relative mt-2'>
-                  <div className='flex items-center gap-2'>
-                    <input
-                      type='text'
-                      value={standaloneChecklistText}
-                      onChange={(e) => {
-                        setChecklistText(type.id, e.target.value);
-                        setShowChecklistDropdown(true);
-                        setActiveChecklistTypeId(type.id);
-                      }}
-                      onFocus={() => {
-                        setShowChecklistDropdown(true);
-                        setActiveChecklistTypeId(type.id);
-                      }}
-                      onBlur={() =>
-                        setTimeout(() => setShowChecklistDropdown(false), 200)
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          handleAddItem();
-                          setShowChecklistDropdown(false);
-                        }
-                        if (e.key === "Escape") {
-                          setShowChecklistDropdown(false);
-                        }
-                      }}
-                      placeholder='Add new item...'
-                      className='flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-[15px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                    />
-                    <button
-                      onClick={() => {
-                        handleAddItem();
-                        setShowChecklistDropdown(false);
-                      }}
-                      disabled={!standaloneChecklistText.trim()}
-                      className={cn(
-                        "px-4 py-2 rounded-lg text-[15px] font-medium transition-colors",
-                        standaloneChecklistText.trim()
-                          ? "bg-ios-blue text-white"
-                          : "bg-gray-200 dark:bg-gray-600 text-gray-400 dark:text-gray-500",
-                      )}>
-                      Add
-                    </button>
-                  </div>
-                  {/* Autocomplete dropdown */}
-                  {showChecklistDropdown &&
-                    activeChecklistTypeId === type.id &&
-                    (() => {
-                      const typeSuggestions =
-                        checklistSuggestionsByType[type.id] || [];
-                      const filteredSuggestions = standaloneChecklistText.trim()
-                        ? typeSuggestions.filter((sugg) =>
-                            sugg.value
-                              .toLowerCase()
-                              .includes(standaloneChecklistText.toLowerCase()),
-                          )
-                        : typeSuggestions;
-                      const showDropdown =
-                        filteredSuggestions.length > 0 &&
-                        !filteredSuggestions.some(
-                          (s) =>
-                            s.value.toLowerCase() ===
-                            standaloneChecklistText.toLowerCase().trim(),
-                        );
-                      if (!showDropdown) return null;
-                      return (
-                        <div className='absolute left-0 right-12 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50 max-h-48 overflow-y-auto'>
-                          {filteredSuggestions.slice(0, 10).map((sugg) => (
-                            <button
-                              key={sugg.value}
-                              onClick={() => {
-                                setChecklistText(type.id, sugg.value);
-                                setShowChecklistDropdown(false);
-                              }}
-                              className='w-full px-3 py-2.5 text-left text-[15px] text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 border-b border-gray-100 dark:border-gray-700 last:border-b-0 flex items-center justify-between'>
-                              <span>{sugg.value}</span>
-                              <span className='text-[13px] text-gray-400 dark:text-gray-500'>
-                                ({sugg.count}×)
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                </div>
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </>
+      )}
 
       {/* Expanded Content for Icon Grid View - Positioned at top */}
       {viewMode === "icons" &&
@@ -3596,11 +3625,41 @@ export function EntryForm({
 
       {/* Icon Grid View */}
       {viewMode === "icons" && (
-        <div className='mt-8 grid grid-cols-4 gap-3.5'>
-          {allActivityTypes
+        <div className='grid grid-cols-4 gap-3.5'>
+          {/* News icon tile */}
+          {newsIcon?.visible && (
+            <button
+              onClick={newsIcon.onClick}
+              className='aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all active:scale-95 p-1.5 overflow-hidden relative bg-gray-100/90 dark:bg-gray-800/90'>
+              <div className='relative w-8 h-8 rounded-lg bg-ios-orange flex items-center justify-center'>
+                <svg
+                  className='w-5 h-5 text-white'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={2}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z'
+                  />
+                </svg>
+                {newsIcon.hasUnread && (
+                  <span className='absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-ios-red ring-2 ring-gray-100 dark:ring-gray-800' />
+                )}
+              </div>
+              <span className='text-[9px] text-gray-900 dark:text-white text-center w-full px-0.5 line-clamp-2 leading-tight'>
+                News
+              </span>
+            </button>
+          )}
+
+          {/* Standalone types first, then grouped types */}
+          {[
+            ...standaloneTypes,
+            ...allActivityTypes.filter((t) => !t.standalone),
+          ]
             .filter((type) => {
-              // Standalone types are shown in the standalone section above
-              if (type.standalone) return false;
               // Show if currently expanded (user is adding data)
               if (expandedTypeId === type.id) return true;
               // When day is locked: only show activities that have data

@@ -72,6 +72,13 @@ function getGreeting(): string {
   return "Good night,"; // 23:00 - 04:59
 }
 
+// Module-level timestamps to avoid refetching on every re-mount (tab switch, app resume)
+const REFETCH_COOLDOWN = 5 * 60 * 1000; // 5 minutes
+let lastFetchFootball = 0;
+let lastFetchNews = 0;
+let lastFetchWeather = 0;
+let lastFetchScreenTime = 0;
+
 export default function HomePage() {
   const {
     selectedDate,
@@ -170,7 +177,10 @@ export default function HomePage() {
   // Screen Time state
   const [showScreenTime, setShowScreenTime] = useState(false);
   const [screenTimeConfig, setScreenTimeConfigLocal] =
-    useState<ScreenTimeConfig | null>(null);
+    useState<ScreenTimeConfig | null>(() => {
+      if (typeof window === "undefined") return null;
+      return getScreenTimeConfig();
+    });
   const [screenTimeSelectedSubject, setScreenTimeSelectedSubject] = useState<
     string | null
   >(null);
@@ -200,29 +210,31 @@ export default function HomePage() {
 
   // Load favorite team and next fixture
   useEffect(() => {
-    const loadFootball = async () => {
-      // Load Supabase settings in parallel with checking local storage
-      loadSettingsFromSupabase().catch(() => {});
-
+    const loadFootball = async (force = false) => {
+      // Always load local state instantly
       const fav = getFavoriteTeam();
       setFavoriteTeamLocal(fav);
       if (!fav) return;
 
-      // Single bulk call gets everything
+      // Skip network fetch if recently loaded
+      if (!force && Date.now() - lastFetchFootball < REFETCH_COOLDOWN) return;
+
+      loadSettingsFromSupabase().catch(() => {});
       const data = await loadAllTeamData(fav.team.id);
       setNextFixture(data.nextFixture);
       setLiveFixture(data.liveFixture);
       setSeasonFixtures(data.allFixtures);
+      lastFetchFootball = Date.now();
     };
 
     loadFootball();
 
     // Listen for favorite team changes
-    const handleUpdate = () => loadFootball();
+    const handleUpdate = () => loadFootball(true);
     window.addEventListener("favoriteTeamUpdated", handleUpdate);
 
     // Refresh every 5 minutes
-    const interval = setInterval(loadFootball, 5 * 60 * 1000);
+    const interval = setInterval(() => loadFootball(true), 5 * 60 * 1000);
 
     return () => {
       window.removeEventListener("favoriteTeamUpdated", handleUpdate);
@@ -232,7 +244,7 @@ export default function HomePage() {
 
   // Load news on mount and when config changes
   useEffect(() => {
-    const loadNews = async () => {
+    const loadNews = async (force = false) => {
       // Check visibility
       setNewsVisibleLocal(getNewsVisible());
 
@@ -246,6 +258,9 @@ export default function HomePage() {
       // Check if there are sources configured
       const localSources = getNewsSources();
       newsHasSources.current = localSources.length > 0;
+
+      // Skip network fetch if recently loaded
+      if (!force && Date.now() - lastFetchNews < REFETCH_COOLDOWN) return;
 
       // Load from Supabase (may add new sources)
       await loadNewsFromSupabase();
@@ -283,15 +298,16 @@ export default function HomePage() {
         return merged;
       });
       setNewsLoading(false);
+      lastFetchNews = Date.now();
     };
 
     loadNews();
 
-    const handleConfigUpdate = () => loadNews();
+    const handleConfigUpdate = () => loadNews(true);
     window.addEventListener("newsConfigUpdated", handleConfigUpdate);
 
     // Refresh every 15 minutes
-    const interval = setInterval(loadNews, 15 * 60 * 1000);
+    const interval = setInterval(() => loadNews(true), 15 * 60 * 1000);
 
     return () => {
       window.removeEventListener("newsConfigUpdated", handleConfigUpdate);
@@ -302,12 +318,15 @@ export default function HomePage() {
   // Load screen time config
   useEffect(() => {
     const load = async () => {
+      // Skip network fetch if recently loaded
+      if (Date.now() - lastFetchScreenTime < REFETCH_COOLDOWN) return;
       await loadScreenTimeFromSupabase();
       const cfg = getScreenTimeConfig();
       setScreenTimeConfigLocal(cfg);
       if (cfg.subjects.length > 0) {
         setScreenTimeSelectedSubject(cfg.subjects[0].id);
       }
+      lastFetchScreenTime = Date.now();
     };
     load();
     const handler = () => {
@@ -320,7 +339,7 @@ export default function HomePage() {
 
   // Fetch weather on mount and when location changes
   useEffect(() => {
-    const loadWeather = async () => {
+    const loadWeather = async (force = false) => {
       const location = getStoredLocation();
       if (!location) {
         setLocationName(null);
@@ -328,6 +347,10 @@ export default function HomePage() {
       }
 
       setLocationName(location.name);
+
+      // Skip network fetch if recently loaded
+      if (!force && Date.now() - lastFetchWeather < REFETCH_COOLDOWN) return;
+
       const weatherData = await fetchWeather(
         location.latitude,
         location.longitude,
@@ -335,15 +358,16 @@ export default function HomePage() {
       if (weatherData) {
         setWeather(weatherData);
       }
+      lastFetchWeather = Date.now();
     };
 
     loadWeather();
 
     // Refresh weather every 30 minutes
-    const interval = setInterval(loadWeather, 30 * 60 * 1000);
+    const interval = setInterval(() => loadWeather(true), 30 * 60 * 1000);
 
     // Listen for location changes
-    const handleLocationChange = () => loadWeather();
+    const handleLocationChange = () => loadWeather(true);
     window.addEventListener("locationUpdated", handleLocationChange);
 
     return () => {
@@ -510,7 +534,7 @@ export default function HomePage() {
                 className={`flex items-center gap-1 transition-colors ${
                   unlockedDays.length > 0
                     ? "text-ios-orange"
-                    : "text-gray-400 dark:text-gray-500"
+                    : "text-gray-500 dark:text-gray-400"
                 }`}
                 title={`${unlockedDays.length} unlocked ${unlockedDays.length === 1 ? "day" : "days"}`}>
                 <svg
@@ -518,7 +542,7 @@ export default function HomePage() {
                   fill='none'
                   viewBox='0 0 24 24'
                   stroke='currentColor'
-                  strokeWidth={2}>
+                  strokeWidth={1.5}>
                   <path
                     strokeLinecap='round'
                     strokeLinejoin='round'
@@ -531,14 +555,14 @@ export default function HomePage() {
               </button>
               {/* Calendar date picker */}
               <label
-                className='relative overflow-hidden text-gray-400 dark:text-gray-500 active:opacity-60 transition-opacity cursor-pointer'
+                className='relative overflow-hidden text-gray-500 dark:text-gray-400 active:opacity-60 transition-opacity cursor-pointer'
                 title='Jump to date'>
                 <svg
                   className='w-6 h-6'
                   fill='none'
                   viewBox='0 0 24 24'
                   stroke='currentColor'
-                  strokeWidth={2}>
+                  strokeWidth={1.5}>
                   <path
                     strokeLinecap='round'
                     strokeLinejoin='round'
@@ -559,14 +583,14 @@ export default function HomePage() {
                 screenTimeConfig.subjects.length > 0 && (
                   <button
                     onClick={() => setShowScreenTime(true)}
-                    className='text-gray-400 dark:text-gray-500 active:opacity-60 transition-opacity'
+                    className='text-gray-500 dark:text-gray-400 active:opacity-60 transition-opacity'
                     title='Screen Time'>
                     <svg
                       className='w-6 h-6'
                       fill='none'
                       viewBox='0 0 24 24'
                       stroke='currentColor'
-                      strokeWidth={2}>
+                      strokeWidth={1.5}>
                       <path
                         strokeLinecap='round'
                         strokeLinejoin='round'
@@ -630,14 +654,15 @@ export default function HomePage() {
       </div>
 
       {/* Date Navigator */}
-      <div className='px-4 pt-2 pb-2'>
+      <div className={`px-4 pt-2 ${viewMode === "icons" ? "pb-10" : "pb-2"}`}>
         <DateNavigator date={selectedDate} onChange={setSelectedDate} />
       </div>
 
       {/* Main Content */}
       <main className='px-4 pb-24'>
-        {/* News Section — always on top when activated */}
-        {newsVisible &&
+        {/* News Section — card row only in list view */}
+        {viewMode !== "icons" &&
+          newsVisible &&
           (Object.keys(newsData).length > 0 ||
             newsHasSources.current ||
             newsLoading) && (
@@ -862,6 +887,47 @@ export default function HomePage() {
           date={selectedDate}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
+          newsIcon={
+            newsVisible &&
+            (Object.keys(newsData).length > 0 ||
+              newsHasSources.current ||
+              newsLoading)
+              ? {
+                  visible: true,
+                  hasUnread:
+                    Object.entries(newsData).reduce(
+                      (sum, [url, items]) => sum + countNewArticles(url, items),
+                      0,
+                    ) > 0,
+                  loading: newsLoading && Object.keys(newsData).length === 0,
+                  onClick: () => {
+                    if (newsLoading && Object.keys(newsData).length === 0)
+                      return;
+                    const counts: Record<string, number> = {};
+                    const linksMap: Record<string, Set<string>> = {};
+                    for (const [url, items] of Object.entries(newsData)) {
+                      const seen = getSeenArticles(url);
+                      if (seen.size > 0) {
+                        const newLinks = new Set(
+                          items
+                            .filter((a) => !seen.has(a.link))
+                            .map((a) => a.link),
+                        );
+                        counts[url] = newLinks.size;
+                        linksMap[url] = newLinks;
+                      } else {
+                        counts[url] = 0;
+                        linksMap[url] = new Set();
+                      }
+                    }
+                    setSourceNewCounts(counts);
+                    sourceNewLinksRef.current = linksMap;
+                    setExpandedSource(null);
+                    setNewsFullscreen(true);
+                  },
+                }
+              : undefined
+          }
         />
       </main>
 
