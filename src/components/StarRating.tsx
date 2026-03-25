@@ -6,11 +6,16 @@ import { cn } from "@/lib/utils";
 export interface StarRatingProps {
   rating?: number;
   onRate?: (rating: number) => void;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   wrap?: boolean;
 }
 
-const SIZE_CLASSES = { sm: "w-5 h-5", md: "w-6 h-6", lg: "w-7 h-7" };
+const SIZE_CLASSES = {
+  sm: "w-5 h-5",
+  md: "w-6 h-6",
+  lg: "w-7 h-7",
+  xl: "w-8 h-8",
+};
 
 /**
  * A 10-star rating component with touch and mouse support.

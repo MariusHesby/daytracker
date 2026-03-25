@@ -1750,7 +1750,8 @@ export default function HomePage() {
                           </button>
                           <input
                             type='number'
-                            value={mins}
+                            inputMode='numeric'
+                            value={mins || ""}
                             onChange={(e) => {
                               const val = Math.max(
                                 0,

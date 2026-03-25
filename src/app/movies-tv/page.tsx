@@ -568,7 +568,7 @@ function MediaCard({
             <div className='flex items-center gap-3 mt-1.5'>
               {entry.imdbRating && (
                 <span className='text-[14px] text-amber-500'>
-                  ⭐ {Math.round(parseFloat(entry.imdbRating))}
+                  ⭐ {entry.imdbRating}
                 </span>
               )}
               {!isWatchlistView && entry.userRating ? (
@@ -640,23 +640,6 @@ function MediaCard({
                 </>
               )}
             </div>
-            {showRating ? (
-              <div className='mt-2 space-y-1.5'>
-                <StarRating
-                  rating={entry.userRating}
-                  onRate={(r) => {
-                    onRate(entry.id, r);
-                    setShowRating(false);
-                  }}
-                  size='sm'
-                />
-                <button
-                  onClick={() => setShowRating(false)}
-                  className='text-[12px] text-gray-500'>
-                  Cancel
-                </button>
-              </div>
-            ) : null}
           </div>
         </div>
         <PosterPickerModal
@@ -665,6 +648,35 @@ function MediaCard({
           entry={entry}
           onSelectPoster={(url) => onUpdatePoster(entry.id, url)}
         />
+        {showRating && (
+          <div
+            className='fixed inset-0 z-50 flex items-center justify-center'
+            onClick={() => setShowRating(false)}>
+            <div className='absolute inset-0 bg-black/40' />
+            <div
+              className='relative w-[calc(100%-3rem)] max-w-sm bg-white dark:bg-gray-800 rounded-2xl px-6 py-5'
+              onClick={(e) => e.stopPropagation()}>
+              <p className='text-center font-semibold text-[17px] text-gray-900 dark:text-white mb-4 line-clamp-1'>
+                {title}
+              </p>
+              <div className='flex justify-center'>
+                <StarRating
+                  rating={entry.userRating}
+                  onRate={(r) => {
+                    onRate(entry.id, r);
+                    setShowRating(false);
+                  }}
+                  size='xl'
+                />
+              </div>
+              <button
+                onClick={() => setShowRating(false)}
+                className='mt-4 w-full text-center text-[15px] text-gray-500'>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -738,7 +750,7 @@ function MediaCard({
         <div className='flex items-center gap-3 mt-auto pt-2'>
           {entry.imdbRating && (
             <span className='text-[14px] text-amber-500'>
-              ⭐ {Math.round(parseFloat(entry.imdbRating))}
+              ⭐ {entry.imdbRating}
             </span>
           )}
           {!isWatchlistView && entry.userRating ? (
@@ -818,23 +830,6 @@ function MediaCard({
               </svg>
             </button>
           </div>
-        ) : showRating ? (
-          <div className='mt-3 space-y-1.5'>
-            <StarRating
-              rating={entry.userRating}
-              onRate={(r) => {
-                onRate(entry.id, r);
-                setShowRating(false);
-              }}
-              size='sm'
-              wrap
-            />
-            <button
-              onClick={() => setShowRating(false)}
-              className='text-[12px] text-gray-500'>
-              Cancel
-            </button>
-          </div>
         ) : null}
       </div>
       <PosterPickerModal
@@ -843,6 +838,35 @@ function MediaCard({
         entry={entry}
         onSelectPoster={(url) => onUpdatePoster(entry.id, url)}
       />
+      {showRating && (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center'
+          onClick={() => setShowRating(false)}>
+          <div className='absolute inset-0 bg-black/40' />
+          <div
+            className='relative w-[calc(100%-3rem)] max-w-sm bg-white dark:bg-gray-800 rounded-2xl px-6 py-5'
+            onClick={(e) => e.stopPropagation()}>
+            <p className='text-center font-semibold text-[17px] text-gray-900 dark:text-white mb-4 line-clamp-1'>
+              {title}
+            </p>
+            <div className='flex justify-center'>
+              <StarRating
+                rating={entry.userRating}
+                onRate={(r) => {
+                  onRate(entry.id, r);
+                  setShowRating(false);
+                }}
+                size='xl'
+              />
+            </div>
+            <button
+              onClick={() => setShowRating(false)}
+              className='mt-4 w-full text-center text-[15px] text-gray-500'>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

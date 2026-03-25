@@ -80,7 +80,7 @@ export function getScreenTimeDayData(date: string): ScreenTimeDayData {
 
 export function setScreenTimeDayData(data: ScreenTimeDayData): void {
   localStorage.setItem(dataKey(data.date), JSON.stringify(data));
-  syncScreenTimeDataToSupabase(data);
+  syncScreenTimeDataToSupabase();
 }
 
 export function getMinutesForSubject(date: string, subjectId: string): number {
@@ -190,7 +190,10 @@ export function getSubjectStatus(
 
 // ─── Supabase sync ───────────────────────────────────────
 
-async function syncScreenTimeConfigToSupabase(): Promise<void> {
+let syncConfigTimer: ReturnType<typeof setTimeout> | null = null;
+let syncDataTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function doSyncConfigToSupabase(): Promise<void> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -203,19 +206,32 @@ async function syncScreenTimeConfigToSupabase(): Promise<void> {
       .single();
 
     const currentSettings = existing?.settings || {};
-    await supabase
+    const { error } = await supabase
       .from('profiles')
       .update({ settings: { ...currentSettings, screentime_config: config } })
       .eq('id', user.id);
+
+    if (error) console.error('Failed to sync screen time config:', error);
   } catch (err) {
     console.error('Failed to sync screen time config:', err);
   }
 }
 
-async function syncScreenTimeDataToSupabase(data: ScreenTimeDayData): Promise<void> {
+async function doSyncDataToSupabase(): Promise<void> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    // Collect all screentime data from localStorage
+    const allData: Record<string, ScreenTimeDayData> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(DATA_KEY_PREFIX)) {
+        try {
+          allData[key.slice(DATA_KEY_PREFIX.length)] = JSON.parse(localStorage.getItem(key)!);
+        } catch { /* skip corrupt entries */ }
+      }
+    }
 
     const { data: existing } = await supabase
       .from('profiles')
@@ -224,16 +240,25 @@ async function syncScreenTimeDataToSupabase(data: ScreenTimeDayData): Promise<vo
       .single();
 
     const currentSettings = existing?.settings || {};
-    const screenTimeData = currentSettings.screentime_data || {};
-    screenTimeData[data.date] = data;
-
-    await supabase
+    const { error } = await supabase
       .from('profiles')
-      .update({ settings: { ...currentSettings, screentime_data: screenTimeData } })
+      .update({ settings: { ...currentSettings, screentime_data: allData } })
       .eq('id', user.id);
+
+    if (error) console.error('Failed to sync screen time data:', error);
   } catch (err) {
     console.error('Failed to sync screen time data:', err);
   }
+}
+
+function syncScreenTimeConfigToSupabase(): void {
+  if (syncConfigTimer) clearTimeout(syncConfigTimer);
+  syncConfigTimer = setTimeout(doSyncConfigToSupabase, 1000);
+}
+
+function syncScreenTimeDataToSupabase(): void {
+  if (syncDataTimer) clearTimeout(syncDataTimer);
+  syncDataTimer = setTimeout(doSyncDataToSupabase, 1000);
 }
 
 export async function loadScreenTimeFromSupabase(): Promise<void> {
