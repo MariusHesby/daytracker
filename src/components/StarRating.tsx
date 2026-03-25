@@ -29,6 +29,7 @@ export function StarRating({
 }: StarRatingProps) {
   const [hovered, setHovered] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const wasDraggingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const justTouchedRef = useRef(false);
   const displayRating = hovered ?? rating ?? 0;
@@ -96,12 +97,13 @@ export function StarRating({
     };
   }, [getRatingFromPosition]);
 
-  // Save rating when dragging ends with a hovered value
+  // Save rating only when touch drag ends (not on mouse hover)
   useEffect(() => {
-    if (!isDragging && hovered !== null && onRate) {
+    if (wasDraggingRef.current && !isDragging && hovered !== null && onRate) {
       onRate(hovered);
       setHovered(null);
     }
+    wasDraggingRef.current = isDragging;
   }, [isDragging, hovered, onRate]);
 
   return (

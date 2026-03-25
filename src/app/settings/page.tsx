@@ -10,6 +10,7 @@ import {
   Avatar,
   EditProfileModal,
 } from "@/components";
+import { Icon, IconName } from "@/components/Icons";
 import { cn } from "@/lib/utils";
 import {
   FunFactCategory,
@@ -66,6 +67,9 @@ export default function SettingsPage() {
     isSyncing,
     allActivityTypes,
     updateActivityType,
+    deletedActivityTypes,
+    recoverActivityType,
+    clearDeletedActivityTypes,
   } = useApp();
   const { theme, setTheme } = useTheme();
   const {
@@ -81,6 +85,7 @@ export default function SettingsPage() {
   } = useAuth();
   const activityManagerRef = useRef<ActivityTypeManagerRef>(null);
   const [isAddingActivity, setIsAddingActivity] = useState(false);
+  const [showRecovery, setShowRecovery] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1035,11 +1040,20 @@ export default function SettingsPage() {
               Activity Types
             </h2>
             {!isAddingActivity && (
-              <button
-                onClick={() => activityManagerRef.current?.startAdding()}
-                className='text-[13px] font-medium text-ios-blue'>
-                + Add
-              </button>
+              <div className='flex items-center gap-3'>
+                {deletedActivityTypes.length > 0 && (
+                  <button
+                    onClick={() => setShowRecovery(true)}
+                    className='text-[13px] font-medium text-green-600 dark:text-green-400'>
+                    Recover
+                  </button>
+                )}
+                <button
+                  onClick={() => activityManagerRef.current?.startAdding()}
+                  className='text-[13px] font-medium text-ios-blue'>
+                  + Add
+                </button>
+              </div>
             )}
           </div>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
@@ -1048,6 +1062,76 @@ export default function SettingsPage() {
               onAddingChange={setIsAddingActivity}
             />
           </div>
+
+          {/* Recovery Modal */}
+          {showRecovery && (
+            <div
+              className='fixed inset-0 z-50 flex items-center justify-center'
+              onClick={() => setShowRecovery(false)}>
+              <div className='absolute inset-0 bg-black/40' />
+              <div
+                className='relative w-[calc(100%-2rem)] max-w-sm bg-white dark:bg-gray-800 rounded-2xl overflow-hidden'
+                onClick={(e) => e.stopPropagation()}>
+                <div className='px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
+                  <h3 className='font-semibold text-[17px] text-gray-900 dark:text-white'>
+                    Deleted Activities
+                  </h3>
+                  <button
+                    onClick={() => setShowRecovery(false)}
+                    className='text-[15px] text-ios-blue font-medium'>
+                    Done
+                  </button>
+                </div>
+                <div className='max-h-[50vh] overflow-y-auto'>
+                  {deletedActivityTypes.length === 0 ? (
+                    <p className='p-4 text-center text-gray-500 text-[15px]'>
+                      No deleted activities
+                    </p>
+                  ) : (
+                    deletedActivityTypes.map((type) => (
+                      <div
+                        key={type.id}
+                        className='flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-b-0'>
+                        <div className='flex items-center gap-3'>
+                          <div className='w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center'>
+                            <Icon
+                              name={(type.icon as IconName) || "other"}
+                              className='w-5 h-5 text-gray-600 dark:text-gray-300'
+                            />
+                          </div>
+                          <span className='text-[15px] text-gray-900 dark:text-white'>
+                            {type.name}
+                          </span>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            await recoverActivityType(type);
+                            if (deletedActivityTypes.length <= 1) {
+                              setShowRecovery(false);
+                            }
+                          }}
+                          className='text-[13px] font-medium text-green-600 dark:text-green-400 px-3 py-1 rounded-full bg-green-50 dark:bg-green-900/30'>
+                          Recover
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {deletedActivityTypes.length > 0 && (
+                  <div className='px-4 py-3 border-t border-gray-200 dark:border-gray-700'>
+                    <button
+                      onClick={() => {
+                        clearDeletedActivityTypes();
+                        setShowRecovery(false);
+                      }}
+                      className='w-full text-center text-[13px] text-red-500 font-medium'>
+                      Clear All
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Nutrition Settings Section */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useApp } from "@/context/AppContext";
 import { useAuth } from "@/context/AuthContext";
@@ -648,35 +649,37 @@ function MediaCard({
           entry={entry}
           onSelectPoster={(url) => onUpdatePoster(entry.id, url)}
         />
-        {showRating && (
-          <div
-            className='fixed inset-0 z-50 flex items-center justify-center'
-            onClick={() => setShowRating(false)}>
-            <div className='absolute inset-0 bg-black/40' />
+        {showRating &&
+          createPortal(
             <div
-              className='relative w-[calc(100%-3rem)] max-w-sm bg-white dark:bg-gray-800 rounded-2xl px-6 py-5'
-              onClick={(e) => e.stopPropagation()}>
-              <p className='text-center font-semibold text-[17px] text-gray-900 dark:text-white mb-4 line-clamp-1'>
-                {title}
-              </p>
-              <div className='flex justify-center'>
-                <StarRating
-                  rating={entry.userRating}
-                  onRate={(r) => {
-                    onRate(entry.id, r);
-                    setShowRating(false);
-                  }}
-                  size='xl'
-                />
+              className='fixed inset-0 z-50 flex items-center justify-center'
+              onClick={() => setShowRating(false)}>
+              <div className='absolute inset-0 bg-black/40' />
+              <div
+                className='relative w-[calc(100%-3rem)] max-w-sm bg-white dark:bg-gray-800 rounded-2xl px-6 py-5'
+                onClick={(e) => e.stopPropagation()}>
+                <p className='text-center font-semibold text-[17px] text-gray-900 dark:text-white mb-4 line-clamp-1'>
+                  {title}
+                </p>
+                <div className='flex justify-center'>
+                  <StarRating
+                    rating={entry.userRating}
+                    onRate={(r) => {
+                      onRate(entry.id, r);
+                      setShowRating(false);
+                    }}
+                    size='xl'
+                  />
+                </div>
+                <button
+                  onClick={() => setShowRating(false)}
+                  className='mt-4 w-full text-center text-[15px] text-gray-500'>
+                  Cancel
+                </button>
               </div>
-              <button
-                onClick={() => setShowRating(false)}
-                className='mt-4 w-full text-center text-[15px] text-gray-500'>
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
+            </div>,
+            document.body,
+          )}
       </div>
     );
   }
@@ -838,35 +841,37 @@ function MediaCard({
         entry={entry}
         onSelectPoster={(url) => onUpdatePoster(entry.id, url)}
       />
-      {showRating && (
-        <div
-          className='fixed inset-0 z-50 flex items-center justify-center'
-          onClick={() => setShowRating(false)}>
-          <div className='absolute inset-0 bg-black/40' />
+      {showRating &&
+        createPortal(
           <div
-            className='relative w-[calc(100%-3rem)] max-w-sm bg-white dark:bg-gray-800 rounded-2xl px-6 py-5'
-            onClick={(e) => e.stopPropagation()}>
-            <p className='text-center font-semibold text-[17px] text-gray-900 dark:text-white mb-4 line-clamp-1'>
-              {title}
-            </p>
-            <div className='flex justify-center'>
-              <StarRating
-                rating={entry.userRating}
-                onRate={(r) => {
-                  onRate(entry.id, r);
-                  setShowRating(false);
-                }}
-                size='xl'
-              />
+            className='fixed inset-0 z-50 flex items-center justify-center'
+            onClick={() => setShowRating(false)}>
+            <div className='absolute inset-0 bg-black/40' />
+            <div
+              className='relative w-[calc(100%-3rem)] max-w-sm bg-white dark:bg-gray-800 rounded-2xl px-6 py-5'
+              onClick={(e) => e.stopPropagation()}>
+              <p className='text-center font-semibold text-[17px] text-gray-900 dark:text-white mb-4 line-clamp-1'>
+                {title}
+              </p>
+              <div className='flex justify-center'>
+                <StarRating
+                  rating={entry.userRating}
+                  onRate={(r) => {
+                    onRate(entry.id, r);
+                    setShowRating(false);
+                  }}
+                  size='xl'
+                />
+              </div>
+              <button
+                onClick={() => setShowRating(false)}
+                className='mt-4 w-full text-center text-[15px] text-gray-500'>
+                Cancel
+              </button>
             </div>
-            <button
-              onClick={() => setShowRating(false)}
-              className='mt-4 w-full text-center text-[15px] text-gray-500'>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

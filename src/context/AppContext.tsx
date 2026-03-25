@@ -16,6 +16,7 @@ import { useAuth } from "./AuthContext";
 
 // Local storage key for locked days when not signed in
 const LOCAL_LOCKED_DAYS_KEY = "daytracker_locked_days";
+const DELETED_ACTIVITY_TYPES_KEY = "daytracker_deleted_activity_types";
 
 interface AppContextType {
   // Activity Types
@@ -29,6 +30,9 @@ interface AppContextType {
   deleteActivityType: (id: string) => Promise<void>;
   toggleActivityTypeHidden: (id: string) => Promise<void>;
   reorderActivityTypes: (reorderedTypes: ActivityType[]) => Promise<void>;
+  deletedActivityTypes: ActivityType[];
+  recoverActivityType: (type: ActivityType) => Promise<void>;
+  clearDeletedActivityTypes: () => void;
 
   // Entries
   entries: LogEntry[];
@@ -99,6 +103,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     end: string;
   } | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
+  const [deletedActivityTypes, setDeletedActivityTypes] = useState<
+    ActivityType[]
+  >(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem(DELETED_ACTIVITY_TYPES_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Viewing as another user (shared data)
   const [viewingUser, setViewingUser] = useState<{
@@ -270,14 +285,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteActivityType = useCallback(
     async (id: string) => {
+      const typeToDelete =
+        activityTypes.find((t) => t.id === id) ||
+        ownActivityTypes.find((t) => t.id === id);
       if (user) {
         await cloudDb.deleteActivityTypeFromSupabase(id);
       } else {
         await db.deleteActivityType(id);
       }
       setActivityTypes((prev) => prev.filter((t) => t.id !== id));
+      setOwnActivityTypes((prev) => prev.filter((t) => t.id !== id));
+      if (typeToDelete) {
+        setDeletedActivityTypes((prev) => {
+          const updated = [...prev, typeToDelete];
+          localStorage.setItem(
+            DELETED_ACTIVITY_TYPES_KEY,
+            JSON.stringify(updated),
+          );
+          return updated;
+        });
+      }
     },
-    [user],
+    [user, activityTypes, ownActivityTypes],
   );
 
   const toggleActivityTypeHidden = useCallback(
@@ -300,6 +329,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     [activityTypes, user],
   );
+
+  const recoverActivityType = useCallback(
+    async (type: ActivityType) => {
+      const { id: _oldId, createdAt: _oldCreatedAt, ...typeData } = type;
+      if (user) {
+        const recovered = await cloudDb.addActivityTypeToSupabase(
+          user.id,
+          typeData,
+        );
+        setActivityTypes((prev) => [...prev, recovered]);
+        setOwnActivityTypes((prev) => [...prev, recovered]);
+      } else {
+        const recovered = await db.addActivityType(typeData);
+        setActivityTypes((prev) => [...prev, recovered]);
+        setOwnActivityTypes((prev) => [...prev, recovered]);
+      }
+      setDeletedActivityTypes((prev) => {
+        const updated = prev.filter((t) => t.id !== type.id);
+        localStorage.setItem(
+          DELETED_ACTIVITY_TYPES_KEY,
+          JSON.stringify(updated),
+        );
+        return updated;
+      });
+    },
+    [user],
+  );
+
+  const clearDeletedActivityTypes = useCallback(() => {
+    setDeletedActivityTypes([]);
+    localStorage.removeItem(DELETED_ACTIVITY_TYPES_KEY);
+  }, []);
 
   // Reorder activity types
   const reorderActivityTypes = useCallback(
@@ -590,6 +651,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         deleteActivityType,
         toggleActivityTypeHidden,
         reorderActivityTypes,
+        deletedActivityTypes,
+        recoverActivityType,
+        clearDeletedActivityTypes,
         entries,
         addEntry,
         updateEntry,

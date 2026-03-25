@@ -1191,7 +1191,7 @@ export const ActivityTypeManager = forwardRef<
                       "border-b border-gray-200/80 dark:border-gray-700/80",
                   )}>
                   {/* Delete button behind the row */}
-                  {!type.isDefault && (
+                  {!type.isDefault && isSwiped && (
                     <div className='absolute right-0 top-0 bottom-0 flex items-center'>
                       <button
                         onClick={() => setDeleteConfirmId(type.id)}
