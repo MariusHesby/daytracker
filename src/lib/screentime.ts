@@ -202,14 +202,14 @@ async function doSyncConfigToSupabase(): Promise<void> {
     const { data: existing } = await supabase
       .from('profiles')
       .select('settings')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single();
 
     const currentSettings = existing?.settings || {};
     const { error } = await supabase
       .from('profiles')
       .update({ settings: { ...currentSettings, screentime_config: config } })
-      .eq('id', user.id);
+      .eq('user_id', user.id);
 
     if (error) console.error('Failed to sync screen time config:', error);
   } catch (err) {
@@ -236,14 +236,14 @@ async function doSyncDataToSupabase(): Promise<void> {
     const { data: existing } = await supabase
       .from('profiles')
       .select('settings')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single();
 
     const currentSettings = existing?.settings || {};
     const { error } = await supabase
       .from('profiles')
       .update({ settings: { ...currentSettings, screentime_data: allData } })
-      .eq('id', user.id);
+      .eq('user_id', user.id);
 
     if (error) console.error('Failed to sync screen time data:', error);
   } catch (err) {
@@ -269,18 +269,38 @@ export async function loadScreenTimeFromSupabase(): Promise<void> {
     const { data } = await supabase
       .from('profiles')
       .select('settings')
-      .eq('id', user.id)
+      .eq('user_id', user.id)
       .single();
 
-    if (data?.settings?.screentime_config) {
-      // Always use cloud config as source of truth
+    const hasCloudConfig = !!data?.settings?.screentime_config;
+    const hasCloudData = !!data?.settings?.screentime_data;
+
+    if (hasCloudConfig) {
+      // Cloud has config — use it as source of truth
       localStorage.setItem(CONFIG_KEY, JSON.stringify(data.settings.screentime_config));
+      window.dispatchEvent(new Event('screenTimeConfigUpdated'));
     }
 
-    if (data?.settings?.screentime_data) {
+    if (hasCloudData) {
+      // Cloud has day data — use it as source of truth
       for (const [date, dayData] of Object.entries(data.settings.screentime_data)) {
-        // Always use cloud data as source of truth
         localStorage.setItem(dataKey(date), JSON.stringify(dayData));
+      }
+    }
+
+    // If cloud is missing data but local has it, push local → cloud (one-time seed)
+    const localConfig = getScreenTimeConfig();
+    if (!hasCloudConfig && localConfig.enabled) {
+      await doSyncConfigToSupabase();
+    }
+    if (!hasCloudData) {
+      let hasLocalData = false;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(DATA_KEY_PREFIX)) { hasLocalData = true; break; }
+      }
+      if (hasLocalData) {
+        await doSyncDataToSupabase();
       }
     }
   } catch (err) {

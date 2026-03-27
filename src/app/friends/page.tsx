@@ -78,6 +78,20 @@ export default function FriendsPage() {
   // Favorite friends for Movies & TV filtering
   const [favoriteFriends, setFavoriteFriends] = useState<string[]>([]);
 
+  // Info mode
+  const [infoMode, setInfoMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("info_mode") === "true";
+  });
+  const [showInfoPopup, setShowInfoPopup] = useState(false);
+
+  useEffect(() => {
+    const handler = () =>
+      setInfoMode(localStorage.getItem("info_mode") === "true");
+    window.addEventListener("infoModeUpdated", handler);
+    return () => window.removeEventListener("infoModeUpdated", handler);
+  }, []);
+
   // Modal for managing activity notifications
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [selectedUserForNotifications, setSelectedUserForNotifications] =
@@ -493,6 +507,20 @@ export default function FriendsPage() {
 
   return (
     <div className='pb-16'>
+      {/* Info button - top right */}
+      {infoMode && (
+        <div className='flex justify-end px-4 pt-3 max-w-lg mx-auto'>
+          <button
+            className='w-8 h-8 rounded-full border-2 border-ios-blue flex items-center justify-center'
+            style={{ animation: "info-pulse 2.5s ease-in-out infinite" }}
+            onClick={() => setShowInfoPopup(true)}>
+            <span className='text-ios-blue text-[15px] font-semibold italic leading-none'>
+              i
+            </span>
+          </button>
+        </div>
+      )}
+
       <main className='max-w-lg mx-auto px-4 pt-6 pb-4 space-y-6'>
         {/* Header */}
         <div className='flex items-center justify-between'>
@@ -1465,6 +1493,140 @@ export default function FriendsPage() {
               )}
             </>
           )}
+        </div>
+      </IOSModal>
+
+      {/* Info Popup */}
+      <IOSModal
+        isOpen={showInfoPopup}
+        onClose={() => setShowInfoPopup(false)}
+        title='Friends'
+        size='small'>
+        <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden -mx-1'>
+          {/* Add Friend */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-blue-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Add Friend
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Search by name or email. Send a friend request.
+              </p>
+            </div>
+          </div>
+          {/* View Data */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-green-500'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'
+                />
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                View Data
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Tap a friend to see their entries on your Today page.
+              </p>
+            </div>
+          </div>
+          {/* Chat */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-purple-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Chat
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Message friends directly. Blue dot = unread messages.
+              </p>
+            </div>
+          </div>
+          {/* Favorites */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-red-400'
+                fill='currentColor'
+                viewBox='0 0 24 24'>
+                <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Favorites
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Heart a friend to see their movies in the Favorites tab.
+              </p>
+            </div>
+          </div>
+          {/* Notifications */}
+          <div className='flex items-center gap-3 px-4 py-3'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-amber-500'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Notifications
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Bell icon to get alerts when a friend logs activities.
+              </p>
+            </div>
+          </div>
         </div>
       </IOSModal>
     </div>

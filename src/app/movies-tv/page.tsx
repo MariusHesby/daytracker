@@ -661,14 +661,14 @@ function MediaCard({
                 <p className='text-center font-semibold text-[17px] text-gray-900 dark:text-white mb-4 line-clamp-1'>
                   {title}
                 </p>
-                <div className='flex justify-center'>
+                <div className='w-full'>
                   <StarRating
                     rating={entry.userRating}
                     onRate={(r) => {
                       onRate(entry.id, r);
                       setShowRating(false);
                     }}
-                    size='xl'
+                    size='fit'
                   />
                 </div>
                 <button
@@ -853,14 +853,14 @@ function MediaCard({
               <p className='text-center font-semibold text-[17px] text-gray-900 dark:text-white mb-4 line-clamp-1'>
                 {title}
               </p>
-              <div className='flex justify-center'>
+              <div className='w-full'>
                 <StarRating
                   rating={entry.userRating}
                   onRate={(r) => {
                     onRate(entry.id, r);
                     setShowRating(false);
                   }}
-                  size='xl'
+                  size='fit'
                 />
               </div>
               <button
@@ -890,7 +890,20 @@ export default function MoviesPage() {
     isViewingOther,
     selectedDate,
   } = useApp();
+  const [infoMode, setInfoMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("info_mode") === "true";
+  });
+
+  useEffect(() => {
+    const handler = () =>
+      setInfoMode(localStorage.getItem("info_mode") === "true");
+    window.addEventListener("infoModeUpdated", handler);
+    return () => window.removeEventListener("infoModeUpdated", handler);
+  }, []);
+
   const [activeTab, setActiveTab] = useState<"movies" | "series">("movies");
+  const [showInfoPopup, setShowInfoPopup] = useState(false);
   const [sortBy, setSortBy] = useState<"date" | "rating" | "imdb">("date");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">(() => {
@@ -1419,6 +1432,20 @@ export default function MoviesPage() {
   return (
     <div className='pb-16'>
       {/* Viewing Another User Banner */}
+      {/* Info button - top right */}
+      {infoMode && (
+        <div className='flex justify-end px-4 pt-3'>
+          <button
+            className='w-8 h-8 rounded-full border-2 border-ios-blue flex items-center justify-center'
+            style={{ animation: "info-pulse 2.5s ease-in-out infinite" }}
+            onClick={() => setShowInfoPopup(true)}>
+            <span className='text-ios-blue text-[15px] font-semibold italic leading-none'>
+              i
+            </span>
+          </button>
+        </div>
+      )}
+
       {isViewingOther && viewingUser && (
         <div className='bg-ios-blue text-white px-4 py-3 flex items-center justify-between'>
           <div>
@@ -1434,7 +1461,7 @@ export default function MoviesPage() {
       )}
 
       {/* Header */}
-      <div className='px-4 pt-6 pb-4'>
+      <div className='px-4 pt-6 pb-4 flex items-center justify-between'>
         <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
           Movies & TV
         </h1>
@@ -1451,7 +1478,7 @@ export default function MoviesPage() {
         />
       </div>
 
-      <div className='px-4 mb-4 flex gap-2 items-center'>
+      <div className='px-4 mb-6 flex gap-2 items-center'>
         <div className='flex gap-2 flex-1 items-center'>
           {/* Sort dropdown - always visible */}
           <div className='relative'>
@@ -1625,6 +1652,21 @@ export default function MoviesPage() {
             </svg>
           )}
         </button>
+      </div>
+
+      {/* Section heading */}
+      <div className='px-4 mt-4 mb-3'>
+        <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide'>
+          {showWatchlist
+            ? "Watchlist"
+            : showFavorites
+              ? "Friends' Favorites"
+              : sortBy === "date"
+                ? "Recently Watched"
+                : sortBy === "rating"
+                  ? "By My Rating"
+                  : "By IMDb Rating"}
+        </h2>
       </div>
 
       {/* Star rating filter when showing favorites */}
@@ -1827,6 +1869,168 @@ export default function MoviesPage() {
               </div>
             </>
           )}
+        </div>
+      </IOSModal>
+
+      {/* Info Popup */}
+      <IOSModal
+        isOpen={showInfoPopup}
+        onClose={() => setShowInfoPopup(false)}
+        title='Movies & TV'
+        size='small'>
+        <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden -mx-1'>
+          {/* Star Rating */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-orange-400'
+                fill='currentColor'
+                viewBox='0 0 24 24'>
+                <path d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Star Rating (1–10)
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Your personal rating. Drag or tap to rate.
+              </p>
+            </div>
+          </div>
+          {/* No Rating */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-gray-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                No Rating
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Person icon means unrated — still watching.
+              </p>
+            </div>
+          </div>
+          {/* IMDb */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <span className='text-[11px] font-black text-yellow-500 leading-none'>
+                IMDb
+              </span>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                IMDb Rating
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Community rating, shown separately from yours.
+              </p>
+            </div>
+          </div>
+          {/* Favorites */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-red-400'
+                fill='currentColor'
+                viewBox='0 0 24 24'>
+                <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Favorites
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Heart icon shows movies & series your friends rated.
+              </p>
+            </div>
+          </div>
+          {/* Watchlist */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-amber-500'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Watchlist
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Save for later. Orange date = upcoming release.
+              </p>
+            </div>
+          </div>
+          {/* Poster */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-purple-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <rect x='3' y='3' width='18' height='18' rx='2' ry='2' />
+                <circle cx='8.5' cy='8.5' r='1.5' />
+                <path d='M21 15l-5-5L5 21' />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Poster
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Tap poster to pick a different one or upload.
+              </p>
+            </div>
+          </div>
+          {/* Sort & View */}
+          <div className='flex items-center gap-3 px-4 py-3'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-green-500'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Sort & View
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Sort by date, rating or IMDb. Grid or list view.
+              </p>
+            </div>
+          </div>
         </div>
       </IOSModal>
     </div>

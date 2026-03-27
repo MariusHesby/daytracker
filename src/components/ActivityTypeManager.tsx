@@ -6,6 +6,7 @@ import React, {
   useImperativeHandle,
   forwardRef,
 } from "react";
+import { createPortal } from "react-dom";
 import { useApp } from "@/context/AppContext";
 import {
   ActivityType,
@@ -1190,8 +1191,8 @@ export const ActivityTypeManager = forwardRef<
                     !isLast &&
                       "border-b border-gray-200/80 dark:border-gray-700/80",
                   )}>
-                  {/* Delete button behind the row */}
-                  {!type.isDefault && isSwiped && (
+                  {/* Delete button behind the row (revealed on swipe) */}
+                  {!type.isDefault && (
                     <div className='absolute right-0 top-0 bottom-0 flex items-center'>
                       <button
                         onClick={() => setDeleteConfirmId(type.id)}
@@ -1201,7 +1202,7 @@ export const ActivityTypeManager = forwardRef<
                     </div>
                   )}
 
-                  {/* Swipeable row content */}
+                  {/* Row content */}
                   <div
                     draggable
                     onDragStart={(e) => handleDragStart(e, originalIndex)}
@@ -1230,8 +1231,20 @@ export const ActivityTypeManager = forwardRef<
                       isDragging && "opacity-50",
                       isDragOver && "bg-ios-blue/10",
                     )}>
-                    {/* Drag handle */}
-                    <div className='text-gray-400 dark:text-gray-500 mr-3'>
+                    {/* Drag handle / Delete indicator */}
+                    <div
+                      onClick={(e) => {
+                        if (!type.isDefault) {
+                          e.stopPropagation();
+                          setDeleteConfirmId(type.id);
+                        }
+                      }}
+                      className={cn(
+                        "mr-3",
+                        !type.isDefault
+                          ? "text-ios-red cursor-pointer"
+                          : "text-gray-400 dark:text-gray-500",
+                      )}>
                       <svg
                         className='w-5 h-5'
                         fill='currentColor'
@@ -1342,46 +1355,48 @@ export const ActivityTypeManager = forwardRef<
       </div>
 
       {/* Delete Confirmation Modal */}
-      {deleteConfirmId && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center px-4'>
-          <div
-            className='absolute inset-0 bg-black/50'
-            onClick={() => {
-              setDeleteConfirmId(null);
-              setSwipedId(null);
-            }}
-          />
-          <div
-            className='relative w-full max-w-sm bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden shadow-xl'
-            style={{ animation: "scale-in 0.2s ease-out" }}>
-            <div className='p-6 text-center'>
-              <h3 className='text-[17px] font-semibold text-gray-900 dark:text-white mb-2'>
-                Delete Activity Type?
-              </h3>
-              <p className='text-[15px] text-gray-500 dark:text-gray-400'>
-                &ldquo;
-                {activityTypes.find((t) => t.id === deleteConfirmId)?.name}
-                &rdquo; will be removed. Existing entries will not be deleted.
-              </p>
+      {deleteConfirmId &&
+        createPortal(
+          <div className='fixed inset-0 z-50 flex items-center justify-center px-4'>
+            <div
+              className='absolute inset-0 bg-black/50'
+              onClick={() => {
+                setDeleteConfirmId(null);
+                setSwipedId(null);
+              }}
+            />
+            <div
+              className='relative w-full max-w-sm bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden shadow-xl'
+              style={{ animation: "scale-in 0.2s ease-out" }}>
+              <div className='p-6 text-center'>
+                <h3 className='text-[17px] font-semibold text-gray-900 dark:text-white mb-2'>
+                  Delete Activity Type?
+                </h3>
+                <p className='text-[15px] text-gray-500 dark:text-gray-400'>
+                  &ldquo;
+                  {activityTypes.find((t) => t.id === deleteConfirmId)?.name}
+                  &rdquo; will be removed. Existing entries will not be deleted.
+                </p>
+              </div>
+              <div className='border-t border-gray-200 dark:border-gray-700 flex'>
+                <button
+                  onClick={() => {
+                    setDeleteConfirmId(null);
+                    setSwipedId(null);
+                  }}
+                  className='flex-1 py-3.5 text-[17px] font-medium text-ios-blue border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800'>
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDelete(deleteConfirmId)}
+                  className='flex-1 py-3.5 text-[17px] font-medium text-ios-red active:bg-gray-100 dark:active:bg-gray-800'>
+                  Delete
+                </button>
+              </div>
             </div>
-            <div className='border-t border-gray-200 dark:border-gray-700 flex'>
-              <button
-                onClick={() => {
-                  setDeleteConfirmId(null);
-                  setSwipedId(null);
-                }}
-                className='flex-1 py-3.5 text-[17px] font-medium text-ios-blue border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800'>
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(deleteConfirmId)}
-                className='flex-1 py-3.5 text-[17px] font-medium text-ios-red active:bg-gray-100 dark:active:bg-gray-800'>
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 });

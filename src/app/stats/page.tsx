@@ -19,7 +19,7 @@ import {
   getWeekNumber,
   getDateRangeWithOffset,
 } from "@/lib/utils";
-import { IOSSegmentedControl } from "@/components/ios";
+import { IOSSegmentedControl, IOSModal } from "@/components/ios";
 
 // Helper to render icon
 const renderIcon = (
@@ -209,7 +209,20 @@ export default function StatsPage() {
   } = useApp();
   const router = useRouter();
   const { user } = useAuth();
+  const [infoMode, setInfoMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("info_mode") === "true";
+  });
+
+  useEffect(() => {
+    const handler = () =>
+      setInfoMode(localStorage.getItem("info_mode") === "true");
+    window.addEventListener("infoModeUpdated", handler);
+    return () => window.removeEventListener("infoModeUpdated", handler);
+  }, []);
+
   const [timeRange, setTimeRange] = useState<TimeRange>("year");
+  const [showInfoPopup, setShowInfoPopup] = useState(false);
   const [offset, setOffset] = useState(0); // 0 = current, -1 = previous, etc.
   const [selectedActivityId, setSelectedActivityId] = useState<string | null>(
     null,
@@ -1614,6 +1627,20 @@ export default function StatsPage() {
 
   return (
     <div className='pb-16' onClick={handleBackgroundClick}>
+      {/* Info button - top right */}
+      {infoMode && (
+        <div className='flex justify-end px-4 pt-3'>
+          <button
+            className='w-8 h-8 rounded-full border-2 border-ios-blue flex items-center justify-center'
+            style={{ animation: "info-pulse 2.5s ease-in-out infinite" }}
+            onClick={() => setShowInfoPopup(true)}>
+            <span className='text-ios-blue text-[15px] font-semibold italic leading-none'>
+              i
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Viewing Another User Banner */}
       {isViewingOther && viewingUser && (
         <div className='bg-ios-blue text-white px-4 py-3 flex items-center justify-between'>
@@ -1632,7 +1659,7 @@ export default function StatsPage() {
       )}
 
       {/* Header */}
-      <div className='px-4 pt-6 pb-4'>
+      <div className='px-4 pt-6 pb-4 flex items-center justify-between'>
         <h1 className='text-2xl font-bold text-gray-900 dark:text-white'>
           Statistics
         </h1>
@@ -4406,6 +4433,137 @@ export default function StatsPage() {
           </div>
         )}
       </main>
+
+      {/* Info Popup */}
+      <IOSModal
+        isOpen={showInfoPopup}
+        onClose={() => setShowInfoPopup(false)}
+        title='Statistics'
+        size='small'>
+        <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden -mx-1'>
+          {/* Time Range */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-blue-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <rect x='3' y='4' width='18' height='18' rx='2' ry='2' />
+                <line x1='16' y1='2' x2='16' y2='6' />
+                <line x1='8' y1='2' x2='8' y2='6' />
+                <line x1='3' y1='10' x2='21' y2='10' />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Time Range
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Week, Month or Year. Navigate with arrows.
+              </p>
+            </div>
+          </div>
+          {/* Activity Filter */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-purple-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Activity Filter
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Tap an activity to see its detailed stats.
+              </p>
+            </div>
+          </div>
+          {/* Frequency Bars */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-orange-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Frequency Bars
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Most logged values — shows, meals, etc.
+              </p>
+            </div>
+          </div>
+          {/* Calendar */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-green-500'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <rect x='3' y='4' width='18' height='18' rx='2' ry='2' />
+                <path d='M3 10h18M8 2v4M16 2v4M7 14h.01M12 14h.01M17 14h.01M7 18h.01M12 18h.01' />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Calendar
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Color-coded days showing when you logged.
+              </p>
+            </div>
+          </div>
+          {/* Workouts & Nutrition */}
+          <div className='flex items-center gap-3 px-4 py-3'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-red-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M13 10V3L4 14h7v7l9-11h-7z'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Workouts & Nutrition
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Exercise frequency, averages and goals.
+              </p>
+            </div>
+          </div>
+        </div>
+      </IOSModal>
     </div>
   );
 }

@@ -115,6 +115,20 @@ export default function HomePage() {
   const [unlockedPage, setUnlockedPage] = useState(0);
   const UNLOCKED_PER_PAGE = 5;
 
+  // Info mode
+  const [infoMode, setInfoMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("info_mode") === "true";
+  });
+  const [showInfoPopup, setShowInfoPopup] = useState(false);
+
+  useEffect(() => {
+    const handler = () =>
+      setInfoMode(localStorage.getItem("info_mode") === "true");
+    window.addEventListener("infoModeUpdated", handler);
+    return () => window.removeEventListener("infoModeUpdated", handler);
+  }, []);
+
   // Name display variant for header card
   const [nameVariant, setNameVariant] = useState(0);
 
@@ -211,7 +225,15 @@ export default function HomePage() {
   // Load favorite team and next fixture
   useEffect(() => {
     const loadFootball = async (force = false) => {
-      // Always load local state instantly
+      // Load settings from Supabase first if logged in (populates localStorage)
+      if (
+        user &&
+        (force || Date.now() - lastFetchFootball >= REFETCH_COOLDOWN)
+      ) {
+        await loadSettingsFromSupabase().catch(() => {});
+      }
+
+      // Now read local state (may have been updated by Supabase load)
       const fav = getFavoriteTeam();
       setFavoriteTeamLocal(fav);
       if (!fav) return;
@@ -219,7 +241,6 @@ export default function HomePage() {
       // Skip network fetch if recently loaded
       if (!force && Date.now() - lastFetchFootball < REFETCH_COOLDOWN) return;
 
-      loadSettingsFromSupabase().catch(() => {});
       const data = await loadAllTeamData(fav.team.id);
       setNextFixture(data.nextFixture);
       setLiveFixture(data.liveFixture);
@@ -240,65 +261,70 @@ export default function HomePage() {
       window.removeEventListener("favoriteTeamUpdated", handleUpdate);
       clearInterval(interval);
     };
-  }, []);
+  }, [user]);
 
   // Load news on mount and when config changes
   useEffect(() => {
     const loadNews = async (force = false) => {
-      // Check visibility
-      setNewsVisibleLocal(getNewsVisible());
+      try {
+        // Check visibility
+        setNewsVisibleLocal(getNewsVisible());
 
-      // Show cached data instantly
-      const cached = getCachedAllNews();
-      if (Object.keys(cached).length > 0) {
-        setNewsData(cached);
-        setNewsLoading(false);
-      }
-
-      // Check if there are sources configured
-      const localSources = getNewsSources();
-      newsHasSources.current = localSources.length > 0;
-
-      // Skip network fetch if recently loaded
-      if (!force && Date.now() - lastFetchNews < REFETCH_COOLDOWN) return;
-
-      // Load from Supabase (may add new sources)
-      await loadNewsFromSupabase();
-      const sources = getNewsSources();
-      newsHasSources.current = sources.length > 0;
-
-      if (sources.length === 0) {
-        setNewsData({});
-        setNewsLoading(false);
-        return;
-      }
-
-      // Fetch fresh data in background — merge with existing so failed sources keep cached data
-      const { results: freshData, blocked } = await fetchAllNews();
-      if (blocked.size > 0) setBlockedSources(blocked);
-      setNewsData((prev) => {
-        const merged = { ...prev };
-        // Update sources that returned fresh data
-        for (const [url, items] of Object.entries(freshData)) {
-          merged[url] = items;
+        // Show cached data instantly
+        const cached = getCachedAllNews();
+        if (Object.keys(cached).length > 0) {
+          setNewsData(cached);
+          setNewsLoading(false);
         }
-        // Ensure all configured sources are present (even if empty from first load)
-        for (const src of sources) {
-          if (!(src.url in merged)) {
-            merged[src.url] = [];
+
+        // Check if there are sources configured
+        const localSources = getNewsSources();
+        newsHasSources.current = localSources.length > 0;
+
+        // Skip network fetch if recently loaded
+        if (!force && Date.now() - lastFetchNews < REFETCH_COOLDOWN) return;
+
+        // Load from Supabase (may add new sources)
+        await loadNewsFromSupabase();
+        const sources = getNewsSources();
+        newsHasSources.current = sources.length > 0;
+
+        if (sources.length === 0) {
+          setNewsData({});
+          setNewsLoading(false);
+          return;
+        }
+
+        // Fetch fresh data in background — merge with existing so failed sources keep cached data
+        const { results: freshData, blocked } = await fetchAllNews();
+        if (blocked.size > 0) setBlockedSources(blocked);
+        setNewsData((prev) => {
+          const merged = { ...prev };
+          // Update sources that returned fresh data
+          for (const [url, items] of Object.entries(freshData)) {
+            merged[url] = items;
           }
-        }
-        // Seed seen-articles for sources that have never been opened.
-        // This establishes a baseline so future new articles get highlighted.
-        for (const [url, items] of Object.entries(merged)) {
-          if (items.length > 0 && getSeenArticles(url).size === 0) {
-            markArticlesSeen(url, items);
+          // Ensure all configured sources are present (even if empty from first load)
+          for (const src of sources) {
+            if (!(src.url in merged)) {
+              merged[src.url] = [];
+            }
           }
-        }
-        return merged;
-      });
-      setNewsLoading(false);
-      lastFetchNews = Date.now();
+          // Seed seen-articles for sources that have never been opened.
+          // This establishes a baseline so future new articles get highlighted.
+          for (const [url, items] of Object.entries(merged)) {
+            if (items.length > 0 && getSeenArticles(url).size === 0) {
+              markArticlesSeen(url, items);
+            }
+          }
+          return merged;
+        });
+        setNewsLoading(false);
+        lastFetchNews = Date.now();
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.error("News load error:", err);
+      }
     };
 
     loadNews();
@@ -313,20 +339,23 @@ export default function HomePage() {
       window.removeEventListener("newsConfigUpdated", handleConfigUpdate);
       clearInterval(interval);
     };
-  }, []);
+  }, [user]);
 
   // Load screen time config
   useEffect(() => {
     const load = async () => {
-      // Skip network fetch if recently loaded
-      if (Date.now() - lastFetchScreenTime < REFETCH_COOLDOWN) return;
-      await loadScreenTimeFromSupabase();
+      if (user) {
+        // Skip network fetch if recently loaded from cloud
+        if (Date.now() - lastFetchScreenTime >= REFETCH_COOLDOWN) {
+          await loadScreenTimeFromSupabase();
+          lastFetchScreenTime = Date.now();
+        }
+      }
       const cfg = getScreenTimeConfig();
       setScreenTimeConfigLocal(cfg);
       if (cfg.subjects.length > 0) {
         setScreenTimeSelectedSubject(cfg.subjects[0].id);
       }
-      lastFetchScreenTime = Date.now();
     };
     load();
     const handler = () => {
@@ -335,7 +364,7 @@ export default function HomePage() {
     };
     window.addEventListener("screenTimeConfigUpdated", handler);
     return () => window.removeEventListener("screenTimeConfigUpdated", handler);
-  }, []);
+  }, [user]);
 
   // Fetch weather on mount and when location changes
   useEffect(() => {
@@ -419,6 +448,20 @@ export default function HomePage() {
 
   return (
     <div ref={scrollRef} className='overflow-y-auto'>
+      {/* Info button - top right */}
+      {infoMode && (
+        <div className='flex justify-end px-4 pt-3'>
+          <button
+            className='w-8 h-8 rounded-full border-2 border-ios-blue flex items-center justify-center'
+            style={{ animation: "info-pulse 2.5s ease-in-out infinite" }}
+            onClick={() => setShowInfoPopup(true)}>
+            <span className='text-ios-blue text-[15px] font-semibold italic leading-none'>
+              i
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* Viewing Another User Banner */}
       {isViewingOther && viewingUser && (
         <div className='bg-ios-blue text-white px-4 py-3 flex items-center justify-between'>
@@ -1801,6 +1844,140 @@ export default function HomePage() {
             document.body,
           );
         })()}
+
+      {/* Info Popup */}
+      <IOSModal
+        isOpen={showInfoPopup}
+        onClose={() => setShowInfoPopup(false)}
+        title='Today'
+        size='small'>
+        <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden -mx-1'>
+          {/* Greeting Card */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-blue-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Greeting Card
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Tap name to cycle display. Shows weather & avatar.
+              </p>
+            </div>
+          </div>
+          {/* Date Navigator */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-orange-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <rect x='3' y='4' width='18' height='18' rx='2' ry='2' />
+                <line x1='16' y1='2' x2='16' y2='6' />
+                <line x1='8' y1='2' x2='8' y2='6' />
+                <line x1='3' y1='10' x2='21' y2='10' />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Date Navigator
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Swipe or tap arrows. Calendar icon to jump to date.
+              </p>
+            </div>
+          </div>
+          {/* Entries */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-green-500'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M12 4v16m8-8H4'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Log Entries
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Add entries via list or icon view. Swipe left to delete.
+              </p>
+            </div>
+          </div>
+          {/* Unlocked Days */}
+          <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-amber-500'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={1.5}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                Unlocked Days
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                Past days you can still edit. Tap the lock icon.
+              </p>
+            </div>
+          </div>
+          {/* News & Features */}
+          <div className='flex items-center gap-3 px-4 py-3'>
+            <div className='w-8 h-8 flex items-center justify-center shrink-0'>
+              <svg
+                className='w-6 h-6 text-purple-400'
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2'
+                />
+              </svg>
+            </div>
+            <div className='flex-1 min-w-0'>
+              <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                News & Features
+              </p>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400'>
+                News cards, football, screen time. Enable in Settings.
+              </p>
+            </div>
+          </div>
+        </div>
+      </IOSModal>
     </div>
   );
 }

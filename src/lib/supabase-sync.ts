@@ -205,16 +205,27 @@ export async function getEntriesFromSupabase(
   startDate: string,
   endDate: string
 ): Promise<LogEntry[]> {
-  const { data, error } = await supabase
-    .from('log_entries')
-    .select('*')
-    .eq('user_id', userId)
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .order('date', { ascending: false });
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const { data, error } = await supabase
+      .from('log_entries')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false });
 
-  if (error) throwError(error, "Database operation failed");
-  return (data || []).map(dbToLogEntry);
+    if (error) {
+      const isTransient = error.message?.includes('Content-Length') || error.message?.includes('network');
+      if (isTransient && attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      throwError(error, "Database operation failed");
+    }
+    return (data || []).map(dbToLogEntry);
+  }
+  return [];
 }
 
 export async function addEntryToSupabase(

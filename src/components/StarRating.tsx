@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 export interface StarRatingProps {
   rating?: number;
   onRate?: (rating: number) => void;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "fit";
   wrap?: boolean;
 }
 
@@ -110,7 +110,8 @@ export function StarRating({
     <div
       ref={containerRef}
       className={cn(
-        "flex gap-1 touch-none select-none",
+        "flex touch-none select-none",
+        size === "fit" ? "gap-0 w-full" : "gap-1",
         wrap && "flex-wrap justify-center",
       )}
       style={{ touchAction: "none" }}>
@@ -121,11 +122,15 @@ export function StarRating({
           onClick={() => handleClick(star)}
           onMouseEnter={() => setHovered(star)}
           onMouseLeave={() => setHovered(null)}
-          className='transition-transform hover:scale-110 touch-none'
+          className={cn(
+            "transition-transform hover:scale-110 touch-none",
+            size === "fit" && "flex-1 p-0.5",
+          )}
           style={{ touchAction: "none" }}>
           <svg
             className={cn(
-              SIZE_CLASSES[size],
+              size !== "fit" && SIZE_CLASSES[size],
+              size === "fit" && "w-full h-full",
               star <= displayRating
                 ? "text-amber-400 fill-amber-400"
                 : "text-gray-300 dark:text-gray-600 fill-gray-300 dark:fill-gray-600",
