@@ -312,7 +312,7 @@ export async function getSuggestionsFromSupabase(
       .select('*')
       .eq('user_id', userId)
       .eq('activity_type_id', activityTypeId)
-      .order('count', { ascending: false })
+      .order('last_used', { ascending: false })
       .limit(10);
 
     if (error) {

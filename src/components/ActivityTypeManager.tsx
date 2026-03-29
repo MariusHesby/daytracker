@@ -451,6 +451,7 @@ export const ActivityTypeManager = forwardRef<
             </label>
             <button
               type='button'
+              data-info='Choose an icon for this activity type.'
               onClick={() => setShowIconPicker(!showIconPicker)}
               className={cn(
                 "w-full px-3 py-2.5 rounded-lg text-[17px]",
@@ -485,6 +486,7 @@ export const ActivityTypeManager = forwardRef<
             </label>
             <button
               type='button'
+              data-info='Choose the value type for this activity. Determines how you log data: toggle, number, rating, text, checklist, timer, nutrition, workout, or media.'
               onClick={() => setShowValueTypePicker(!showValueTypePicker)}
               className={cn(
                 "w-full px-3 py-2.5 rounded-lg text-[17px] text-left",
@@ -605,6 +607,7 @@ export const ActivityTypeManager = forwardRef<
             </div>
             <button
               type='button'
+              data-info='Toggle standalone mode. When enabled, this activity gets its own card on the front page instead of being grouped with others.'
               onClick={() => setStandalone(!standalone)}
               className={cn(
                 "relative w-[51px] h-[31px] rounded-full transition-colors duration-200",

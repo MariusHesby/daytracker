@@ -48,6 +48,7 @@ export function NotificationBell() {
     <>
       {/* Bell Button */}
       <button
+        data-info='Notifications. Tap to see friend requests and activity updates from your friends.'
         onClick={() => setShowModal(true)}
         className='relative p-2 active:opacity-60 transition-opacity'>
         <svg
@@ -88,6 +89,7 @@ export function NotificationBell() {
               <div className='flex items-center gap-1'>
                 {/* Refresh/Check now */}
                 <button
+                  data-info='Check now for new notifications from friends.'
                   onClick={handleCheckNow}
                   disabled={isChecking}
                   className='p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50'
@@ -112,6 +114,7 @@ export function NotificationBell() {
                   <>
                     {/* Mark all read */}
                     <button
+                      data-info='Mark all notifications as read.'
                       onClick={markAllAsRead}
                       className='p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700'
                       title='Mark all read'>
@@ -130,6 +133,7 @@ export function NotificationBell() {
                     </button>
                     {/* Clear all */}
                     <button
+                      data-info='Delete all notifications permanently.'
                       onClick={clearAllNotifications}
                       className='p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700'
                       title='Clear all'>

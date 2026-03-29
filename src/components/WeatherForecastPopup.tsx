@@ -191,6 +191,7 @@ export function WeatherForecastPopup({
           className='flex items-center justify-between px-5 pt-3 pb-2'
           onClick={(e) => e.stopPropagation()}>
           <button
+            data-info='Previous day. Navigate to see the weather forecast for the day before.'
             onClick={() => setDayOffset((d) => Math.max(0, d - 1))}
             className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
               dayOffset > 0
@@ -212,6 +213,7 @@ export function WeatherForecastPopup({
           </button>
 
           <button
+            data-info="Jump back to today's weather forecast."
             onClick={() => setDayOffset(0)}
             className='flex flex-col items-center active:opacity-60 transition-opacity'>
             <span className='text-[17px] font-bold text-gray-900 dark:text-white'>
@@ -225,6 +227,7 @@ export function WeatherForecastPopup({
           </button>
 
           <button
+            data-info='Next day. Navigate to see the weather forecast for the following day.'
             onClick={() => setDayOffset((d) => Math.min(maxDays, d + 1))}
             className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
               dayOffset < maxDays

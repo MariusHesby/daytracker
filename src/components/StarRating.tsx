@@ -109,6 +109,7 @@ export function StarRating({
   return (
     <div
       ref={containerRef}
+      data-info='Star rating. Tap or drag across the stars to set a rating from 1 to 10.'
       className={cn(
         "flex touch-none select-none",
         size === "fit" ? "gap-0 w-full" : "gap-1",

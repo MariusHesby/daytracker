@@ -617,16 +617,24 @@ export default function SettingsPage() {
 
   return (
     <div className='pb-16'>
-      {/* Info button - top right */}
+      {/* Info mode banner */}
       {infoMode && (
-        <div className='flex justify-end px-4 pt-3 max-w-lg mx-auto'>
-          <button
-            className='w-8 h-8 rounded-full border-2 border-ios-blue flex items-center justify-center'
-            style={{ animation: "info-pulse 2.5s ease-in-out infinite" }}
-            onClick={() => setShowInfoPopup(true)}>
-            <span className='text-ios-blue text-[15px] font-semibold italic leading-none'>
+        <div className='bg-ios-blue text-white px-4 py-2.5 flex items-center justify-between max-w-lg mx-auto'>
+          <div className='flex items-center gap-2'>
+            <span className='text-sm font-semibold italic w-5 h-5 rounded-full border-2 border-white/60 flex items-center justify-center text-[11px] leading-none'>
               i
             </span>
+            <p className='text-sm font-medium'>Info Mode</p>
+          </div>
+          <button
+            data-info-button
+            onClick={() => {
+              setInfoMode(false);
+              localStorage.setItem("info_mode", "false");
+              window.dispatchEvent(new Event("infoModeUpdated"));
+            }}
+            className='px-3 py-1.5 bg-white/20 rounded-full text-[13px] font-medium hover:bg-white/30 transition-colors'>
+            Turn off
           </button>
         </div>
       )}
@@ -649,6 +657,7 @@ export default function SettingsPage() {
             {user ? (
               <>
                 <button
+                  data-info='Edit your profile. Change your display name, avatar, and personal details.'
                   onClick={() => setIsEditingProfile(true)}
                   className='w-full px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80 active:bg-gray-100 dark:active:bg-gray-700'>
                   <div className='flex items-center gap-3'>
@@ -674,6 +683,7 @@ export default function SettingsPage() {
                   </div>
                 </button>
                 <button
+                  data-info='Sign out of your account. Your data stays saved in the cloud.'
                   onClick={handleSignOut}
                   onTouchEnd={(e) => {
                     e.preventDefault();
@@ -711,6 +721,7 @@ export default function SettingsPage() {
                     />
                     <button
                       type='button'
+                      data-info='Toggle password visibility. Show or hide the password you are typing.'
                       onClick={() => setShowPassword(!showPassword)}
                       className='absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500'>
                       {showPassword ? (
@@ -751,6 +762,7 @@ export default function SettingsPage() {
                 {isResetPassword ? (
                   <>
                     <button
+                      data-info='Send a password reset link to your email address.'
                       onClick={handleResetPassword}
                       disabled={authLoading || resetLinkSent}
                       className={cn(
@@ -764,6 +776,7 @@ export default function SettingsPage() {
                           : "Send Reset Link"}
                     </button>
                     <button
+                      data-info='Go back to the sign-in form.'
                       onClick={() => {
                         setIsResetPassword(false);
                         setResetLinkSent(false);
@@ -776,6 +789,7 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <button
+                      data-info='Sign in to your account or create a new one. Your data will sync across devices.'
                       onClick={handleAuth}
                       disabled={authLoading}
                       className='w-full px-4 py-3 bg-ios-blue text-white rounded-full text-[15px] font-medium shadow-lg shadow-ios-blue/30 active:opacity-80 disabled:opacity-50'>
@@ -787,6 +801,7 @@ export default function SettingsPage() {
                     </button>
                     {!isSignUp && (
                       <button
+                        data-info='Forgot your password? Tap to send a reset link to your email.'
                         onClick={() => {
                           setIsResetPassword(true);
                           setAuthMessage(null);
@@ -796,6 +811,7 @@ export default function SettingsPage() {
                       </button>
                     )}
                     <button
+                      data-info='Switch between signing in with an existing account and creating a new account.'
                       onClick={() => {
                         setIsSignUp(!isSignUp);
                         setAuthMessage(null);
@@ -844,6 +860,7 @@ export default function SettingsPage() {
                 </span>
               </div>
               <button
+                data-info-toggle
                 onClick={() => {
                   const next = !infoMode;
                   setInfoMode(next);
@@ -874,7 +891,9 @@ export default function SettingsPage() {
           <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
             Theme
           </h2>
-          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+          <div
+            className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'
+            data-info='Theme selector. Choose between Light, Dark, Colorful (with customizable color palettes), or System (follows your device setting).'>
             {themeOptions.map((option, index) => (
               <div key={option.value}>
                 <button
@@ -906,7 +925,9 @@ export default function SettingsPage() {
                 {/* Color scheme circles - only show when colorful is selected */}
                 {option.value === "colorful" && theme === "colorful" && (
                   <>
-                    <div className='px-4 py-3 flex items-center gap-4 border-b border-gray-200/80 dark:border-gray-700/80'>
+                    <div
+                      data-info='Color palette selector. Choose from 3 customizable palettes for the Colorful theme. Each palette has 5 colors you can personalize.'
+                      className='px-4 py-3 flex items-center gap-4 border-b border-gray-200/80 dark:border-gray-700/80'>
                       <span className='text-[14px] text-gray-500 dark:text-gray-400'>
                         Palette:
                       </span>
@@ -1008,6 +1029,7 @@ export default function SettingsPage() {
                       {/* Reset button */}
                       <div className='mt-4'>
                         <button
+                          data-info='Reset this palette back to its default colors.'
                           onClick={resetCurrentScheme}
                           className='px-3 py-1.5 text-[13px] font-medium rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 active:scale-95 transition-transform'>
                           Reset to default
@@ -1107,12 +1129,14 @@ export default function SettingsPage() {
               <div className='flex items-center gap-3'>
                 {deletedActivityTypes.length > 0 && (
                   <button
+                    data-info='Recover previously deleted activity types. Opens a list of activities you can restore.'
                     onClick={() => setShowRecovery(true)}
                     className='text-[13px] font-medium text-green-600 dark:text-green-400'>
                     Recover
                   </button>
                 )}
                 <button
+                  data-info='Add a new activity type. You can track things like exercise, reading, mood, water intake, and more.'
                   onClick={() => activityManagerRef.current?.startAdding()}
                   className='text-[13px] font-medium text-ios-blue'>
                   + Add
@@ -1120,7 +1144,9 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
-          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+          <div
+            className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'
+            data-info='Your activity types. Swipe left to delete, tap to edit. Drag the handles on the right to reorder.'>
             <ActivityTypeManager
               ref={activityManagerRef}
               onAddingChange={setIsAddingActivity}
@@ -1184,6 +1210,7 @@ export default function SettingsPage() {
                 {deletedActivityTypes.length > 0 && (
                   <div className='px-4 py-3 border-t border-gray-200 dark:border-gray-700'>
                     <button
+                      data-info='Permanently remove all deleted activities. They will no longer be recoverable.'
                       onClick={() => {
                         clearDeletedActivityTypes();
                         setShowRecovery(false);
@@ -1257,6 +1284,7 @@ export default function SettingsPage() {
               </h2>
               <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
                 <button
+                  data-info='Merge multiple nutrition activities together. When merged, all selected activities contribute to a combined 100% goal.'
                   onClick={() =>
                     setNutritionMergeExpanded(!nutritionMergeExpanded)
                   }
@@ -1358,6 +1386,7 @@ export default function SettingsPage() {
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             <button
+              data-info='Set your location to see weather info and forecasts on the home screen.'
               onClick={() => setLocationExpanded(!locationExpanded)}
               className='w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
               <div className='flex items-center gap-3'>
@@ -1514,6 +1543,7 @@ export default function SettingsPage() {
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             <button
+              data-info='Pick your favorite football team. Match days will be shown on your daily log on the home screen.'
               onClick={() => setFootballExpanded(!footballExpanded)}
               className='w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
               <div className='flex items-center gap-3'>
@@ -1743,6 +1773,7 @@ export default function SettingsPage() {
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             <button
+              data-info='Screen Time settings. Track how much screen time each person gets. Set daily, weekly, or monthly limits.'
               onClick={() => setScreenTimeExpanded(!screenTimeExpanded)}
               className='w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
               <div className='flex items-center gap-3'>
@@ -2044,6 +2075,7 @@ export default function SettingsPage() {
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             <button
+              data-info='News Feed settings. Add website RSS feeds to see headlines on your front page. Tap to expand and configure sources.'
               onClick={() => setNewsExpanded(!newsExpanded)}
               className='w-full px-4 py-3 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700'>
               <div className='flex items-center gap-3'>
@@ -2284,6 +2316,7 @@ export default function SettingsPage() {
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             <button
+              data-info='Fun Facts categories. Choose which categories of fun facts appear when you lock your day.'
               onClick={() => setFunFactsExpanded(!funFactsExpanded)}
               className='w-full px-4 py-3 flex items-center justify-between min-h-[44px] active:bg-gray-100 dark:active:bg-gray-700'>
               <div className='flex items-center gap-3 flex-1'>
@@ -2444,12 +2477,14 @@ export default function SettingsPage() {
           </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             <button
+              data-info='Delete all your logged data and activity types. This cannot be undone.'
               onClick={() => setShowDeleteAllDataModal(true)}
               className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 border-b border-gray-200/80 dark:border-gray-700/80'>
               Delete all data
             </button>
             {user && (
               <button
+                data-info='Permanently delete your account and all associated data. This action is irreversible.'
                 onClick={() => setShowDeleteAccountModal(true)}
                 disabled={authLoading}
                 className='w-full px-4 py-3 min-h-[44px] text-[17px] text-ios-red text-center active:bg-gray-100 dark:active:bg-gray-700 disabled:opacity-50 cursor-pointer'>
@@ -2470,6 +2505,7 @@ export default function SettingsPage() {
             </h2>
             <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
               <a
+                data-info='Open the admin dashboard. Only visible to the app administrator.'
                 href='/admin'
                 className='w-full px-4 py-3 min-h-[44px] flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700 border-b border-gray-200 dark:border-gray-700'>
                 <span className='text-[17px] text-gray-900 dark:text-white'>

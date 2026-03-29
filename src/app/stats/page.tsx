@@ -138,7 +138,9 @@ function CalendarNavHeader({
   showToday?: boolean;
 }) {
   return (
-    <div className='flex items-center justify-between mb-3'>
+    <div
+      className='flex items-center justify-between mb-3'
+      data-info='Period navigation. Use arrows to move between time periods. Tap Today to jump to the current period.'>
       <button
         onClick={onPrev}
         disabled={!canGoPrev}
@@ -1627,16 +1629,24 @@ export default function StatsPage() {
 
   return (
     <div className='pb-16' onClick={handleBackgroundClick}>
-      {/* Info button - top right */}
+      {/* Info mode banner */}
       {infoMode && (
-        <div className='flex justify-end px-4 pt-3'>
-          <button
-            className='w-8 h-8 rounded-full border-2 border-ios-blue flex items-center justify-center'
-            style={{ animation: "info-pulse 2.5s ease-in-out infinite" }}
-            onClick={() => setShowInfoPopup(true)}>
-            <span className='text-ios-blue text-[15px] font-semibold italic leading-none'>
+        <div className='bg-ios-blue text-white px-4 py-2.5 flex items-center justify-between'>
+          <div className='flex items-center gap-2'>
+            <span className='text-sm font-semibold italic w-5 h-5 rounded-full border-2 border-white/60 flex items-center justify-center text-[11px] leading-none'>
               i
             </span>
+            <p className='text-sm font-medium'>Info Mode</p>
+          </div>
+          <button
+            data-info-button
+            onClick={() => {
+              setInfoMode(false);
+              localStorage.setItem("info_mode", "false");
+              window.dispatchEvent(new Event("infoModeUpdated"));
+            }}
+            className='px-3 py-1.5 bg-white/20 rounded-full text-[13px] font-medium hover:bg-white/30 transition-colors'>
+            Turn off
           </button>
         </div>
       )}
@@ -1651,6 +1661,7 @@ export default function StatsPage() {
             </p>
           </div>
           <button
+            data-info='Back button. Return to viewing your own data.'
             onClick={() => setViewingUser(null)}
             className='px-3 py-1.5 bg-white/20 rounded-full text-[13px] font-medium hover:bg-white/30 transition-colors'>
             Back to my data
@@ -1666,7 +1677,9 @@ export default function StatsPage() {
       </div>
 
       {/* Time Range Selector - iOS Segmented Control */}
-      <div className='px-4 pb-3'>
+      <div
+        className='px-4 pb-3'
+        data-info='Time range. Switch between Week, Month, or Year view.'>
         <IOSSegmentedControl
           options={TIME_RANGES.map((r) => ({ value: r.value, label: r.label }))}
           value={timeRange}
@@ -1677,7 +1690,9 @@ export default function StatsPage() {
       {/* Main Content */}
       <main className='max-w-lg mx-auto px-4'>
         {/* Activity Type Selector */}
-        <div className='mb-4'>
+        <div
+          className='mb-4'
+          data-info='Activity filter. Tap an activity to see its detailed stats and calendar.'>
           <div className='flex flex-wrap gap-2'>
             {activityTypes
               .filter((type) => {
@@ -1696,6 +1711,7 @@ export default function StatsPage() {
                 return (
                   <button
                     key={type.id}
+                    data-info={`${type.name}. Tap to see detailed stats, calendar, and entry history for this activity.`}
                     onClick={() =>
                       setSelectedActivityId(isSelected ? null : type.id)
                     }

@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { IOSTabBar } from "./ios";
 import { SplashScreen } from "./SplashScreen";
+import { InfoModeOverlay } from "./InfoModeOverlay";
 import { useApp } from "@/context/AppContext";
 import {
   Clock,
@@ -471,6 +472,7 @@ export function AppShell({ children }: AppShellProps) {
         {children}
       </main>
       <IOSTabBar items={tabItems} />
+      <InfoModeOverlay />
     </div>
   );
 }

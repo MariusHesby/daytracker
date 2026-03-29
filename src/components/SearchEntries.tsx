@@ -119,6 +119,7 @@ export function SearchEntries({ onSelectDate }: SearchEntriesProps) {
   if (!isOpen) {
     return (
       <button
+        data-info='Search entries. Find past logged activities, movies, meals, and more by keyword.'
         onClick={() => setIsOpen(true)}
         className='w-9 h-9 text-gray-500 dark:text-gray-400 flex items-center justify-center active:opacity-60 transition-opacity'>
         <svg

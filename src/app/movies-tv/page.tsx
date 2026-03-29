@@ -433,6 +433,7 @@ function MediaCard({
   onMarkAsWatched,
   onRemoveFromWatchlist,
   isWatchlistView = false,
+  isViewingOther = false,
   releaseDate,
   layout = "grid",
   isDraggable = false,
@@ -451,6 +452,7 @@ function MediaCard({
   onMarkAsWatched?: (entryId: string) => void;
   onRemoveFromWatchlist?: (entryId: string) => void;
   isWatchlistView?: boolean;
+  isViewingOther?: boolean;
   releaseDate?: string | null;
   layout?: "grid" | "list";
   isDraggable?: boolean;
@@ -485,6 +487,7 @@ function MediaCard({
         <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden shadow-sm flex'>
           <button
             onClick={() => setShowPosterPicker(true)}
+            data-info='Poster. Tap to change the poster image for this title.'
             className='relative w-20 h-28 shrink-0 bg-gray-200 dark:bg-gray-800 group'>
             {entry.poster ? (
               <>
@@ -572,48 +575,151 @@ function MediaCard({
                   ⭐ {entry.imdbRating}
                 </span>
               )}
-              {!isWatchlistView && entry.userRating ? (
-                <button
-                  onClick={() => setShowRating(true)}
-                  className='text-[14px] text-ios-blue flex items-center gap-1'>
-                  <svg
-                    className='w-4 h-4'
-                    viewBox='0 0 24 24'
-                    fill='currentColor'>
-                    <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
-                  </svg>
-                  {entry.userRating}
-                </button>
+              {!isWatchlistView && entry.userRating === -1 ? (
+                isViewingOther ? (
+                  <span className='text-[14px] text-red-500 flex items-center gap-1'>
+                    <svg
+                      className='w-8 h-5'
+                      viewBox='0 0 32 20'
+                      fill='currentColor'>
+                      <circle cx='8' cy='4' r='3' />
+                      <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                      <rect
+                        x='18'
+                        y='2'
+                        width='12'
+                        height='9'
+                        rx='1'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='1.5'
+                      />
+                      <path
+                        d='M22 11v2h4v-2'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='1.5'
+                      />
+                      <path d='M22 5v4l3-2z' />
+                    </svg>
+                    <span className='text-[12px]'>Stopped</span>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setShowRating(true)}
+                    className='text-[14px] text-red-500 flex items-center gap-1'>
+                    <svg
+                      className='w-8 h-5'
+                      viewBox='0 0 32 20'
+                      fill='currentColor'>
+                      <circle cx='8' cy='4' r='3' />
+                      <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                      <rect
+                        x='18'
+                        y='2'
+                        width='12'
+                        height='9'
+                        rx='1'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='1.5'
+                      />
+                      <path
+                        d='M22 11v2h4v-2'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='1.5'
+                      />
+                      <path d='M22 5v4l3-2z' />
+                    </svg>
+                  </button>
+                )
+              ) : !isWatchlistView &&
+                entry.userRating &&
+                entry.userRating > 0 ? (
+                isViewingOther ? (
+                  <span className='text-[14px] text-ios-blue flex items-center gap-1'>
+                    <svg
+                      className='w-5 h-5'
+                      viewBox='0 0 24 24'
+                      fill='currentColor'>
+                      <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
+                    </svg>
+                    {entry.userRating}
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setShowRating(true)}
+                    className='text-[14px] text-ios-blue flex items-center gap-1'>
+                    <svg
+                      className='w-5 h-5'
+                      viewBox='0 0 24 24'
+                      fill='currentColor'>
+                      <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
+                    </svg>
+                    {entry.userRating}
+                  </button>
+                )
               ) : !isWatchlistView && !entry.userRating ? (
-                <button
-                  onClick={() => setShowRating(true)}
-                  className='text-ios-blue'
-                  title='Add rating'>
-                  <svg
-                    className='w-8 h-5'
-                    viewBox='0 0 32 20'
-                    fill='currentColor'>
-                    <circle cx='8' cy='4' r='3' />
-                    <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
-                    <rect
-                      x='18'
-                      y='2'
-                      width='12'
-                      height='9'
-                      rx='1'
-                      fill='none'
-                      stroke='currentColor'
-                      strokeWidth='1.5'
-                    />
-                    <path
-                      d='M22 11v2h4v-2'
-                      fill='none'
-                      stroke='currentColor'
-                      strokeWidth='1.5'
-                    />
-                    <path d='M22 5v4l3-2z' />
-                  </svg>
-                </button>
+                isViewingOther ? (
+                  <span className='text-[14px] text-ios-blue flex items-center gap-1'>
+                    <svg
+                      className='w-8 h-5'
+                      viewBox='0 0 32 20'
+                      fill='currentColor'>
+                      <circle cx='8' cy='4' r='3' />
+                      <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                      <rect
+                        x='18'
+                        y='2'
+                        width='12'
+                        height='9'
+                        rx='1'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='1.5'
+                      />
+                      <path
+                        d='M22 11v2h4v-2'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='1.5'
+                      />
+                      <path d='M22 5v4l3-2z' />
+                    </svg>
+                    <span className='text-[12px]'>Watching</span>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setShowRating(true)}
+                    className='text-ios-blue'
+                    title='Add rating'>
+                    <svg
+                      className='w-8 h-5'
+                      viewBox='0 0 32 20'
+                      fill='currentColor'>
+                      <circle cx='8' cy='4' r='3' />
+                      <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                      <rect
+                        x='18'
+                        y='2'
+                        width='12'
+                        height='9'
+                        rx='1'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='1.5'
+                      />
+                      <path
+                        d='M22 11v2h4v-2'
+                        fill='none'
+                        stroke='currentColor'
+                        strokeWidth='1.5'
+                      />
+                      <path d='M22 5v4l3-2z' />
+                    </svg>
+                  </button>
+                )
               ) : null}
               {isWatchlistView && (
                 <>
@@ -663,7 +769,9 @@ function MediaCard({
                 </p>
                 <div className='w-full'>
                   <StarRating
-                    rating={entry.userRating}
+                    rating={
+                      entry.userRating === -1 ? undefined : entry.userRating
+                    }
                     onRate={(r) => {
                       onRate(entry.id, r);
                       setShowRating(false);
@@ -672,8 +780,45 @@ function MediaCard({
                   />
                 </div>
                 <button
+                  onClick={() => {
+                    onRate(entry.id, -1);
+                    setShowRating(false);
+                  }}
+                  className={cn(
+                    "mt-4 w-full flex items-center justify-center gap-2 py-2 rounded-lg text-[15px] font-medium transition-colors",
+                    entry.userRating === -1
+                      ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                      : "text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20",
+                  )}>
+                  <svg
+                    className='w-5 h-5'
+                    viewBox='0 0 32 20'
+                    fill='currentColor'>
+                    <circle cx='8' cy='4' r='3' />
+                    <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                    <rect
+                      x='18'
+                      y='2'
+                      width='12'
+                      height='9'
+                      rx='1'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='1.5'
+                    />
+                    <path
+                      d='M22 11v2h4v-2'
+                      fill='none'
+                      stroke='currentColor'
+                      strokeWidth='1.5'
+                    />
+                    <path d='M22 5v4l3-2z' />
+                  </svg>
+                  Stopped watching
+                </button>
+                <button
                   onClick={() => setShowRating(false)}
-                  className='mt-4 w-full text-center text-[15px] text-gray-500'>
+                  className='mt-2 w-full text-center text-[15px] text-gray-500'>
                   Cancel
                 </button>
               </div>
@@ -756,42 +901,149 @@ function MediaCard({
               ⭐ {entry.imdbRating}
             </span>
           )}
-          {!isWatchlistView && entry.userRating ? (
-            <button
-              onClick={() => setShowRating(true)}
-              className='text-[14px] text-ios-blue flex items-center gap-1'>
-              <svg className='w-4 h-4' viewBox='0 0 24 24' fill='currentColor'>
-                <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
-              </svg>
-              {entry.userRating}
-            </button>
+          {!isWatchlistView && entry.userRating === -1 ? (
+            isViewingOther ? (
+              <span className='text-[14px] text-red-500 flex items-center gap-1'>
+                <svg
+                  className='w-8 h-5'
+                  viewBox='0 0 32 20'
+                  fill='currentColor'>
+                  <circle cx='8' cy='4' r='3' />
+                  <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                  <rect
+                    x='18'
+                    y='2'
+                    width='12'
+                    height='9'
+                    rx='1'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='1.5'
+                  />
+                  <path
+                    d='M22 11v2h4v-2'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='1.5'
+                  />
+                  <path d='M22 5v4l3-2z' />
+                </svg>
+                <span className='text-[12px]'>Stopped</span>
+              </span>
+            ) : (
+              <button
+                onClick={() => setShowRating(true)}
+                className='text-[14px] text-red-500 flex items-center gap-1'>
+                <svg
+                  className='w-8 h-5'
+                  viewBox='0 0 32 20'
+                  fill='currentColor'>
+                  <circle cx='8' cy='4' r='3' />
+                  <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                  <rect
+                    x='18'
+                    y='2'
+                    width='12'
+                    height='9'
+                    rx='1'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='1.5'
+                  />
+                  <path
+                    d='M22 11v2h4v-2'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='1.5'
+                  />
+                  <path d='M22 5v4l3-2z' />
+                </svg>
+              </button>
+            )
+          ) : !isWatchlistView && entry.userRating && entry.userRating > 0 ? (
+            isViewingOther ? (
+              <span className='text-[14px] text-ios-blue flex items-center gap-1'>
+                <svg
+                  className='w-5 h-5'
+                  viewBox='0 0 24 24'
+                  fill='currentColor'>
+                  <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
+                </svg>
+                {entry.userRating}
+              </span>
+            ) : (
+              <button
+                onClick={() => setShowRating(true)}
+                className='text-[14px] text-ios-blue flex items-center gap-1'>
+                <svg
+                  className='w-5 h-5'
+                  viewBox='0 0 24 24'
+                  fill='currentColor'>
+                  <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
+                </svg>
+                {entry.userRating}
+              </button>
+            )
           ) : !isWatchlistView && !entry.userRating ? (
-            <button
-              onClick={() => setShowRating(true)}
-              className='text-ios-blue'
-              title='Add rating'>
-              <svg className='w-8 h-5' viewBox='0 0 32 20' fill='currentColor'>
-                <circle cx='8' cy='4' r='3' />
-                <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
-                <rect
-                  x='18'
-                  y='2'
-                  width='12'
-                  height='9'
-                  rx='1'
-                  fill='none'
-                  stroke='currentColor'
-                  strokeWidth='1.5'
-                />
-                <path
-                  d='M22 11v2h4v-2'
-                  fill='none'
-                  stroke='currentColor'
-                  strokeWidth='1.5'
-                />
-                <path d='M22 5v4l3-2z' />
-              </svg>
-            </button>
+            isViewingOther ? (
+              <span className='text-[14px] text-ios-blue flex items-center gap-1'>
+                <svg
+                  className='w-8 h-5'
+                  viewBox='0 0 32 20'
+                  fill='currentColor'>
+                  <circle cx='8' cy='4' r='3' />
+                  <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                  <rect
+                    x='18'
+                    y='2'
+                    width='12'
+                    height='9'
+                    rx='1'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='1.5'
+                  />
+                  <path
+                    d='M22 11v2h4v-2'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='1.5'
+                  />
+                  <path d='M22 5v4l3-2z' />
+                </svg>
+                <span className='text-[12px]'>Watching</span>
+              </span>
+            ) : (
+              <button
+                onClick={() => setShowRating(true)}
+                className='text-ios-blue'
+                title='Add rating'>
+                <svg
+                  className='w-8 h-5'
+                  viewBox='0 0 32 20'
+                  fill='currentColor'>
+                  <circle cx='8' cy='4' r='3' />
+                  <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                  <rect
+                    x='18'
+                    y='2'
+                    width='12'
+                    height='9'
+                    rx='1'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='1.5'
+                  />
+                  <path
+                    d='M22 11v2h4v-2'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='1.5'
+                  />
+                  <path d='M22 5v4l3-2z' />
+                </svg>
+              </button>
+            )
           ) : null}
           {/* Calendar badge - iOS style */}
           <div className='rounded-lg overflow-hidden ml-auto w-[32px] opacity-60 border-l border-b border-gray-300 dark:border-gray-600'>
@@ -855,7 +1107,9 @@ function MediaCard({
               </p>
               <div className='w-full'>
                 <StarRating
-                  rating={entry.userRating}
+                  rating={
+                    entry.userRating === -1 ? undefined : entry.userRating
+                  }
                   onRate={(r) => {
                     onRate(entry.id, r);
                     setShowRating(false);
@@ -864,8 +1118,45 @@ function MediaCard({
                 />
               </div>
               <button
+                onClick={() => {
+                  onRate(entry.id, -1);
+                  setShowRating(false);
+                }}
+                className={cn(
+                  "mt-4 w-full flex items-center justify-center gap-2 py-2 rounded-lg text-[15px] font-medium transition-colors",
+                  entry.userRating === -1
+                    ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                    : "text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20",
+                )}>
+                <svg
+                  className='w-5 h-5'
+                  viewBox='0 0 32 20'
+                  fill='currentColor'>
+                  <circle cx='8' cy='4' r='3' />
+                  <path d='M5 8c0 0 0 4 0 6c0 1 1 2 2 2h2v3h2v-3h1l2-4v-2c0-1-1-2-2-2H7c-1 0-2 1-2 2z' />
+                  <rect
+                    x='18'
+                    y='2'
+                    width='12'
+                    height='9'
+                    rx='1'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='1.5'
+                  />
+                  <path
+                    d='M22 11v2h4v-2'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='1.5'
+                  />
+                  <path d='M22 5v4l3-2z' />
+                </svg>
+                Stopped watching
+              </button>
+              <button
                 onClick={() => setShowRating(false)}
-                className='mt-4 w-full text-center text-[15px] text-gray-500'>
+                className='mt-2 w-full text-center text-[15px] text-gray-500'>
                 Cancel
               </button>
             </div>
@@ -1173,7 +1464,7 @@ export default function MoviesPage() {
 
       // Filter by minimum star rating
       const ratingFiltered = filteredEntries.filter(
-        (e) => (e.userRating || 0) >= minStarRating,
+        (e) => Math.max(0, e.userRating || 0) >= minStarRating,
       );
 
       // Group by value (title) and keep only the highest rated entry for each
@@ -1181,7 +1472,11 @@ export default function MoviesPage() {
       ratingFiltered.forEach((entry) => {
         const key = String(entry.value).toLowerCase();
         const existing = uniqueByTitle.get(key);
-        if (!existing || (entry.userRating || 0) > (existing.userRating || 0)) {
+        if (
+          !existing ||
+          Math.max(0, entry.userRating || 0) >
+            Math.max(0, existing.userRating || 0)
+        ) {
           uniqueByTitle.set(key, entry);
         }
       });
@@ -1189,7 +1484,9 @@ export default function MoviesPage() {
       // Convert back to array and sort
       return Array.from(uniqueByTitle.values()).sort((a, b) => {
         if (sortBy === "rating")
-          return (b.userRating || 0) - (a.userRating || 0);
+          return (
+            Math.max(0, b.userRating || 0) - Math.max(0, a.userRating || 0)
+          );
         if (sortBy === "imdb")
           return (
             parseFloat(b.imdbRating || "0") - parseFloat(a.imdbRating || "0")
@@ -1240,7 +1537,8 @@ export default function MoviesPage() {
     }
 
     return sortedEntries.sort((a, b) => {
-      if (sortBy === "rating") return (b.userRating || 0) - (a.userRating || 0);
+      if (sortBy === "rating")
+        return Math.max(0, b.userRating || 0) - Math.max(0, a.userRating || 0);
       if (sortBy === "imdb")
         return (
           parseFloat(b.imdbRating || "0") - parseFloat(a.imdbRating || "0")
@@ -1432,16 +1730,24 @@ export default function MoviesPage() {
   return (
     <div className='pb-16'>
       {/* Viewing Another User Banner */}
-      {/* Info button - top right */}
+      {/* Info mode banner */}
       {infoMode && (
-        <div className='flex justify-end px-4 pt-3'>
-          <button
-            className='w-8 h-8 rounded-full border-2 border-ios-blue flex items-center justify-center'
-            style={{ animation: "info-pulse 2.5s ease-in-out infinite" }}
-            onClick={() => setShowInfoPopup(true)}>
-            <span className='text-ios-blue text-[15px] font-semibold italic leading-none'>
+        <div className='bg-ios-blue text-white px-4 py-2.5 flex items-center justify-between'>
+          <div className='flex items-center gap-2'>
+            <span className='text-sm font-semibold italic w-5 h-5 rounded-full border-2 border-white/60 flex items-center justify-center text-[11px] leading-none'>
               i
             </span>
+            <p className='text-sm font-medium'>Info Mode</p>
+          </div>
+          <button
+            data-info-button
+            onClick={() => {
+              setInfoMode(false);
+              localStorage.setItem("info_mode", "false");
+              window.dispatchEvent(new Event("infoModeUpdated"));
+            }}
+            className='px-3 py-1.5 bg-white/20 rounded-full text-[13px] font-medium hover:bg-white/30 transition-colors'>
+            Turn off
           </button>
         </div>
       )}
@@ -1453,6 +1759,7 @@ export default function MoviesPage() {
             <p className='text-xs opacity-80'>{viewingUser.email}</p>
           </div>
           <button
+            data-info='Back button. Return to viewing your own data.'
             onClick={() => setViewingUser(null)}
             className='px-3 py-1.5 bg-white/20 rounded-full text-[13px] font-medium hover:bg-white/30 transition-colors'>
             Back to my data
@@ -1467,7 +1774,9 @@ export default function MoviesPage() {
         </h1>
       </div>
 
-      <div className='px-4 mb-3'>
+      <div
+        className='px-4 mb-3'
+        data-info='Switch between viewing your Movies or TV Series.'>
         <IOSSegmentedControl
           options={[
             { value: "movies", label: "Movies" },
@@ -1481,7 +1790,9 @@ export default function MoviesPage() {
       <div className='px-4 mb-6 flex gap-2 items-center'>
         <div className='flex gap-2 flex-1 items-center'>
           {/* Sort dropdown - always visible */}
-          <div className='relative'>
+          <div
+            className='relative'
+            data-info='Sort order. Tap to sort by Newest, My Rating, or IMDB rating.'>
             <button
               onClick={() => {
                 // If favorites or watchlist is active, switch to watched list
@@ -1573,6 +1884,7 @@ export default function MoviesPage() {
                 setShowWatchlist(false);
               }
             }}
+            data-info='Favorites. Show movies and series your friends have rated highly.'
             className={cn(
               "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
               showFavorites
@@ -1598,6 +1910,7 @@ export default function MoviesPage() {
                 setShowFavorites(false);
               }
             }}
+            data-info='Watchlist. View and manage movies or series you want to watch later.'
             className={cn(
               "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
               showWatchlist
@@ -1623,6 +1936,7 @@ export default function MoviesPage() {
           onClick={() =>
             handleViewModeChange(viewMode === "grid" ? "list" : "grid")
           }
+          data-info='View mode. Switch between poster grid and list layout.'
           className='p-2 rounded-lg bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300'>
           {viewMode === "grid" ? (
             <svg
@@ -1741,6 +2055,7 @@ export default function MoviesPage() {
                 onMarkAsWatched={handleMarkAsWatched}
                 onRemoveFromWatchlist={handleRemoveFromWatchlist}
                 isWatchlistView={showWatchlist}
+                isViewingOther={isViewingOther}
                 releaseDate={
                   entry.imdbId ? releaseDates[entry.imdbId] : undefined
                 }
@@ -1759,6 +2074,7 @@ export default function MoviesPage() {
                 onMarkAsWatched={handleMarkAsWatched}
                 onRemoveFromWatchlist={handleRemoveFromWatchlist}
                 isWatchlistView={showWatchlist}
+                isViewingOther={isViewingOther}
                 releaseDate={
                   entry.imdbId ? releaseDates[entry.imdbId] : undefined
                 }

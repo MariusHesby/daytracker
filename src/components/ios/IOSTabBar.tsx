@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 
 interface TabItem {
   href: string;
@@ -20,6 +20,20 @@ interface IOSTabBarProps {
 
 export function IOSTabBar({ items, className }: IOSTabBarProps) {
   const pathname = usePathname();
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      // If viewport height is significantly less than window height, keyboard is open
+      setKeyboardOpen(window.innerHeight - vv.height > 100);
+    };
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, []);
+
+  if (keyboardOpen) return null;
 
   return (
     <nav

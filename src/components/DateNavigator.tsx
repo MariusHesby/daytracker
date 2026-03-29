@@ -51,7 +51,9 @@ export function DateNavigator({ date, onChange }: DateNavigatorProps) {
   const today = isToday(date);
 
   return (
-    <div className='flex items-center justify-between bg-gray-100/50 dark:bg-gray-800/30 rounded-xl border border-gray-200/50 dark:border-gray-700/30'>
+    <div
+      data-info='Date navigator. Swipe left/right or tap arrows to change day. Tap the date to jump to today.'
+      className='flex items-center justify-between bg-gray-100/50 dark:bg-gray-800/30 rounded-xl border border-gray-200/50 dark:border-gray-700/30'>
       <button
         onClick={handlePrevDay}
         className={cn(

@@ -1440,6 +1440,11 @@ export function EntryForm({
               sugg.value.toLowerCase().includes(customValue.toLowerCase()),
             )
           : typeSuggestions;
+        // Sort by most recently used first
+        filteredSuggestions.sort(
+          (a, b) =>
+            new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime(),
+        );
         // Show dropdown when focused and has suggestions (either all or filtered)
         const suggestionsToShow = filteredSuggestions.slice(0, 10);
         const showDropdown =
@@ -1519,7 +1524,9 @@ export function EntryForm({
 
       case "mood":
         return (
-          <div className='pt-3 flex gap-3'>
+          <div
+            className='pt-3 flex gap-3'
+            data-info='Mood selector. Tap a face to log your mood. Tap again to remove it.'>
             <button
               onClick={() => {
                 const currentValue = savedValues[type.id]?.[0];
@@ -1615,7 +1622,9 @@ export function EntryForm({
 
       case "boolean":
         return (
-          <div className='pt-3 flex gap-3'>
+          <div
+            className='pt-3 flex gap-3'
+            data-info='Yes/No. Tap to log your answer for this activity.'>
             <button
               onClick={() => handleSaveValue(type.id, true)}
               className='flex-1 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-[17px] font-medium text-gray-900 dark:text-white active:bg-gray-200 dark:active:bg-gray-600 flex items-center justify-center gap-2'>
@@ -1969,6 +1978,7 @@ export function EntryForm({
                     </div>
                   </div>
                   <button
+                    data-info='Add Food. Save this food entry with its nutritional information.'
                     onClick={() => handleSaveNutrition(type.id)}
                     disabled={!nutritionInput.foodName.trim()}
                     className='w-full py-2.5 rounded-full text-[14px] font-medium bg-ios-blue text-white shadow-lg shadow-ios-blue/30 disabled:opacity-50 disabled:cursor-not-allowed'>
@@ -2104,6 +2114,7 @@ export function EntryForm({
 
               {/* Add new workout button */}
               <button
+                data-info='Add workout. Open the workout tracker to log a new session.'
                 onClick={() => router.push("/workout")}
                 className='px-4 py-2 rounded-full text-[13px] bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors workout-action-btn'>
                 + Add workout
@@ -2397,6 +2408,7 @@ export function EntryForm({
                   className='flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-[15px] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
                 />
                 <button
+                  data-info='Add. Create a new item on the checklist.'
                   onClick={() => {
                     handleAddItem();
                     setShowChecklistDropdown(false);
@@ -2715,6 +2727,7 @@ export function EntryForm({
                     <div className='flex items-center gap-2.5 ml-auto'>
                       <button
                         type='button'
+                        data-info='Add time. Add a time entry for this subject.'
                         onClick={() => handleAddAdjustment("add")}
                         className='w-7 h-7 rounded-full flex items-center justify-center text-ios-green bg-ios-green/10 active:bg-ios-green/20 transition-colors'
                         title='Add time'>
@@ -2733,6 +2746,7 @@ export function EntryForm({
                       </button>
                       <button
                         type='button'
+                        data-info='Subtract time. Remove time from this subject.'
                         onClick={() => handleAddAdjustment("subtract")}
                         className='w-7 h-7 rounded-full flex items-center justify-center text-ios-red bg-ios-red/10 active:bg-ios-red/20 transition-colors'
                         title='Subtract time'>
@@ -3047,6 +3061,29 @@ export function EntryForm({
             return (
               <div
                 key={type.id}
+                data-info={`${type.name}. ${
+                  isCheckmark
+                    ? "Tap to mark as done for today."
+                    : type.valueType === "text"
+                      ? "Tap to expand and type a value."
+                      : type.valueType === "counter"
+                        ? "Tap to expand. Use + and − to count."
+                        : type.valueType === "mood"
+                          ? "Tap to expand and select your mood."
+                          : type.valueType === "boolean"
+                            ? "Tap to expand and choose Yes or No."
+                            : type.valueType === "nutrition"
+                              ? "Tap to expand and log food with calories, protein, carbs, fat."
+                              : type.valueType === "workout"
+                                ? "Tap to expand and log exercises with sets, reps, and weight."
+                                : type.valueType === "checklist"
+                                  ? "Tap to expand and check off items on the list."
+                                  : type.valueType === "timer"
+                                    ? "Tap to expand and track time for each subject."
+                                    : (type.valueType as string) === "media"
+                                      ? "Tap to expand and search for movies or TV series."
+                                      : "Tap to expand and add a value."
+                }`}
                 className='mb-2 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
                 {/* Header — tap to expand/collapse */}
                 <div
@@ -3570,6 +3607,7 @@ export function EntryForm({
                   </span>
                 </div>
                 <button
+                  data-info='Close. Collapse this activity panel.'
                   onClick={() => setExpandedTypeId(null)}
                   className='w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400'>
                   <svg
@@ -3890,6 +3928,7 @@ export function EntryForm({
               return (
                 <button
                   key={type.id}
+                  data-info={`${type.name}. ${isCheckmark ? "Tap to mark as done." : isWorkout ? "Tap to log a workout." : "Tap to expand and add a value."}`}
                   onClick={() => {
                     if (isCheckmark) {
                       // For checkmark types, toggle directly without expanding
@@ -4014,6 +4053,7 @@ export function EntryForm({
           {/* Add Hidden Activity Button - Icon Grid Version */}
           {!isViewingOther && allActivityTypes.some((t) => t.hidden) && (
             <button
+              data-info='Add activity. Show a hidden activity for today.'
               onClick={() => setShowAddHiddenModal(true)}
               className={cn(
                 "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 p-1",
@@ -4275,6 +4315,29 @@ export function EntryForm({
                 <div key={type.id}>
                   {/* Activity row */}
                   <div
+                    data-info={`${type.name}. ${
+                      isCheckmark
+                        ? "Tap to mark as done for today."
+                        : type.valueType === "text"
+                          ? "Tap to expand and type a value."
+                          : type.valueType === "counter"
+                            ? "Use + and − on the right to count."
+                            : type.valueType === "mood"
+                              ? "Tap to expand and select your mood."
+                              : type.valueType === "boolean"
+                                ? "Tap to expand and choose Yes or No."
+                                : type.valueType === "nutrition"
+                                  ? "Tap to expand and log food with calories, protein, carbs, fat."
+                                  : type.valueType === "workout"
+                                    ? "Tap to log a workout with exercises, sets, and reps."
+                                    : type.valueType === "checklist"
+                                      ? "Tap to expand and check off items."
+                                      : type.valueType === "timer"
+                                        ? "Tap to expand and track time for each subject."
+                                        : (type.valueType as string) === "media"
+                                          ? "Tap to expand and search for movies or TV series."
+                                          : "Tap to expand and add a value."
+                    }`}
                     className={cn(
                       "flex items-center min-h-[52px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
                       isExpanded && "bg-gray-50 dark:bg-gray-800",
@@ -4552,6 +4615,7 @@ export function EntryForm({
                         {isCounter && (
                           <div
                             className='flex items-center gap-x-2'
+                            data-info='Counter. Use − and + to adjust the count.'
                             onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={(e) => {
@@ -4697,6 +4761,7 @@ export function EntryForm({
         viewMode === "list" &&
         allActivityTypes.some((t) => t.hidden) && (
           <button
+            data-info='Add activity. Show a hidden activity for today.'
             onClick={() => setShowAddHiddenModal(true)}
             className='mt-3 w-full py-3 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center gap-2 text-gray-400 hover:text-gray-500 hover:border-gray-400 transition-colors'>
             <svg
@@ -4838,6 +4903,7 @@ export function EntryForm({
           <button
             onClick={handleLockToggle}
             disabled={isLocking}
+            data-info="Lock day. Finalize the day when you're done logging. Triggers a fun fact and celebration!"
             className={cn(
               "px-6 py-2.5 rounded-full flex items-center justify-center gap-2 transition-all duration-300",
               "active:scale-[0.98]",

@@ -507,16 +507,24 @@ export default function FriendsPage() {
 
   return (
     <div className='pb-16'>
-      {/* Info button - top right */}
+      {/* Info mode banner */}
       {infoMode && (
-        <div className='flex justify-end px-4 pt-3 max-w-lg mx-auto'>
-          <button
-            className='w-8 h-8 rounded-full border-2 border-ios-blue flex items-center justify-center'
-            style={{ animation: "info-pulse 2.5s ease-in-out infinite" }}
-            onClick={() => setShowInfoPopup(true)}>
-            <span className='text-ios-blue text-[15px] font-semibold italic leading-none'>
+        <div className='bg-ios-blue text-white px-4 py-2.5 flex items-center justify-between max-w-lg mx-auto'>
+          <div className='flex items-center gap-2'>
+            <span className='text-sm font-semibold italic w-5 h-5 rounded-full border-2 border-white/60 flex items-center justify-center text-[11px] leading-none'>
               i
             </span>
+            <p className='text-sm font-medium'>Info Mode</p>
+          </div>
+          <button
+            data-info-button
+            onClick={() => {
+              setInfoMode(false);
+              localStorage.setItem("info_mode", "false");
+              window.dispatchEvent(new Event("infoModeUpdated"));
+            }}
+            className='px-3 py-1.5 bg-white/20 rounded-full text-[13px] font-medium hover:bg-white/30 transition-colors'>
+            Turn off
           </button>
         </div>
       )}
@@ -529,6 +537,7 @@ export default function FriendsPage() {
           </h1>
           <button
             onClick={() => setShowSendRequest(true)}
+            data-info='Add Friend. Send a friend request by entering their email address.'
             className='relative px-4 py-2.5 bg-ios-blue text-white rounded-full text-[14px] font-medium shadow-lg shadow-ios-blue/30'>
             + Add Friend
             {incomingRequests.length > 0 && (
@@ -573,11 +582,13 @@ export default function FriendsPage() {
                   </div>
                   <div className='flex gap-2 mt-3'>
                     <button
+                      data-info='Accept. Approve this friend request to start sharing data.'
                       onClick={() => handleAcceptRequest(request)}
                       className='flex-1 py-2 rounded-full bg-ios-blue text-white text-[14px] font-medium shadow-lg shadow-ios-blue/30'>
                       Accept
                     </button>
                     <button
+                      data-info='Decline. Reject this friend request.'
                       onClick={() => handleRejectRequest(request)}
                       className='flex-1 py-2 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-[14px] font-medium'>
                       Decline
@@ -615,6 +626,7 @@ export default function FriendsPage() {
                       </p>
                     </div>
                     <button
+                      data-info='Cancel. Withdraw your pending friend request.'
                       onClick={() => handleCancelRequest(request)}
                       className='px-3 py-1.5 text-red-500 text-[13px] font-medium'>
                       Cancel
@@ -649,6 +661,7 @@ export default function FriendsPage() {
             />
           </div>
           <button
+            data-info='Toggle info. Show or hide sharing details on each friend card.'
             onClick={() =>
               setExpandedCardInfo(expandedCardInfo ? null : "__all__")
             }
@@ -731,6 +744,7 @@ export default function FriendsPage() {
                   return (
                     <div
                       key={sharedUser.id}
+                      data-info='Friend card. Tap to open chat. Use the eye icon to view their data.'
                       className='relative bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden cursor-pointer active:bg-gray-50 dark:active:bg-gray-800/60 transition-colors'
                       onClick={() => {
                         handleToggleChat(sharedUser);
@@ -756,6 +770,7 @@ export default function FriendsPage() {
 
                         {/* Spy icon */}
                         <button
+                          data-info="View data. Browse this friend's daily log and activities."
                           onClick={(e) => {
                             e.stopPropagation();
                             handleViewUserData(sharedUser);
@@ -780,6 +795,7 @@ export default function FriendsPage() {
                         <div className='flex items-center gap-0.5 px-3 pb-2 border-t border-gray-100 dark:border-gray-700/40 pt-1.5'>
                           {/* Sharing overview */}
                           <button
+                            data-info='Sharing. View and edit what activities you share with this friend.'
                             onClick={(e) => {
                               e.stopPropagation();
                               setSharingOverviewUser(sharedUser);
@@ -810,6 +826,7 @@ export default function FriendsPage() {
                           {/* Heart (favorite) */}
                           <div className='relative'>
                             <button
+                              data-info="Favorite. Mark as favorite to see this friend's movie and TV ratings."
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleFavorite(sharedUser.id);
@@ -849,6 +866,7 @@ export default function FriendsPage() {
 
                           {/* Bell (notifications) */}
                           <button
+                            data-info='Notifications. Subscribe to get notified when this friend logs specific activities.'
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedUserForNotifications(sharedUser);
@@ -882,6 +900,7 @@ export default function FriendsPage() {
 
                           {/* Remove friend */}
                           <button
+                            data-info='Remove friend. Unfriend this person and stop sharing data.'
                             onClick={(e) => {
                               e.stopPropagation();
                               setUserToRemove(sharedUser);

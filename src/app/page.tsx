@@ -448,16 +448,24 @@ export default function HomePage() {
 
   return (
     <div ref={scrollRef} className='overflow-y-auto'>
-      {/* Info button - top right */}
+      {/* Info mode banner */}
       {infoMode && (
-        <div className='flex justify-end px-4 pt-3'>
-          <button
-            className='w-8 h-8 rounded-full border-2 border-ios-blue flex items-center justify-center'
-            style={{ animation: "info-pulse 2.5s ease-in-out infinite" }}
-            onClick={() => setShowInfoPopup(true)}>
-            <span className='text-ios-blue text-[15px] font-semibold italic leading-none'>
+        <div className='bg-ios-blue text-white px-4 py-2.5 flex items-center justify-between'>
+          <div className='flex items-center gap-2'>
+            <span className='text-sm font-semibold italic w-5 h-5 rounded-full border-2 border-white/60 flex items-center justify-center text-[11px] leading-none'>
               i
             </span>
+            <p className='text-sm font-medium'>Info Mode</p>
+          </div>
+          <button
+            data-info-button
+            onClick={() => {
+              setInfoMode(false);
+              localStorage.setItem("info_mode", "false");
+              window.dispatchEvent(new Event("infoModeUpdated"));
+            }}
+            className='px-3 py-1.5 bg-white/20 rounded-full text-[13px] font-medium hover:bg-white/30 transition-colors'>
+            Turn off
           </button>
         </div>
       )}
@@ -472,6 +480,7 @@ export default function HomePage() {
             </p>
           </div>
           <button
+            data-info='Back button. Return to viewing your own data.'
             onClick={() => setViewingUser(null)}
             className='px-3 py-1.5 bg-white/20 rounded-full text-[13px] font-medium hover:bg-white/30 transition-colors'>
             Back to my data
@@ -487,6 +496,7 @@ export default function HomePage() {
             {/* Location label - above card, right-aligned */}
             {weather && !isViewingOther && locationName && (
               <div
+                data-info='Location name. Tap to open the weather forecast.'
                 className='flex justify-end pr-1 mb-1 cursor-pointer active:opacity-60 transition-opacity'
                 onClick={() => setShowForecast(true)}>
                 <span className='text-[11px] text-gray-400 dark:text-gray-500 font-medium'>
@@ -502,11 +512,13 @@ export default function HomePage() {
                 const variants = getNameVariants(fullName);
                 setNameVariant((prev) => (prev + 1) % variants.length);
               }}
+              data-info='Greeting card. Tap to cycle through different name display styles.'
               className='relative overflow-hidden rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
               {/* Weather area - emoji + temperature (tap to open forecast) */}
               {weather && !isViewingOther && locationName && (
                 <div
                   className='absolute right-0 top-0 bottom-0 w-[45%] z-10 cursor-pointer active:opacity-60 transition-opacity flex flex-col items-end justify-center pr-5'
+                  data-info='Weather. Tap to see a detailed forecast for your location.'
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowForecast(true);
@@ -574,6 +586,7 @@ export default function HomePage() {
                   setUnlockedPage(0);
                   setShowStreakPopup(true);
                 }}
+                data-info="Unlocked days. Shows days you haven't locked yet. Tap to see the list."
                 className={`flex items-center gap-1 transition-colors ${
                   unlockedDays.length > 0
                     ? "text-ios-orange"
@@ -598,6 +611,7 @@ export default function HomePage() {
               </button>
               {/* Calendar date picker */}
               <label
+                data-info='Calendar. Jump to any date to view or add entries.'
                 className='relative overflow-hidden text-gray-500 dark:text-gray-400 active:opacity-60 transition-opacity cursor-pointer'
                 title='Jump to date'>
                 <svg
@@ -626,6 +640,7 @@ export default function HomePage() {
                 screenTimeConfig.subjects.length > 0 && (
                   <button
                     onClick={() => setShowScreenTime(true)}
+                    data-info='Screen time. View and manage your daily screen time tracking.'
                     className='text-gray-500 dark:text-gray-400 active:opacity-60 transition-opacity'
                     title='Screen Time'>
                     <svg
@@ -659,6 +674,7 @@ export default function HomePage() {
               onClick={() =>
                 handleViewModeChange(viewMode === "list" ? "icons" : "list")
               }
+              data-info='View mode. Switch between list view and icon grid view.'
               className='p-2 active:opacity-60 transition-opacity'
               title={
                 viewMode === "list" ? "Switch to icons" : "Switch to list"
@@ -711,6 +727,7 @@ export default function HomePage() {
             newsLoading) && (
             <div className='mb-2 w-full bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60'>
               <button
+                data-info='News. Tap to open the full news view with articles from your sources.'
                 onClick={() => {
                   if (newsLoading && Object.keys(newsData).length === 0) return;
                   // Capture per-source new counts AND new-article links before opening
@@ -859,6 +876,7 @@ export default function HomePage() {
               return (
                 <div
                   key={fixture.id}
+                  data-info='Matchday card. Tap to see match details, upcoming fixtures, and league table.'
                   onClick={() => setShowFootball(true)}
                   className='flex items-center px-4 py-3 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 mb-2 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer'>
                   {/* Icon: W/D/L for played, H/A for upcoming */}
@@ -1164,6 +1182,7 @@ export default function HomePage() {
                     }}
                     disabled={refreshingSources.size > 0}
                     className='p-1 text-ios-blue active:opacity-60 disabled:opacity-40'
+                    data-info='Refresh all. Reload the latest headlines from all your news sources.'
                     title='Refresh all'>
                     <svg
                       className={`w-5 h-5 transition-transform ${
@@ -1193,6 +1212,7 @@ export default function HomePage() {
                       sourceNewLinksRef.current = {};
                       setNewsFullscreen(false);
                     }}
+                    data-info='Done. Close the news view and mark all articles as seen.'
                     className='text-[17px] text-ios-blue font-medium active:opacity-60'>
                     Done
                   </button>
@@ -1209,6 +1229,7 @@ export default function HomePage() {
                         ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                         : "text-gray-500 dark:text-gray-400"
                     }`}
+                    data-info='New articles. Show only unread articles in a single feed.'
                     title='New articles'>
                     <svg
                       className='w-4 h-4'
@@ -1231,6 +1252,7 @@ export default function HomePage() {
                         ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                         : "text-gray-500 dark:text-gray-400"
                     }`}
+                    data-info='By source. Group articles by news source. Tap a source to expand.'
                     title='By source'>
                     <svg
                       className='w-4 h-4'
@@ -1253,6 +1275,7 @@ export default function HomePage() {
                         ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                         : "text-gray-500 dark:text-gray-400"
                     }`}
+                    data-info='All expanded. Show all articles from all sources with headings.'
                     title='All expanded'>
                     <svg
                       className='w-4 h-4'
@@ -1643,6 +1666,7 @@ export default function HomePage() {
                     Screen Time
                   </h2>
                   <button
+                    data-info='Done. Close the screen time tracker.'
                     onClick={() => setShowScreenTime(false)}
                     className='text-ios-blue text-[17px] font-normal'>
                     Done
@@ -1655,6 +1679,7 @@ export default function HomePage() {
                     {config.subjects.map((s) => (
                       <button
                         key={s.id}
+                        data-info={`Subject: ${s.name}. Tap to view and log screen time for this person.`}
                         onClick={() => setScreenTimeSelectedSubject(s.id)}
                         className={cn(
                           "px-4 py-1.5 rounded-full text-[14px] font-medium transition-colors",
@@ -1769,6 +1794,7 @@ export default function HomePage() {
                         </div>
                         <div className='flex items-center gap-2'>
                           <button
+                            data-info={`Subtract ${interval} minutes from this day's screen time.`}
                             onClick={() => {
                               setMinutesForSubject(
                                 d,
@@ -1812,6 +1838,7 @@ export default function HomePage() {
                             min={0}
                           />
                           <button
+                            data-info={`Add ${interval} minutes to this day's screen time.`}
                             onClick={() => {
                               setMinutesForSubject(
                                 d,

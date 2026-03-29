@@ -127,6 +127,7 @@ export function FootballPopup({ isOpen, onClose }: FootballPopupProps) {
           {(["match", "fixtures", "table"] as TabType[]).map((t) => (
             <button
               key={t}
+              data-info={`${t === "match" ? "Match. View the current or next match details." : t === "fixtures" ? "Fixtures. See upcoming and past match schedule." : "Table. View the league standings."}`}
               onClick={() => setTab(t)}
               className={cn(
                 "flex-1 py-1.5 text-[13px] font-medium rounded-md transition-all",

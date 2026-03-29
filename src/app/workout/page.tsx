@@ -666,6 +666,7 @@ function WorkoutPageContent() {
           <div className='flex items-center gap-2'>
             {/* Compact/Expanded toggle */}
             <button
+              data-info='Toggle between compact and expanded view. Compact shows smaller exercise cards, expanded shows more detail.'
               onClick={() => {
                 const newValue = !compactView;
                 setCompactView(newValue);
@@ -704,6 +705,7 @@ function WorkoutPageContent() {
               )}
             </button>
             <button
+              data-info='Manage workout routines. Create, edit, or delete exercise groupings to quickly load a set of exercises.'
               onClick={() => setShowManageRoutines(true)}
               className='p-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'>
               <svg
@@ -728,6 +730,7 @@ function WorkoutPageContent() {
         <div className='px-4'>
           <div className='flex gap-2 overflow-x-auto pb-3 scrollbar-hide'>
             <button
+              data-info='Show all exercises, regardless of routine.'
               onClick={() => setSelectedRoutineId(null)}
               className={cn(
                 "px-4 py-2.5 rounded-full text-[14px] font-semibold whitespace-nowrap transition-all flex-shrink-0",
@@ -768,6 +771,7 @@ function WorkoutPageContent() {
         {/* Add Exercise + Remove Exercise Row */}
         <div className='flex items-center gap-2'>
           <button
+            data-info='Add a new exercise to your workout. Choose from strength or cardio, and configure which metrics to track.'
             onClick={() => setShowAddExercise(true)}
             className='flex-1 py-2.5 rounded-full bg-ios-blue text-white text-[14px] font-medium flex items-center justify-center gap-2 shadow-lg shadow-ios-blue/30 active:scale-[0.98] transition-all'>
             <Plus className='w-4 h-4' />
@@ -775,6 +779,7 @@ function WorkoutPageContent() {
           </button>
           {exercises.length > 0 && (
             <button
+              data-info='Toggle remove mode. When active, a red minus button appears on each exercise to delete it.'
               onClick={() => setRemoveMode(!removeMode)}
               className={cn(
                 "px-4 py-2.5 rounded-full text-[13px] font-medium active:scale-[0.98] transition-all",
@@ -1178,6 +1183,7 @@ function WorkoutPageContent() {
 
                       {/* Add Set Button */}
                       <button
+                        data-info='Add another set to this exercise. Each set lets you log weight, reps, distance, or duration depending on your configuration.'
                         onClick={() => addSet(exercise.name)}
                         className={cn(
                           "w-full rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium flex items-center justify-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors",
@@ -1191,6 +1197,7 @@ function WorkoutPageContent() {
 
                       {/* Close Exercise */}
                       <button
+                        data-info='Collapse this exercise. Your entered data is preserved.'
                         onClick={() => toggleExercise(exercise.name)}
                         className={cn(
                           "w-full text-gray-500 dark:text-gray-400 font-medium",
@@ -1234,6 +1241,7 @@ function WorkoutPageContent() {
               <>
                 {/* Centered Save button */}
                 <button
+                  data-info='Save changes to this workout entry.'
                   onClick={async () => {
                     await saveWorkout();
                     // Clear localStorage after successful save
@@ -1252,6 +1260,7 @@ function WorkoutPageContent() {
                 {/* Subtle text links for Cancel and Delete */}
                 <div className='flex items-center gap-4'>
                   <button
+                    data-info='Cancel editing without saving. Your changes will be discarded.'
                     onClick={() => {
                       // Clear localStorage when canceling edit
                       localStorage.removeItem(
@@ -1270,6 +1279,7 @@ function WorkoutPageContent() {
                   </button>
                   <span className='text-gray-300 dark:text-gray-600'>•</span>
                   <button
+                    data-info='Delete this workout entry permanently.'
                     onClick={() => setShowDeleteConfirm(true)}
                     className='text-[13px] text-ios-red active:opacity-70'>
                     Delete
@@ -1279,6 +1289,7 @@ function WorkoutPageContent() {
             ) : (
               <div className='flex items-center gap-2'>
                 <button
+                  data-info='Cancel and go back without saving this workout.'
                   onClick={() => {
                     // Clear localStorage when canceling
                     localStorage.removeItem(`workout-page-data-${currentDate}`);
@@ -1294,6 +1305,7 @@ function WorkoutPageContent() {
                   Cancel
                 </button>
                 <button
+                  data-info='Save this workout and return to the home screen.'
                   onClick={async () => {
                     await saveWorkout();
                     // Clear localStorage after successful save
