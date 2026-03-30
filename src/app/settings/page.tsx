@@ -856,7 +856,7 @@ export default function SettingsPage() {
                   </span>
                 </div>
                 <span className='text-[17px] text-gray-900 dark:text-white'>
-                  Show info buttons
+                  Activate Info Mode
                 </span>
               </div>
               <button
@@ -881,8 +881,8 @@ export default function SettingsPage() {
             </div>
           </div>
           <p className='text-[13px] text-gray-500 dark:text-gray-400 px-4 mt-2'>
-            Show a pulsing info button on each tab to learn what symbols mean
-            and how things work.
+            Tap any button, activity, or link to see what it does. Tap it again
+            to use it normally.
           </p>
         </section>
 

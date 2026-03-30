@@ -11,6 +11,7 @@ interface TabItem {
   icon: ReactNode;
   activeIcon?: ReactNode;
   disabled?: boolean;
+  info?: string;
 }
 
 interface IOSTabBarProps {
@@ -69,6 +70,10 @@ export function IOSTabBar({ items, className }: IOSTabBarProps) {
             <Link
               key={item.href}
               href={item.href}
+              data-info={
+                item.info ||
+                `${item.label}. Navigate to the ${item.label} page.`
+              }
               className={cn(
                 "flex flex-col items-center justify-center flex-1",
                 "transition-colors",

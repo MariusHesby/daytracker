@@ -425,18 +425,21 @@ export function AppShell({ children }: AppShellProps) {
       label: "Today",
       icon: <TodayIcon />,
       activeIcon: <TodayIcon filled />,
+      info: "Your daily hub. Log activities, track moods, view weather, news, and football scores.",
     },
     {
       href: "/movies-tv",
       label: "Movies & TV",
       icon: <MoviesIcon />,
       activeIcon: <MoviesIcon filled />,
+      info: "Browse, search, and rate movies and TV shows. Track your watchlist and see what's trending.",
     },
     {
       href: "/stats",
       label: "Statistics",
       icon: <StatsIcon />,
       activeIcon: <StatsIcon filled />,
+      info: "Charts and insights for all your tracked activities. See streaks, averages, and trends over time.",
     },
     {
       href: "/friends",
@@ -444,6 +447,7 @@ export function AppShell({ children }: AppShellProps) {
       icon: <FriendsIcon />,
       activeIcon: <FriendsIcon filled />,
       disabled: isSpying,
+      info: "Connect with friends, share activities, and view each other's data.",
     },
     {
       href: "/settings",
@@ -451,6 +455,7 @@ export function AppShell({ children }: AppShellProps) {
       icon: <SettingsIcon />,
       activeIcon: <SettingsIcon filled />,
       disabled: isSpying,
+      info: "Customize your app. Manage activity types, themes, profile, and preferences.",
     },
   ];
 

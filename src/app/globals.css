@@ -805,6 +805,11 @@ input[type="number"] {
   animation: info-pulse 2.5s ease-in-out infinite;
 }
 
+@keyframes info-pop-in {
+  0% { opacity: 0; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 .animate-shimmer {
   background: linear-gradient(
     90deg,

@@ -3061,7 +3061,7 @@ export function EntryForm({
             return (
               <div
                 key={type.id}
-                data-info={`${type.name}. ${
+                data-info={`${type.name} (${type.valueType}). ${
                   isCheckmark
                     ? "Tap to mark as done for today."
                     : type.valueType === "text"
@@ -3083,7 +3083,7 @@ export function EntryForm({
                                     : (type.valueType as string) === "media"
                                       ? "Tap to expand and search for movies or TV series."
                                       : "Tap to expand and add a value."
-                }`}
+                } You can create your own activities in Settings → Activity Types.`}
                 className='mb-2 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
                 {/* Header — tap to expand/collapse */}
                 <div
@@ -3928,7 +3928,7 @@ export function EntryForm({
               return (
                 <button
                   key={type.id}
-                  data-info={`${type.name}. ${isCheckmark ? "Tap to mark as done." : isWorkout ? "Tap to log a workout." : "Tap to expand and add a value."}`}
+                  data-info={`${type.name} (${type.valueType}). ${isCheckmark ? "Tap to mark as done." : isWorkout ? "Tap to log a workout." : "Tap to expand and add a value."} You can create your own activities in Settings → Activity Types.`}
                   onClick={() => {
                     if (isCheckmark) {
                       // For checkmark types, toggle directly without expanding
@@ -4315,7 +4315,7 @@ export function EntryForm({
                 <div key={type.id}>
                   {/* Activity row */}
                   <div
-                    data-info={`${type.name}. ${
+                    data-info={`${type.name} (${type.valueType}). ${
                       isCheckmark
                         ? "Tap to mark as done for today."
                         : type.valueType === "text"
@@ -4337,7 +4337,7 @@ export function EntryForm({
                                         : (type.valueType as string) === "media"
                                           ? "Tap to expand and search for movies or TV series."
                                           : "Tap to expand and add a value."
-                    }`}
+                    } You can create your own activities in Settings → Activity Types.`}
                     className={cn(
                       "flex items-center min-h-[52px] px-4 active:bg-gray-100 dark:active:bg-gray-700 cursor-pointer",
                       isExpanded && "bg-gray-50 dark:bg-gray-800",
