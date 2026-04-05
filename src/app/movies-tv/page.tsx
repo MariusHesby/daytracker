@@ -1398,21 +1398,32 @@ export default function MoviesPage() {
               user_rating: number | null;
               created_at: string;
               updated_at: string;
-            }) => ({
-              id: e.id,
-              date: e.date,
-              activityTypeId: e.activity_type_id,
-              value: e.value,
-              note: e.note || undefined,
-              imdbId: e.imdb_id || undefined,
-              poster: e.poster || undefined,
-              imdbRating: e.imdb_rating || undefined,
-              year: e.year || undefined,
-              userRating: e.user_rating || undefined,
-              createdAt: new Date(e.created_at),
-              updatedAt: new Date(e.updated_at),
-              ownerId: e.user_id,
-            }),
+            }) => {
+              // JSONB values may come back JSON-encoded (e.g. "\"title\"")
+              let parsedValue = e.value;
+              if (typeof parsedValue === "string") {
+                try {
+                  parsedValue = JSON.parse(parsedValue);
+                } catch {
+                  // already a plain string
+                }
+              }
+              return {
+                id: e.id,
+                date: e.date,
+                activityTypeId: e.activity_type_id,
+                value: parsedValue,
+                note: e.note || undefined,
+                imdbId: e.imdb_id || undefined,
+                poster: e.poster || undefined,
+                imdbRating: e.imdb_rating || undefined,
+                year: e.year || undefined,
+                userRating: e.user_rating || undefined,
+                createdAt: new Date(e.created_at),
+                updatedAt: new Date(e.updated_at),
+                ownerId: e.user_id,
+              };
+            },
           );
           setFavoriteEntries(mapped);
         }
@@ -1874,32 +1885,6 @@ export default function MoviesPage() {
               </>
             )}
           </div>
-          {/* Heart button for favorites */}
-          <button
-            onClick={() => {
-              if (showFavorites) {
-                setShowFavorites(false);
-              } else {
-                setShowFavorites(true);
-                setShowWatchlist(false);
-              }
-            }}
-            data-info='Favorites. Show movies and series your friends have rated highly.'
-            className={cn(
-              "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
-              showFavorites
-                ? "bg-red-500 text-white"
-                : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300",
-            )}>
-            <svg
-              viewBox='0 0 24 24'
-              className='w-4 h-4'
-              fill={showFavorites ? "currentColor" : "none"}
-              stroke='currentColor'
-              strokeWidth='2'>
-              <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
-            </svg>
-          </button>
           {/* Watchlist button */}
           <button
             onClick={() => {
@@ -1932,6 +1917,32 @@ export default function MoviesPage() {
             </svg>
           </button>
         </div>
+        {/* Heart button for favorites */}
+        <button
+          onClick={() => {
+            if (showFavorites) {
+              setShowFavorites(false);
+            } else {
+              setShowFavorites(true);
+              setShowWatchlist(false);
+            }
+          }}
+          data-info='Favorites. Show movies and series your friends have rated highly.'
+          className={cn(
+            "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
+            showFavorites
+              ? "bg-red-500 text-white"
+              : "bg-white/80 dark:bg-ios-card-dark text-gray-700 dark:text-gray-300",
+          )}>
+          <svg
+            viewBox='0 0 24 24'
+            className='w-4 h-4'
+            fill={showFavorites ? "currentColor" : "none"}
+            stroke='currentColor'
+            strokeWidth='2'>
+            <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
+          </svg>
+        </button>
         <button
           onClick={() =>
             handleViewModeChange(viewMode === "grid" ? "list" : "grid")

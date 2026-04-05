@@ -149,6 +149,9 @@ export interface ActivityType {
   isDefault?: boolean; // True for built-in activity types that can't be deleted
   hidden?: boolean; // True if the activity type is hidden from the main UI
   nutritionGoal?: NutritionGoal; // Goal for nutrition type
+  showDailyGoals?: boolean; // Show daily goal tracking for nutrition type
+  showProteinMap?: boolean; // Show quick-select protein source map for nutrition type
+  foodIcons?: Record<string, string>; // Map of food name -> icon name for nutrition quick-select
   mergedNutritionTypeIds?: string[]; // IDs of other nutrition types to merge progress with
   mergedNutritionGoal?: NutritionGoal; // Common goal for all merged nutrition activities
   customExercises?: CustomExercise[]; // Custom exercises for workout type

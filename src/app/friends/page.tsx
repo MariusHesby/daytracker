@@ -1163,14 +1163,18 @@ export default function FriendsPage() {
                   overviewMyShare.share.activityTypeIds.includes(at.id),
                 )
               : [];
-            const friendName =
+            const friendName = (
               sharingOverviewUser.profile?.fullName ||
-              sharingOverviewUser.email.split("@")[0];
-            const myName =
-              myProfile?.fullName || user?.email?.split("@")[0] || "You";
+              sharingOverviewUser.email.split("@")[0]
+            ).split(" ")[0];
+            const myName = (
+              myProfile?.fullName ||
+              user?.email?.split("@")[0] ||
+              "You"
+            ).split(" ")[0];
 
             // Assign consistent colors to each user
-            const myColor = "#34C759"; // iOS green
+            const myColor = "#007AFF"; // iOS blue
             const friendColor = "#FF9500"; // iOS orange
 
             // Build merged activity list deduplicated by name
@@ -1218,17 +1222,17 @@ export default function FriendsPage() {
             return (
               <div className='space-y-4'>
                 {/* Color-coded name header */}
-                <div className='flex items-center justify-center gap-3 py-1'>
+                <div className='flex items-center justify-center gap-3 py-1 max-w-full px-4'>
                   <span
-                    className='text-[16px] font-semibold'
+                    className='text-[16px] font-semibold truncate max-w-[45%]'
                     style={{ color: myColor }}>
                     {myName}
                   </span>
-                  <span className='text-[14px] text-gray-400 dark:text-gray-500 font-light'>
+                  <span className='text-[14px] text-gray-400 dark:text-gray-500 font-light shrink-0'>
                     :
                   </span>
                   <span
-                    className='text-[16px] font-semibold'
+                    className='text-[16px] font-semibold truncate max-w-[45%]'
                     style={{ color: friendColor }}>
                     {friendName}
                   </span>

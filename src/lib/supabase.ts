@@ -83,6 +83,9 @@ export interface DbActivityType {
   checklist_repeat: string | null;
   checklist_template: Record<string, unknown>[] | null;
   standalone: boolean;
+  show_daily_goals: boolean;
+  show_protein_map: boolean;
+  food_icons: Record<string, string> | null;
   created_at: string;
   updated_at: string;
 }

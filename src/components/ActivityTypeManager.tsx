@@ -3,6 +3,7 @@
 import React, {
   useState,
   useRef,
+  useEffect,
   useImperativeHandle,
   forwardRef,
 } from "react";
@@ -101,6 +102,8 @@ export const ActivityTypeManager = forwardRef<
 
   // Nutrition goal state
   const [nutritionGoal, setNutritionGoal] = useState<NutritionGoal>({});
+  const [showDailyGoals, setShowDailyGoals] = useState(false);
+  const [showProteinMap, setShowProteinMap] = useState(false);
 
   // Custom exercises state for workout type
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>([]);
@@ -123,6 +126,7 @@ export const ActivityTypeManager = forwardRef<
   const [newTimerSubjectName, setNewTimerSubjectName] = useState("");
   const [showExerciseDropdown, setShowExerciseDropdown] = useState(false);
   const exerciseInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   // Checklist repeat state
   const [checklistRepeat, setChecklistRepeat] =
@@ -163,6 +167,8 @@ export const ActivityTypeManager = forwardRef<
     setShowIconPicker(false);
     setError(null);
     setNutritionGoal({});
+    setShowDailyGoals(false);
+    setShowProteinMap(false);
     setCustomExercises([]);
     setTimerSubjects([]);
     setTimerLimitMinutes(0);
@@ -246,7 +252,14 @@ export const ActivityTypeManager = forwardRef<
           name: name.trim(),
           icon: icon || undefined,
           valueType,
-          nutritionGoal: valueType === "nutrition" ? nutritionGoal : undefined,
+          nutritionGoal:
+            valueType === "nutrition" && showDailyGoals
+              ? nutritionGoal
+              : undefined,
+          showDailyGoals:
+            valueType === "nutrition" ? showDailyGoals : undefined,
+          showProteinMap:
+            valueType === "nutrition" ? showProteinMap : undefined,
           customExercises:
             valueType === "workout" && customExercises.length > 0
               ? customExercises
@@ -274,7 +287,12 @@ export const ActivityTypeManager = forwardRef<
         name: name.trim(),
         icon: icon || undefined,
         valueType,
-        nutritionGoal: valueType === "nutrition" ? nutritionGoal : undefined,
+        nutritionGoal:
+          valueType === "nutrition" && showDailyGoals
+            ? nutritionGoal
+            : undefined,
+        showDailyGoals: valueType === "nutrition" ? showDailyGoals : undefined,
+        showProteinMap: valueType === "nutrition" ? showProteinMap : undefined,
         customExercises:
           valueType === "workout" && customExercises.length > 0
             ? customExercises
@@ -308,6 +326,8 @@ export const ActivityTypeManager = forwardRef<
     setValueType(type.valueType as ValueType);
     setUnit(type.unit || "");
     setNutritionGoal(type.nutritionGoal || {});
+    setShowDailyGoals(type.showDailyGoals ?? false);
+    setShowProteinMap(type.showProteinMap ?? false);
     setCustomExercises(type.customExercises || []);
     setTimerSubjects(type.timerConfig?.subjects || []);
     setTimerLimitMinutes(type.timerConfig?.limitMinutes || 0);
@@ -316,6 +336,12 @@ export const ActivityTypeManager = forwardRef<
     setStandalone(type.standalone || false);
     setIsAdding(true);
   };
+
+  useEffect(() => {
+    if (editingId && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [editingId]);
 
   const handleDelete = async (id: string) => {
     await deleteActivityType(id);
@@ -419,7 +445,10 @@ export const ActivityTypeManager = forwardRef<
     <div className='space-y-4'>
       {/* Add/Edit Form */}
       {isAdding && (
-        <form onSubmit={handleSubmit} className='px-4 pb-4 pt-3 space-y-4'>
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit}
+          className='px-4 pb-4 pt-3 space-y-4'>
           <div>
             <label className='block text-[13px] font-normal text-gray-500 dark:text-gray-400 mb-1 px-1'>
               Name *
@@ -622,89 +651,147 @@ export const ActivityTypeManager = forwardRef<
             </button>
           </div>
 
-          {/* Nutrition Goals */}
+          {/* Nutrition Options */}
           {valueType === "nutrition" && (
-            <div className='space-y-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
-              <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300'>
-                Daily Goals (optional)
-              </p>
-              <div className='grid grid-cols-2 gap-3'>
+            <div className='space-y-3'>
+              {/* Daily Goals Toggle */}
+              <div className='flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
                 <div>
-                  <label className='text-[13px] text-gray-500 mb-1 block'>
-                    Calories (kcal)
-                  </label>
-                  <input
-                    type='number'
-                    value={nutritionGoal.calories || ""}
-                    onChange={(e) =>
-                      setNutritionGoal({
-                        ...nutritionGoal,
-                        calories: e.target.value
-                          ? parseInt(e.target.value)
-                          : undefined,
-                      })
-                    }
-                    placeholder='e.g. 2000'
-                    className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                  />
+                  <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300'>
+                    Daily Goals
+                  </p>
+                  <p className='text-[13px] text-gray-500'>
+                    Track calories, protein, carbs, and fat targets
+                  </p>
                 </div>
+                <button
+                  type='button'
+                  onClick={() => setShowDailyGoals(!showDailyGoals)}
+                  className={cn(
+                    "relative w-[51px] h-[31px] rounded-full transition-colors duration-200",
+                    showDailyGoals
+                      ? "bg-ios-green"
+                      : "bg-gray-300 dark:bg-gray-600",
+                  )}>
+                  <span
+                    className={cn(
+                      "absolute top-[2px] left-[2px] w-[27px] h-[27px] rounded-full bg-white shadow-sm transition-transform duration-200",
+                      showDailyGoals && "translate-x-[20px]",
+                    )}
+                  />
+                </button>
+              </div>
+
+              {/* Daily Goals Inputs */}
+              {showDailyGoals && (
+                <div className='space-y-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
+                  <div className='grid grid-cols-2 gap-3'>
+                    <div>
+                      <label className='text-[13px] text-gray-500 mb-1 block'>
+                        Calories (kcal)
+                      </label>
+                      <input
+                        type='number'
+                        value={nutritionGoal.calories || ""}
+                        onChange={(e) =>
+                          setNutritionGoal({
+                            ...nutritionGoal,
+                            calories: e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        placeholder='e.g. 2000'
+                        className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                      />
+                    </div>
+                    <div>
+                      <label className='text-[13px] text-gray-500 mb-1 block'>
+                        Protein (g)
+                      </label>
+                      <input
+                        type='number'
+                        value={nutritionGoal.protein || ""}
+                        onChange={(e) =>
+                          setNutritionGoal({
+                            ...nutritionGoal,
+                            protein: e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        placeholder='e.g. 130'
+                        className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                      />
+                    </div>
+                    <div>
+                      <label className='text-[13px] text-gray-500 mb-1 block'>
+                        Carbs (g)
+                      </label>
+                      <input
+                        type='number'
+                        value={nutritionGoal.carbs || ""}
+                        onChange={(e) =>
+                          setNutritionGoal({
+                            ...nutritionGoal,
+                            carbs: e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        placeholder='e.g. 250'
+                        className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                      />
+                    </div>
+                    <div>
+                      <label className='text-[13px] text-gray-500 mb-1 block'>
+                        Fat (g)
+                      </label>
+                      <input
+                        type='number'
+                        value={nutritionGoal.fat || ""}
+                        onChange={(e) =>
+                          setNutritionGoal({
+                            ...nutritionGoal,
+                            fat: e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined,
+                          })
+                        }
+                        placeholder='e.g. 65'
+                        className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Protein Map Toggle */}
+              <div className='flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
                 <div>
-                  <label className='text-[13px] text-gray-500 mb-1 block'>
-                    Protein (g)
-                  </label>
-                  <input
-                    type='number'
-                    value={nutritionGoal.protein || ""}
-                    onChange={(e) =>
-                      setNutritionGoal({
-                        ...nutritionGoal,
-                        protein: e.target.value
-                          ? parseInt(e.target.value)
-                          : undefined,
-                      })
-                    }
-                    placeholder='e.g. 130'
-                    className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                  />
+                  <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300'>
+                    Protein Quick-Select
+                  </p>
+                  <p className='text-[13px] text-gray-500'>
+                    Show a map of common proteins to tap and log
+                  </p>
                 </div>
-                <div>
-                  <label className='text-[13px] text-gray-500 mb-1 block'>
-                    Carbs (g)
-                  </label>
-                  <input
-                    type='number'
-                    value={nutritionGoal.carbs || ""}
-                    onChange={(e) =>
-                      setNutritionGoal({
-                        ...nutritionGoal,
-                        carbs: e.target.value
-                          ? parseInt(e.target.value)
-                          : undefined,
-                      })
-                    }
-                    placeholder='e.g. 250'
-                    className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                <button
+                  type='button'
+                  onClick={() => setShowProteinMap(!showProteinMap)}
+                  className={cn(
+                    "relative w-[51px] h-[31px] rounded-full transition-colors duration-200",
+                    showProteinMap
+                      ? "bg-ios-green"
+                      : "bg-gray-300 dark:bg-gray-600",
+                  )}>
+                  <span
+                    className={cn(
+                      "absolute top-[2px] left-[2px] w-[27px] h-[27px] rounded-full bg-white shadow-sm transition-transform duration-200",
+                      showProteinMap && "translate-x-[20px]",
+                    )}
                   />
-                </div>
-                <div>
-                  <label className='text-[13px] text-gray-500 mb-1 block'>
-                    Fat (g)
-                  </label>
-                  <input
-                    type='number'
-                    value={nutritionGoal.fat || ""}
-                    onChange={(e) =>
-                      setNutritionGoal({
-                        ...nutritionGoal,
-                        fat: e.target.value
-                          ? parseInt(e.target.value)
-                          : undefined,
-                      })
-                    }
-                    placeholder='e.g. 65'
-                    className='w-full px-3 py-2 rounded-lg text-[17px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                  />
-                </div>
+                </button>
               </div>
             </div>
           )}
@@ -1229,7 +1316,7 @@ export const ActivityTypeManager = forwardRef<
                         "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
                     }}
                     className={cn(
-                      "relative flex items-center min-h-14 px-4 bg-white dark:bg-ios-card-dark",
+                      "relative flex items-center min-h-14 px-4 bg-white dark:bg-ios-card-dark swipe-row-bg",
                       "cursor-grab active:cursor-grabbing",
                       isDragging && "opacity-50",
                       isDragOver && "bg-ios-blue/10",

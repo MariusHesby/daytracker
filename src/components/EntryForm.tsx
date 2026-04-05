@@ -208,6 +208,16 @@ export function EntryForm({
   const [customValue, setCustomValue] = useState("");
   const [showTextDropdown, setShowTextDropdown] = useState(false);
   const [showNutritionDropdown, setShowNutritionDropdown] = useState(false);
+  const [foodIconPickerFor, setFoodIconPickerFor] = useState<{
+    typeId: string;
+    foodName: string;
+  } | null>(null);
+  const [editingFoodMap, setEditingFoodMap] = useState(false);
+  const [editingFoodItem, setEditingFoodItem] = useState<{
+    typeId: string;
+    originalName: string;
+    newName: string;
+  } | null>(null);
   const [numberValue, setNumberValue] = useState<string>("");
   const [lastClickTime, setLastClickTime] = useState<Record<string, number>>(
     {},
@@ -1682,156 +1692,327 @@ export function EntryForm({
         return (
           <div className='pt-3 space-y-4'>
             {/* Progress bars - show this activity's own progress */}
-            {(ownGoal.protein ||
-              ownGoal.calories ||
-              ownGoal.carbs ||
-              ownGoal.fat) && (
-              <div className='space-y-2 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
-                <p className='text-[13px] font-medium text-gray-500 mb-2'>
-                  Daily Progress
-                </p>
-                {ownGoal.protein && (
-                  <div>
-                    <div className='flex justify-between text-[13px] mb-1'>
-                      <span className='text-gray-600 dark:text-gray-400'>
-                        Protein
-                      </span>
-                      <span
-                        className={cn(
-                          "font-medium",
-                          ownTotals.protein >= ownGoal.protein
-                            ? "text-ios-green"
-                            : "text-gray-600 dark:text-gray-400",
-                        )}>
-                        {ownTotals.protein}g / {ownGoal.protein}g
-                        {ownTotals.protein >= ownGoal.protein && " ✓"}
-                      </span>
+            {type.showDailyGoals &&
+              (ownGoal.protein ||
+                ownGoal.calories ||
+                ownGoal.carbs ||
+                ownGoal.fat) && (
+                <div className='space-y-2 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
+                  <p className='text-[13px] font-medium text-gray-500 mb-2'>
+                    Daily Progress
+                  </p>
+                  {ownGoal.protein && (
+                    <div>
+                      <div className='flex justify-between text-[13px] mb-1'>
+                        <span className='text-gray-600 dark:text-gray-400'>
+                          Protein
+                        </span>
+                        <span
+                          className={cn(
+                            "font-medium",
+                            ownTotals.protein >= ownGoal.protein
+                              ? "text-ios-green"
+                              : "text-gray-600 dark:text-gray-400",
+                          )}>
+                          {ownTotals.protein}g / {ownGoal.protein}g
+                          {ownTotals.protein >= ownGoal.protein && " ✓"}
+                        </span>
+                      </div>
+                      <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            ownTotals.protein >= ownGoal.protein
+                              ? "bg-ios-green"
+                              : "bg-ios-blue",
+                          )}
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              (ownTotals.protein / ownGoal.protein) * 100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
                     </div>
-                    <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          ownTotals.protein >= ownGoal.protein
-                            ? "bg-ios-green"
-                            : "bg-ios-blue",
-                        )}
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            (ownTotals.protein / ownGoal.protein) * 100,
-                          )}%`,
-                        }}
-                      />
+                  )}
+                  {ownGoal.calories && (
+                    <div>
+                      <div className='flex justify-between text-[13px] mb-1'>
+                        <span className='text-gray-600 dark:text-gray-400'>
+                          Calories
+                        </span>
+                        <span
+                          className={cn(
+                            "font-medium",
+                            ownTotals.calories >= ownGoal.calories
+                              ? "text-ios-green"
+                              : "text-gray-600 dark:text-gray-400",
+                          )}>
+                          {ownTotals.calories} / {ownGoal.calories} kcal
+                          {ownTotals.calories >= ownGoal.calories && " ✓"}
+                        </span>
+                      </div>
+                      <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            ownTotals.calories >= ownGoal.calories
+                              ? "bg-ios-green"
+                              : "bg-ios-orange",
+                          )}
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              (ownTotals.calories / ownGoal.calories) * 100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {ownGoal.carbs && (
+                    <div>
+                      <div className='flex justify-between text-[13px] mb-1'>
+                        <span className='text-gray-600 dark:text-gray-400'>
+                          Carbs
+                        </span>
+                        <span
+                          className={cn(
+                            "font-medium",
+                            ownTotals.carbs >= ownGoal.carbs
+                              ? "text-ios-green"
+                              : "text-gray-600 dark:text-gray-400",
+                          )}>
+                          {ownTotals.carbs}g / {ownGoal.carbs}g
+                          {ownTotals.carbs >= ownGoal.carbs && " ✓"}
+                        </span>
+                      </div>
+                      <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            ownTotals.carbs >= ownGoal.carbs
+                              ? "bg-ios-green"
+                              : "bg-amber-500",
+                          )}
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              (ownTotals.carbs / ownGoal.carbs) * 100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {ownGoal.fat && (
+                    <div>
+                      <div className='flex justify-between text-[13px] mb-1'>
+                        <span className='text-gray-600 dark:text-gray-400'>
+                          Fat
+                        </span>
+                        <span
+                          className={cn(
+                            "font-medium",
+                            ownTotals.fat >= ownGoal.fat
+                              ? "text-ios-green"
+                              : "text-gray-600 dark:text-gray-400",
+                          )}>
+                          {ownTotals.fat}g / {ownGoal.fat}g
+                          {ownTotals.fat >= ownGoal.fat && " ✓"}
+                        </span>
+                      </div>
+                      <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            ownTotals.fat >= ownGoal.fat
+                              ? "bg-ios-green"
+                              : "bg-purple-500",
+                          )}
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              (ownTotals.fat / ownGoal.fat) * 100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            {/* Protein Quick-Select Map */}
+            {type.showProteinMap &&
+              (() => {
+                const recentFoods = (suggestions[type.id] || []).slice(0, 9);
+                if (recentFoods.length === 0) return null;
+
+                // Auto-match food names to Lucide icons
+                const foodIconMap: [RegExp, string][] = [
+                  [/chicken|kylling/i, "chicken"],
+                  [/beef|steak|biff|okse/i, "beef"],
+                  [/pork|ribbe|svin/i, "pork"],
+                  [/fish|laks|salmon|tuna|torsk|cod|fisk/i, "fish"],
+                  [/shrimp|reke|prawn/i, "shrimp"],
+                  [/seafood|sjømat|crab|krabbe|lobster/i, "fish"],
+                  [/egg/i, "egg"],
+                  [/milk|melk/i, "milk"],
+                  [/cottage.*cheese|kesam/i, "cottageCheese"],
+                  [/cheese|ost(?!e)/i, "cheese"],
+                  [/yogurt|yoghurt|skyr/i, "yoghurt"],
+                  [/bread|brød/i, "wheat"],
+                  [/crisp.*bread|knekkebrød|knekkebr/i, "crispBread"],
+                  [/rice|ris\b/i, "hotFood"],
+                  [/pasta|spaghetti|noodle/i, "hotFood"],
+                  [/bean|bønne|lentil|linse/i, "bean"],
+                  [/nut|nøtt|almond|peanut/i, "nut"],
+                  [/tofu|soy/i, "vegan"],
+                  [/turkey|kalkun/i, "chicken"],
+                  [/salad|salat/i, "salad"],
+                  [/oat|havre|granola|cereal/i, "soup"],
+                  [/apple|eple/i, "apple"],
+                  [/banana/i, "banana"],
+                  [/avocado/i, "leaf"],
+                  [/potato|potet/i, "hotFood"],
+                  [/carrot|gulrot/i, "carrot"],
+                  [/broccoli|brokkoli/i, "leafyGreen"],
+                  [/corn|mais/i, "wheat"],
+                  [/pizza/i, "pizza"],
+                  [/burger|hamburger/i, "burger"],
+                  [/taco/i, "sandwich"],
+                  [/sushi/i, "fish"],
+                  [/cake|kake/i, "cakeSlice"],
+                  [/chocolate|sjokolade/i, "candy"],
+                  [/coffee|kaffe/i, "coffee"],
+                  [/juice|smoothie/i, "glassWater"],
+                  [/protein|shake|pulver/i, "cupSoda"],
+                  [/bacon/i, "ham"],
+                  [/ham|skinke/i, "ham"],
+                  [/soup|suppe/i, "soup"],
+                  [/sandwich|smørbrød/i, "sandwich"],
+                  [/waffle|vaffel/i, "cookie"],
+                  [/pancake|pannekake/i, "cookie"],
+                  [/lamb|lam\b/i, "beef"],
+                  [/honey|honning/i, "candy"],
+                  [/butter|smør/i, "cakeSlice"],
+                  [/berry|bær|blueberry|strawberry/i, "cherry"],
+                  [/grape|drue/i, "grape"],
+                  [/orange|appelsin|lemon|sitron/i, "citrus"],
+                  [/ice.*cream|is\b/i, "iceCream"],
+                  [/popcorn|snack|chips/i, "popcorn"],
+                  [/cookie|kjeks/i, "cookie"],
+                  [/croissant|bolle/i, "croissant"],
+                ];
+
+                const getFoodIcon = (name: string): string => {
+                  for (const [pattern, icon] of foodIconMap) {
+                    if (pattern.test(name)) return icon;
+                  }
+                  return "restaurant";
+                };
+
+                return (
+                  <div className='space-y-2.5 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
+                    <div className='flex items-center justify-between'>
+                      <p className='text-[13px] font-medium text-gray-500'>
+                        Recent Foods
+                      </p>
+                      <button
+                        type='button'
+                        onClick={() => setEditingFoodMap(!editingFoodMap)}
+                        className='text-[13px] font-medium text-ios-blue active:opacity-60'>
+                        {editingFoodMap ? "Done" : "Edit"}
+                      </button>
+                    </div>
+                    <div className='grid grid-cols-3 gap-2.5'>
+                      {recentFoods.map((food) => {
+                        const customIcon = (type.foodIcons || {})[food.value];
+                        const foodIcon = customIcon
+                          ? customIcon
+                          : getFoodIcon(food.value);
+                        const isSelected =
+                          nutritionInput.foodName === food.value;
+                        return (
+                          <div key={food.value} className='relative'>
+                            <button
+                              type='button'
+                              onClick={() => {
+                                if (editingFoodMap) {
+                                  setEditingFoodItem({
+                                    typeId: type.id,
+                                    originalName: food.value,
+                                    newName: food.value,
+                                  });
+                                } else {
+                                  setNutritionInput({
+                                    foodName: food.value,
+                                  });
+                                }
+                              }}
+                              className={cn(
+                                "relative w-full flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-2xl border transition-all active:scale-95 origin-center",
+                                isSelected
+                                  ? "z-10 scale-[1.08] shadow-md border-ios-blue bg-ios-blue/10"
+                                  : "",
+                                !isSelected &&
+                                  (editingFoodMap
+                                    ? "border-ios-blue/40 bg-ios-blue/5"
+                                    : "border-gray-200/80 dark:border-gray-700/80 bg-white dark:bg-gray-800"),
+                              )}>
+                              {editingFoodMap && (
+                                <div className='absolute top-1 right-1.5'>
+                                  <svg
+                                    className='w-3.5 h-3.5 text-ios-blue'
+                                    fill='none'
+                                    viewBox='0 0 24 24'
+                                    stroke='currentColor'
+                                    strokeWidth={2}>
+                                    <path
+                                      strokeLinecap='round'
+                                      strokeLinejoin='round'
+                                      d='m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z'
+                                    />
+                                  </svg>
+                                </div>
+                              )}
+                              <Icon
+                                name={foodIcon}
+                                className={cn(
+                                  "w-7 h-7",
+                                  editingFoodMap
+                                    ? "text-ios-blue"
+                                    : isSelected
+                                      ? "text-ios-blue"
+                                      : "text-gray-600 dark:text-gray-300",
+                                )}
+                                strokeWidth={1.5}
+                              />
+                              <span
+                                className={cn(
+                                  "text-[13px] font-medium leading-tight text-center w-full px-1",
+                                  isSelected ? "line-clamp-2" : "truncate",
+                                  editingFoodMap
+                                    ? "text-ios-blue"
+                                    : isSelected
+                                      ? "text-ios-blue"
+                                      : "text-gray-700 dark:text-gray-300",
+                                )}>
+                                {food.value}
+                              </span>
+                              <span className='text-[11px] text-gray-400'>
+                                {food.count}×
+                              </span>
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                )}
-                {ownGoal.calories && (
-                  <div>
-                    <div className='flex justify-between text-[13px] mb-1'>
-                      <span className='text-gray-600 dark:text-gray-400'>
-                        Calories
-                      </span>
-                      <span
-                        className={cn(
-                          "font-medium",
-                          ownTotals.calories >= ownGoal.calories
-                            ? "text-ios-green"
-                            : "text-gray-600 dark:text-gray-400",
-                        )}>
-                        {ownTotals.calories} / {ownGoal.calories} kcal
-                        {ownTotals.calories >= ownGoal.calories && " ✓"}
-                      </span>
-                    </div>
-                    <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          ownTotals.calories >= ownGoal.calories
-                            ? "bg-ios-green"
-                            : "bg-ios-orange",
-                        )}
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            (ownTotals.calories / ownGoal.calories) * 100,
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-                {ownGoal.carbs && (
-                  <div>
-                    <div className='flex justify-between text-[13px] mb-1'>
-                      <span className='text-gray-600 dark:text-gray-400'>
-                        Carbs
-                      </span>
-                      <span
-                        className={cn(
-                          "font-medium",
-                          ownTotals.carbs >= ownGoal.carbs
-                            ? "text-ios-green"
-                            : "text-gray-600 dark:text-gray-400",
-                        )}>
-                        {ownTotals.carbs}g / {ownGoal.carbs}g
-                        {ownTotals.carbs >= ownGoal.carbs && " ✓"}
-                      </span>
-                    </div>
-                    <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          ownTotals.carbs >= ownGoal.carbs
-                            ? "bg-ios-green"
-                            : "bg-amber-500",
-                        )}
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            (ownTotals.carbs / ownGoal.carbs) * 100,
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-                {ownGoal.fat && (
-                  <div>
-                    <div className='flex justify-between text-[13px] mb-1'>
-                      <span className='text-gray-600 dark:text-gray-400'>
-                        Fat
-                      </span>
-                      <span
-                        className={cn(
-                          "font-medium",
-                          ownTotals.fat >= ownGoal.fat
-                            ? "text-ios-green"
-                            : "text-gray-600 dark:text-gray-400",
-                        )}>
-                        {ownTotals.fat}g / {ownGoal.fat}g
-                        {ownTotals.fat >= ownGoal.fat && " ✓"}
-                      </span>
-                    </div>
-                    <div className='h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
-                      <div
-                        className={cn(
-                          "h-full rounded-full transition-all",
-                          ownTotals.fat >= ownGoal.fat
-                            ? "bg-ios-green"
-                            : "bg-purple-500",
-                        )}
-                        style={{
-                          width: `${Math.min(
-                            100,
-                            (ownTotals.fat / ownGoal.fat) * 100,
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+                );
+              })()}
 
             {/* Add new entry form */}
             {(() => {
@@ -1899,84 +2080,86 @@ export function EntryForm({
                       </div>
                     )}
                   </div>
-                  <div className='grid grid-cols-2 gap-2'>
-                    <div>
-                      <label className='text-[12px] text-gray-500 mb-1 block'>
-                        Calories
-                      </label>
-                      <input
-                        type='number'
-                        value={nutritionInput.calories || ""}
-                        onChange={(e) =>
-                          setNutritionInput({
-                            ...nutritionInput,
-                            calories: e.target.value
-                              ? parseInt(e.target.value)
-                              : undefined,
-                          })
-                        }
-                        placeholder='kcal'
-                        className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                      />
+                  {type.showDailyGoals && (
+                    <div className='grid grid-cols-2 gap-2'>
+                      <div>
+                        <label className='text-[12px] text-gray-500 mb-1 block'>
+                          Calories
+                        </label>
+                        <input
+                          type='number'
+                          value={nutritionInput.calories || ""}
+                          onChange={(e) =>
+                            setNutritionInput({
+                              ...nutritionInput,
+                              calories: e.target.value
+                                ? parseInt(e.target.value)
+                                : undefined,
+                            })
+                          }
+                          placeholder='kcal'
+                          className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                        />
+                      </div>
+                      <div>
+                        <label className='text-[12px] text-gray-500 mb-1 block'>
+                          Protein (g)
+                        </label>
+                        <input
+                          type='number'
+                          value={nutritionInput.protein || ""}
+                          onChange={(e) =>
+                            setNutritionInput({
+                              ...nutritionInput,
+                              protein: e.target.value
+                                ? parseInt(e.target.value)
+                                : undefined,
+                            })
+                          }
+                          placeholder='g'
+                          className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                        />
+                      </div>
+                      <div>
+                        <label className='text-[12px] text-gray-500 mb-1 block'>
+                          Carbs (g)
+                        </label>
+                        <input
+                          type='number'
+                          value={nutritionInput.carbs || ""}
+                          onChange={(e) =>
+                            setNutritionInput({
+                              ...nutritionInput,
+                              carbs: e.target.value
+                                ? parseInt(e.target.value)
+                                : undefined,
+                            })
+                          }
+                          placeholder='g'
+                          className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                        />
+                      </div>
+                      <div>
+                        <label className='text-[12px] text-gray-500 mb-1 block'>
+                          Fat (g)
+                        </label>
+                        <input
+                          type='number'
+                          value={nutritionInput.fat || ""}
+                          onChange={(e) =>
+                            setNutritionInput({
+                              ...nutritionInput,
+                              fat: e.target.value
+                                ? parseInt(e.target.value)
+                                : undefined,
+                            })
+                          }
+                          placeholder='g'
+                          className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className='text-[12px] text-gray-500 mb-1 block'>
-                        Protein (g)
-                      </label>
-                      <input
-                        type='number'
-                        value={nutritionInput.protein || ""}
-                        onChange={(e) =>
-                          setNutritionInput({
-                            ...nutritionInput,
-                            protein: e.target.value
-                              ? parseInt(e.target.value)
-                              : undefined,
-                          })
-                        }
-                        placeholder='g'
-                        className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                      />
-                    </div>
-                    <div>
-                      <label className='text-[12px] text-gray-500 mb-1 block'>
-                        Carbs (g)
-                      </label>
-                      <input
-                        type='number'
-                        value={nutritionInput.carbs || ""}
-                        onChange={(e) =>
-                          setNutritionInput({
-                            ...nutritionInput,
-                            carbs: e.target.value
-                              ? parseInt(e.target.value)
-                              : undefined,
-                          })
-                        }
-                        placeholder='g'
-                        className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                      />
-                    </div>
-                    <div>
-                      <label className='text-[12px] text-gray-500 mb-1 block'>
-                        Fat (g)
-                      </label>
-                      <input
-                        type='number'
-                        value={nutritionInput.fat || ""}
-                        onChange={(e) =>
-                          setNutritionInput({
-                            ...nutritionInput,
-                            fat: e.target.value
-                              ? parseInt(e.target.value)
-                              : undefined,
-                          })
-                        }
-                        placeholder='g'
-                        className='w-full px-3 py-2 rounded-lg text-[15px] bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                      />
-                    </div>
-                  </div>
+                  )}
                   <button
                     data-info='Add Food. Save this food entry with its nutritional information.'
                     onClick={() => handleSaveNutrition(type.id)}
@@ -4998,6 +5181,297 @@ export function EntryForm({
               className='w-full py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
               Good to know
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Food Icon Picker Modal */}
+      {foodIconPickerFor &&
+        (() => {
+          const foodIcons = [
+            { icon: "apple", label: "Apple" },
+            { icon: "banana", label: "Banana" },
+            { icon: "bean", label: "Beans" },
+            { icon: "beef", label: "Beef" },
+            { icon: "cherry", label: "Berries" },
+            { icon: "wheat", label: "Bread" },
+            { icon: "burger", label: "Burger" },
+            { icon: "cakeSlice", label: "Cake" },
+            { icon: "candy", label: "Candy" },
+            { icon: "carrot", label: "Carrot" },
+            { icon: "cheese", label: "Cheese" },
+            { icon: "chicken", label: "Chicken" },
+            { icon: "citrus", label: "Citrus" },
+            { icon: "coffee", label: "Coffee" },
+            { icon: "cookie", label: "Cookie" },
+            { icon: "cottageCheese", label: "Cottage Ch." },
+            { icon: "cow", label: "Cow" },
+            { icon: "crispBread2", label: "Cracker" },
+            { icon: "crispBread", label: "Crisp Bread" },
+            { icon: "duck", label: "Duck" },
+            { icon: "egg", label: "Egg" },
+            { icon: "fish", label: "Fish" },
+            { icon: "eggFried", label: "Fried Egg" },
+            { icon: "grape", label: "Grapes" },
+            { icon: "leafyGreen", label: "Greens" },
+            { icon: "ham", label: "Ham" },
+            { icon: "leaf", label: "Herbs" },
+            { icon: "hotFood", label: "Hot Meal" },
+            { icon: "iceCream", label: "Ice Cream" },
+            { icon: "glassWater", label: "Juice" },
+            { icon: "lamb", label: "Lamb" },
+            { icon: "milk", label: "Milk" },
+            { icon: "nut", label: "Nuts" },
+            { icon: "restaurant", label: "Other" },
+            { icon: "croissant", label: "Pastry" },
+            { icon: "pig", label: "Pig" },
+            { icon: "pizza", label: "Pizza" },
+            { icon: "vegan", label: "Plant" },
+            { icon: "pork", label: "Pork" },
+            { icon: "salad", label: "Salad" },
+            { icon: "sandwich", label: "Sandwich" },
+            { icon: "cupSoda", label: "Shake" },
+            { icon: "shrimp", label: "Shrimp" },
+            { icon: "popcorn", label: "Snack" },
+            { icon: "soup", label: "Soup" },
+            { icon: "yoghurt", label: "Yoghurt" },
+          ];
+          const currentType = allActivityTypes.find(
+            (t) => t.id === foodIconPickerFor.typeId,
+          );
+          const currentIcon =
+            currentType?.foodIcons?.[foodIconPickerFor.foodName] || "";
+          return (
+            <div
+              className='fixed inset-0 bg-black/50 z-[60] flex items-start justify-center pt-12'
+              onClick={() => setFoodIconPickerFor(null)}>
+              <div
+                className='w-full max-w-lg bg-white dark:bg-gray-900 rounded-b-2xl max-h-[80vh] overflow-hidden shadow-xl'
+                onClick={(e) => e.stopPropagation()}>
+                <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
+                  <div>
+                    <h3 className='text-[17px] font-semibold text-gray-900 dark:text-white'>
+                      Choose Icon
+                    </h3>
+                    <p className='text-[13px] text-gray-500 mt-0.5'>
+                      {foodIconPickerFor.foodName}
+                    </p>
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    {currentIcon && (
+                      <button
+                        onClick={async () => {
+                          if (!currentType) return;
+                          const newFoodIcons = { ...currentType.foodIcons };
+                          delete newFoodIcons[foodIconPickerFor.foodName];
+                          await updateActivityType({
+                            ...currentType,
+                            foodIcons:
+                              Object.keys(newFoodIcons).length > 0
+                                ? newFoodIcons
+                                : undefined,
+                          });
+                          setFoodIconPickerFor(null);
+                        }}
+                        className='px-3 py-1.5 text-[14px] text-ios-red font-medium rounded-lg active:bg-red-50 dark:active:bg-red-900/20'>
+                        Reset
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setFoodIconPickerFor(null)}
+                      className='text-ios-blue text-[17px] font-medium px-2'>
+                      Done
+                    </button>
+                  </div>
+                </div>
+                <div className='p-4 overflow-y-auto max-h-[calc(80vh-60px)]'>
+                  <div className='grid grid-cols-4 gap-3'>
+                    {foodIcons.map((item) => (
+                      <button
+                        key={item.icon}
+                        type='button'
+                        onClick={async () => {
+                          if (!currentType) return;
+                          const newFoodIcons = {
+                            ...(currentType.foodIcons || {}),
+                            [foodIconPickerFor.foodName]: item.icon,
+                          };
+                          await updateActivityType({
+                            ...currentType,
+                            foodIcons: newFoodIcons,
+                          });
+                          setFoodIconPickerFor(null);
+                        }}
+                        className={cn(
+                          "flex flex-col items-center gap-1.5 p-2.5 rounded-xl border transition-all active:scale-95",
+                          currentIcon === item.icon
+                            ? "border-ios-blue bg-ios-blue/10"
+                            : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800",
+                        )}>
+                        <Icon
+                          name={item.icon}
+                          className='w-7 h-7'
+                          strokeWidth={1.5}
+                        />
+                        <span className='text-[10px] text-gray-500 dark:text-gray-400'>
+                          {item.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      {/* Edit Food Item Modal */}
+      {editingFoodItem && (
+        <div
+          className='fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-6'
+          onClick={() => setEditingFoodItem(null)}>
+          <div
+            className='w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden'
+            onClick={(e) => e.stopPropagation()}>
+            <div className='p-5 space-y-4'>
+              <h3 className='text-[17px] font-semibold text-gray-900 dark:text-white text-center'>
+                Edit Food
+              </h3>
+              <div>
+                <label className='text-[13px] text-gray-500 mb-1.5 block'>
+                  Name
+                </label>
+                <input
+                  type='text'
+                  value={editingFoodItem.newName}
+                  onChange={(e) =>
+                    setEditingFoodItem({
+                      ...editingFoodItem,
+                      newName: e.target.value,
+                    })
+                  }
+                  className='w-full px-3 py-2.5 rounded-xl text-[17px] bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                  autoFocus
+                />
+              </div>
+              <div>
+                <div className='flex items-center justify-between mb-1.5'>
+                  <label className='text-[13px] text-gray-500'>Icon</label>
+                  <button
+                    type='button'
+                    onClick={() => {
+                      setFoodIconPickerFor({
+                        typeId: editingFoodItem.typeId,
+                        foodName: editingFoodItem.originalName,
+                      });
+                    }}
+                    className='text-[13px] text-ios-blue font-medium'>
+                    Change
+                  </button>
+                </div>
+                <div className='flex items-center justify-center p-4 rounded-xl bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'>
+                  <Icon
+                    name={(() => {
+                      const ct = allActivityTypes.find(
+                        (t) => t.id === editingFoodItem.typeId,
+                      );
+                      const customIcon =
+                        ct?.foodIcons?.[editingFoodItem.originalName];
+                      if (customIcon) return customIcon;
+                      // Auto-match to Lucide icon
+                      const foodIconMap: [RegExp, string][] = [
+                        [/chicken|kylling/i, "chicken"],
+                        [/beef|steak|biff|okse/i, "beef"],
+                        [/pork|ribbe|svin/i, "pork"],
+                        [/fish|laks|salmon|tuna|torsk|cod|fisk/i, "fish"],
+                        [/shrimp|reke|prawn/i, "shrimp"],
+                        [/egg/i, "egg"],
+                        [/milk|melk/i, "milk"],
+                        [/cottage.*cheese|kesam/i, "cottageCheese"],
+                        [/cheese|ost(?!e)/i, "cheese"],
+                        [/yogurt|yoghurt|skyr/i, "yoghurt"],
+                        [/bread|brød/i, "wheat"],
+                        [/crisp.*bread|knekkebrød|knekkebr/i, "crispBread"],
+                        [/bean|bønne|lentil|linse/i, "bean"],
+                        [/nut|nøtt/i, "nut"],
+                      ];
+                      for (const [p, icon] of foodIconMap) {
+                        if (p.test(editingFoodItem.originalName)) return icon;
+                      }
+                      return "restaurant";
+                    })()}
+                    className='w-10 h-10 text-gray-600 dark:text-gray-300'
+                    strokeWidth={1.5}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className='flex border-t border-gray-200 dark:border-gray-700'>
+              <button
+                onClick={() => setEditingFoodItem(null)}
+                className='flex-1 py-3.5 text-[17px] font-medium text-gray-500 border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800'>
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!editingFoodItem.newName.trim()) return;
+                  const oldName = editingFoodItem.originalName;
+                  const newName = editingFoodItem.newName.trim();
+
+                  if (oldName !== newName) {
+                    try {
+                      // Update all entries in Supabase
+                      const { renameFoodInSupabase } =
+                        await import("@/lib/supabase-sync");
+                      if (user?.id) {
+                        await renameFoodInSupabase(
+                          user.id,
+                          editingFoodItem.typeId,
+                          oldName,
+                          newName,
+                        );
+                      }
+
+                      // Update local entries for current view
+                      for (const entry of entries) {
+                        if (
+                          entry.activityTypeId === editingFoodItem.typeId &&
+                          entry.value === oldName
+                        ) {
+                          await updateEntry({
+                            ...entry,
+                            value: newName,
+                            nutritionData: entry.nutritionData
+                              ? { ...entry.nutritionData, foodName: newName }
+                              : undefined,
+                          });
+                        }
+                      }
+
+                      // Update foodIcons map if custom icon was set
+                      const ct = allActivityTypes.find(
+                        (t) => t.id === editingFoodItem.typeId,
+                      );
+                      if (ct?.foodIcons?.[oldName]) {
+                        const newFoodIcons = { ...ct.foodIcons };
+                        newFoodIcons[newName] = newFoodIcons[oldName];
+                        delete newFoodIcons[oldName];
+                        await updateActivityType({
+                          ...ct,
+                          foodIcons: newFoodIcons,
+                        });
+                      }
+                    } catch (e) {
+                      console.error("Failed to rename food:", e);
+                    }
+                  }
+                  setEditingFoodItem(null);
+                  setEditingFoodMap(false);
+                }}
+                className='flex-1 py-3.5 text-[17px] font-semibold text-ios-blue active:bg-gray-100 dark:active:bg-gray-800'>
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}

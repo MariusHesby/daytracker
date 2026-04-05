@@ -90,7 +90,7 @@ function UserRow({
       {/* Swipeable content */}
       <div
         ref={rowRef}
-        className='relative bg-white dark:bg-ios-card-dark px-4 py-3 transition-transform duration-200'
+        className='relative bg-white dark:bg-ios-card-dark swipe-row-bg px-4 py-3 transition-transform duration-200'
         onTouchStart={(e) => {
           if (isAdmin) return;
           if (swipedUserId && swipedUserId !== userStats.userId) {

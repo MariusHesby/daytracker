@@ -25,6 +25,9 @@ export function dbToActivityType(db: DbActivityType): ActivityType {
     checklistRepeat: (db.checklist_repeat as ActivityType['checklistRepeat']) || undefined,
     checklistTemplate: db.checklist_template ? (db.checklist_template as unknown as ActivityType['checklistTemplate']) : undefined,
     standalone: db.standalone || false,
+    showDailyGoals: db.show_daily_goals || false,
+    showProteinMap: db.show_protein_map || false,
+    foodIcons: db.food_icons || undefined,
     createdAt: new Date(db.created_at),
   };
 }
@@ -112,6 +115,9 @@ export async function addActivityTypeToSupabase(
       checklist_repeat: type.checklistRepeat || null,
       checklist_template: type.checklistTemplate || null,
       standalone: type.standalone || false,
+      show_daily_goals: type.showDailyGoals || false,
+      show_protein_map: type.showProteinMap || false,
+      food_icons: type.foodIcons || null,
     })    .select()
     .single();
 
@@ -137,6 +143,9 @@ export async function updateActivityTypeInSupabase(type: ActivityType): Promise<
       checklist_repeat: type.checklistRepeat || null,
       checklist_template: type.checklistTemplate || null,
       standalone: type.standalone || false,
+      show_daily_goals: type.showDailyGoals || false,
+      show_protein_map: type.showProteinMap || false,
+      food_icons: type.foodIcons || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', type.id);
@@ -293,6 +302,43 @@ export async function deleteEntryFromSupabase(id: string): Promise<void> {
     .eq('id', id);
 
   if (error) throwError(error, "Database operation failed");
+}
+
+export async function renameFoodInSupabase(
+  userId: string,
+  activityTypeId: string,
+  oldName: string,
+  newName: string,
+): Promise<number> {
+  // Find all entries for this activity type with this food name
+  const { data: entries, error: fetchError } = await supabase
+    .from('log_entries')
+    .select('id, value, nutrition_data')
+    .eq('user_id', userId)
+    .eq('activity_type_id', activityTypeId)
+    .eq('value', oldName);
+
+  if (fetchError) throwError(fetchError, "Database operation failed");
+  if (!entries || entries.length === 0) return 0;
+
+  // Update each entry
+  for (const entry of entries) {
+    const nutritionData = entry.nutrition_data
+      ? { ...entry.nutrition_data, foodName: newName }
+      : null;
+    const { error: updateError } = await supabase
+      .from('log_entries')
+      .update({
+        value: newName,
+        nutrition_data: nutritionData,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', entry.id);
+
+    if (updateError) throwError(updateError, "Database operation failed");
+  }
+
+  return entries.length;
 }
 
 // Suggestions
