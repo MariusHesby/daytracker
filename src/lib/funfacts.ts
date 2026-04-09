@@ -3,14 +3,17 @@
 
 export type FunFactCategory =
   | "random"
-  | "animals"
-  | "cats"
-  | "dogs";
+  | "wordoftheday_nor"
+  | "wordoftheday_eng";
 
 export interface FunFact {
   fact: string;
   category: FunFactCategory;
   source?: string;
+  // Word of the day fields
+  word?: string;
+  wordClass?: string;
+  definition?: string;
 }
 
 // Storage key for selected categories
@@ -22,9 +25,8 @@ export const DEFAULT_CATEGORIES: FunFactCategory[] = ["random"];
 // Category display names
 export const CATEGORY_LABELS: Record<FunFactCategory, string> = {
   random: "Random Facts",
-  animals: "Animal Facts",
-  cats: "Cat Facts",
-  dogs: "Dog Facts",
+  wordoftheday_nor: "Word of the Day (nor)",
+  wordoftheday_eng: "Word of the Day (eng)",
 };
 
 // Load saved categories from localStorage
@@ -78,13 +80,10 @@ export async function fetchRandomFunFact(): Promise<FunFact | null> {
 // Fetch fact by specific category (exported for testing in settings)
 export async function fetchFactByCategory(category: FunFactCategory): Promise<FunFact> {
   switch (category) {
-    case "cats":
-      return fetchCatFact();
-    case "dogs":
-      return fetchDogFact();
-    case "animals":
-      // Randomly pick between cat and dog facts for animals
-      return Math.random() > 0.5 ? fetchCatFact() : fetchDogFact();
+    case "wordoftheday_nor":
+      return fetchNorwegianWordOfTheDay();
+    case "wordoftheday_eng":
+      return fetchEnglishWordOfTheDay();
     case "random":
     default:
       return fetchUselessFact();
@@ -104,28 +103,33 @@ async function fetchUselessFact(): Promise<FunFact> {
   };
 }
 
-// Cat Facts API
-async function fetchCatFact(): Promise<FunFact> {
-  const response = await fetch("https://catfact.ninja/fact");
-  if (!response.ok) throw new Error("Cat Facts API error");
-  
-  const data = await response.json();
+// Norwegian word of the day (from local curated list)
+async function fetchNorwegianWordOfTheDay(): Promise<FunFact> {
+  const { getDagensOrd } = await import("@/lib/wordoftheday");
+  const dagensOrd = getDagensOrd();
   return {
-    fact: data.fact,
-    category: "cats",
-    source: "Cat Facts",
+    fact: dagensOrd.beskrivelse,
+    category: "wordoftheday_nor",
+    source: "Dagens Ord",
+    word: dagensOrd.ord,
+    wordClass: dagensOrd.ordklasse,
+    definition: dagensOrd.beskrivelse,
   };
 }
 
-// Dog Facts API  
-async function fetchDogFact(): Promise<FunFact> {
-  const response = await fetch("https://dogapi.dog/api/v2/facts?limit=1");
-  if (!response.ok) throw new Error("Dog Facts API error");
-
+// English word of the day (from Wordnik API via proxy route)
+async function fetchEnglishWordOfTheDay(): Promise<FunFact> {
+  const today = new Date().toISOString().split("T")[0];
+  const response = await fetch(`/api/wordnik?date=${today}`);
+  if (!response.ok) throw new Error("Wordnik API error");
+  
   const data = await response.json();
   return {
-    fact: data.data[0]?.attributes?.body || "Dogs are amazing companions!",
-    category: "dogs",
-    source: "Dog Facts",
+    fact: data.definition || "No definition available.",
+    category: "wordoftheday_eng",
+    source: "Wordnik",
+    word: data.word,
+    wordClass: data.partOfSpeech,
+    definition: data.definition,
   };
 }

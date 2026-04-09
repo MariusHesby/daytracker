@@ -5140,7 +5140,7 @@ export function EntryForm({
         </div>
       )}
 
-      {/* Fun Fact Modal */}
+      {/* Fun Fact / Word of the Day Modal */}
       {showFunFact && funFact && (
         <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
           {/* Backdrop */}
@@ -5150,36 +5150,79 @@ export function EntryForm({
           />
           {/* Modal */}
           <div className='relative bg-white dark:bg-ios-card-dark rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95 duration-200'>
-            {/* Light bulb icon */}
-            <div className='flex justify-center mb-4'>
-              <div className='w-14 h-14 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center'>
-                <svg
-                  className='w-8 h-8 text-yellow-500'
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  strokeWidth={1.5}
-                  stroke='currentColor'>
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    d='M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18'
-                  />
-                </svg>
-              </div>
-            </div>
-            {/* Title */}
-            <h3 className='text-lg font-semibold text-center text-gray-900 dark:text-white mb-3'>
-              Did You Know?
-            </h3>
-            {/* Fun fact text */}
-            <p className='text-gray-600 dark:text-gray-300 text-center text-[15px] leading-relaxed mb-4'>
-              {funFact.fact}
-            </p>
-            {/* Good to know button */}
+            {funFact.word ? (
+              <>
+                {/* Book icon for word of the day */}
+                <div className='flex justify-center mb-4'>
+                  <div className='w-14 h-14 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center'>
+                    <svg
+                      className='w-8 h-8 text-purple-500'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      strokeWidth={1.5}
+                      stroke='currentColor'>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25'
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <h3 className='text-lg font-semibold text-center text-gray-900 dark:text-white mb-3'>
+                  {funFact.category === "wordoftheday_nor"
+                    ? "Dagens Ord"
+                    : "Word of the Day"}
+                </h3>
+                <p className='text-center text-[20px] font-bold text-gray-900 dark:text-white mb-1'>
+                  {funFact.word}
+                </p>
+                {funFact.wordClass && (
+                  <p className='text-center text-[12px] text-gray-400 dark:text-gray-500 italic mb-2'>
+                    {funFact.wordClass}
+                  </p>
+                )}
+                <p className='text-gray-600 dark:text-gray-300 text-center text-[15px] leading-relaxed mb-4'>
+                  {funFact.definition}
+                </p>
+              </>
+            ) : (
+              <>
+                {/* Light bulb icon for random facts */}
+                <div className='flex justify-center mb-4'>
+                  <div className='w-14 h-14 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center'>
+                    <svg
+                      className='w-8 h-8 text-yellow-500'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      strokeWidth={1.5}
+                      stroke='currentColor'>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18'
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <h3 className='text-lg font-semibold text-center text-gray-900 dark:text-white mb-3'>
+                  Did You Know?
+                </h3>
+                <p className='text-gray-600 dark:text-gray-300 text-center text-[15px] leading-relaxed mb-4'>
+                  {funFact.fact}
+                </p>
+              </>
+            )}
+
+            {/* Dismiss button */}
             <button
               onClick={() => setShowFunFact(false)}
               className='w-full py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
-              Good to know
+              {funFact.word
+                ? funFact.category === "wordoftheday_nor"
+                  ? "Kult!"
+                  : "Cool!"
+                : "Good to know"}
             </button>
           </div>
         </div>
