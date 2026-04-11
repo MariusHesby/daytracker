@@ -61,6 +61,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [needsProfileSetup, setNeedsProfileSetup] = useState(false);
 
+  // Shared helper: delete all user data rows from Supabase
+  async function deleteUserDataFromSupabase(userId: string) {
+    await Promise.all([
+      supabase.from("shares").delete().eq("owner_id", userId),
+      supabase.from("shares").delete().eq("viewer_id", userId),
+      supabase.from("share_requests").delete().eq("from_user_id", userId),
+      supabase.from("share_requests").delete().eq("to_user_id", userId),
+      supabase.from("locked_days").delete().eq("user_id", userId),
+      supabase.from("suggestions").delete().eq("user_id", userId),
+      supabase.from("log_entries").delete().eq("user_id", userId),
+      supabase.from("activity_types").delete().eq("user_id", userId),
+    ]);
+  }
+
   const loadProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
@@ -221,17 +235,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userId = user.id;
 
-      // Delete all user data from Supabase tables in parallel for faster execution
-      await Promise.all([
-        supabase.from("shares").delete().eq("owner_id", userId),
-        supabase.from("shares").delete().eq("viewer_id", userId),
-        supabase.from("share_requests").delete().eq("from_user_id", userId),
-        supabase.from("share_requests").delete().eq("to_user_id", userId),
-        supabase.from("locked_days").delete().eq("user_id", userId),
-        supabase.from("suggestions").delete().eq("user_id", userId),
-        supabase.from("log_entries").delete().eq("user_id", userId),
-        supabase.from("activity_types").delete().eq("user_id", userId),
-      ]);
+      // Delete all user data from Supabase tables in parallel
+      await deleteUserDataFromSupabase(userId);
 
       // Clear local storage (but preserve auth tokens)
       if (typeof window !== "undefined") {
@@ -272,18 +277,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const userId = user.id;
 
-      // Delete all user data from Supabase tables in parallel for faster execution
-      await Promise.all([
-        supabase.from("shares").delete().eq("owner_id", userId),
-        supabase.from("shares").delete().eq("viewer_id", userId),
-        supabase.from("share_requests").delete().eq("from_user_id", userId),
-        supabase.from("share_requests").delete().eq("to_user_id", userId),
-        supabase.from("locked_days").delete().eq("user_id", userId),
-        supabase.from("suggestions").delete().eq("user_id", userId),
-        supabase.from("log_entries").delete().eq("user_id", userId),
-        supabase.from("activity_types").delete().eq("user_id", userId),
-        supabase.from("profiles").delete().eq("user_id", userId),
-      ]);
+      // Delete all user data + profile from Supabase
+      await deleteUserDataFromSupabase(userId);
+      await supabase.from("profiles").delete().eq("user_id", userId);
 
       // Delete the auth user account using RPC function
       // Note: This requires creating the following function in Supabase SQL Editor:

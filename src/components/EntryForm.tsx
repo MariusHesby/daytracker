@@ -5055,7 +5055,7 @@ export function EntryForm({
       )}
 
       {/* Lock Day Button - Outside activity list */}
-      {!isViewingOther && (
+      {!isViewingOther && !(typeof window !== 'undefined' && localStorage.getItem('hide_lock_button') === 'true' && !isLocked) && (
         <div className='mt-6 flex justify-center relative'>
           {/* Celebration overlay - fixed position to prevent scrollbars */}
           {showCelebration && (

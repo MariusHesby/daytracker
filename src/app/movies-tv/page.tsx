@@ -9,6 +9,7 @@ import { formatDate, addDays, cn } from "@/lib/utils";
 import { LogEntry } from "@/types";
 import { IOSSegmentedControl, IOSModal } from "@/components/ios";
 import { MediaSearch, StarRating } from "@/components";
+import { Avatar } from "@/components/ProfileSetup";
 import { getSharedWithMe, SharedUser } from "@/lib/sharing";
 import { supabase } from "@/lib/supabase";
 import { getMediaLink } from "@/lib/tmdb";
@@ -445,6 +446,7 @@ function MediaCard({
   onDrop,
   isDragging = false,
   isDragOver = false,
+  friendRatings,
 }: {
   entry: LogEntry;
   onRate: (entryId: string, rating: number) => void;
@@ -464,9 +466,11 @@ function MediaCard({
   onDrop?: (e: React.DragEvent) => void;
   isDragging?: boolean;
   isDragOver?: boolean;
+  friendRatings?: { name: string; avatar: string | null; rating: number }[];
 }) {
   const [showRating, setShowRating] = useState(false);
   const [showPosterPicker, setShowPosterPicker] = useState(false);
+  const [showFriendRatings, setShowFriendRatings] = useState(false);
   const title = typeof entry.value === "string" ? entry.value : "";
 
   if (layout === "list") {
@@ -647,6 +651,18 @@ function MediaCard({
                     </svg>
                     {entry.userRating}
                   </span>
+                ) : friendRatings && friendRatings.length > 0 ? (
+                  <button
+                    onClick={() => setShowFriendRatings(true)}
+                    className='text-[14px] text-ios-blue flex items-center gap-1'>
+                    <svg
+                      className='w-5 h-5'
+                      viewBox='0 0 24 24'
+                      fill='currentColor'>
+                      <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
+                    </svg>
+                    {entry.userRating}
+                  </button>
                 ) : (
                   <button
                     onClick={() => setShowRating(true)}
@@ -825,6 +841,56 @@ function MediaCard({
             </div>,
             document.body,
           )}
+        {showFriendRatings &&
+          friendRatings &&
+          friendRatings.length > 0 &&
+          createPortal(
+            <div
+              className='fixed inset-0 z-50 flex items-center justify-center'
+              onClick={() => setShowFriendRatings(false)}>
+              <div className='absolute inset-0 bg-black/40' />
+              <div
+                className='relative w-[calc(100%-3rem)] max-w-sm bg-white dark:bg-gray-800 rounded-2xl px-6 py-5'
+                onClick={(e) => e.stopPropagation()}>
+                <p className='text-center font-semibold text-[17px] text-gray-900 dark:text-white mb-4 line-clamp-2'>
+                  {title}
+                </p>
+                <div className='space-y-3'>
+                  {friendRatings.map((fr, i) => (
+                    <div key={i} className='flex items-center gap-3'>
+                      <Avatar avatar={fr.avatar} size='sm' />
+                      <span className='text-[15px] text-gray-900 dark:text-white flex-1 truncate'>
+                        {fr.name}
+                      </span>
+                      <span className='text-[15px] text-ios-blue font-semibold'>
+                        {fr.rating}/10
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {friendRatings.length > 1 && (
+                  <div className='mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between'>
+                    <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                      Average
+                    </span>
+                    <span className='text-[15px] text-amber-500 font-semibold'>
+                      ⭐{" "}
+                      {(
+                        friendRatings.reduce((sum, fr) => sum + fr.rating, 0) /
+                        friendRatings.length
+                      ).toFixed(1)}
+                    </span>
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowFriendRatings(false)}
+                  className='mt-4 w-full text-center text-[15px] text-gray-500'>
+                  Close
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )}
       </div>
     );
   }
@@ -971,6 +1037,18 @@ function MediaCard({
                 </svg>
                 {entry.userRating}
               </span>
+            ) : friendRatings && friendRatings.length > 0 ? (
+              <button
+                onClick={() => setShowFriendRatings(true)}
+                className='text-[14px] text-ios-blue flex items-center gap-1'>
+                <svg
+                  className='w-5 h-5'
+                  viewBox='0 0 24 24'
+                  fill='currentColor'>
+                  <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z' />
+                </svg>
+                {entry.userRating}
+              </button>
             ) : (
               <button
                 onClick={() => setShowRating(true)}
@@ -1158,6 +1236,56 @@ function MediaCard({
                 onClick={() => setShowRating(false)}
                 className='mt-2 w-full text-center text-[15px] text-gray-500'>
                 Cancel
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
+      {showFriendRatings &&
+        friendRatings &&
+        friendRatings.length > 0 &&
+        createPortal(
+          <div
+            className='fixed inset-0 z-50 flex items-center justify-center'
+            onClick={() => setShowFriendRatings(false)}>
+            <div className='absolute inset-0 bg-black/40' />
+            <div
+              className='relative w-[calc(100%-3rem)] max-w-sm bg-white dark:bg-gray-800 rounded-2xl px-6 py-5'
+              onClick={(e) => e.stopPropagation()}>
+              <p className='text-center font-semibold text-[17px] text-gray-900 dark:text-white mb-4 line-clamp-2'>
+                {title}
+              </p>
+              <div className='space-y-3'>
+                {friendRatings.map((fr, i) => (
+                  <div key={i} className='flex items-center gap-3'>
+                    <Avatar avatar={fr.avatar} size='sm' />
+                    <span className='text-[15px] text-gray-900 dark:text-white flex-1 truncate'>
+                      {fr.name}
+                    </span>
+                    <span className='text-[15px] text-ios-blue font-semibold'>
+                      {fr.rating}/10
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {friendRatings.length > 1 && (
+                <div className='mt-4 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between'>
+                  <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                    Average
+                  </span>
+                  <span className='text-[15px] text-amber-500 font-semibold'>
+                    ⭐{" "}
+                    {(
+                      friendRatings.reduce((sum, fr) => sum + fr.rating, 0) /
+                      friendRatings.length
+                    ).toFixed(1)}
+                  </span>
+                </div>
+              )}
+              <button
+                onClick={() => setShowFriendRatings(false)}
+                className='mt-4 w-full text-center text-[15px] text-gray-500'>
+                Close
               </button>
             </div>
           </div>,
@@ -1460,6 +1588,12 @@ export default function MoviesPage() {
     loadEntriesForDateRange(start, end);
   }, [loadEntriesForDateRange]);
 
+  // Grouping key: prefer imdbId, fall back to normalized title (strip trailing year)
+  const mediaGroupKey = useCallback((entry: LogEntry) => {
+    if (entry.imdbId) return entry.imdbId;
+    return String(entry.value).toLowerCase().replace(/\s*\(\d{4}\)\s*$/, '').trim();
+  }, []);
+
   const mediaEntries = useMemo(() => {
     // When showing favorites, use favoriteEntries instead
     if (showFavorites) {
@@ -1473,22 +1607,27 @@ export default function MoviesPage() {
         }
       });
 
-      // Filter by minimum star rating
-      const ratingFiltered = filteredEntries.filter(
-        (e) => Math.max(0, e.userRating || 0) >= minStarRating,
+      // Only include entries with a rating
+      const ratedEntries = filteredEntries.filter(
+        (e) => (e.userRating || 0) > 0,
       );
 
-      // Group by value (title) and keep only the highest rated entry for each
+      // Group by imdbId or normalized title and compute average rating across friends
+      const groupedByTitle = new Map<string, LogEntry[]>();
+      ratedEntries.forEach((entry) => {
+        const key = mediaGroupKey(entry);
+        if (!groupedByTitle.has(key)) groupedByTitle.set(key, []);
+        groupedByTitle.get(key)!.push(entry);
+      });
+
+      // Pick the newest entry per title and set userRating to the average
       const uniqueByTitle = new Map<string, LogEntry>();
-      ratingFiltered.forEach((entry) => {
-        const key = String(entry.value).toLowerCase();
-        const existing = uniqueByTitle.get(key);
-        if (
-          !existing ||
-          Math.max(0, entry.userRating || 0) >
-            Math.max(0, existing.userRating || 0)
-        ) {
-          uniqueByTitle.set(key, entry);
+      groupedByTitle.forEach((entries, key) => {
+        const best = entries.reduce((a, b) => (a.date > b.date ? a : b));
+        const avg = entries.reduce((sum, e) => sum + (e.userRating || 0), 0) / entries.length;
+        const rounded = Math.round(avg * 10) / 10;
+        if (rounded >= minStarRating) {
+          uniqueByTitle.set(key, { ...best, userRating: rounded });
         }
       });
 
@@ -1569,6 +1708,28 @@ export default function MoviesPage() {
     minStarRating,
     favoriteActivityTypes,
   ]);
+
+  // Build a map of friend ratings per title for the favorites view
+  const friendRatingsMap = useMemo(() => {
+    if (!showFavorites) return new Map<string, { name: string; avatar: string | null; rating: number }[]>();
+    const map = new Map<string, { name: string; avatar: string | null; rating: number }[]>();
+    favoriteEntries.forEach((entry) => {
+      const type = favoriteActivityTypes.get(entry.activityTypeId);
+      if ((activeTab === "movies" && type !== "movie") || (activeTab === "series" && type !== "series")) return;
+      if (!entry.userRating || entry.userRating <= 0) return;
+      const key = mediaGroupKey(entry);
+      const owner = favoriteUsers.get((entry as LogEntry & { ownerId?: string }).ownerId || "");
+      const name = owner?.profile?.fullName || owner?.email || "Unknown";
+      const avatar = owner?.profile?.avatar || null;
+      if (!map.has(key)) map.set(key, []);
+      // Avoid duplicate entries for same user on same title
+      const existing = map.get(key)!;
+      if (!existing.some((r) => r.name === name && r.rating === entry.userRating)) {
+        existing.push({ name, avatar, rating: entry.userRating });
+      }
+    });
+    return map;
+  }, [showFavorites, favoriteEntries, favoriteActivityTypes, activeTab, favoriteUsers, mediaGroupKey]);
 
   const stats = useMemo(() => {
     const movies = entries.filter(
@@ -1927,7 +2088,7 @@ export default function MoviesPage() {
               setShowWatchlist(false);
             }
           }}
-          data-info='Favorites. Show movies and series your friends have rated highly.'
+          data-info='Friends&apos; Ratings. Show movies and series your friends have rated.'
           className={cn(
             "px-3 py-2 rounded-full text-[13px] font-medium flex items-center gap-1.5",
             showFavorites
@@ -1985,7 +2146,7 @@ export default function MoviesPage() {
           {showWatchlist
             ? "Watchlist"
             : showFavorites
-              ? "Friends' Favorites"
+              ? "Friends' Ratings"
               : sortBy === "date"
                 ? "Recently Watched"
                 : sortBy === "rating"
@@ -1999,7 +2160,7 @@ export default function MoviesPage() {
         <div className='px-4 mb-3'>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl p-3'>
             <p className='text-sm text-gray-500 dark:text-gray-400 mb-2'>
-              Minimum rating from favorites:
+              Minimum rating from friends:
             </p>
             <MinRatingFilter
               value={minStarRating}
@@ -2007,7 +2168,7 @@ export default function MoviesPage() {
             />
             {favoriteFriends.length === 0 && (
               <p className='text-xs text-gray-400 mt-2'>
-                No favorites yet. Add favorites from the Friends tab.
+                No friends selected yet. Heart friends on the Friends tab.
               </p>
             )}
           </div>
@@ -2030,7 +2191,7 @@ export default function MoviesPage() {
         {loadingFavorites ? (
           <div className='text-center py-12'>
             <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-ios-blue mx-auto mb-4'></div>
-            <p className='text-gray-500'>Loading favorites...</p>
+            <p className='text-gray-500'>Loading friends' ratings...</p>
           </div>
         ) : mediaEntries.length === 0 ? (
           <div className='text-center py-12'>
@@ -2048,10 +2209,10 @@ export default function MoviesPage() {
                 ? `No ${activeTab === "movies" ? "movies" : "series"} in watchlist`
                 : showFavorites
                   ? favoriteFriends.length === 0
-                    ? "No favorites yet. Add favorites from the Friends tab."
+                    ? "No friends selected yet. Heart friends on the Friends tab."
                     : `No ${
                         activeTab === "movies" ? "movies" : "series"
-                      } from favorites with rating ${minStarRating}+`
+                      } from friends with rating ${minStarRating}+`
                   : `No ${activeTab === "movies" ? "movies" : "series"} found`}
             </p>
           </div>
@@ -2071,6 +2232,7 @@ export default function MoviesPage() {
                   entry.imdbId ? releaseDates[entry.imdbId] : undefined
                 }
                 layout='grid'
+                friendRatings={showFavorites ? friendRatingsMap.get(mediaGroupKey(entry)) : undefined}
               />
             ))}
           </div>
@@ -2099,6 +2261,7 @@ export default function MoviesPage() {
                 onDrop={(e) => handleDrop(e, index)}
                 isDragging={draggedIndex === index}
                 isDragOver={dragOverIndex === index}
+                friendRatings={showFavorites ? friendRatingsMap.get(mediaGroupKey(entry)) : undefined}
               />
             ))}
             {/* Drag and drop hint */}

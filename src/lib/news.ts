@@ -2,6 +2,7 @@
 // Stores config in localStorage, syncs to Supabase, fetches via /api/news proxy
 
 import { supabase } from './supabase';
+import { normalizeUrl } from './utils';
 
 const STORAGE_KEY = 'news_sources';
 const CACHE_PREFIX = 'news_cache_';
@@ -62,8 +63,8 @@ export function getNewsSources(): NewsSource[] {
 export function addNewsSource(source: NewsSource): void {
   const sources = getNewsSources();
   // Avoid duplicates (normalise)
-  const norm = source.url.trim().toLowerCase().replace(/\/$/, '');
-  if (sources.some(s => s.url.trim().toLowerCase().replace(/\/$/, '') === norm)) return;
+  const norm = normalizeUrl(source.url);
+  if (sources.some(s => normalizeUrl(s.url) === norm)) return;
   sources.push({ url: source.url.trim(), count: source.count });
   localStorage.setItem(STORAGE_KEY, JSON.stringify(sources));
   syncNewsToSupabase();
@@ -72,8 +73,8 @@ export function addNewsSource(source: NewsSource): void {
 
 export function removeNewsSource(url: string): void {
   const sources = getNewsSources();
-  const norm = url.trim().toLowerCase().replace(/\/$/, '');
-  const filtered = sources.filter(s => s.url.trim().toLowerCase().replace(/\/$/, '') !== norm);
+  const norm = normalizeUrl(url);
+  const filtered = sources.filter(s => normalizeUrl(s.url) !== norm);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
   // Clear cache for this source
   localStorage.removeItem(cacheKeyFor(url));
@@ -84,8 +85,8 @@ export function removeNewsSource(url: string): void {
 /** Update a news source (e.g. change URL or count) */
 export function updateNewsSource(oldUrl: string, updated: NewsSource): void {
   const sources = getNewsSources();
-  const norm = oldUrl.trim().toLowerCase().replace(/\/$/, '');
-  const idx = sources.findIndex(s => s.url.trim().toLowerCase().replace(/\/$/, '') === norm);
+  const norm = normalizeUrl(oldUrl);
+  const idx = sources.findIndex(s => normalizeUrl(s.url) === norm);
   if (idx === -1) return;
   // Clear old cache if URL changed
   if (sources[idx].url !== updated.url) {
@@ -186,7 +187,7 @@ export async function loadNewsFromSupabase(): Promise<void> {
 // ─── Hidden headlines ────────────────────────────────────
 
 function hiddenKeyFor(url: string): string {
-  return HIDDEN_PREFIX + url.trim().toLowerCase().replace(/\/$/, '');
+  return HIDDEN_PREFIX + normalizeUrl(url);
 }
 
 /** Get the set of hidden article links for a source */
@@ -218,7 +219,7 @@ export function resetHiddenHeadlines(sourceUrl: string): void {
 // ─── Read headlines ──────────────────────────────────────
 
 function readKeyFor(url: string): string {
-  return READ_PREFIX + url.trim().toLowerCase().replace(/\/$/, '');
+  return READ_PREFIX + normalizeUrl(url);
 }
 
 /** Get the set of read article links for a source */
@@ -250,7 +251,7 @@ export function resetReadHeadlines(sourceUrl: string): void {
 const SEEN_PREFIX = 'news_seen_';
 
 function seenKeyFor(url: string): string {
-  return SEEN_PREFIX + url.trim().toLowerCase().replace(/\/$/, '');
+  return SEEN_PREFIX + normalizeUrl(url);
 }
 
 /** Get the set of previously-seen article links for a source */
@@ -374,7 +375,7 @@ export function getCachedAllNews(): Record<string, NewsItem[]> {
 // ─── Per-source cache ────────────────────────────────────
 
 function cacheKeyFor(url: string): string {
-  return CACHE_PREFIX + url.trim().toLowerCase().replace(/\/$/, '');
+  return CACHE_PREFIX + normalizeUrl(url);
 }
 
 function getCachedNews(url: string): NewsItem[] | null {

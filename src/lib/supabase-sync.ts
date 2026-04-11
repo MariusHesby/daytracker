@@ -1,6 +1,7 @@
 // Supabase sync functions for DayTracker
 import { supabase, DbActivityType, DbLogEntry, DbSuggestion } from './supabase';
 import { ActivityType, LogEntry, Suggestion, DEFAULT_ACTIVITY_TYPES } from '@/types';
+import { isValidUUID } from './utils';
 
 // Helper to convert Supabase errors to proper Error instances
 function throwError(error: { message?: string; code?: string } | null, fallbackMessage: string): never {
@@ -82,14 +83,14 @@ export async function initializeDefaultActivityTypes(userId: string): Promise<Ac
   if (existing.length > 0) {
     return existing;
   }
-  
+
   const createdTypes: ActivityType[] = [];
-  
+
   for (const type of DEFAULT_ACTIVITY_TYPES) {
     const newType = await addActivityTypeToSupabase(userId, type);
     createdTypes.push(newType);
   }
-  
+
   return createdTypes;
 }
 
@@ -118,7 +119,7 @@ export async function addActivityTypeToSupabase(
       show_daily_goals: type.showDailyGoals || false,
       show_protein_map: type.showProteinMap || false,
       food_icons: type.foodIcons || null,
-    })    .select()
+    }).select()
     .single();
 
   if (error) throwError(error, "Database operation failed");
@@ -163,19 +164,16 @@ export async function deleteActivityTypeFromSupabase(id: string): Promise<void> 
 }
 
 export async function reorderActivityTypesInSupabase(types: ActivityType[]): Promise<void> {
-  const updates = types.map((type, index) => ({
-    id: type.id,
-    sort_order: index,
-  }));
+  await Promise.all(
+    types.map(async (type, index) => {
+      const { error } = await supabase
+        .from('activity_types')
+        .update({ sort_order: index })
+        .eq('id', type.id);
 
-  for (const update of updates) {
-    const { error } = await supabase
-      .from('activity_types')
-      .update({ sort_order: update.sort_order })
-      .eq('id', update.id);
-    
-    if (error) throwError(error, "Database operation failed");
-  }
+      if (error) throwError(error, "Database operation failed");
+    })
+  );
 }
 
 // Look up media metadata (poster, imdbId, etc.) from a previous entry
@@ -321,22 +319,25 @@ export async function renameFoodInSupabase(
   if (fetchError) throwError(fetchError, "Database operation failed");
   if (!entries || entries.length === 0) return 0;
 
-  // Update each entry
-  for (const entry of entries) {
-    const nutritionData = entry.nutrition_data
-      ? { ...entry.nutrition_data, foodName: newName }
-      : null;
-    const { error: updateError } = await supabase
-      .from('log_entries')
-      .update({
-        value: newName,
-        nutrition_data: nutritionData,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', entry.id);
+  // Update all entries in parallel
+  const now = new Date().toISOString();
+  await Promise.all(
+    entries.map(async (entry) => {
+      const nutritionData = entry.nutrition_data
+        ? { ...entry.nutrition_data, foodName: newName }
+        : null;
+      const { error: updateError } = await supabase
+        .from('log_entries')
+        .update({
+          value: newName,
+          nutrition_data: nutritionData,
+          updated_at: now,
+        })
+        .eq('id', entry.id);
 
-    if (updateError) throwError(updateError, "Database operation failed");
-  }
+      if (updateError) throwError(updateError, "Database operation failed");
+    })
+  );
 
   return entries.length;
 }
@@ -346,30 +347,21 @@ export async function getSuggestionsFromSupabase(
   userId: string,
   activityTypeId: string
 ): Promise<Suggestion[]> {
-  try {
-    // Skip if activityTypeId is not a valid UUID (local-only ID)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(activityTypeId)) {
-      return [];
-    }
-
-    const { data, error } = await supabase
-      .from('suggestions')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('activity_type_id', activityTypeId)
-      .order('last_used', { ascending: false })
-      .limit(10);
-
-    if (error) {
-      console.warn('Failed to fetch suggestions:', error.message);
-      return [];
-    }
-    return (data || []).map(dbToSuggestion);
-  } catch (e) {
-    console.warn('Network error fetching suggestions:', e);
+  // Skip if activityTypeId is not a valid UUID (local-only ID)
+  if (!isValidUUID(activityTypeId)) {
     return [];
   }
+
+  const { data, error } = await supabase
+    .from('suggestions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('activity_type_id', activityTypeId)
+    .order('last_used', { ascending: false })
+    .limit(10);
+
+  if (error) throwError(error, "Failed to fetch suggestions");
+  return (data || []).map(dbToSuggestion);
 }
 
 export async function addOrUpdateSuggestionInSupabase(
@@ -378,8 +370,7 @@ export async function addOrUpdateSuggestionInSupabase(
   value: string
 ): Promise<void> {
   // Skip if activityTypeId is not a valid UUID (local-only ID)
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(activityTypeId)) {
+  if (!isValidUUID(activityTypeId)) {
     return;
   }
 
@@ -393,15 +384,16 @@ export async function addOrUpdateSuggestionInSupabase(
     .single();
 
   if (existing) {
-    await supabase
+    const { error: updateErr } = await supabase
       .from('suggestions')
       .update({
         count: existing.count + 1,
         last_used: new Date().toISOString(),
       })
       .eq('id', existing.id);
+    if (updateErr) throwError(updateErr, "Failed to update suggestion");
   } else {
-    await supabase
+    const { error: insertErr } = await supabase
       .from('suggestions')
       .insert({
         user_id: userId,
@@ -409,6 +401,7 @@ export async function addOrUpdateSuggestionInSupabase(
         value,
         count: 1,
       });
+    if (insertErr) throwError(insertErr, "Failed to insert suggestion");
   }
 }
 

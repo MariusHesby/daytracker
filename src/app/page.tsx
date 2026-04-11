@@ -58,6 +58,7 @@ import {
   formatMinutes,
   getDayLabel,
 } from "@/lib/screentime";
+import { getDagensOrd } from "@/lib/wordoftheday";
 
 // Get time-based greeting
 function getGreeting(): string {
@@ -130,7 +131,11 @@ export default function HomePage() {
   }, []);
 
   // Name display variant for header card
-  const [nameVariant, setNameVariant] = useState(0);
+  const [nameVariant, setNameVariant] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    const saved = localStorage.getItem("daytracker_name_variant");
+    return saved ? parseInt(saved, 10) || 0 : 0;
+  });
 
   // Generate name combinations: first only, first+last, first+2nd, first+3rd, etc., then full
   function getNameVariants(fullName: string): string[] {
@@ -153,9 +158,19 @@ export default function HomePage() {
     return variants;
   }
 
-  // Weather state
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [locationName, setLocationName] = useState<string | null>(null);
+  // Weather state — restore from sessionStorage to survive tab switches
+  const [weather, setWeather] = useState<WeatherData | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const cached = sessionStorage.getItem("daytracker_weather");
+      return cached ? JSON.parse(cached) : null;
+    } catch { return null; }
+  });
+  const [locationName, setLocationName] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const loc = getStoredLocation();
+    return loc?.name ?? null;
+  });
   const [showForecast, setShowForecast] = useState(false);
 
   // Football state
@@ -386,6 +401,7 @@ export default function HomePage() {
       );
       if (weatherData) {
         setWeather(weatherData);
+        try { sessionStorage.setItem("daytracker_weather", JSON.stringify(weatherData)); } catch {}
       }
       lastFetchWeather = Date.now();
     };
@@ -510,7 +526,11 @@ export default function HomePage() {
                   ? viewingUser?.fullName || ""
                   : profile?.fullName || "";
                 const variants = getNameVariants(fullName);
-                setNameVariant((prev) => (prev + 1) % variants.length);
+                setNameVariant((prev) => {
+                  const next = (prev + 1) % variants.length;
+                  localStorage.setItem("daytracker_name_variant", String(next));
+                  return next;
+                });
               }}
               data-info='Greeting card. Tap to cycle through different name display styles.'
               className='relative overflow-hidden rounded-2xl liquid-glass p-5 cursor-pointer active:opacity-90 transition-opacity'>
@@ -575,12 +595,72 @@ export default function HomePage() {
 
         {/* Football Section removed - shown as matchday activity below */}
 
+        {/* Word of the Day - Top position */}
+        {typeof window !== 'undefined' && localStorage.getItem('wordoftheday_enabled') === 'true' && (localStorage.getItem('wordoftheday_position') || 'top') === 'top' && (() => {
+          const dagensOrd = getDagensOrd(new Date(selectedDate));
+          return (
+            <div className='mx-2 mt-14 mb-12 relative overflow-visible' style={{ minHeight: '140px' }}>
+              {/* Organic blob background — light */}
+              <svg className='absolute inset-0 w-full h-full pointer-events-none dark:hidden' viewBox='0 0 380 120' preserveAspectRatio='none' overflow='visible'>
+                <defs>
+                  <filter id='wod-rough-t'>
+                    <feTurbulence type='turbulence' baseFrequency='0.04' numOctaves='4' seed='2' result='noise' />
+                    <feDisplacementMap in='SourceGraphic' in2='noise' scale='6' />
+                  </filter>
+                </defs>
+                {/* White border following blob shape */}
+                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='white' opacity='0.95' filter='url(#wod-rough-t)' stroke='white' strokeWidth='24' strokeLinejoin='round' />
+                {/* Yellow fill blob */}
+                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#deba5c' opacity='0.4' filter='url(#wod-rough-t)' />
+                <path d='M35 16 Q120 -2, 210 12 Q300 0, 360 20 Q382 36, 375 60 Q370 88, 330 105 Q250 122, 140 110 Q50 100, 15 78 Q-4 56, 10 34 Q18 18, 35 16 Z' fill='#d4ad4a' opacity='0.22' filter='url(#wod-rough-t)' />
+                <path d='M30 22 Q80 8, 170 18 Q260 4, 350 22' fill='none' stroke='#8a7340' strokeWidth='0.8' opacity='0.18' strokeLinecap='round' />
+                <path d='M15 78 Q90 95, 200 86 Q310 100, 365 82' fill='none' stroke='#8a7340' strokeWidth='0.6' opacity='0.14' strokeLinecap='round' />
+                <path d='M75 105 Q73 112, 76 118' fill='none' stroke='#c9a84a' strokeWidth='1.2' opacity='0.18' strokeLinecap='round' />
+                <path d='M285 104 Q287 110, 284 116' fill='none' stroke='#c9a84a' strokeWidth='0.8' opacity='0.14' strokeLinecap='round' />
+                <circle cx='35' cy='45' r='2' fill='#a08838' opacity='0.14' />
+                <circle cx='350' cy='38' r='1.5' fill='#a08838' opacity='0.12' />
+                <circle cx='160' cy='108' r='1.8' fill='#a08838' opacity='0.1' />
+              </svg>
+              {/* Organic blob background — dark */}
+              <svg className='absolute inset-0 w-full h-full pointer-events-none hidden dark:block' viewBox='0 0 380 120' preserveAspectRatio='none' overflow='visible'>
+                <defs>
+                  <filter id='wod-rough-td'>
+                    <feTurbulence type='turbulence' baseFrequency='0.04' numOctaves='4' seed='2' result='noise' />
+                    <feDisplacementMap in='SourceGraphic' in2='noise' scale='6' />
+                  </filter>
+                </defs>
+                {/* Dark border following blob shape */}
+                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#1f2937' opacity='0.9' filter='url(#wod-rough-td)' stroke='#1f2937' strokeWidth='24' strokeLinejoin='round' />
+                {/* Yellow fill blob */}
+                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#8a7230' opacity='0.35' filter='url(#wod-rough-td)' />
+                <path d='M35 16 Q120 -2, 210 12 Q300 0, 360 20 Q382 36, 375 60 Q370 88, 330 105 Q250 122, 140 110 Q50 100, 15 78 Q-4 56, 10 34 Q18 18, 35 16 Z' fill='#7a6428' opacity='0.2' filter='url(#wod-rough-td)' />
+                <path d='M30 22 Q80 8, 170 18 Q260 4, 350 22' fill='none' stroke='#a08838' strokeWidth='0.8' opacity='0.2' strokeLinecap='round' />
+                <path d='M15 78 Q90 95, 200 86 Q310 100, 365 82' fill='none' stroke='#a08838' strokeWidth='0.6' opacity='0.15' strokeLinecap='round' />
+                <path d='M75 105 Q73 112, 76 118' fill='none' stroke='#8a7830' strokeWidth='1.2' opacity='0.2' strokeLinecap='round' />
+                <path d='M285 104 Q287 110, 284 116' fill='none' stroke='#8a7830' strokeWidth='0.8' opacity='0.15' strokeLinecap='round' />
+                <circle cx='35' cy='45' r='2' fill='#8a7830' opacity='0.18' />
+                <circle cx='350' cy='38' r='1.5' fill='#8a7830' opacity='0.14' />
+                <circle cx='160' cy='108' r='1.8' fill='#8a7830' opacity='0.12' />
+              </svg>
+              <div className='relative px-14 py-8'>
+                <p className='text-[10px] font-medium tracking-[0.2em] uppercase text-amber-800/60 dark:text-amber-400/50'>Dagens Ord</p>
+                <div className='flex items-baseline gap-2 mt-1.5'>
+                  <span className='text-[22px] font-bold text-amber-950 dark:text-amber-100' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.ord}</span>
+                  <span className='text-[12px] italic text-amber-800/70 dark:text-amber-300/60'>{dagensOrd.ordklasse}</span>
+                </div>
+                <p className='text-[14px] mt-1.5 leading-snug text-amber-900 dark:text-amber-200/90' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.beskrivelse}</p>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Action buttons row */}
         <div className='px-4 pt-3 flex items-center justify-between'>
           {/* Left side - Unlocked days (no background) */}
           {user && !isViewingOther && (
             <div className='flex items-center gap-4 ml-1'>
               {/* Unlocked days button */}
+              {!(typeof window !== 'undefined' && localStorage.getItem('hide_unlocked_days') === 'true') && (
               <button
                 onClick={() => {
                   setUnlockedPage(0);
@@ -609,6 +689,7 @@ export default function HomePage() {
                   {unlockedDays.length}
                 </span>
               </button>
+              )}
               {/* Calendar date picker */}
               <label
                 data-info='Calendar. Jump to any date to view or add entries.'
@@ -990,6 +1071,65 @@ export default function HomePage() {
               : undefined
           }
         />
+
+        {/* Word of the Day - Bottom position */}
+        {typeof window !== 'undefined' && localStorage.getItem('wordoftheday_enabled') === 'true' && localStorage.getItem('wordoftheday_position') === 'bottom' && (() => {
+          const dagensOrd = getDagensOrd(new Date(selectedDate));
+          return (
+            <div className='mx-2 mt-14 mb-2 relative overflow-visible' style={{ minHeight: '140px' }}>
+              {/* Organic blob background — light */}
+              <svg className='absolute inset-0 w-full h-full pointer-events-none dark:hidden' viewBox='0 0 380 120' preserveAspectRatio='none' overflow='visible'>
+                <defs>
+                  <filter id='wod-rough-b'>
+                    <feTurbulence type='turbulence' baseFrequency='0.04' numOctaves='4' seed='5' result='noise' />
+                    <feDisplacementMap in='SourceGraphic' in2='noise' scale='6' />
+                  </filter>
+                </defs>
+                {/* White border following blob shape */}
+                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='white' opacity='0.95' filter='url(#wod-rough-b)' stroke='white' strokeWidth='24' strokeLinejoin='round' />
+                {/* Yellow fill blob */}
+                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#deba5c' opacity='0.4' filter='url(#wod-rough-b)' />
+                <path d='M35 16 Q120 -2, 210 12 Q300 0, 360 20 Q382 36, 375 60 Q370 88, 330 105 Q250 122, 140 110 Q50 100, 15 78 Q-4 56, 10 34 Q18 18, 35 16 Z' fill='#d4ad4a' opacity='0.22' filter='url(#wod-rough-b)' />
+                <path d='M30 22 Q80 8, 170 18 Q260 4, 350 22' fill='none' stroke='#8a7340' strokeWidth='0.8' opacity='0.18' strokeLinecap='round' />
+                <path d='M15 78 Q90 95, 200 86 Q310 100, 365 82' fill='none' stroke='#8a7340' strokeWidth='0.6' opacity='0.14' strokeLinecap='round' />
+                <path d='M75 105 Q73 112, 76 118' fill='none' stroke='#c9a84a' strokeWidth='1.2' opacity='0.18' strokeLinecap='round' />
+                <path d='M285 104 Q287 110, 284 116' fill='none' stroke='#c9a84a' strokeWidth='0.8' opacity='0.14' strokeLinecap='round' />
+                <circle cx='35' cy='45' r='2' fill='#a08838' opacity='0.14' />
+                <circle cx='350' cy='38' r='1.5' fill='#a08838' opacity='0.12' />
+                <circle cx='160' cy='108' r='1.8' fill='#a08838' opacity='0.1' />
+              </svg>
+              {/* Organic blob background — dark */}
+              <svg className='absolute inset-0 w-full h-full pointer-events-none hidden dark:block' viewBox='0 0 380 120' preserveAspectRatio='none' overflow='visible'>
+                <defs>
+                  <filter id='wod-rough-bd'>
+                    <feTurbulence type='turbulence' baseFrequency='0.04' numOctaves='4' seed='5' result='noise' />
+                    <feDisplacementMap in='SourceGraphic' in2='noise' scale='6' />
+                  </filter>
+                </defs>
+                {/* Dark border following blob shape */}
+                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#1f2937' opacity='0.9' filter='url(#wod-rough-bd)' stroke='#1f2937' strokeWidth='24' strokeLinejoin='round' />
+                {/* Yellow fill blob */}
+                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#8a7230' opacity='0.35' filter='url(#wod-rough-bd)' />
+                <path d='M35 16 Q120 -2, 210 12 Q300 0, 360 20 Q382 36, 375 60 Q370 88, 330 105 Q250 122, 140 110 Q50 100, 15 78 Q-4 56, 10 34 Q18 18, 35 16 Z' fill='#7a6428' opacity='0.2' filter='url(#wod-rough-bd)' />
+                <path d='M30 22 Q80 8, 170 18 Q260 4, 350 22' fill='none' stroke='#a08838' strokeWidth='0.8' opacity='0.2' strokeLinecap='round' />
+                <path d='M15 78 Q90 95, 200 86 Q310 100, 365 82' fill='none' stroke='#a08838' strokeWidth='0.6' opacity='0.15' strokeLinecap='round' />
+                <path d='M75 105 Q73 112, 76 118' fill='none' stroke='#8a7830' strokeWidth='1.2' opacity='0.2' strokeLinecap='round' />
+                <path d='M285 104 Q287 110, 284 116' fill='none' stroke='#8a7830' strokeWidth='0.8' opacity='0.15' strokeLinecap='round' />
+                <circle cx='35' cy='45' r='2' fill='#8a7830' opacity='0.18' />
+                <circle cx='350' cy='38' r='1.5' fill='#8a7830' opacity='0.14' />
+                <circle cx='160' cy='108' r='1.8' fill='#8a7830' opacity='0.12' />
+              </svg>
+              <div className='relative px-14 py-8'>
+                <p className='text-[10px] font-medium tracking-[0.2em] uppercase text-amber-800/60 dark:text-amber-400/50'>Dagens Ord</p>
+                <div className='flex items-baseline gap-2 mt-1.5'>
+                  <span className='text-[22px] font-bold text-amber-950 dark:text-amber-100' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.ord}</span>
+                  <span className='text-[12px] italic text-amber-800/70 dark:text-amber-300/60'>{dagensOrd.ordklasse}</span>
+                </div>
+                <p className='text-[14px] mt-1.5 leading-snug text-amber-900 dark:text-amber-200/90' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.beskrivelse}</p>
+              </div>
+            </div>
+          );
+        })()}
       </main>
 
       {/* Unlocked Days Info Popup */}

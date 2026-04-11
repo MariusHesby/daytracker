@@ -13,6 +13,7 @@ import * as db from "@/lib/db";
 import * as cloudDb from "@/lib/supabase-sync";
 import { getLockedDays, lockDay, unlockDay } from "@/lib/supabase";
 import { useAuth } from "./AuthContext";
+import { sortActivityTypes, safeParseJSON } from "@/lib/utils";
 
 // Local storage key for locked days when not signed in
 const LOCAL_LOCKED_DAYS_KEY = "daytracker_locked_days";
@@ -105,15 +106,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [lockedDays, setLockedDays] = useState<string[]>([]);
   const [deletedActivityTypes, setDeletedActivityTypes] = useState<
     ActivityType[]
-  >(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const stored = localStorage.getItem(DELETED_ACTIVITY_TYPES_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  >(() => safeParseJSON(DELETED_ACTIVITY_TYPES_KEY, []));
 
   // Viewing as another user (shared data)
   const [viewingUser, setViewingUser] = useState<{
@@ -143,14 +136,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             types = await cloudDb.initializeDefaultActivityTypes(user.id);
           }
 
-          const sortedTypes = types.sort((a, b) => {
-            const orderA = a.order ?? Infinity;
-            const orderB = b.order ?? Infinity;
-            if (orderA !== orderB) return orderA - orderB;
-            return (
-              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            );
-          });
+          const sortedTypes = sortActivityTypes(types);
           setActivityTypes(sortedTypes);
           setOwnActivityTypes(sortedTypes);
 
@@ -170,15 +156,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               db.getActivityTypes(),
               timeoutPromise,
             ]);
-            const sortedTypes = types.sort((a, b) => {
-              const orderA = a.order ?? Infinity;
-              const orderB = b.order ?? Infinity;
-              if (orderA !== orderB) return orderA - orderB;
-              return (
-                new Date(a.createdAt).getTime() -
-                new Date(b.createdAt).getTime()
-              );
-            });
+            const sortedTypes = sortActivityTypes(types);
             setActivityTypes(sortedTypes);
             setOwnActivityTypes(sortedTypes);
           } catch (dbError) {
@@ -424,14 +402,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             viewingUser.activityTypeIds.includes(t.id),
           );
 
-          const sortedTypes = sharedTypes.sort((a, b) => {
-            const orderA = a.order ?? Infinity;
-            const orderB = b.order ?? Infinity;
-            if (orderA !== orderB) return orderA - orderB;
-            return (
-              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            );
-          });
+          const sortedTypes = sortActivityTypes(sharedTypes);
           setActivityTypes(sortedTypes);
 
           // Reload entries with a wide date range to ensure data is loaded
@@ -461,14 +432,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Load own activity types
         try {
           const types = await cloudDb.getActivityTypesFromSupabase(user.id);
-          const sortedTypes = types.sort((a, b) => {
-            const orderA = a.order ?? Infinity;
-            const orderB = b.order ?? Infinity;
-            if (orderA !== orderB) return orderA - orderB;
-            return (
-              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            );
-          });
+          const sortedTypes = sortActivityTypes(types);
           setActivityTypes(sortedTypes);
           setOwnActivityTypes(sortedTypes);
 
@@ -493,16 +457,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addEntry = useCallback(
     async (entry: Omit<LogEntry, "id" | "createdAt" | "updatedAt">) => {
       if (user) {
-        const newEntry = await cloudDb.addEntryToSupabase(user.id, entry);
-        setEntries((prev) => [...prev, newEntry]);
+        // Optimistic: add a temporary entry with a temp ID
+        const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const now = new Date();
+        const optimisticEntry: LogEntry = {
+          ...entry,
+          id: tempId,
+          createdAt: now,
+          updatedAt: now,
+        };
+        setEntries((prev) => [...prev, optimisticEntry]);
 
-        // Add suggestion for text values
-        if (typeof entry.value === "string" && entry.value.trim()) {
-          await cloudDb.addOrUpdateSuggestionInSupabase(
-            user.id,
-            entry.activityTypeId,
-            entry.value,
+        try {
+          const newEntry = await cloudDb.addEntryToSupabase(user.id, entry);
+          // Replace temp entry with the real one from Supabase
+          setEntries((prev) =>
+            prev.map((e) => (e.id === tempId ? newEntry : e)),
           );
+
+          // Add suggestion for text values (non-blocking)
+          if (typeof entry.value === "string" && entry.value.trim()) {
+            cloudDb
+              .addOrUpdateSuggestionInSupabase(
+                user.id,
+                entry.activityTypeId,
+                entry.value,
+              )
+              .catch((e) => console.warn("Failed to update suggestion:", e));
+          }
+        } catch (error) {
+          // Revert optimistic add on failure
+          setEntries((prev) => prev.filter((e) => e.id !== tempId));
+          throw error;
         }
       } else {
         const newEntry = await db.addEntry(entry);
@@ -520,10 +506,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateEntry = useCallback(
     async (entry: LogEntry) => {
       if (user) {
-        const updated = await cloudDb.updateEntryInSupabase(entry);
+        // Optimistic: update local state immediately
+        const previousEntries = entries;
         setEntries((prev) =>
-          prev.map((e) => (e.id === entry.id ? updated : e)),
+          prev.map((e) => (e.id === entry.id ? entry : e)),
         );
+
+        try {
+          const updated = await cloudDb.updateEntryInSupabase(entry);
+          // Reconcile with server response
+          setEntries((prev) =>
+            prev.map((e) => (e.id === entry.id ? updated : e)),
+          );
+        } catch (error) {
+          // Revert on failure
+          setEntries(previousEntries);
+          throw error;
+        }
       } else {
         const updated = await db.updateEntry(entry);
         setEntries((prev) =>
@@ -531,28 +530,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
         );
       }
     },
-    [user],
+    [user, entries],
   );
 
   const deleteEntry = useCallback(
     async (id: string) => {
       if (user) {
-        await cloudDb.deleteEntryFromSupabase(id);
+        // Optimistic: remove from local state immediately
+        const previousEntries = entries;
+        setEntries((prev) => prev.filter((e) => e.id !== id));
+
+        try {
+          await cloudDb.deleteEntryFromSupabase(id);
+        } catch (error) {
+          // Revert on failure
+          setEntries(previousEntries);
+          throw error;
+        }
       } else {
         await db.deleteEntry(id);
+        setEntries((prev) => prev.filter((e) => e.id !== id));
       }
-      setEntries((prev) => prev.filter((e) => e.id !== id));
     },
-    [user],
+    [user, entries],
   );
 
   // Suggestions
   const getSuggestions = useCallback(
     async (activityTypeId: string) => {
-      if (user) {
-        return cloudDb.getSuggestionsFromSupabase(user.id, activityTypeId);
+      try {
+        if (user) {
+          return await cloudDb.getSuggestionsFromSupabase(
+            user.id,
+            activityTypeId,
+          );
+        }
+        return await db.getSuggestions(activityTypeId);
+      } catch (e) {
+        console.warn("Failed to fetch suggestions:", e);
+        return [];
       }
-      return db.getSuggestions(activityTypeId);
     },
     [user],
   );

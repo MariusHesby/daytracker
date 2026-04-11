@@ -686,6 +686,43 @@ export default function FriendsPage() {
           </button>
         </div>
 
+        {/* Icon Legend - shown when Info is toggled */}
+        {expandedCardInfo && (
+          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl p-4 space-y-2.5 animate-fade-in'>
+            <p className='text-[13px] font-semibold text-gray-700 dark:text-gray-200 mb-1'>Icon Guide</p>
+            <div className='flex items-center gap-2.5'>
+              <svg viewBox='0 0 24 24' className='w-[17px] h-[17px] text-ios-blue flex-shrink-0' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+                <path d='M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8' /><polyline points='16 6 12 2 8 6' /><line x1='12' y1='2' x2='12' y2='15' />
+              </svg>
+              <p className='text-[13px] text-gray-600 dark:text-gray-400'>Sharing — view and edit shared activities</p>
+            </div>
+            <div className='flex items-center gap-2.5'>
+              <svg viewBox='0 0 24 24' className='w-[17px] h-[17px] text-red-500 flex-shrink-0' fill='currentColor' stroke='currentColor' strokeWidth='2'>
+                <path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z' />
+              </svg>
+              <p className='text-[13px] text-gray-600 dark:text-gray-400'>Friends rating — add this friend&apos;s ratings to the &quot;Friends&apos; Ratings&quot; list on Movies &amp; TV</p>
+            </div>
+            <div className='flex items-center gap-2.5'>
+              <svg viewBox='0 0 24 24' className='w-[17px] h-[17px] text-ios-blue flex-shrink-0' fill='none' stroke='currentColor' strokeWidth='2'>
+                <path d='M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9' /><path d='M13.73 21a2 2 0 0 1-3.46 0' />
+              </svg>
+              <p className='text-[13px] text-gray-600 dark:text-gray-400'>Notifications — get notified on activity</p>
+            </div>
+            <div className='flex items-center gap-2.5'>
+              <svg viewBox='0 0 24 24' className='w-[17px] h-[17px] text-gray-500 dark:text-gray-400 flex-shrink-0' fill='none' stroke='currentColor' strokeWidth='1.8' strokeLinecap='round' strokeLinejoin='round'>
+                <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' /><circle cx='12' cy='12' r='3' />
+              </svg>
+              <p className='text-[13px] text-gray-600 dark:text-gray-400'>View — browse this friend&#39;s daily log</p>
+            </div>
+            <div className='flex items-center gap-2.5'>
+              <svg viewBox='0 0 24 24' className='w-[17px] h-[17px] text-red-500 dark:text-red-400 flex-shrink-0' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+                <path d='M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2' /><circle cx='9' cy='7' r='4' /><line x1='17' y1='11' x2='22' y2='11' />
+              </svg>
+              <p className='text-[13px] text-gray-600 dark:text-gray-400'>Remove — unfriend and stop sharing</p>
+            </div>
+          </div>
+        )}
+
         {/* Friends List */}
         <div className='space-y-3'>
           {sharedWithMe.length === 0 ? (
@@ -823,10 +860,10 @@ export default function FriendsPage() {
                             </svg>
                           </button>
 
-                          {/* Heart (favorite) */}
+                          {/* Heart (friends rating) */}
                           <div className='relative'>
                             <button
-                              data-info="Favorite. Mark as favorite to see this friend's movie and TV ratings."
+                              data-info="Friends rating. Heart to include this friend's ratings on Movies & TV."
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleFavorite(sharedUser.id);
@@ -858,7 +895,7 @@ export default function FriendsPage() {
                               <div
                                 onClick={(e) => e.stopPropagation()}
                                 className='absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-xl shadow-lg whitespace-nowrap z-10 animate-in fade-in zoom-in-95 duration-150'>
-                                Favorite for Movies & TV ratings
+                                Include in Friends' Ratings
                                 <div className='absolute top-full left-3 w-2 h-2 bg-gray-900 dark:bg-gray-700 rotate-45 -mt-1' />
                               </div>
                             )}
@@ -1264,23 +1301,31 @@ export default function FriendsPage() {
                         </span>
                         {/* Colored bullets: user1 · user2 in same order as header */}
                         <div className='flex items-center gap-1.5'>
-                          <span
-                            className='w-[10px] h-[10px] rounded-full transition-opacity'
-                            style={{
-                              backgroundColor: myColor,
-                              opacity: activity.sharedByMe ? 1 : 0.15,
-                            }}
-                          />
+                          {activity.sharedByMe ? (
+                            <span
+                              className='w-[10px] h-[10px] rounded-full'
+                              style={{ backgroundColor: myColor }}
+                            />
+                          ) : (
+                            <span className='w-[10px] h-[10px] flex items-center justify-center text-[10px] opacity-50'
+                              style={{ color: myColor }}>
+                              ✕
+                            </span>
+                          )}
                           <span className='text-[10px] text-gray-400 dark:text-gray-500 font-light'>
                             :
                           </span>
-                          <span
-                            className='w-[10px] h-[10px] rounded-full transition-opacity'
-                            style={{
-                              backgroundColor: friendColor,
-                              opacity: activity.sharedByFriend ? 1 : 0,
-                            }}
-                          />
+                          {activity.sharedByFriend ? (
+                            <span
+                              className='w-[10px] h-[10px] rounded-full'
+                              style={{ backgroundColor: friendColor }}
+                            />
+                          ) : (
+                            <span className='w-[10px] h-[10px] flex items-center justify-center text-[10px] opacity-50'
+                              style={{ color: friendColor }}>
+                              ✕
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -1606,7 +1651,7 @@ export default function FriendsPage() {
               </p>
             </div>
           </div>
-          {/* Favorites */}
+          {/* Friends' Ratings */}
           <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
             <div className='w-8 h-8 flex items-center justify-center shrink-0'>
               <svg
@@ -1618,10 +1663,10 @@ export default function FriendsPage() {
             </div>
             <div className='flex-1 min-w-0'>
               <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
-                Favorites
+                Friends' Ratings
               </p>
               <p className='text-[13px] text-gray-500 dark:text-gray-400'>
-                Heart a friend to see their movies in the Favorites tab.
+                Heart a friend to see their ratings on Movies & TV.
               </p>
             </div>
           </div>

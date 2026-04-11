@@ -2,6 +2,39 @@
 
 import { LogEntry, StatisticsSummary, TimeRange, ActivityType } from '@/types';
 
+// UUID validation
+export const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidUUID(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
+// Sort activity types by order then creation date
+export function sortActivityTypes(types: ActivityType[]): ActivityType[] {
+  return [...types].sort((a, b) => {
+    const orderA = a.order ?? Infinity;
+    const orderB = b.order ?? Infinity;
+    if (orderA !== orderB) return orderA - orderB;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+}
+
+// Safe JSON parse from localStorage with fallback
+export function safeParseJSON<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+// Normalize a URL for comparison (trim, lowercase, strip trailing slash)
+export function normalizeUrl(url: string): string {
+  return url.trim().toLowerCase().replace(/\/$/, '');
+}
+
 // Date formatting
 export function formatDate(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : date;
