@@ -564,14 +564,14 @@ export default function AdminPage() {
                   <button
                     onClick={() => setShowDetails(!showDetails)}
                     className={cn(
-                      "p-1 rounded-md transition-colors",
+                      "p-1.5 rounded-lg transition-colors",
                       showDetails
-                        ? "text-ios-blue"
+                        ? "text-ios-blue bg-ios-blue/10"
                         : "text-gray-400 dark:text-gray-500",
                     )}
                     title={showDetails ? "Hide details" : "Show details"}>
                     <svg
-                      className='w-4.5 h-4.5'
+                      className='w-4 h-4'
                       fill='none'
                       viewBox='0 0 24 24'
                       stroke='currentColor'
@@ -583,20 +583,44 @@ export default function AdminPage() {
                       />
                     </svg>
                   </button>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                    className='text-[13px] bg-transparent text-ios-blue border-none outline-none'>
-                    <option value='lastActive'>Last Active</option>
-                    <option value='created'>Sign Up</option>
-                    <option value='entries'>Entries</option>
-                  </select>
+                  <div className='flex items-center bg-gray-100/80 dark:bg-gray-800/80 rounded-lg p-[2px]'>
+                    {(
+                      [
+                        { value: "lastActive", label: "Active" },
+                        { value: "created", label: "Joined" },
+                        { value: "entries", label: "Entries" },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setSortBy(opt.value)}
+                        className={cn(
+                          "text-[12px] font-medium w-[52px] text-center py-1 transition-colors rounded-[5px]",
+                          sortBy === opt.value
+                            ? "bg-white dark:bg-gray-700 text-ios-blue shadow-sm"
+                            : "text-gray-500 dark:text-gray-400",
+                        )}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                   <button
                     onClick={() =>
                       setSortOrder(sortOrder === "asc" ? "desc" : "asc")
                     }
-                    className='text-ios-blue'>
-                    {sortOrder === "desc" ? "↓" : "↑"}
+                    className='p-1.5 rounded-lg text-gray-500 dark:text-gray-400 bg-gray-100/80 dark:bg-gray-800/80 transition-colors active:bg-gray-200 dark:active:bg-gray-700'>
+                    <svg
+                      className='w-3.5 h-3.5'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2.5}>
+                      {sortOrder === "desc" ? (
+                        <path strokeLinecap='round' strokeLinejoin='round' d='M19 14l-7 7m0 0l-7-7m7 7V3' />
+                      ) : (
+                        <path strokeLinecap='round' strokeLinejoin='round' d='M5 10l7-7m0 0l7 7m-7-7v18' />
+                      )}
+                    </svg>
                   </button>
                 </div>
               </div>

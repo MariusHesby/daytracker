@@ -599,56 +599,48 @@ export default function HomePage() {
         {typeof window !== 'undefined' && localStorage.getItem('wordoftheday_enabled') === 'true' && (localStorage.getItem('wordoftheday_position') || 'top') === 'top' && (() => {
           const dagensOrd = getDagensOrd(new Date(selectedDate));
           return (
-            <div className='mx-2 mt-14 mb-12 relative overflow-visible' style={{ minHeight: '140px' }}>
-              {/* Organic blob background — light */}
-              <svg className='absolute inset-0 w-full h-full pointer-events-none dark:hidden' viewBox='0 0 380 120' preserveAspectRatio='none' overflow='visible'>
+            <div className='mx-4 mt-3 mb-2 relative' style={{ minHeight: '130px' }}>
+              {/* Notebook page — light */}
+              <svg className='absolute inset-0 w-full h-full pointer-events-none dark:hidden' viewBox='0 0 400 140' preserveAspectRatio='none'>
                 <defs>
-                  <filter id='wod-rough-t'>
-                    <feTurbulence type='turbulence' baseFrequency='0.04' numOctaves='4' seed='2' result='noise' />
-                    <feDisplacementMap in='SourceGraphic' in2='noise' scale='6' />
+                  <filter id='wod-shadow-t' x='-4%' y='-4%' width='112%' height='120%'>
+                    <feDropShadow dx='1' dy='2' stdDeviation='3' floodColor='#00000022' />
                   </filter>
                 </defs>
-                {/* White border following blob shape */}
-                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='white' opacity='0.95' filter='url(#wod-rough-t)' stroke='white' strokeWidth='24' strokeLinejoin='round' />
-                {/* Yellow fill blob */}
-                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#deba5c' opacity='0.4' filter='url(#wod-rough-t)' />
-                <path d='M35 16 Q120 -2, 210 12 Q300 0, 360 20 Q382 36, 375 60 Q370 88, 330 105 Q250 122, 140 110 Q50 100, 15 78 Q-4 56, 10 34 Q18 18, 35 16 Z' fill='#d4ad4a' opacity='0.22' filter='url(#wod-rough-t)' />
-                <path d='M30 22 Q80 8, 170 18 Q260 4, 350 22' fill='none' stroke='#8a7340' strokeWidth='0.8' opacity='0.18' strokeLinecap='round' />
-                <path d='M15 78 Q90 95, 200 86 Q310 100, 365 82' fill='none' stroke='#8a7340' strokeWidth='0.6' opacity='0.14' strokeLinecap='round' />
-                <path d='M75 105 Q73 112, 76 118' fill='none' stroke='#c9a84a' strokeWidth='1.2' opacity='0.18' strokeLinecap='round' />
-                <path d='M285 104 Q287 110, 284 116' fill='none' stroke='#c9a84a' strokeWidth='0.8' opacity='0.14' strokeLinecap='round' />
-                <circle cx='35' cy='45' r='2' fill='#a08838' opacity='0.14' />
-                <circle cx='350' cy='38' r='1.5' fill='#a08838' opacity='0.12' />
-                <circle cx='160' cy='108' r='1.8' fill='#a08838' opacity='0.1' />
+                {/* Page body */}
+                <rect x='4' y='4' width='392' height='132' rx='4' ry='4' fill='#faf8f4' stroke='#e0ddd6' strokeWidth='0.5' filter='url(#wod-shadow-t)' />
+                {/* Ruled lines */}
+                <line x1='20' y1='42' x2='380' y2='42' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.6' />
+                <line x1='20' y1='62' x2='380' y2='62' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.5' />
+                <line x1='20' y1='82' x2='380' y2='82' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.4' />
+                <line x1='20' y1='102' x2='380' y2='102' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.3' />
+                {/* Red margin line */}
+                <line x1='48' y1='8' x2='48' y2='130' stroke='#e8b4b4' strokeWidth='0.5' opacity='0.5' />
               </svg>
-              {/* Organic blob background — dark */}
-              <svg className='absolute inset-0 w-full h-full pointer-events-none hidden dark:block' viewBox='0 0 380 120' preserveAspectRatio='none' overflow='visible'>
+              {/* Notebook page — dark */}
+              <svg className='absolute inset-0 w-full h-full pointer-events-none hidden dark:block' viewBox='0 0 400 140' preserveAspectRatio='none'>
                 <defs>
-                  <filter id='wod-rough-td'>
-                    <feTurbulence type='turbulence' baseFrequency='0.04' numOctaves='4' seed='2' result='noise' />
-                    <feDisplacementMap in='SourceGraphic' in2='noise' scale='6' />
+                  <filter id='wod-shadow-td' x='-4%' y='-4%' width='112%' height='120%'>
+                    <feDropShadow dx='1' dy='2' stdDeviation='3' floodColor='#00000044' />
                   </filter>
                 </defs>
-                {/* Dark border following blob shape */}
-                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#1f2937' opacity='0.9' filter='url(#wod-rough-td)' stroke='#1f2937' strokeWidth='24' strokeLinejoin='round' />
-                {/* Yellow fill blob */}
-                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#8a7230' opacity='0.35' filter='url(#wod-rough-td)' />
-                <path d='M35 16 Q120 -2, 210 12 Q300 0, 360 20 Q382 36, 375 60 Q370 88, 330 105 Q250 122, 140 110 Q50 100, 15 78 Q-4 56, 10 34 Q18 18, 35 16 Z' fill='#7a6428' opacity='0.2' filter='url(#wod-rough-td)' />
-                <path d='M30 22 Q80 8, 170 18 Q260 4, 350 22' fill='none' stroke='#a08838' strokeWidth='0.8' opacity='0.2' strokeLinecap='round' />
-                <path d='M15 78 Q90 95, 200 86 Q310 100, 365 82' fill='none' stroke='#a08838' strokeWidth='0.6' opacity='0.15' strokeLinecap='round' />
-                <path d='M75 105 Q73 112, 76 118' fill='none' stroke='#8a7830' strokeWidth='1.2' opacity='0.2' strokeLinecap='round' />
-                <path d='M285 104 Q287 110, 284 116' fill='none' stroke='#8a7830' strokeWidth='0.8' opacity='0.15' strokeLinecap='round' />
-                <circle cx='35' cy='45' r='2' fill='#8a7830' opacity='0.18' />
-                <circle cx='350' cy='38' r='1.5' fill='#8a7830' opacity='0.14' />
-                <circle cx='160' cy='108' r='1.8' fill='#8a7830' opacity='0.12' />
+                {/* Page body */}
+                <rect x='4' y='4' width='392' height='132' rx='4' ry='4' fill='#1e2028' stroke='#333640' strokeWidth='0.5' filter='url(#wod-shadow-td)' />
+                {/* Ruled lines */}
+                <line x1='20' y1='42' x2='380' y2='42' stroke='#3a4050' strokeWidth='0.4' opacity='0.4' />
+                <line x1='20' y1='62' x2='380' y2='62' stroke='#3a4050' strokeWidth='0.4' opacity='0.35' />
+                <line x1='20' y1='82' x2='380' y2='82' stroke='#3a4050' strokeWidth='0.4' opacity='0.3' />
+                <line x1='20' y1='102' x2='380' y2='102' stroke='#3a4050' strokeWidth='0.4' opacity='0.25' />
+                {/* Red margin line */}
+                <line x1='48' y1='8' x2='48' y2='130' stroke='#8b5555' strokeWidth='0.5' opacity='0.4' />
               </svg>
-              <div className='relative px-14 py-8'>
-                <p className='text-[10px] font-medium tracking-[0.2em] uppercase text-amber-800/60 dark:text-amber-400/50'>Dagens Ord</p>
-                <div className='flex items-baseline gap-2 mt-1.5'>
-                  <span className='text-[22px] font-bold text-amber-950 dark:text-amber-100' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.ord}</span>
-                  <span className='text-[12px] italic text-amber-800/70 dark:text-amber-300/60'>{dagensOrd.ordklasse}</span>
+              <div className='relative px-14 py-6'>
+                <p className='text-[10px] font-medium tracking-[0.2em] uppercase text-stone-400 dark:text-stone-500'>Dagens Ord</p>
+                <div className='flex items-baseline gap-2 mt-2'>
+                  <span className='text-[22px] font-bold text-stone-800 dark:text-stone-200' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.ord}</span>
+                  <span className='text-[12px] italic text-stone-500 dark:text-stone-400'>{dagensOrd.ordklasse}</span>
                 </div>
-                <p className='text-[14px] mt-1.5 leading-snug text-amber-900 dark:text-amber-200/90' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.beskrivelse}</p>
+                <p className='text-[14px] mt-2 leading-snug text-stone-600 dark:text-stone-300' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.beskrivelse}</p>
               </div>
             </div>
           );
@@ -1076,56 +1068,48 @@ export default function HomePage() {
         {typeof window !== 'undefined' && localStorage.getItem('wordoftheday_enabled') === 'true' && localStorage.getItem('wordoftheday_position') === 'bottom' && (() => {
           const dagensOrd = getDagensOrd(new Date(selectedDate));
           return (
-            <div className='mx-2 mt-14 mb-2 relative overflow-visible' style={{ minHeight: '140px' }}>
-              {/* Organic blob background — light */}
-              <svg className='absolute inset-0 w-full h-full pointer-events-none dark:hidden' viewBox='0 0 380 120' preserveAspectRatio='none' overflow='visible'>
+            <div className='mt-14 mb-2 relative' style={{ minHeight: '130px' }}>
+              {/* Notebook page — light */}
+              <svg className='absolute inset-0 w-full h-full pointer-events-none dark:hidden' viewBox='0 0 400 140' preserveAspectRatio='none'>
                 <defs>
-                  <filter id='wod-rough-b'>
-                    <feTurbulence type='turbulence' baseFrequency='0.04' numOctaves='4' seed='5' result='noise' />
-                    <feDisplacementMap in='SourceGraphic' in2='noise' scale='6' />
+                  <filter id='wod-shadow-b' x='-4%' y='-4%' width='112%' height='120%'>
+                    <feDropShadow dx='1' dy='2' stdDeviation='3' floodColor='#00000022' />
                   </filter>
                 </defs>
-                {/* White border following blob shape */}
-                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='white' opacity='0.95' filter='url(#wod-rough-b)' stroke='white' strokeWidth='24' strokeLinejoin='round' />
-                {/* Yellow fill blob */}
-                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#deba5c' opacity='0.4' filter='url(#wod-rough-b)' />
-                <path d='M35 16 Q120 -2, 210 12 Q300 0, 360 20 Q382 36, 375 60 Q370 88, 330 105 Q250 122, 140 110 Q50 100, 15 78 Q-4 56, 10 34 Q18 18, 35 16 Z' fill='#d4ad4a' opacity='0.22' filter='url(#wod-rough-b)' />
-                <path d='M30 22 Q80 8, 170 18 Q260 4, 350 22' fill='none' stroke='#8a7340' strokeWidth='0.8' opacity='0.18' strokeLinecap='round' />
-                <path d='M15 78 Q90 95, 200 86 Q310 100, 365 82' fill='none' stroke='#8a7340' strokeWidth='0.6' opacity='0.14' strokeLinecap='round' />
-                <path d='M75 105 Q73 112, 76 118' fill='none' stroke='#c9a84a' strokeWidth='1.2' opacity='0.18' strokeLinecap='round' />
-                <path d='M285 104 Q287 110, 284 116' fill='none' stroke='#c9a84a' strokeWidth='0.8' opacity='0.14' strokeLinecap='round' />
-                <circle cx='35' cy='45' r='2' fill='#a08838' opacity='0.14' />
-                <circle cx='350' cy='38' r='1.5' fill='#a08838' opacity='0.12' />
-                <circle cx='160' cy='108' r='1.8' fill='#a08838' opacity='0.1' />
+                {/* Page body */}
+                <rect x='4' y='4' width='392' height='132' rx='4' ry='4' fill='#faf8f4' stroke='#e0ddd6' strokeWidth='0.5' filter='url(#wod-shadow-b)' />
+                {/* Ruled lines */}
+                <line x1='20' y1='42' x2='380' y2='42' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.6' />
+                <line x1='20' y1='62' x2='380' y2='62' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.5' />
+                <line x1='20' y1='82' x2='380' y2='82' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.4' />
+                <line x1='20' y1='102' x2='380' y2='102' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.3' />
+                {/* Red margin line */}
+                <line x1='48' y1='8' x2='48' y2='130' stroke='#e8b4b4' strokeWidth='0.5' opacity='0.5' />
               </svg>
-              {/* Organic blob background — dark */}
-              <svg className='absolute inset-0 w-full h-full pointer-events-none hidden dark:block' viewBox='0 0 380 120' preserveAspectRatio='none' overflow='visible'>
+              {/* Notebook page — dark */}
+              <svg className='absolute inset-0 w-full h-full pointer-events-none hidden dark:block' viewBox='0 0 400 140' preserveAspectRatio='none'>
                 <defs>
-                  <filter id='wod-rough-bd'>
-                    <feTurbulence type='turbulence' baseFrequency='0.04' numOctaves='4' seed='5' result='noise' />
-                    <feDisplacementMap in='SourceGraphic' in2='noise' scale='6' />
+                  <filter id='wod-shadow-bd' x='-4%' y='-4%' width='112%' height='120%'>
+                    <feDropShadow dx='1' dy='2' stdDeviation='3' floodColor='#00000044' />
                   </filter>
                 </defs>
-                {/* Dark border following blob shape */}
-                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#1f2937' opacity='0.9' filter='url(#wod-rough-bd)' stroke='#1f2937' strokeWidth='24' strokeLinejoin='round' />
-                {/* Yellow fill blob */}
-                <path d='M20 8 Q80 -10, 180 6 Q280 -6, 350 10 Q385 22, 380 50 Q384 80, 360 98 Q310 120, 200 118 Q90 122, 30 102 Q2 86, -2 58 Q-4 30, 20 8 Z' fill='#8a7230' opacity='0.35' filter='url(#wod-rough-bd)' />
-                <path d='M35 16 Q120 -2, 210 12 Q300 0, 360 20 Q382 36, 375 60 Q370 88, 330 105 Q250 122, 140 110 Q50 100, 15 78 Q-4 56, 10 34 Q18 18, 35 16 Z' fill='#7a6428' opacity='0.2' filter='url(#wod-rough-bd)' />
-                <path d='M30 22 Q80 8, 170 18 Q260 4, 350 22' fill='none' stroke='#a08838' strokeWidth='0.8' opacity='0.2' strokeLinecap='round' />
-                <path d='M15 78 Q90 95, 200 86 Q310 100, 365 82' fill='none' stroke='#a08838' strokeWidth='0.6' opacity='0.15' strokeLinecap='round' />
-                <path d='M75 105 Q73 112, 76 118' fill='none' stroke='#8a7830' strokeWidth='1.2' opacity='0.2' strokeLinecap='round' />
-                <path d='M285 104 Q287 110, 284 116' fill='none' stroke='#8a7830' strokeWidth='0.8' opacity='0.15' strokeLinecap='round' />
-                <circle cx='35' cy='45' r='2' fill='#8a7830' opacity='0.18' />
-                <circle cx='350' cy='38' r='1.5' fill='#8a7830' opacity='0.14' />
-                <circle cx='160' cy='108' r='1.8' fill='#8a7830' opacity='0.12' />
+                {/* Page body */}
+                <rect x='4' y='4' width='392' height='132' rx='4' ry='4' fill='#1e2028' stroke='#333640' strokeWidth='0.5' filter='url(#wod-shadow-bd)' />
+                {/* Ruled lines */}
+                <line x1='20' y1='42' x2='380' y2='42' stroke='#3a4050' strokeWidth='0.4' opacity='0.4' />
+                <line x1='20' y1='62' x2='380' y2='62' stroke='#3a4050' strokeWidth='0.4' opacity='0.35' />
+                <line x1='20' y1='82' x2='380' y2='82' stroke='#3a4050' strokeWidth='0.4' opacity='0.3' />
+                <line x1='20' y1='102' x2='380' y2='102' stroke='#3a4050' strokeWidth='0.4' opacity='0.25' />
+                {/* Red margin line */}
+                <line x1='48' y1='8' x2='48' y2='130' stroke='#8b5555' strokeWidth='0.5' opacity='0.4' />
               </svg>
-              <div className='relative px-14 py-8'>
-                <p className='text-[10px] font-medium tracking-[0.2em] uppercase text-amber-800/60 dark:text-amber-400/50'>Dagens Ord</p>
-                <div className='flex items-baseline gap-2 mt-1.5'>
-                  <span className='text-[22px] font-bold text-amber-950 dark:text-amber-100' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.ord}</span>
-                  <span className='text-[12px] italic text-amber-800/70 dark:text-amber-300/60'>{dagensOrd.ordklasse}</span>
+              <div className='relative px-14 py-6'>
+                <p className='text-[10px] font-medium tracking-[0.2em] uppercase text-stone-400 dark:text-stone-500'>Dagens Ord</p>
+                <div className='flex items-baseline gap-2 mt-2'>
+                  <span className='text-[22px] font-bold text-stone-800 dark:text-stone-200' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.ord}</span>
+                  <span className='text-[12px] italic text-stone-500 dark:text-stone-400'>{dagensOrd.ordklasse}</span>
                 </div>
-                <p className='text-[14px] mt-1.5 leading-snug text-amber-900 dark:text-amber-200/90' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.beskrivelse}</p>
+                <p className='text-[14px] mt-2 leading-snug text-stone-600 dark:text-stone-300' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.beskrivelse}</p>
               </div>
             </div>
           );
