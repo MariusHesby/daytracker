@@ -58,7 +58,6 @@ import {
   formatMinutes,
   getDayLabel,
 } from "@/lib/screentime";
-import { getDagensOrd } from "@/lib/wordoftheday";
 
 // Get time-based greeting
 function getGreeting(): string {
@@ -595,57 +594,6 @@ export default function HomePage() {
 
         {/* Football Section removed - shown as matchday activity below */}
 
-        {/* Word of the Day - Top position */}
-        {typeof window !== 'undefined' && localStorage.getItem('wordoftheday_enabled') === 'true' && (localStorage.getItem('wordoftheday_position') || 'top') === 'top' && (() => {
-          const dagensOrd = getDagensOrd(new Date(selectedDate));
-          return (
-            <div className='mx-4 mt-3 mb-2 relative' style={{ minHeight: '130px' }}>
-              {/* Notebook page — light */}
-              <svg className='absolute inset-0 w-full h-full pointer-events-none dark:hidden' viewBox='0 0 400 140' preserveAspectRatio='none'>
-                <defs>
-                  <filter id='wod-shadow-t' x='-4%' y='-4%' width='112%' height='120%'>
-                    <feDropShadow dx='1' dy='2' stdDeviation='3' floodColor='#00000022' />
-                  </filter>
-                </defs>
-                {/* Page body */}
-                <rect x='4' y='4' width='392' height='132' rx='4' ry='4' fill='#faf8f4' stroke='#e0ddd6' strokeWidth='0.5' filter='url(#wod-shadow-t)' />
-                {/* Ruled lines */}
-                <line x1='20' y1='42' x2='380' y2='42' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.6' />
-                <line x1='20' y1='62' x2='380' y2='62' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.5' />
-                <line x1='20' y1='82' x2='380' y2='82' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.4' />
-                <line x1='20' y1='102' x2='380' y2='102' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.3' />
-                {/* Red margin line */}
-                <line x1='48' y1='8' x2='48' y2='130' stroke='#e8b4b4' strokeWidth='0.5' opacity='0.5' />
-              </svg>
-              {/* Notebook page — dark */}
-              <svg className='absolute inset-0 w-full h-full pointer-events-none hidden dark:block' viewBox='0 0 400 140' preserveAspectRatio='none'>
-                <defs>
-                  <filter id='wod-shadow-td' x='-4%' y='-4%' width='112%' height='120%'>
-                    <feDropShadow dx='1' dy='2' stdDeviation='3' floodColor='#00000044' />
-                  </filter>
-                </defs>
-                {/* Page body */}
-                <rect x='4' y='4' width='392' height='132' rx='4' ry='4' fill='#1e2028' stroke='#333640' strokeWidth='0.5' filter='url(#wod-shadow-td)' />
-                {/* Ruled lines */}
-                <line x1='20' y1='42' x2='380' y2='42' stroke='#3a4050' strokeWidth='0.4' opacity='0.4' />
-                <line x1='20' y1='62' x2='380' y2='62' stroke='#3a4050' strokeWidth='0.4' opacity='0.35' />
-                <line x1='20' y1='82' x2='380' y2='82' stroke='#3a4050' strokeWidth='0.4' opacity='0.3' />
-                <line x1='20' y1='102' x2='380' y2='102' stroke='#3a4050' strokeWidth='0.4' opacity='0.25' />
-                {/* Red margin line */}
-                <line x1='48' y1='8' x2='48' y2='130' stroke='#8b5555' strokeWidth='0.5' opacity='0.4' />
-              </svg>
-              <div className='relative px-14 py-6'>
-                <p className='text-[10px] font-medium tracking-[0.2em] uppercase text-stone-400 dark:text-stone-500'>Dagens Ord</p>
-                <div className='flex items-baseline gap-2 mt-2'>
-                  <span className='text-[22px] font-bold text-stone-800 dark:text-stone-200' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.ord}</span>
-                  <span className='text-[12px] italic text-stone-500 dark:text-stone-400'>{dagensOrd.ordklasse}</span>
-                </div>
-                <p className='text-[14px] mt-2 leading-snug text-stone-600 dark:text-stone-300' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.beskrivelse}</p>
-              </div>
-            </div>
-          );
-        })()}
-
         {/* Action buttons row */}
         <div className='px-4 pt-3 flex items-center justify-between'>
           {/* Left side - Unlocked days (no background) */}
@@ -1063,57 +1011,6 @@ export default function HomePage() {
               : undefined
           }
         />
-
-        {/* Word of the Day - Bottom position */}
-        {typeof window !== 'undefined' && localStorage.getItem('wordoftheday_enabled') === 'true' && localStorage.getItem('wordoftheday_position') === 'bottom' && (() => {
-          const dagensOrd = getDagensOrd(new Date(selectedDate));
-          return (
-            <div className='mt-14 mb-2 relative' style={{ minHeight: '130px' }}>
-              {/* Notebook page — light */}
-              <svg className='absolute inset-0 w-full h-full pointer-events-none dark:hidden' viewBox='0 0 400 140' preserveAspectRatio='none'>
-                <defs>
-                  <filter id='wod-shadow-b' x='-4%' y='-4%' width='112%' height='120%'>
-                    <feDropShadow dx='1' dy='2' stdDeviation='3' floodColor='#00000022' />
-                  </filter>
-                </defs>
-                {/* Page body */}
-                <rect x='4' y='4' width='392' height='132' rx='4' ry='4' fill='#faf8f4' stroke='#e0ddd6' strokeWidth='0.5' filter='url(#wod-shadow-b)' />
-                {/* Ruled lines */}
-                <line x1='20' y1='42' x2='380' y2='42' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.6' />
-                <line x1='20' y1='62' x2='380' y2='62' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.5' />
-                <line x1='20' y1='82' x2='380' y2='82' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.4' />
-                <line x1='20' y1='102' x2='380' y2='102' stroke='#d6e4f0' strokeWidth='0.4' opacity='0.3' />
-                {/* Red margin line */}
-                <line x1='48' y1='8' x2='48' y2='130' stroke='#e8b4b4' strokeWidth='0.5' opacity='0.5' />
-              </svg>
-              {/* Notebook page — dark */}
-              <svg className='absolute inset-0 w-full h-full pointer-events-none hidden dark:block' viewBox='0 0 400 140' preserveAspectRatio='none'>
-                <defs>
-                  <filter id='wod-shadow-bd' x='-4%' y='-4%' width='112%' height='120%'>
-                    <feDropShadow dx='1' dy='2' stdDeviation='3' floodColor='#00000044' />
-                  </filter>
-                </defs>
-                {/* Page body */}
-                <rect x='4' y='4' width='392' height='132' rx='4' ry='4' fill='#1e2028' stroke='#333640' strokeWidth='0.5' filter='url(#wod-shadow-bd)' />
-                {/* Ruled lines */}
-                <line x1='20' y1='42' x2='380' y2='42' stroke='#3a4050' strokeWidth='0.4' opacity='0.4' />
-                <line x1='20' y1='62' x2='380' y2='62' stroke='#3a4050' strokeWidth='0.4' opacity='0.35' />
-                <line x1='20' y1='82' x2='380' y2='82' stroke='#3a4050' strokeWidth='0.4' opacity='0.3' />
-                <line x1='20' y1='102' x2='380' y2='102' stroke='#3a4050' strokeWidth='0.4' opacity='0.25' />
-                {/* Red margin line */}
-                <line x1='48' y1='8' x2='48' y2='130' stroke='#8b5555' strokeWidth='0.5' opacity='0.4' />
-              </svg>
-              <div className='relative px-14 py-6'>
-                <p className='text-[10px] font-medium tracking-[0.2em] uppercase text-stone-400 dark:text-stone-500'>Dagens Ord</p>
-                <div className='flex items-baseline gap-2 mt-2'>
-                  <span className='text-[22px] font-bold text-stone-800 dark:text-stone-200' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.ord}</span>
-                  <span className='text-[12px] italic text-stone-500 dark:text-stone-400'>{dagensOrd.ordklasse}</span>
-                </div>
-                <p className='text-[14px] mt-2 leading-snug text-stone-600 dark:text-stone-300' style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{dagensOrd.beskrivelse}</p>
-              </div>
-            </div>
-          );
-        })()}
       </main>
 
       {/* Unlocked Days Info Popup */}

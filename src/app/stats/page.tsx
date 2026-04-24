@@ -1809,7 +1809,13 @@ export default function StatsPage() {
                   </h3>
                   <p className='text-[15px] text-gray-500 dark:text-gray-400'>
                     {selectedStat.totalEntries} entries over{" "}
-                    {selectedStat.uniqueDays} days
+                    {(() => {
+                      const rangeStart = new Date(currentRange.start + "T12:00:00");
+                      const today = new Date();
+                      today.setHours(12, 0, 0, 0);
+                      const rangeEnd = new Date(Math.min(new Date(currentRange.end + "T12:00:00").getTime(), today.getTime()));
+                      return Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                    })()} days
                   </p>
                 </div>
               </div>
@@ -4506,6 +4512,35 @@ export default function StatsPage() {
               !isTimerType &&
               !(isNutritionType && nutritionGridView) && (
                 <div className={cn("p-4", isNutritionType && "-mt-4")}>
+                  {!isNutritionType && !isMoodType && !isTvSeriesType && !isMovieType && selectedStat && (() => {
+                    const rangeStart = new Date(currentRange.start + "T12:00:00");
+                    const today = new Date();
+                    today.setHours(12, 0, 0, 0);
+                    const rangeEnd = new Date(Math.min(new Date(currentRange.end + "T12:00:00").getTime(), today.getTime()));
+                    const totalDays = Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                    const weeks = Math.max(1, totalDays / 7);
+                    const avg = Math.round((selectedStat.totalEntries / weeks) * 10) / 10;
+                    return (
+                      <div className='grid grid-cols-2 gap-3 mb-4'>
+                        <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
+                          <div className='text-[13px] text-gray-500 dark:text-gray-400 mb-1'>
+                            Days with activity
+                          </div>
+                          <div className='text-[24px] font-bold text-gray-900 dark:text-white'>
+                            {selectedStat.uniqueDays}
+                          </div>
+                        </div>
+                        <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
+                          <div className='text-[13px] text-gray-500 dark:text-gray-400 mb-1'>
+                            Average a Week
+                          </div>
+                          <div className='text-[24px] font-bold text-ios-blue'>
+                            {avg}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   {!isNutritionType && (
                     <h4 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 mb-3'>
                       Tap to see dates
@@ -4582,6 +4617,20 @@ export default function StatsPage() {
                                   }}
                                 />
                               </div>
+                              {isSelected && (() => {
+                                const rangeStart = new Date(currentRange.start + "T12:00:00");
+                                const today = new Date();
+                                today.setHours(12, 0, 0, 0);
+                                const rangeEnd = new Date(Math.min(new Date(currentRange.end + "T12:00:00").getTime(), today.getTime()));
+                                const totalDays = Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                                const weeks = Math.max(1, totalDays / 7);
+                                const avg = Math.round((count / weeks) * 10) / 10;
+                                return (
+                                  <p className='text-[12px] text-gray-400 dark:text-gray-500 mt-1'>
+                                    {avg} average a week
+                                  </p>
+                                );
+                              })()}
                             </button>
 
                             {/* Calendar view when selected */}

@@ -32,7 +32,7 @@ export const CATEGORY_LABELS: Record<FunFactCategory, string> = {
 // Load saved categories from localStorage
 export function getSelectedCategories(): FunFactCategory[] {
   if (typeof window === "undefined") return DEFAULT_CATEGORIES;
-  
+
   const saved = localStorage.getItem(FUN_FACT_CATEGORIES_KEY);
   if (saved) {
     try {
@@ -56,14 +56,14 @@ export function setSelectedCategories(categories: FunFactCategory[]) {
 // Fetch a random fun fact from the selected categories
 export async function fetchRandomFunFact(): Promise<FunFact | null> {
   const categories = getSelectedCategories();
-  
+
   if (categories.length === 0) {
     return null;
   }
-  
+
   // Pick a random category from selected ones
   const category = categories[Math.floor(Math.random() * categories.length)];
-  
+
   try {
     return await fetchFactByCategory(category);
   } catch (error) {
@@ -75,6 +75,23 @@ export async function fetchRandomFunFact(): Promise<FunFact | null> {
       source: "DayTracker",
     };
   }
+}
+
+// Fetch fun facts from ALL selected categories
+export async function fetchAllFunFacts(): Promise<FunFact[]> {
+  const categories = getSelectedCategories();
+
+  if (categories.length === 0) {
+    return [];
+  }
+
+  const results = await Promise.allSettled(
+    categories.map((category) => fetchFactByCategory(category))
+  );
+
+  return results
+    .filter((r): r is PromiseFulfilledResult<FunFact> => r.status === "fulfilled")
+    .map((r) => r.value);
 }
 
 // Fetch fact by specific category (exported for testing in settings)
@@ -94,7 +111,7 @@ export async function fetchFactByCategory(category: FunFactCategory): Promise<Fu
 async function fetchUselessFact(): Promise<FunFact> {
   const response = await fetch("https://uselessfacts.jsph.pl/api/v2/facts/random?language=en");
   if (!response.ok) throw new Error("Useless Facts API error");
-  
+
   const data = await response.json();
   return {
     fact: data.text,
@@ -122,7 +139,7 @@ async function fetchEnglishWordOfTheDay(): Promise<FunFact> {
   const today = new Date().toISOString().split("T")[0];
   const response = await fetch(`/api/wordnik?date=${today}`);
   if (!response.ok) throw new Error("Wordnik API error");
-  
+
   const data = await response.json();
   return {
     fact: data.definition || "No definition available.",

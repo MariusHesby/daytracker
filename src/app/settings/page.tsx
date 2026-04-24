@@ -300,14 +300,6 @@ export default function SettingsPage() {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("hide_unlocked_days") === "true";
   });
-  const [wordOfDayEnabled, setWordOfDayEnabled] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("wordoftheday_enabled") === "true";
-  });
-  const [wordOfDayPosition, setWordOfDayPosition] = useState<"top" | "bottom">(() => {
-    if (typeof window === "undefined") return "top";
-    return (localStorage.getItem("wordoftheday_position") as "top" | "bottom") || "top";
-  });
   // Test a fun fact category
   const testFunFactCategory = async (category: FunFactCategory) => {
     setLoadingTestCategory(category);
@@ -2393,14 +2385,14 @@ export default function SettingsPage() {
                 )} />
               </button>
             </div>
-            {/* Fun fact on lock — expandable categories */}
+            {/* Pop up on lock — expandable categories */}
             <button
               onClick={() => setFunFactsExpanded(!funFactsExpanded)}
               className='w-full px-4 py-2.5 flex items-center justify-between min-h-[44px] active:bg-gray-100 dark:active:bg-gray-700'>
-              <span className='text-[17px] text-gray-900 dark:text-white'>Fun fact on lock</span>
+              <span className='text-[17px] text-gray-900 dark:text-white'>Pop up on lock</span>
               <div className='flex items-center gap-2'>
                 <span className='text-[15px] text-gray-500'>
-                  {funFactCategories.filter(c => c === "random").length > 0 ? "On" : "Off"}
+                  {funFactCategories.some(c => c === "random" || c === "wordoftheday_eng") ? "On" : "Off"}
                 </span>
                 <svg
                   className={cn("w-5 h-5 text-gray-400 transition-transform", funFactsExpanded && "rotate-90")}
@@ -2412,7 +2404,7 @@ export default function SettingsPage() {
             {funFactsExpanded && (
               <>
                 {(Object.keys(CATEGORY_LABELS) as FunFactCategory[])
-                  .filter((c) => c === "random")
+                  .filter((c) => c === "random" || c === "wordoftheday_eng")
                   .map((category) => {
                     const isSelected = funFactCategories.includes(category);
                     return (
@@ -2446,106 +2438,6 @@ export default function SettingsPage() {
                     );
                   })}
               </>
-            )}
-          </div>
-        </section>
-
-        {/* Word of the Day Section */}
-        <section>
-          <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
-            Word of the Day
-          </h2>
-          <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
-            {/* Enable toggle */}
-            <div className='px-4 py-2.5 flex items-center justify-between min-h-[44px] border-b border-gray-200/80 dark:border-gray-700/80'>
-              <span className='text-[17px] text-gray-900 dark:text-white'>Enabled</span>
-              <button
-                onClick={() => {
-                  const next = !wordOfDayEnabled;
-                  setWordOfDayEnabled(next);
-                  localStorage.setItem("wordoftheday_enabled", String(next));
-                  // Also sync with fun fact categories for lock-day display
-                  if (next) {
-                    const cats = [...funFactCategories];
-                    if (!cats.includes("wordoftheday_nor")) cats.push("wordoftheday_nor");
-                    setFunFactCategories(cats);
-                    setSelectedCategories(cats);
-                  } else {
-                    const cats = funFactCategories.filter(c => c !== "wordoftheday_nor" && c !== "wordoftheday_eng");
-                    setFunFactCategories(cats);
-                    setSelectedCategories(cats);
-                  }
-                }}
-                className={cn(
-                  "w-[51px] h-[31px] rounded-full relative transition-colors",
-                  wordOfDayEnabled ? "bg-ios-green" : "bg-gray-300 dark:bg-gray-600",
-                )}>
-                <div className={cn(
-                  "w-[27px] h-[27px] rounded-full bg-white shadow absolute top-[2px] transition-transform",
-                  wordOfDayEnabled ? "translate-x-[22px]" : "translate-x-[2px]",
-                )} />
-              </button>
-            </div>
-            {/* Language picker */}
-            {wordOfDayEnabled && (
-              <>
-                {(["wordoftheday_nor", "wordoftheday_eng"] as FunFactCategory[]).map((category, i, arr) => {
-                  const isSelected = funFactCategories.includes(category);
-                  return (
-                    <div key={category} className={cn('flex items-center border-b border-gray-200/80 dark:border-gray-700/80', i === arr.length - 1 && 'border-b-0')}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); testFunFactCategory(category); }}
-                        disabled={loadingTestCategory === category}
-                        className='px-3 py-2.5 flex items-center justify-center active:bg-gray-100 dark:active:bg-gray-700'>
-                        {loadingTestCategory === category ? (
-                          <svg className='w-5 h-5 text-gray-400 animate-spin' fill='none' viewBox='0 0 24 24'>
-                            <circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4' />
-                            <path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z' />
-                          </svg>
-                        ) : (
-                          <svg className='w-5 h-5 text-yellow-500' fill='none' viewBox='0 0 24 24' strokeWidth={1.5} stroke='currentColor'>
-                            <path strokeLinecap='round' strokeLinejoin='round' d='M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18' />
-                          </svg>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => toggleFunFactCategory(category)}
-                        className='flex-1 px-1 py-2.5 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700 pr-4'>
-                        <span className='text-[17px] text-gray-900 dark:text-white'>{CATEGORY_LABELS[category]}</span>
-                        {isSelected && (
-                          <svg className='w-5 h-5 text-ios-blue' fill='none' viewBox='0 0 24 24' strokeWidth={2.5} stroke='currentColor'>
-                            <path strokeLinecap='round' strokeLinejoin='round' d='M4.5 12.75l6 6 9-13.5' />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                  );
-                })}
-              </>
-            )}
-            {/* Position selector */}
-            {wordOfDayEnabled && (
-              <div className='px-4 py-2.5 flex items-center justify-between min-h-[44px] border-t border-gray-200/80 dark:border-gray-700/80'>
-                <span className='text-[17px] text-gray-900 dark:text-white'>Position</span>
-                <div className='flex bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden'>
-                  {(["top", "bottom"] as const).map((pos) => (
-                    <button
-                      key={pos}
-                      onClick={() => {
-                        setWordOfDayPosition(pos);
-                        localStorage.setItem("wordoftheday_position", pos);
-                      }}
-                      className={cn(
-                        "px-3 py-1 text-[14px] font-medium transition-colors capitalize",
-                        wordOfDayPosition === pos
-                          ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                          : "text-gray-500 dark:text-gray-400",
-                      )}>
-                      {pos}
-                    </button>
-                  ))}
-                </div>
-              </div>
             )}
           </div>
         </section>
