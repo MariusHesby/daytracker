@@ -163,7 +163,9 @@ export default function HomePage() {
     try {
       const cached = sessionStorage.getItem("daytracker_weather");
       return cached ? JSON.parse(cached) : null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   });
   const [locationName, setLocationName] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -400,7 +402,12 @@ export default function HomePage() {
       );
       if (weatherData) {
         setWeather(weatherData);
-        try { sessionStorage.setItem("daytracker_weather", JSON.stringify(weatherData)); } catch {}
+        try {
+          sessionStorage.setItem(
+            "daytracker_weather",
+            JSON.stringify(weatherData),
+          );
+        } catch {}
       }
       lastFetchWeather = Date.now();
     };
@@ -600,35 +607,38 @@ export default function HomePage() {
           {user && !isViewingOther && (
             <div className='flex items-center gap-4 ml-1'>
               {/* Unlocked days button */}
-              {!(typeof window !== 'undefined' && localStorage.getItem('hide_unlocked_days') === 'true') && (
-              <button
-                onClick={() => {
-                  setUnlockedPage(0);
-                  setShowStreakPopup(true);
-                }}
-                data-info="Unlocked days. Shows days you haven't locked yet. Tap to see the list."
-                className={`flex items-center gap-1 transition-colors ${
-                  unlockedDays.length > 0
-                    ? "text-ios-orange"
-                    : "text-gray-500 dark:text-gray-400"
-                }`}
-                title={`${unlockedDays.length} unlocked ${unlockedDays.length === 1 ? "day" : "days"}`}>
-                <svg
-                  className='w-6 h-6'
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  stroke='currentColor'
-                  strokeWidth={1.5}>
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    d='M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z'
-                  />
-                </svg>
-                <span className='text-[15px] font-semibold'>
-                  {unlockedDays.length}
-                </span>
-              </button>
+              {!(
+                typeof window !== "undefined" &&
+                localStorage.getItem("hide_unlocked_days") === "true"
+              ) && (
+                <button
+                  onClick={() => {
+                    setUnlockedPage(0);
+                    setShowStreakPopup(true);
+                  }}
+                  data-info="Unlocked days. Shows days you haven't locked yet. Tap to see the list."
+                  className={`flex items-center gap-1 transition-colors ${
+                    unlockedDays.length > 0
+                      ? "text-ios-orange"
+                      : "text-gray-500 dark:text-gray-400"
+                  }`}
+                  title={`${unlockedDays.length} unlocked ${unlockedDays.length === 1 ? "day" : "days"}`}>
+                  <svg
+                    className='w-6 h-6'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={1.5}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z'
+                    />
+                  </svg>
+                  <span className='text-[15px] font-semibold'>
+                    {unlockedDays.length}
+                  </span>
+                </button>
               )}
               {/* Calendar date picker */}
               <label
@@ -1242,7 +1252,7 @@ export default function HomePage() {
               {/* View mode segmented control */}
               <div className='flex items-center justify-center px-4 pb-3'>
                 <div className='inline-flex rounded-lg bg-gray-100 dark:bg-gray-800 p-0.5'>
-                  {/* Mode 1: All articles, no headings */}
+                  {/* Mode 1: New articles */}
                   <button
                     onClick={() => setNewsViewMode("all")}
                     className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all ${
@@ -1252,20 +1262,23 @@ export default function HomePage() {
                     }`}
                     data-info='New articles. Show only unread articles in a single feed.'
                     title='New articles'>
-                    <svg
-                      className='w-4 h-4'
-                      fill='none'
-                      viewBox='0 0 24 24'
-                      stroke='currentColor'
-                      strokeWidth={2}>
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        d='M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z'
-                      />
-                    </svg>
+                    <div className='flex flex-col items-center gap-0.5'>
+                      <svg
+                        className='w-4 h-4'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        stroke='currentColor'
+                        strokeWidth={2}>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z'
+                        />
+                      </svg>
+                      <span className='text-[10px] leading-none'>New</span>
+                    </div>
                   </button>
-                  {/* Mode 2: Accordion (expand one source) */}
+                  {/* Mode 2: By source */}
                   <button
                     onClick={() => setNewsViewMode("accordion")}
                     className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all ${
@@ -1275,20 +1288,25 @@ export default function HomePage() {
                     }`}
                     data-info='By source. Group articles by news source. Tap a source to expand.'
                     title='By source'>
-                    <svg
-                      className='w-4 h-4'
-                      fill='none'
-                      viewBox='0 0 24 24'
-                      stroke='currentColor'
-                      strokeWidth={2}>
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        d='M3 7h4m0 0V3m0 4L3 3m18 4h-4m0 0V3m0 4l4-4M3 17h4m0 0v4m0-4L3 21m18-4h-4m0 0v4m0-4l4 4'
-                      />
-                    </svg>
+                    <div className='flex flex-col items-center gap-0.5'>
+                      <svg
+                        className='w-4 h-4'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        stroke='currentColor'
+                        strokeWidth={2}>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M3 7h4m0 0V3m0 4L3 3m18 4h-4m0 0V3m0 4l4-4M3 17h4m0 0v4m0-4L3 21m18-4h-4m0 0v4m0-4l4 4'
+                        />
+                      </svg>
+                      <span className='text-[10px] leading-none'>
+                        By source
+                      </span>
+                    </div>
                   </button>
-                  {/* Mode 3: All expanded with headings */}
+                  {/* Mode 3: All expanded */}
                   <button
                     onClick={() => setNewsViewMode("expanded")}
                     className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all ${
@@ -1298,25 +1316,28 @@ export default function HomePage() {
                     }`}
                     data-info='All expanded. Show all articles from all sources with headings.'
                     title='All expanded'>
-                    <svg
-                      className='w-4 h-4'
-                      fill='none'
-                      viewBox='0 0 24 24'
-                      stroke='currentColor'
-                      strokeWidth={2}>
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        d='M4 6h16M4 12h16M4 18h16'
-                      />
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        d='M8 9h8M8 15h8'
-                        strokeWidth={1.5}
-                        strokeOpacity={0.5}
-                      />
-                    </svg>
+                    <div className='flex flex-col items-center gap-0.5'>
+                      <svg
+                        className='w-4 h-4'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        stroke='currentColor'
+                        strokeWidth={2}>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M4 6h16M4 12h16M4 18h16'
+                        />
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M8 9h8M8 15h8'
+                          strokeWidth={1.5}
+                          strokeOpacity={0.5}
+                        />
+                      </svg>
+                      <span className='text-[10px] leading-none'>All</span>
+                    </div>
                   </button>
                 </div>
               </div>

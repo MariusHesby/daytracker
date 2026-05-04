@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { IOSTabBar } from "./ios";
 import { SplashScreen } from "./SplashScreen";
 import { InfoModeOverlay } from "./InfoModeOverlay";
+import { FeedbackBar } from "./FeedbackBar";
 import { useApp } from "@/context/AppContext";
 import {
   Clock,
@@ -477,6 +478,7 @@ export function AppShell({ children }: AppShellProps) {
         {children}
       </main>
       <IOSTabBar items={tabItems} />
+      <FeedbackBar />
       <InfoModeOverlay />
     </div>
   );

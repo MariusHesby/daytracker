@@ -18,3 +18,4 @@ export { StarRating } from './StarRating';
 export type { StarRatingProps } from './StarRating';
 export { LoadingSpinner, LoadingState } from './LoadingSpinner';
 export type { LoadingSpinnerProps } from './LoadingSpinner';
+export { FeedbackBar } from './FeedbackBar';

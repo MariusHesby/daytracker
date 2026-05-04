@@ -1282,7 +1282,7 @@ export const ActivityTypeManager = forwardRef<
                       "border-b border-gray-200/80 dark:border-gray-700/80",
                   )}>
                   {/* Delete button behind the row (revealed on swipe) */}
-                  {!type.isDefault && (
+                  {!type.isDefault && isSwiped && (
                     <div className='absolute right-0 top-0 bottom-0 flex items-center'>
                       <button
                         onClick={() => setDeleteConfirmId(type.id)}
@@ -1314,9 +1314,10 @@ export const ActivityTypeManager = forwardRef<
                           : "translateX(0)",
                       transition:
                         "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+                      background: "var(--ios-card, #ffffff)",
                     }}
                     className={cn(
-                      "relative flex items-center min-h-14 px-4 bg-white dark:bg-ios-card-dark swipe-row-bg",
+                      "relative flex items-center min-h-14 px-4 bg-white dark:bg-ios-card-dark",
                       "cursor-grab active:cursor-grabbing",
                       isDragging && "opacity-50",
                       isDragOver && "bg-ios-blue/10",

@@ -227,13 +227,6 @@
   border: 1.5px solid rgba(191, 90, 242, 0.15) !important;
 }
 
-/* Swipe-to-delete rows need opaque background to hide the delete button behind */
-.colorful .swipe-row-bg.bg-white {
-  background: linear-gradient(135deg, #ffffff 0%, #f8f0ff 50%, #fff5fa 100%) !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-
 /* Colorful text - purple tinted grays */
 .colorful .text-gray-900 {
   color: #1a1a2e !important;
@@ -337,6 +330,16 @@
   -webkit-background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
+}
+
+/* select elements can't use gradient text — override to solid color */
+.colorful select.text-ios-blue,
+.colorful select .text-ios-blue {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  -webkit-text-fill-color: #0a84ff !important;
+  color: #0a84ff !important;
 }
 
 .colorful .ring-ios-blue {
@@ -443,13 +446,20 @@ html.colorful h1 {
 
 /* Colorful inputs - frosted glass with gradient border on focus */
 .colorful input,
-.colorful textarea,
-.colorful select {
+.colorful textarea {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(250, 245, 255, 0.8)) !important;
   backdrop-filter: blur(15px) !important;
   -webkit-backdrop-filter: blur(15px) !important;
   border: 1.5px solid rgba(191, 90, 242, 0.2) !important;
   transition: all 0.2s ease !important;
+}
+
+/* select: no backdrop-filter — it prevents text from rendering in some browsers */
+.colorful select {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1.5px solid rgba(191, 90, 242, 0.2) !important;
+  transition: all 0.2s ease !important;
+  -webkit-text-fill-color: currentColor !important;
 }
 
 .colorful input:focus,

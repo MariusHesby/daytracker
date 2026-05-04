@@ -227,8 +227,11 @@ export function EntryForm({
   const [particles, setParticles] = useState<Particle[]>([]);
   const [showFunFact, setShowFunFact] = useState(false);
   const [funFacts, setFunFacts] = useState<FunFact[]>([]);
-
-  // View mode: 'list' or 'icons' - use external state if provided
+  const [funFactIndex, setFunFactIndex] = useState(0);
+  const [showHiddenActivitiesPopup, setShowHiddenActivitiesPopup] =
+    useState(false);
+  const [funFactsPendingAfterHidden, setFunFactsPendingAfterHidden] =
+    useState(false);
   const [internalViewMode, setInternalViewMode] = useState<"list" | "icons">(
     () => {
       if (typeof window !== "undefined") {
@@ -305,6 +308,9 @@ export function EntryForm({
 
   // Track which dates have had checklist auto-populated to avoid re-running
   const checklistAutoPopulatedRef = useRef<Set<string>>(new Set());
+
+  // Track which date+type combos have been back-filled for non-repeating checklists
+  const nonRepeatBackfilledRef = useRef<Set<string>>(new Set());
 
   // Helper to get/set per-activity-type checklist input text
   const getChecklistText = (typeId: string) => checklistItemTexts[typeId] || "";
@@ -537,7 +543,6 @@ export function EntryForm({
   // Handle lock toggle - also saves workout data and hides empty activities
   const handleLockToggle = async () => {
     if (isViewingOther) return;
-
     setIsLocking(true);
 
     // Save any pending workout data before locking
@@ -634,63 +639,68 @@ export function EntryForm({
             }
           }
         } else {
-          // Non-repeating checklists: carry forward only uncompleted items
+          // Non-repeating checklists: only carry forward UNCOMPLETED items.
+          // Completed items are considered done and should not reappear the next day.
           const checklistEntry = freshDateEntries.find(
             (e) =>
               e.activityTypeId === checklistType.id && e.checklistData?.items,
           );
 
-          if (checklistEntry?.checklistData?.items) {
-            const uncompletedItems = checklistEntry.checklistData.items.filter(
-              (item) => !item.completed,
+          if (
+            checklistEntry?.checklistData?.items &&
+            checklistEntry.checklistData.items.length > 0
+          ) {
+            const allItems = checklistEntry.checklistData.items;
+            const uncompletedItems = allItems.filter((item) => !item.completed);
+
+            if (uncompletedItems.length === 0) continue;
+
+            const nextDayEntries = freshEntries.filter(
+              (e) => e.date === nextDay,
+            );
+            const existingNextDayEntry = nextDayEntries.find(
+              (e) =>
+                e.activityTypeId === checklistType.id && e.checklistData?.items,
             );
 
-            if (uncompletedItems.length > 0) {
-              const nextDayEntries = freshEntries.filter(
-                (e) => e.date === nextDay,
-              );
-              const existingNextDayEntry = nextDayEntries.find(
-                (e) =>
-                  e.activityTypeId === checklistType.id &&
-                  e.checklistData?.items,
-              );
+            const itemsForNextDay: ChecklistItem[] = uncompletedItems.map(
+              (item) => ({
+                id: crypto.randomUUID(),
+                text: item.text,
+                completed: false,
+                addedDate: item.addedDate,
+              }),
+            );
 
-              const itemsForNextDay: ChecklistItem[] = uncompletedItems.map(
-                (item) => ({
-                  id: crypto.randomUUID(),
-                  text: item.text,
-                  completed: false,
-                  addedDate: item.addedDate,
-                }),
+            if (existingNextDayEntry) {
+              // Remove items from next-day entry that were completed today
+              // (they may have been carried forward uncompleted from a previous lock)
+              const completedTodayTexts = new Set(
+                allItems.filter((i) => i.completed).map((i) => i.text),
               );
+              const existingFilteredItems = (
+                existingNextDayEntry.checklistData?.items || []
+              ).filter((i) => !completedTodayTexts.has(i.text));
+              const existingTexts = new Set(
+                existingFilteredItems.map((i) => i.text),
+              );
+              const newItems = itemsForNextDay.filter(
+                (item) => !existingTexts.has(item.text),
+              );
+              const mergedItems = [...existingFilteredItems, ...newItems];
 
-              if (existingNextDayEntry) {
-                const existingTexts = new Set(
-                  existingNextDayEntry.checklistData?.items?.map(
-                    (i) => i.text,
-                  ) || [],
-                );
-                const newItems = itemsForNextDay.filter(
-                  (item) => !existingTexts.has(item.text),
-                );
-                const mergedItems = [
-                  ...(existingNextDayEntry.checklistData?.items || []),
-                  ...newItems,
-                ];
-
-                await updateEntry({
-                  ...existingNextDayEntry,
-                  checklistData: { items: mergedItems },
-                  value: `${mergedItems.filter((i) => i.completed).length}/${mergedItems.length}`,
-                });
-              } else {
-                await addEntry({
-                  date: nextDay,
-                  activityTypeId: checklistType.id,
-                  value: `0/${itemsForNextDay.length}`,
-                  checklistData: { items: itemsForNextDay },
-                });
-              }
+              await updateEntry({
+                ...existingNextDayEntry,
+                checklistData: { items: mergedItems },
+                value: `${mergedItems.filter((i) => i.completed).length}/${mergedItems.length}`,
+              });
+            } else {
+              await addEntry({
+                date: nextDay,
+                activityTypeId: checklistType.id,
+                value: `0/${itemsForNextDay.length}`,
+                checklistData: { items: itemsForNextDay },
+              });
             }
           }
         }
@@ -713,22 +723,38 @@ export function EntryForm({
       setExpandedTypeIdState(null);
       setShowCelebration(true);
 
-      // Fetch fun facts from all selected categories
+      // Build post-lock popup sequence
+      const showHiddenOnLock =
+        typeof window !== "undefined" &&
+        localStorage.getItem("show_hidden_on_lock") === "true";
+      const hasHiddenActivities = allActivityTypes.some((t) => t.hidden);
       const categories = getSelectedCategories();
-      if (categories.length > 0) {
+      const hasFunFacts = categories.length > 0;
+
+      if (hasFunFacts) {
         fetchAllFunFacts().then((facts) => {
           if (facts.length > 0) {
             setFunFacts(facts);
-            // Show fun fact modal after celebration finishes (1.5s)
-            setTimeout(() => {
-              setShowFunFact(true);
-            }, 1500);
+            setFunFactIndex(0);
+            setTimeout(() => setShowFunFact(true), 1500);
+            if (showHiddenOnLock && hasHiddenActivities) {
+              setFunFactsPendingAfterHidden(true);
+            }
+          } else if (showHiddenOnLock && hasHiddenActivities) {
+            setTimeout(() => setShowHiddenActivitiesPopup(true), 1500);
           }
         });
+      } else if (showHiddenOnLock && hasHiddenActivities) {
+        setTimeout(() => setShowHiddenActivitiesPopup(true), 1500);
       }
     } else {
       // When unlocking: all activities will show again (dynamic filtering)
     }
+  };
+
+  const dismissHiddenActivitiesPopup = () => {
+    setShowHiddenActivitiesPopup(false);
+    setFunFactsPendingAfterHidden(false);
   };
 
   useEffect(() => {
@@ -741,6 +767,94 @@ export function EntryForm({
     }
     setGoalCelebratedTypes(new Set()); // Reset celebrations for new date
   }, [date, loadEntriesForDateRange]);
+
+  // Back-fill non-repeating checklists: if the current date has no entry for a
+  // non-repeating checklist type, find the most recent past entry and copy it.
+  // This ensures items persist even when intermediate days were never locked.
+  useEffect(() => {
+    if (isViewingOther) return;
+
+    const nonRepeatTypes = allActivityTypes.filter(
+      (t) =>
+        t.valueType === "checklist" &&
+        (!t.checklistRepeat || t.checklistRepeat === "none"),
+    );
+    if (nonRepeatTypes.length === 0) return;
+
+    const dateEntries = entries.filter(
+      (e) => e.date === date && !e.isWatchlist,
+    );
+
+    const typesNeedingFill = nonRepeatTypes.filter((type) => {
+      const cacheKey = `${date}-${type.id}`;
+      if (nonRepeatBackfilledRef.current.has(cacheKey)) return false;
+      return !dateEntries.some(
+        (e) => e.activityTypeId === type.id && e.checklistData?.items,
+      );
+    });
+
+    if (typesNeedingFill.length === 0) return;
+
+    const backfill = async () => {
+      const lookbackStart = addDays(date, -90);
+      const yesterday = addDays(date, -1);
+
+      let pastEntries: import("@/types").LogEntry[];
+      try {
+        if (user) {
+          const { getEntriesFromSupabase } =
+            await import("@/lib/supabase-sync");
+          pastEntries = await getEntriesFromSupabase(
+            user.id,
+            lookbackStart,
+            yesterday,
+          );
+        } else {
+          const { getEntries } = await import("@/lib/db");
+          pastEntries = await getEntries(lookbackStart, yesterday);
+        }
+      } catch {
+        return;
+      }
+
+      for (const type of typesNeedingFill) {
+        const cacheKey = `${date}-${type.id}`;
+        nonRepeatBackfilledRef.current.add(cacheKey);
+
+        const mostRecentPastEntry = pastEntries
+          .filter(
+            (e) =>
+              e.activityTypeId === type.id &&
+              e.checklistData?.items &&
+              e.checklistData.items.length > 0,
+          )
+          .sort((a, b) => b.date.localeCompare(a.date))[0];
+
+        if (!mostRecentPastEntry) continue;
+
+        const itemsForDate: ChecklistItem[] = mostRecentPastEntry
+          .checklistData!.items!.filter((item) => !item.completed)
+          .map((item) => ({
+            id: crypto.randomUUID(),
+            text: item.text,
+            completed: false,
+            addedDate: item.addedDate,
+          }));
+
+        if (itemsForDate.length > 0) {
+          await addEntry({
+            date,
+            activityTypeId: type.id,
+            value: `0/${itemsForDate.length}`,
+            checklistData: { items: itemsForDate },
+          });
+        }
+      }
+    };
+
+    backfill();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, entries, allActivityTypes, isViewingOther, user, addEntry]);
 
   // Auto-populate repeating checklists: only create TOMORROW's entry from template.
   // Never auto-creates entries for today — today's entry is either:
@@ -2414,6 +2528,9 @@ export function EntryForm({
         const handleToggleItem = async (itemId: string) => {
           if (!existingEntry) return;
 
+          const toggledItem = checklistItems.find((i) => i.id === itemId);
+          const willBeCompleted = !toggledItem?.completed;
+
           const updatedItems = checklistItems.map((item) =>
             item.id === itemId ? { ...item, completed: !item.completed } : item,
           );
@@ -2424,6 +2541,29 @@ export function EntryForm({
             checklistData,
             value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
           });
+
+          // When completing an item, remove it from all pre-existing future entries
+          // to prevent it reappearing on days that were visited before this check.
+          if (willBeCompleted && toggledItem) {
+            const futureEntries = entries.filter(
+              (e) =>
+                e.activityTypeId === type.id &&
+                e.date > date &&
+                e.checklistData?.items?.some(
+                  (i) => i.text === toggledItem.text && !i.completed,
+                ),
+            );
+            for (const futureEntry of futureEntries) {
+              const updatedFutureItems = (
+                futureEntry.checklistData?.items || []
+              ).filter((i) => i.text !== toggledItem.text);
+              await updateEntry({
+                ...futureEntry,
+                checklistData: { items: updatedFutureItems },
+                value: `${updatedFutureItems.filter((i) => i.completed).length}/${updatedFutureItems.length}`,
+              });
+            }
+          }
         };
 
         const handleDeleteItem = async (itemId: string) => {
@@ -3462,6 +3602,9 @@ export function EntryForm({
             const handleToggleItem = async (itemId: string) => {
               if (!existingEntry) return;
 
+              const toggledItem = checklistItems.find((i) => i.id === itemId);
+              const willBeCompleted = !toggledItem?.completed;
+
               const updatedItems = checklistItems.map((item) =>
                 item.id === itemId
                   ? { ...item, completed: !item.completed }
@@ -3474,6 +3617,29 @@ export function EntryForm({
                 checklistData,
                 value: `${updatedItems.filter((i) => i.completed).length}/${updatedItems.length}`,
               });
+
+              // When completing an item, remove it from all pre-existing future entries
+              // to prevent it reappearing on days that were visited before this check.
+              if (willBeCompleted && toggledItem) {
+                const futureEntries = entries.filter(
+                  (e) =>
+                    e.activityTypeId === type.id &&
+                    e.date > date &&
+                    e.checklistData?.items?.some(
+                      (i) => i.text === toggledItem.text && !i.completed,
+                    ),
+                );
+                for (const futureEntry of futureEntries) {
+                  const updatedFutureItems = (
+                    futureEntry.checklistData?.items || []
+                  ).filter((i) => i.text !== toggledItem.text);
+                  await updateEntry({
+                    ...futureEntry,
+                    checklistData: { items: updatedFutureItems },
+                    value: `${updatedFutureItems.filter((i) => i.completed).length}/${updatedFutureItems.length}`,
+                  });
+                }
+              }
             };
 
             const handleDeleteItem = async (itemId: string) => {
@@ -4963,6 +5129,88 @@ export function EntryForm({
           </button>
         )}
 
+      {/* Post-Lock Hidden Activities Popup — top-anchored panel */}
+      {showHiddenActivitiesPopup && (
+        <div
+          className='fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-16'
+          onClick={dismissHiddenActivitiesPopup}>
+          <div
+            className='w-full max-w-lg mx-4 bg-white dark:bg-gray-900 rounded-2xl max-h-[calc(100vh-140px)] overflow-hidden shadow-xl'
+            onClick={(e) => e.stopPropagation()}>
+            <div className='p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between'>
+              <h3 className='text-[17px] font-semibold text-gray-900 dark:text-white'>
+                Hidden Activities
+              </h3>
+              <button
+                onClick={dismissHiddenActivitiesPopup}
+                className='p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800'>
+                <svg
+                  className='w-6 h-6 text-gray-400'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    strokeWidth={2}
+                    d='M6 18L18 6M6 6l12 12'
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className='p-4 overflow-y-auto max-h-[calc(100vh-260px)]'>
+              <p className='text-[13px] text-gray-500 dark:text-gray-400 mb-2'>
+                Did you log anything for these today?
+              </p>
+              <div className='space-y-2'>
+                {allActivityTypes
+                  .filter((t) => t.hidden)
+                  .map((type) => (
+                    <button
+                      key={type.id}
+                      onClick={() => {
+                        dismissHiddenActivitiesPopup();
+                        setExpandedTypeId(type.id);
+                      }}
+                      className='w-full flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors'>
+                      <div
+                        className='w-10 h-10 rounded-xl flex items-center justify-center'
+                        style={{ backgroundColor: "rgba(0, 122, 255, 0.1)" }}>
+                        <Icon
+                          name={(type.icon as IconName) || "star"}
+                          className='w-5 h-5 text-ios-blue'
+                        />
+                      </div>
+                      <span className='text-[15px] font-medium text-gray-900 dark:text-white'>
+                        {type.name}
+                      </span>
+                      <svg
+                        className='w-5 h-5 text-gray-400 ml-auto'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        stroke='currentColor'>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          strokeWidth={2}
+                          d='M9 5l7 7-7 7'
+                        />
+                      </svg>
+                    </button>
+                  ))}
+              </div>
+            </div>
+            <div className='px-4 pb-4'>
+              <button
+                onClick={dismissHiddenActivitiesPopup}
+                className='w-full py-3 rounded-xl text-[15px] font-medium bg-ios-blue text-white active:opacity-80'>
+                All good!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Hidden Activity Modal */}
       {showAddHiddenModal && (
         <div
@@ -5055,90 +5303,95 @@ export function EntryForm({
       )}
 
       {/* Lock Day Button - Outside activity list */}
-      {!isViewingOther && !(typeof window !== 'undefined' && localStorage.getItem('hide_lock_button') === 'true' && !isLocked) && (
-        <div className='mt-6 flex justify-center relative'>
-          {/* Celebration overlay - fixed position to prevent scrollbars */}
-          {showCelebration && (
-            <div className='fixed inset-0 pointer-events-none overflow-hidden z-50'>
-              <div className='absolute inset-0 flex items-center justify-center'>
-                {particles.map((particle) => (
-                  <div
-                    key={particle.id}
-                    className='absolute animate-confetti'
-                    style={
-                      {
-                        left: `${particle.x}%`,
-                        top: `${particle.y}%`,
-                        width: particle.size,
-                        height: particle.size,
-                        backgroundColor: particle.color,
-                        transform: `rotate(${particle.rotation}deg)`,
-                        "--vx": particle.velocityX,
-                        "--vy": particle.velocityY,
-                      } as React.CSSProperties
-                    }
-                  />
-                ))}
+      {!isViewingOther &&
+        !(
+          typeof window !== "undefined" &&
+          localStorage.getItem("hide_lock_button") === "true" &&
+          !isLocked
+        ) && (
+          <div className='mt-6 flex justify-center relative'>
+            {/* Celebration overlay - fixed position to prevent scrollbars */}
+            {showCelebration && (
+              <div className='fixed inset-0 pointer-events-none overflow-hidden z-50'>
+                <div className='absolute inset-0 flex items-center justify-center'>
+                  {particles.map((particle) => (
+                    <div
+                      key={particle.id}
+                      className='absolute animate-confetti'
+                      style={
+                        {
+                          left: `${particle.x}%`,
+                          top: `${particle.y}%`,
+                          width: particle.size,
+                          height: particle.size,
+                          backgroundColor: particle.color,
+                          transform: `rotate(${particle.rotation}deg)`,
+                          "--vx": particle.velocityX,
+                          "--vy": particle.velocityY,
+                        } as React.CSSProperties
+                      }
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <button
-            onClick={handleLockToggle}
-            disabled={isLocking}
-            data-info="Lock day. Finalize the day when you're done logging. Triggers a fun fact and celebration!"
-            className={cn(
-              "px-6 py-2.5 rounded-full flex items-center justify-center gap-2 transition-all duration-300",
-              "active:scale-[0.98]",
-              isLocked
-                ? "bg-ios-green text-white shadow-lg shadow-ios-green/30"
-                : "bg-white/80 dark:bg-ios-card-dark text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700",
-              isLocking && "opacity-70 cursor-not-allowed",
-            )}>
-            {/* Lock icon with animation */}
-            <div
+            <button
+              onClick={handleLockToggle}
+              disabled={isLocking}
+              data-info="Lock day. Finalize the day when you're done logging. Triggers a fun fact and celebration!"
               className={cn(
-                "transition-transform duration-500",
-                isLocked && "animate-bounce-once",
+                "px-6 py-2.5 rounded-full flex items-center justify-center gap-2 transition-all duration-300",
+                "active:scale-[0.98]",
+                isLocked
+                  ? "bg-ios-green text-white shadow-lg shadow-ios-green/30"
+                  : "bg-white/80 dark:bg-ios-card-dark text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700",
+                isLocking && "opacity-70 cursor-not-allowed",
               )}>
-              {isLocked ? (
-                <svg
-                  className='w-4 h-4'
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  stroke='currentColor'
-                  strokeWidth={2}>
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className='w-4 h-4'
-                  fill='none'
-                  viewBox='0 0 24 24'
-                  stroke='currentColor'
-                  strokeWidth={2}>
-                  <path
-                    strokeLinecap='round'
-                    strokeLinejoin='round'
-                    d='M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z'
-                  />
-                </svg>
-              )}
-            </div>
-            <span className='font-medium text-[14px]'>
-              {isLocking
-                ? "Working..."
-                : isLocked
-                  ? "Day Locked ✨"
-                  : "Lock Day"}
-            </span>
-          </button>
-        </div>
-      )}
+              {/* Lock icon with animation */}
+              <div
+                className={cn(
+                  "transition-transform duration-500",
+                  isLocked && "animate-bounce-once",
+                )}>
+                {isLocked ? (
+                  <svg
+                    className='w-4 h-4'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z'
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className='w-4 h-4'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z'
+                    />
+                  </svg>
+                )}
+              </div>
+              <span className='font-medium text-[14px]'>
+                {isLocking
+                  ? "Working..."
+                  : isLocked
+                    ? "Day Locked ✨"
+                    : "Lock Day"}
+              </span>
+            </button>
+          </div>
+        )}
 
       {/* Fun Fact / Word of the Day Modal */}
       {showFunFact && funFacts.length > 0 && (
@@ -5150,80 +5403,103 @@ export function EntryForm({
           />
           {/* Modal */}
           <div className='relative bg-white dark:bg-ios-card-dark rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95 duration-200'>
-            {funFacts.map((fact, index) => (
-              <div key={index}>
-                {index > 0 && (
-                  <div className='border-t border-gray-200 dark:border-gray-700 my-4' />
-                )}
-                {fact.word ? (
-                  <>
-                    {/* Book icon for word of the day */}
-                    <div className='flex justify-center mb-4'>
-                      <div className='w-14 h-14 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center'>
-                        <svg
-                          className='w-8 h-8 text-purple-500'
-                          fill='none'
-                          viewBox='0 0 24 24'
-                          strokeWidth={1.5}
-                          stroke='currentColor'>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            d='M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25'
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <h3 className='text-lg font-semibold text-center text-gray-900 dark:text-white mb-3'>
-                      Word of the Day
-                    </h3>
-                    <p className='text-center text-[20px] font-bold text-gray-900 dark:text-white mb-1'>
-                      {fact.word}
-                    </p>
-                    {fact.wordClass && (
-                      <p className='text-center text-[12px] text-gray-400 dark:text-gray-500 italic mb-2'>
-                        {fact.wordClass}
-                      </p>
+            {/* Pagination dots — only shown when more than one fact */}
+            {funFacts.length > 1 && (
+              <div className='flex justify-center gap-1.5 mb-4'>
+                {funFacts.map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "rounded-full transition-all duration-200",
+                      i === funFactIndex
+                        ? "w-4 h-1.5 bg-ios-blue"
+                        : "w-1.5 h-1.5 bg-gray-300 dark:bg-gray-600",
                     )}
-                    <p className='text-gray-600 dark:text-gray-300 text-center text-[15px] leading-relaxed'>
-                      {fact.definition}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    {/* Light bulb icon for random facts */}
-                    <div className='flex justify-center mb-4'>
-                      <div className='w-14 h-14 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center'>
-                        <svg
-                          className='w-8 h-8 text-yellow-500'
-                          fill='none'
-                          viewBox='0 0 24 24'
-                          strokeWidth={1.5}
-                          stroke='currentColor'>
-                          <path
-                            strokeLinecap='round'
-                            strokeLinejoin='round'
-                            d='M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18'
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                    <h3 className='text-lg font-semibold text-center text-gray-900 dark:text-white mb-3'>
-                      Did You Know?
-                    </h3>
-                    <p className='text-gray-600 dark:text-gray-300 text-center text-[15px] leading-relaxed'>
-                      {fact.fact}
-                    </p>
-                  </>
-                )}
+                  />
+                ))}
               </div>
-            ))}
+            )}
 
-            {/* Dismiss button */}
+            {/* Current fact */}
+            {(() => {
+              const fact = funFacts[funFactIndex];
+              return fact.word ? (
+                <>
+                  {/* Book icon for word of the day */}
+                  <div className='flex justify-center mb-4'>
+                    <div className='w-14 h-14 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center'>
+                      <svg
+                        className='w-8 h-8 text-purple-500'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        strokeWidth={1.5}
+                        stroke='currentColor'>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25'
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <h3 className='text-lg font-semibold text-center text-gray-900 dark:text-white mb-3'>
+                    Word of the Day
+                  </h3>
+                  <p className='text-center text-[20px] font-bold text-gray-900 dark:text-white mb-1'>
+                    {fact.word}
+                  </p>
+                  {fact.wordClass && (
+                    <p className='text-center text-[12px] text-gray-400 dark:text-gray-500 italic mb-2'>
+                      {fact.wordClass}
+                    </p>
+                  )}
+                  <p className='text-gray-600 dark:text-gray-300 text-center text-[15px] leading-relaxed'>
+                    {fact.definition}
+                  </p>
+                </>
+              ) : (
+                <>
+                  {/* Light bulb icon for random facts */}
+                  <div className='flex justify-center mb-4'>
+                    <div className='w-14 h-14 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center'>
+                      <svg
+                        className='w-8 h-8 text-yellow-500'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        strokeWidth={1.5}
+                        stroke='currentColor'>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18'
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <h3 className='text-lg font-semibold text-center text-gray-900 dark:text-white mb-3'>
+                    Did You Know?
+                  </h3>
+                  <p className='text-gray-600 dark:text-gray-300 text-center text-[15px] leading-relaxed'>
+                    {fact.fact}
+                  </p>
+                </>
+              );
+            })()}
+
+            {/* Next / Done button */}
             <button
-              onClick={() => setShowFunFact(false)}
+              onClick={() => {
+                if (funFactIndex < funFacts.length - 1) {
+                  setFunFactIndex(funFactIndex + 1);
+                } else {
+                  setShowFunFact(false);
+                  if (funFactsPendingAfterHidden) {
+                    setShowHiddenActivitiesPopup(true);
+                  }
+                }
+              }}
               className='w-full mt-4 py-3 bg-ios-blue text-white font-semibold rounded-xl active:opacity-80 transition-opacity'>
-              {funFacts.some((f) => f.word) ? "Cool!" : "Good to know"}
+              {"Cool!"}
             </button>
           </div>
         </div>

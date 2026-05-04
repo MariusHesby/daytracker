@@ -98,10 +98,9 @@ export default function SettingsPage() {
     "info",
   );
   const [isSyncingData, setIsSyncingData] = useState(false);
-  const [showInfoPopup, setShowInfoPopup] = useState(false);
-  const [infoMode, setInfoMode] = useState(() => {
+  const [feedbackMode, setFeedbackMode] = useState(() => {
     if (typeof window === "undefined") return false;
-    return localStorage.getItem("info_mode") === "true";
+    return localStorage.getItem("feedback_mode") === "true";
   });
   const [isStandalone, setIsStandalone] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
@@ -299,6 +298,10 @@ export default function SettingsPage() {
   const [hideUnlockedDays, setHideUnlockedDays] = useState(() => {
     if (typeof window === "undefined") return false;
     return localStorage.getItem("hide_unlocked_days") === "true";
+  });
+  const [showHiddenOnLock, setShowHiddenOnLock] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("show_hidden_on_lock") === "true";
   });
   // Test a fun fact category
   const testFunFactCategory = async (category: FunFactCategory) => {
@@ -627,28 +630,6 @@ export default function SettingsPage() {
 
   return (
     <div className='pb-16'>
-      {/* Info mode banner */}
-      {infoMode && (
-        <div className='bg-ios-blue text-white px-4 py-2.5 flex items-center justify-between max-w-lg mx-auto'>
-          <div className='flex items-center gap-2'>
-            <span className='text-sm font-semibold italic w-5 h-5 rounded-full border-2 border-white/60 flex items-center justify-center text-[11px] leading-none'>
-              i
-            </span>
-            <p className='text-sm font-medium'>Info Mode</p>
-          </div>
-          <button
-            data-info-button
-            onClick={() => {
-              setInfoMode(false);
-              localStorage.setItem("info_mode", "false");
-              window.dispatchEvent(new Event("infoModeUpdated"));
-            }}
-            className='px-3 py-1.5 bg-white/20 rounded-full text-[13px] font-medium hover:bg-white/30 transition-colors'>
-            Turn off
-          </button>
-        </div>
-      )}
-
       {/* Main Content */}
       <main className='max-w-lg mx-auto px-4 pt-6 pb-4 space-y-6'>
         {/* Header */}
@@ -874,51 +855,54 @@ export default function SettingsPage() {
           </p>
         </section>
 
-        {/* Info Mode Section */}
+        {/* Feedback Section */}
         <section>
-          <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
-            Info
-          </h2>
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             <div className='px-4 py-3 flex items-center justify-between min-h-[44px]'>
               <div className='flex items-center gap-2'>
-                <div className='w-6 h-6 rounded-full border-2 border-ios-blue flex items-center justify-center'>
-                  <span className='text-ios-blue text-[13px] font-semibold italic leading-none'>
-                    i
-                  </span>
-                </div>
+                <svg
+                  className='w-5 h-5 text-ios-blue'
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={1.8}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M7 8h10M7 12h6m-6 4h4M3 6a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H7l-4 4V6z'
+                  />
+                </svg>
                 <span className='text-[17px] text-gray-900 dark:text-white'>
-                  Activate Info Mode
+                  Feedback Bar
                 </span>
               </div>
               <button
-                data-info-toggle
                 onClick={() => {
-                  const next = !infoMode;
-                  setInfoMode(next);
-                  localStorage.setItem("info_mode", String(next));
-                  window.dispatchEvent(new Event("infoModeUpdated"));
+                  const next = !feedbackMode;
+                  setFeedbackMode(next);
+                  localStorage.setItem("feedback_mode", String(next));
+                  window.dispatchEvent(new Event("feedbackModeUpdated"));
                 }}
                 className={cn(
                   "relative w-[51px] h-[31px] rounded-full transition-colors duration-200",
-                  infoMode ? "bg-ios-green" : "bg-gray-300 dark:bg-gray-600",
+                  feedbackMode
+                    ? "bg-ios-green"
+                    : "bg-gray-300 dark:bg-gray-600",
                 )}>
                 <span
                   className={cn(
                     "absolute top-[2px] left-[2px] w-[27px] h-[27px] bg-white rounded-full shadow-sm transition-transform duration-200",
-                    infoMode && "translate-x-[20px]",
+                    feedbackMode && "translate-x-[20px]",
                   )}
                 />
               </button>
             </div>
           </div>
           <p className='text-[13px] text-gray-500 dark:text-gray-400 px-4 mt-2'>
-            Tap any button, activity, or link to see what it does. Tap it again
-            to use it normally.
+            Show a feedback bar at the bottom of every page so you can quickly
+            report bugs or suggest changes.
           </p>
         </section>
-
-        {/* Theme Section */}
         <section>
           <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
             Theme
@@ -2349,7 +2333,9 @@ export default function SettingsPage() {
           <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
             {/* Show lock button toggle */}
             <div className='px-4 py-2.5 flex items-center justify-between min-h-[44px] border-b border-gray-200/80 dark:border-gray-700/80'>
-              <span className='text-[17px] text-gray-900 dark:text-white'>Show lock button</span>
+              <span className='text-[17px] text-gray-900 dark:text-white'>
+                Show lock button
+              </span>
               <button
                 onClick={() => {
                   const next = !hideLockButton;
@@ -2358,17 +2344,25 @@ export default function SettingsPage() {
                 }}
                 className={cn(
                   "w-[51px] h-[31px] rounded-full relative transition-colors",
-                  !hideLockButton ? "bg-ios-green" : "bg-gray-300 dark:bg-gray-600",
+                  !hideLockButton
+                    ? "bg-ios-green"
+                    : "bg-gray-300 dark:bg-gray-600",
                 )}>
-                <div className={cn(
-                  "w-[27px] h-[27px] rounded-full bg-white shadow absolute top-[2px] transition-transform",
-                  !hideLockButton ? "translate-x-[22px]" : "translate-x-[2px]",
-                )} />
+                <div
+                  className={cn(
+                    "w-[27px] h-[27px] rounded-full bg-white shadow absolute top-[2px] transition-transform",
+                    !hideLockButton
+                      ? "translate-x-[22px]"
+                      : "translate-x-[2px]",
+                  )}
+                />
               </button>
             </div>
             {/* Show unlocked days toggle */}
             <div className='px-4 py-2.5 flex items-center justify-between min-h-[44px] border-b border-gray-200/80 dark:border-gray-700/80'>
-              <span className='text-[17px] text-gray-900 dark:text-white'>Show unlocked days</span>
+              <span className='text-[17px] text-gray-900 dark:text-white'>
+                Show unlocked days
+              </span>
               <button
                 onClick={() => {
                   const next = !hideUnlockedDays;
@@ -2377,60 +2371,164 @@ export default function SettingsPage() {
                 }}
                 className={cn(
                   "w-[51px] h-[31px] rounded-full relative transition-colors",
-                  !hideUnlockedDays ? "bg-ios-green" : "bg-gray-300 dark:bg-gray-600",
+                  !hideUnlockedDays
+                    ? "bg-ios-green"
+                    : "bg-gray-300 dark:bg-gray-600",
                 )}>
-                <div className={cn(
-                  "w-[27px] h-[27px] rounded-full bg-white shadow absolute top-[2px] transition-transform",
-                  !hideUnlockedDays ? "translate-x-[22px]" : "translate-x-[2px]",
-                )} />
+                <div
+                  className={cn(
+                    "w-[27px] h-[27px] rounded-full bg-white shadow absolute top-[2px] transition-transform",
+                    !hideUnlockedDays
+                      ? "translate-x-[22px]"
+                      : "translate-x-[2px]",
+                  )}
+                />
               </button>
             </div>
             {/* Pop up on lock — expandable categories */}
             <button
               onClick={() => setFunFactsExpanded(!funFactsExpanded)}
               className='w-full px-4 py-2.5 flex items-center justify-between min-h-[44px] active:bg-gray-100 dark:active:bg-gray-700'>
-              <span className='text-[17px] text-gray-900 dark:text-white'>Pop up on lock</span>
+              <span className='text-[17px] text-gray-900 dark:text-white'>
+                Pop up on lock
+              </span>
               <div className='flex items-center gap-2'>
                 <span className='text-[15px] text-gray-500'>
-                  {funFactCategories.some(c => c === "random" || c === "wordoftheday_eng") ? "On" : "Off"}
+                  {showHiddenOnLock ||
+                  funFactCategories.some(
+                    (c) => c === "random" || c === "wordoftheday_eng",
+                  )
+                    ? "On"
+                    : "Off"}
                 </span>
                 <svg
-                  className={cn("w-5 h-5 text-gray-400 transition-transform", funFactsExpanded && "rotate-90")}
-                  fill='none' viewBox='0 0 24 24' stroke='currentColor' strokeWidth={2}>
-                  <path strokeLinecap='round' strokeLinejoin='round' d='M9 5l7 7-7 7' />
+                  className={cn(
+                    "w-5 h-5 text-gray-400 transition-transform",
+                    funFactsExpanded && "rotate-90",
+                  )}
+                  fill='none'
+                  viewBox='0 0 24 24'
+                  stroke='currentColor'
+                  strokeWidth={2}>
+                  <path
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                    d='M9 5l7 7-7 7'
+                  />
                 </svg>
               </div>
             </button>
             {funFactsExpanded && (
               <>
+                {/* Hidden Activities option — shown first in the lock sequence */}
+                <div className='flex items-center border-t border-gray-200/80 dark:border-gray-700/80'>
+                  <div className='px-3 py-2.5 flex items-center justify-center'>
+                    <svg
+                      className='w-5 h-5 text-gray-400'
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      strokeWidth={1.5}
+                      stroke='currentColor'>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88'
+                      />
+                    </svg>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const next = !showHiddenOnLock;
+                      setShowHiddenOnLock(next);
+                      localStorage.setItem("show_hidden_on_lock", String(next));
+                    }}
+                    className='flex-1 px-1 py-2.5 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700 pr-4'>
+                    <span className='text-[17px] text-gray-900 dark:text-white'>
+                      Hidden Activities
+                    </span>
+                    {showHiddenOnLock && (
+                      <svg
+                        className='w-5 h-5 text-ios-blue'
+                        fill='none'
+                        viewBox='0 0 24 24'
+                        strokeWidth={2.5}
+                        stroke='currentColor'>
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M4.5 12.75l6 6 9-13.5'
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
                 {(Object.keys(CATEGORY_LABELS) as FunFactCategory[])
                   .filter((c) => c === "random" || c === "wordoftheday_eng")
                   .map((category) => {
                     const isSelected = funFactCategories.includes(category);
                     return (
-                      <div key={category} className='flex items-center border-t border-gray-200/80 dark:border-gray-700/80'>
+                      <div
+                        key={category}
+                        className='flex items-center border-t border-gray-200/80 dark:border-gray-700/80'>
                         <button
-                          onClick={(e) => { e.stopPropagation(); testFunFactCategory(category); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            testFunFactCategory(category);
+                          }}
                           disabled={loadingTestCategory === category}
                           className='px-3 py-2.5 flex items-center justify-center active:bg-gray-100 dark:active:bg-gray-700'>
                           {loadingTestCategory === category ? (
-                            <svg className='w-5 h-5 text-gray-400 animate-spin' fill='none' viewBox='0 0 24 24'>
-                              <circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4' />
-                              <path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z' />
+                            <svg
+                              className='w-5 h-5 text-gray-400 animate-spin'
+                              fill='none'
+                              viewBox='0 0 24 24'>
+                              <circle
+                                className='opacity-25'
+                                cx='12'
+                                cy='12'
+                                r='10'
+                                stroke='currentColor'
+                                strokeWidth='4'
+                              />
+                              <path
+                                className='opacity-75'
+                                fill='currentColor'
+                                d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
+                              />
                             </svg>
                           ) : (
-                            <svg className='w-5 h-5 text-yellow-500' fill='none' viewBox='0 0 24 24' strokeWidth={1.5} stroke='currentColor'>
-                              <path strokeLinecap='round' strokeLinejoin='round' d='M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18' />
+                            <svg
+                              className='w-5 h-5 text-yellow-500'
+                              fill='none'
+                              viewBox='0 0 24 24'
+                              strokeWidth={1.5}
+                              stroke='currentColor'>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18'
+                              />
                             </svg>
                           )}
                         </button>
                         <button
                           onClick={() => toggleFunFactCategory(category)}
                           className='flex-1 px-1 py-2.5 flex items-center justify-between active:bg-gray-100 dark:active:bg-gray-700 pr-4'>
-                          <span className='text-[17px] text-gray-900 dark:text-white'>{CATEGORY_LABELS[category]}</span>
+                          <span className='text-[17px] text-gray-900 dark:text-white'>
+                            {CATEGORY_LABELS[category]}
+                          </span>
                           {isSelected && (
-                            <svg className='w-5 h-5 text-ios-blue' fill='none' viewBox='0 0 24 24' strokeWidth={2.5} stroke='currentColor'>
-                              <path strokeLinecap='round' strokeLinejoin='round' d='M4.5 12.75l6 6 9-13.5' />
+                            <svg
+                              className='w-5 h-5 text-ios-blue'
+                              fill='none'
+                              viewBox='0 0 24 24'
+                              strokeWidth={2.5}
+                              stroke='currentColor'>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M4.5 12.75l6 6 9-13.5'
+                              />
                             </svg>
                           )}
                         </button>
@@ -2753,138 +2851,6 @@ export default function SettingsPage() {
                   : "Cool!"
                 : "Good to know"}
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Info Popup */}
-      {showInfoPopup && (
-        <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
-          <div
-            className='absolute inset-0 bg-black/40 backdrop-blur-sm'
-            onClick={() => setShowInfoPopup(false)}
-          />
-          <div className='relative w-full max-w-sm bg-white dark:bg-ios-card-dark rounded-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[80vh] flex flex-col'>
-            <div className='flex items-center justify-between px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
-              <div className='w-16' />
-              <h2 className='text-[17px] font-semibold text-gray-900 dark:text-white'>
-                Settings
-              </h2>
-              <button
-                onClick={() => setShowInfoPopup(false)}
-                className='w-16 text-right text-ios-blue text-[17px]'>
-                Ferdig
-              </button>
-            </div>
-            <div className='flex-1 overflow-y-auto p-4'>
-              <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
-                {/* Account */}
-                <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
-                  <div className='w-8 h-8 flex items-center justify-center shrink-0'>
-                    <svg
-                      className='w-6 h-6 text-blue-400'
-                      fill='none'
-                      viewBox='0 0 24 24'
-                      stroke='currentColor'
-                      strokeWidth={2}>
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        d='M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
-                      />
-                    </svg>
-                  </div>
-                  <div className='flex-1 min-w-0'>
-                    <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
-                      Account
-                    </p>
-                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
-                      Sign in to sync across devices. Edit name & avatar.
-                    </p>
-                  </div>
-                </div>
-                {/* Theme */}
-                <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
-                  <div className='w-8 h-8 flex items-center justify-center shrink-0'>
-                    <svg
-                      className='w-6 h-6 text-purple-400'
-                      fill='none'
-                      viewBox='0 0 24 24'
-                      stroke='currentColor'
-                      strokeWidth={2}>
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        d='M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01'
-                      />
-                    </svg>
-                  </div>
-                  <div className='flex-1 min-w-0'>
-                    <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
-                      Theme
-                    </p>
-                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
-                      Light, Dark, Colorful with custom palettes, or System.
-                    </p>
-                  </div>
-                </div>
-                {/* Activity Types */}
-                <div className='flex items-center gap-3 px-4 py-3 border-b border-gray-200/80 dark:border-gray-700/80'>
-                  <div className='w-8 h-8 flex items-center justify-center shrink-0'>
-                    <svg
-                      className='w-6 h-6 text-green-500'
-                      fill='none'
-                      viewBox='0 0 24 24'
-                      stroke='currentColor'
-                      strokeWidth={2}>
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        d='M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'
-                      />
-                    </svg>
-                  </div>
-                  <div className='flex-1 min-w-0'>
-                    <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
-                      Activity Types
-                    </p>
-                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
-                      Create, edit or delete what you track. Recover deleted.
-                    </p>
-                  </div>
-                </div>
-                {/* Features */}
-                <div className='flex items-center gap-3 px-4 py-3'>
-                  <div className='w-8 h-8 flex items-center justify-center shrink-0'>
-                    <svg
-                      className='w-6 h-6 text-orange-400'
-                      fill='none'
-                      viewBox='0 0 24 24'
-                      stroke='currentColor'
-                      strokeWidth={2}>
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        d='M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z'
-                      />
-                      <path
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                        d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'
-                      />
-                    </svg>
-                  </div>
-                  <div className='flex-1 min-w-0'>
-                    <p className='text-[15px] font-medium text-gray-900 dark:text-white'>
-                      Features
-                    </p>
-                    <p className='text-[13px] text-gray-500 dark:text-gray-400'>
-                      Weather, football, news, screen time & fun facts.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       )}

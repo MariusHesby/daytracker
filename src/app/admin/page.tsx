@@ -6,6 +6,11 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components";
+import {
+  getAllFeedback,
+  setFeedbackResolved,
+  FeedbackItem,
+} from "@/lib/feedback";
 
 const ADMIN_EMAIL = "marius.r.hesby@gmail.com";
 
@@ -178,6 +183,8 @@ export default function AdminPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [swipedUserId, setSwipedUserId] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Check if current user is admin
   const isAdmin = user?.email === ADMIN_EMAIL;
@@ -320,6 +327,14 @@ export default function AdminPage() {
 
       setAppStats(stats);
       setUsers(usersList);
+
+      // Load feedback
+      try {
+        const fb = await getAllFeedback();
+        setFeedback(fb);
+      } catch {
+        // non-critical
+      }
     } catch (err) {
       console.error("Admin data error:", err);
       setError(
@@ -616,9 +631,17 @@ export default function AdminPage() {
                       stroke='currentColor'
                       strokeWidth={2.5}>
                       {sortOrder === "desc" ? (
-                        <path strokeLinecap='round' strokeLinejoin='round' d='M19 14l-7 7m0 0l-7-7m7 7V3' />
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M19 14l-7 7m0 0l-7-7m7 7V3'
+                        />
                       ) : (
-                        <path strokeLinecap='round' strokeLinejoin='round' d='M5 10l7-7m0 0l7 7m-7-7v18' />
+                        <path
+                          strokeLinecap='round'
+                          strokeLinejoin='round'
+                          d='M5 10l7-7m0 0l7 7m-7-7v18'
+                        />
                       )}
                     </svg>
                   </button>
@@ -639,6 +662,125 @@ export default function AdminPage() {
                     formatDateShort={formatDateShort}
                   />
                 ))}
+              </div>
+            </section>
+
+            {/* Feedback section */}
+            <section>
+              <h2 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 uppercase tracking-wide px-4 mb-2'>
+                Feedback
+                {feedback.filter((f) => !f.resolved).length > 0 && (
+                  <span className='ml-2 bg-ios-red text-white text-[11px] font-bold rounded-full px-1.5 py-0.5'>
+                    {feedback.filter((f) => !f.resolved).length}
+                  </span>
+                )}
+              </h2>
+              <div className='bg-white/80 dark:bg-ios-card-dark rounded-xl overflow-hidden'>
+                <button
+                  onClick={() => setFeedbackOpen((v) => !v)}
+                  className='w-full flex items-center justify-between px-4 py-3 text-left'>
+                  <span className='text-[15px] text-gray-900 dark:text-white font-medium'>
+                    {feedbackOpen
+                      ? "Hide messages"
+                      : `Show messages (${feedback.length})`}
+                  </span>
+                  <svg
+                    className={cn(
+                      "w-5 h-5 text-gray-400 transition-transform",
+                      feedbackOpen && "rotate-180",
+                    )}
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M19 9l-7 7-7-7'
+                    />
+                  </svg>
+                </button>
+                {feedbackOpen && (
+                  <div className='divide-y divide-gray-300 dark:divide-gray-600'>
+                    {feedback.length === 0 ? (
+                      <p className='px-4 py-3 text-[14px] text-gray-400'>
+                        No feedback yet.
+                      </p>
+                    ) : (
+                      [...feedback]
+                        .sort((a, b) =>
+                          a.resolved === b.resolved ? 0 : a.resolved ? 1 : -1,
+                        )
+                        .map((item) => (
+                          <div
+                            key={item.id}
+                            className='flex items-start gap-3 px-4 py-3'>
+                            <button
+                              onClick={async () => {
+                                await setFeedbackResolved(
+                                  item.id,
+                                  !item.resolved,
+                                );
+                                setFeedback((prev) =>
+                                  prev.map((f) =>
+                                    f.id === item.id
+                                      ? { ...f, resolved: !f.resolved }
+                                      : f,
+                                  ),
+                                );
+                              }}
+                              className={cn(
+                                "mt-0.5 w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors",
+                                item.resolved
+                                  ? "bg-ios-green border-ios-green"
+                                  : "border-gray-300 dark:border-gray-500",
+                              )}>
+                              {item.resolved && (
+                                <svg
+                                  className='w-3 h-3 text-white'
+                                  fill='none'
+                                  viewBox='0 0 24 24'
+                                  stroke='currentColor'
+                                  strokeWidth={3}>
+                                  <path
+                                    strokeLinecap='round'
+                                    strokeLinejoin='round'
+                                    d='M5 13l4 4L19 7'
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                            <div className='flex-1 min-w-0'>
+                              <div className='flex items-center gap-2 mb-0.5'>
+                                <span className='text-[11px] font-medium text-ios-blue bg-ios-blue/10 rounded px-1.5 py-0.5'>
+                                  {item.page}
+                                </span>
+                                <span className='text-[11px] text-gray-400'>
+                                  {new Date(item.created_at).toLocaleDateString(
+                                    "nb-NO",
+                                    {
+                                      day: "numeric",
+                                      month: "short",
+                                      year: "numeric",
+                                    },
+                                  )}
+                                </span>
+                              </div>
+                              <p
+                                className={cn(
+                                  "text-[14px] wrap-break-word",
+                                  item.resolved
+                                    ? "line-through text-gray-400"
+                                    : "text-gray-900 dark:text-white",
+                                )}>
+                                {item.message}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                )}
               </div>
             </section>
 
