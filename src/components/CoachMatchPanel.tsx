@@ -1250,45 +1250,18 @@ export function CoachMatchPanel({
             ? "flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-2 space-y-3"
             : "contents",
         )}>
-        {/* ── Team names ── */}
-        <div className='flex gap-2'>
-          <div className='flex-1'>
-            <label className='text-[10px] text-gray-500 uppercase tracking-widest font-semibold block mb-1 px-1'>
-              Home
-            </label>
-            <input
-              type='text'
-              value={homeTeamName}
-              onChange={(e) => setHomeTeamName(e.target.value)}
-              onBlur={() =>
-                onSave(
-                  buildCoachData(),
-                  buildValue(currentHalf, isRunning, matchComplete),
-                )
-              }
-              placeholder='Home team'
-              className='w-full rounded-xl bg-gray-900 text-white text-[14px] px-3 py-2 placeholder-gray-600 border border-white/8 focus:outline-none focus:border-white/20'
-            />
+        {/* ── Team name heading ── */}
+        {(homeTeamName || awayTeamName) && (
+          <div className='flex items-center justify-center gap-2 px-1'>
+            <span className='text-[17px] font-bold text-white truncate max-w-[40%]'>
+              {homeTeamName || "Home"}
+            </span>
+            <span className='text-[13px] text-gray-500 font-medium'>vs</span>
+            <span className='text-[17px] font-bold text-white truncate max-w-[40%]'>
+              {awayTeamName || "Away"}
+            </span>
           </div>
-          <div className='flex-1'>
-            <label className='text-[10px] text-gray-500 uppercase tracking-widest font-semibold block mb-1 px-1'>
-              Away
-            </label>
-            <input
-              type='text'
-              value={awayTeamName}
-              onChange={(e) => setAwayTeamName(e.target.value)}
-              onBlur={() =>
-                onSave(
-                  buildCoachData(),
-                  buildValue(currentHalf, isRunning, matchComplete),
-                )
-              }
-              placeholder='Away team'
-              className='w-full rounded-xl bg-gray-900 text-white text-[14px] px-3 py-2 placeholder-gray-600 border border-white/8 focus:outline-none focus:border-white/20'
-            />
-          </div>
-        </div>
+        )}
 
         {/* ── Match clock ── */}
         <div className='rounded-2xl bg-gray-950 dark:bg-black/80 overflow-hidden'>
@@ -1841,8 +1814,8 @@ export function CoachMatchPanel({
         onUpdateConfig &&
         createPortal(
           <div
-            className='fixed inset-0 z-50 flex items-end'
-            style={{ background: "rgba(0,0,0,0.65)" }}
+            className='fixed inset-0 flex items-end'
+            style={{ background: "rgba(0,0,0,0.65)", zIndex: 10000 }}
             onClick={() => setShowEditConfig(false)}>
             <div
               className='w-full rounded-t-2xl bg-ios-card-dark overflow-hidden flex flex-col max-h-[92vh]'
@@ -1857,13 +1830,47 @@ export function CoachMatchPanel({
                 </p>
                 <button
                   type='button'
-                  onClick={() => setShowEditConfig(false)}
+                  onClick={() => {
+                    onSave(
+                      buildCoachData(),
+                      buildValue(currentHalf, isRunning, matchComplete),
+                    );
+                    setShowEditConfig(false);
+                  }}
                   className='text-[15px] text-ios-blue active:opacity-60 font-medium'>
                   Done
                 </button>
               </div>
 
               <div className='overflow-y-auto flex-1 px-4 space-y-5 pb-10'>
+                {/* Team names */}
+                <div className='flex gap-2'>
+                  <div className='flex-1'>
+                    <label className='text-[12px] text-gray-400 mb-1 block'>
+                      Home team
+                    </label>
+                    <input
+                      type='text'
+                      value={homeTeamName}
+                      onChange={(e) => setHomeTeamName(e.target.value)}
+                      placeholder='Home team'
+                      className='w-full px-3 py-2 rounded-lg text-[14px] bg-white/10 text-white placeholder-gray-500 border border-white/15 focus:outline-none'
+                    />
+                  </div>
+                  <div className='flex-1'>
+                    <label className='text-[12px] text-gray-400 mb-1 block'>
+                      Away team
+                    </label>
+                    <input
+                      type='text'
+                      value={awayTeamName}
+                      onChange={(e) => setAwayTeamName(e.target.value)}
+                      placeholder='Away team'
+                      className='w-full px-3 py-2 rounded-lg text-[14px] bg-white/10 text-white placeholder-gray-500 border border-white/15 focus:outline-none'
+                    />
+                  </div>
+                </div>
+
                 {/* Grid: team size, half duration, sub timer */}
                 <div className='grid grid-cols-3 gap-2'>
                   {[
@@ -2174,6 +2181,10 @@ export function CoachMatchPanel({
                       players: editPlayers,
                     };
                     onUpdateConfig({ ...type, coachConfig: updatedConfig });
+                    onSave(
+                      buildCoachData(),
+                      buildValue(currentHalf, isRunning, matchComplete),
+                    );
                     setShowEditConfig(false);
                   }}
                   className='w-full py-3 rounded-xl text-[15px] font-semibold bg-ios-blue text-white active:opacity-80'>
@@ -2190,8 +2201,8 @@ export function CoachMatchPanel({
         typeof document !== "undefined" &&
         createPortal(
           <div
-            className='fixed inset-0 z-50 flex items-end'
-            style={{ background: "rgba(0,0,0,0.65)" }}
+            className='fixed inset-0 flex items-end'
+            style={{ background: "rgba(0,0,0,0.65)", zIndex: 10000 }}
             onClick={() => setShowGoals(false)}>
             <div
               className='w-full rounded-t-2xl bg-[#111] overflow-hidden flex flex-col max-h-[88vh]'
@@ -2390,8 +2401,8 @@ export function CoachMatchPanel({
         typeof document !== "undefined" &&
         createPortal(
           <div
-            className='fixed inset-0 z-50 flex items-center justify-center px-4'
-            style={{ background: "rgba(0,0,0,0.55)" }}
+            className='fixed inset-0 flex items-center justify-center px-4'
+            style={{ background: "rgba(0,0,0,0.55)", zIndex: 10000 }}
             onClick={() => setConfirmAction(null)}>
             <div
               className='w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 overflow-hidden'
@@ -2441,8 +2452,8 @@ export function CoachMatchPanel({
         typeof document !== "undefined" &&
         createPortal(
           <div
-            className='fixed inset-0 z-50 flex items-center justify-center px-4'
-            style={{ background: "rgba(0,0,0,0.55)" }}
+            className='fixed inset-0 flex items-center justify-center px-4'
+            style={{ background: "rgba(0,0,0,0.55)", zIndex: 10000 }}
             onClick={() => setShowResetConfirm(false)}>
             <div
               className='w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 overflow-hidden'
