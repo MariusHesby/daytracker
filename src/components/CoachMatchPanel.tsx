@@ -2477,5 +2477,8 @@ export function CoachMatchPanel({
     </div>
   );
 
+  if (expanded && typeof document !== "undefined") {
+    return createPortal(content, document.body);
+  }
   return content;
 }
