@@ -669,16 +669,16 @@ export function CoachMatchPanel({
   const matchMinute = Math.floor(
     ((currentHalf - 1) * config.halfDurationMinutes * 60 + halfElapsed) / 60,
   );
-  const timeSinceLastTrade =
-    lastTradeTime && isRunning
-      ? Math.floor((now - lastTradeTime) / 60000)
-      : null;
+  const timeSinceLastTrade = isRunning
+    ? Math.floor((now - (lastTradeTime ?? halfStartTime ?? now)) / 60000)
+    : null;
   const tradeAlert =
     timeSinceLastTrade !== null &&
     timeSinceLastTrade >= config.tradeTimerMinutes;
   const timerWarning =
     timeSinceLastTrade !== null &&
-    timeSinceLastTrade === config.tradeTimerMinutes - 1;
+    !tradeAlert &&
+    timeSinceLastTrade >= config.tradeTimerMinutes - 1;
 
   // minutes remaining in current half (negative = overtime)
   const halfRemainingMinutes =
