@@ -1859,7 +1859,7 @@ export function CoachMatchPanel({
           type='button'
           onClick={() => setShowGoals(true)}
           title='Goals'
-          className='h-10 px-5 flex items-center justify-center rounded-xl bg-white/10 text-white active:opacity-60'>
+          className='h-11 px-6 flex items-center justify-center rounded-xl bg-white/10 text-white border border-orange-400/60 active:opacity-60'>
           <span className='text-[13px] font-black tracking-widest'>GOAL</span>
         </button>
 
