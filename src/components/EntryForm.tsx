@@ -3974,7 +3974,15 @@ export function EntryForm({
                     )
                   }>
                   <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
-                    {type.icon && <span className='text-xl'>{type.icon}</span>}
+                    {type.icon &&
+                      (type.icon in icons ? (
+                        <Icon
+                          name={type.icon as IconName}
+                          className='w-6 h-6 text-ios-blue'
+                        />
+                      ) : (
+                        <span className='text-xl'>{type.icon}</span>
+                      ))}
                   </div>
                   <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
                     {type.name}
@@ -4010,6 +4018,9 @@ export function EntryForm({
                       type={type}
                       entry={existingEntry}
                       onSave={handleCoachSave}
+                      onUpdateConfig={async (updatedType) => {
+                        await updateActivityType(updatedType);
+                      }}
                       disabled={isViewingOther || isDayLocked(date)}
                     />
                   </div>
@@ -4042,9 +4053,15 @@ export function EntryForm({
               {/* Header with close button */}
               <div className='flex items-center justify-between px-4 py-3'>
                 <div className='flex items-center gap-3'>
-                  {type.icon && (
-                    <span className='text-[24px]'>{type.icon}</span>
-                  )}
+                  {type.icon &&
+                    (type.icon in icons ? (
+                      <Icon
+                        name={type.icon as IconName}
+                        className='w-6 h-6 text-ios-blue'
+                      />
+                    ) : (
+                      <span className='text-[24px]'>{type.icon}</span>
+                    ))}
                   <span className='text-[17px] font-semibold text-gray-900 dark:text-white'>
                     {type.name}
                   </span>

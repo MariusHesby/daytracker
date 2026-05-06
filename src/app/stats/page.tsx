@@ -989,7 +989,58 @@ export default function StatsPage() {
     return selectedType?.valueType === "timer";
   }, [selectedStat, getActivityType]);
 
-  // Calculate timer stats for the period
+  const isCoachType = useMemo(() => {
+    if (!selectedStat) return false;
+    const selectedType = getActivityType(selectedStat.activityTypeId);
+    return selectedType?.valueType === "coach";
+  }, [selectedStat, getActivityType]);
+
+  const coachMatchStats = useMemo(() => {
+    if (!selectedStat || !isCoachType) return null;
+    const activityType = getActivityType(selectedStat.activityTypeId);
+
+    const matches = selectedStat.entries
+      .filter((e) => e.coachData?.matchStartTime != null)
+      .map((e) => {
+        const cd = e.coachData!;
+        const goals = cd.goals ?? [];
+        const ourGoals = goals.filter((g) => g.playerId !== "__away__");
+        const theirGoals = goals.filter((g) => g.playerId === "__away__");
+        const ours = ourGoals.length;
+        const theirs = theirGoals.length;
+        const result: "W" | "D" | "L" =
+          ours > theirs ? "W" : ours === theirs ? "D" : "L";
+        return { entry: e, ours, theirs, result, ourGoals, activityType };
+      });
+
+    const wins = matches.filter((m) => m.result === "W").length;
+    const draws = matches.filter((m) => m.result === "D").length;
+    const losses = matches.filter((m) => m.result === "L").length;
+    const goalsFor = matches.reduce((s, m) => s + m.ours, 0);
+    const goalsAgainst = matches.reduce((s, m) => s + m.theirs, 0);
+
+    // Top scorers: only our players
+    const scorerMap = new Map<string, number>();
+    matches.forEach((m) => {
+      m.ourGoals.forEach((g) => {
+        scorerMap.set(g.playerId, (scorerMap.get(g.playerId) ?? 0) + 1);
+      });
+    });
+    const scorers = Array.from(scorerMap.entries())
+      .map(([playerId, count]) => {
+        const player = activityType?.coachConfig?.players.find(
+          (p) => p.id === playerId,
+        );
+        return {
+          name: player?.name ?? "Unknown",
+          number: player?.number ?? 0,
+          count,
+        };
+      })
+      .sort((a, b) => b.count - a.count);
+
+    return { matches, wins, draws, losses, goalsFor, goalsAgainst, scorers };
+  }, [selectedStat, isCoachType, getActivityType]);
   const timerStats = useMemo(() => {
     if (!selectedStat || !isTimerType) return null;
 
@@ -1810,12 +1861,26 @@ export default function StatsPage() {
                   <p className='text-[15px] text-gray-500 dark:text-gray-400'>
                     {selectedStat.totalEntries} entries over{" "}
                     {(() => {
-                      const rangeStart = new Date(currentRange.start + "T12:00:00");
+                      const rangeStart = new Date(
+                        currentRange.start + "T12:00:00",
+                      );
                       const today = new Date();
                       today.setHours(12, 0, 0, 0);
-                      const rangeEnd = new Date(Math.min(new Date(currentRange.end + "T12:00:00").getTime(), today.getTime()));
-                      return Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-                    })()} days
+                      const rangeEnd = new Date(
+                        Math.min(
+                          new Date(currentRange.end + "T12:00:00").getTime(),
+                          today.getTime(),
+                        ),
+                      );
+                      return Math.max(
+                        1,
+                        Math.round(
+                          (rangeEnd.getTime() - rangeStart.getTime()) /
+                            (1000 * 60 * 60 * 24),
+                        ) + 1,
+                      );
+                    })()}{" "}
+                    days
                   </p>
                 </div>
               </div>
@@ -4506,41 +4571,223 @@ export default function StatsPage() {
               </div>
             )}
 
-            {/* Value List with Bars - Show for non-workout, non-checklist, non-timer types (including nutrition) */}
+            {/* Coach / Football Stats */}
+            {isCoachType && coachMatchStats && (
+              <div className='p-4 space-y-5'>
+                {coachMatchStats.matches.length === 0 ? (
+                  <p className='text-center text-[14px] text-gray-400 py-6'>
+                    No completed matches in this period
+                  </p>
+                ) : (
+                  <>
+                    {/* Summary row */}
+                    <div className='grid grid-cols-4 gap-2'>
+                      {[
+                        {
+                          label: "Matches",
+                          value: coachMatchStats.matches.length,
+                        },
+                        {
+                          label: "Wins",
+                          value: coachMatchStats.wins,
+                          color: "text-green-500",
+                        },
+                        {
+                          label: "Draws",
+                          value: coachMatchStats.draws,
+                          color: "text-amber-500",
+                        },
+                        {
+                          label: "Losses",
+                          value: coachMatchStats.losses,
+                          color: "text-red-500",
+                        },
+                      ].map(({ label, value, color }) => (
+                        <div
+                          key={label}
+                          className='bg-white/80 dark:bg-gray-800 rounded-2xl p-3 text-center'>
+                          <div className='text-[11px] text-gray-500 dark:text-gray-400 mb-1'>
+                            {label}
+                          </div>
+                          <div
+                            className={cn(
+                              "text-[22px] font-bold",
+                              color ?? "text-gray-900 dark:text-white",
+                            )}>
+                            {value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Goals for / against */}
+                    <div className='grid grid-cols-2 gap-2'>
+                      <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-3 text-center'>
+                        <div className='text-[11px] text-gray-500 dark:text-gray-400 mb-1'>
+                          Goals For
+                        </div>
+                        <div className='text-[22px] font-bold text-green-500'>
+                          {coachMatchStats.goalsFor}
+                        </div>
+                      </div>
+                      <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-3 text-center'>
+                        <div className='text-[11px] text-gray-500 dark:text-gray-400 mb-1'>
+                          Goals Against
+                        </div>
+                        <div className='text-[22px] font-bold text-red-500'>
+                          {coachMatchStats.goalsAgainst}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Match results */}
+                    <div>
+                      <h4 className='text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2'>
+                        Results
+                      </h4>
+                      <div className='bg-white/80 dark:bg-gray-800 rounded-2xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-700'>
+                        {coachMatchStats.matches.map(
+                          ({ entry, ours, theirs, result }) => {
+                            const isHome =
+                              entry.coachData?.lineup !== undefined &&
+                              getActivityType(entry.activityTypeId)?.coachConfig
+                                ?.isHomeTeam !== false;
+                            const left = isHome ? ours : theirs;
+                            const right = isHome ? theirs : ours;
+                            return (
+                              <div
+                                key={entry.id}
+                                className='flex items-center justify-between px-4 py-3'>
+                                <span className='text-[13px] text-gray-500 dark:text-gray-400'>
+                                  {new Date(
+                                    entry.date + "T12:00:00",
+                                  ).toLocaleDateString("en-GB", {
+                                    day: "numeric",
+                                    month: "short",
+                                  })}
+                                </span>
+                                <div className='flex items-center gap-2'>
+                                  <span className='text-[18px] font-bold text-gray-900 dark:text-white tabular-nums'>
+                                    {left}
+                                  </span>
+                                  <span className='text-gray-400 text-[14px]'>
+                                    –
+                                  </span>
+                                  <span className='text-[18px] font-bold text-gray-900 dark:text-white tabular-nums'>
+                                    {right}
+                                  </span>
+                                </div>
+                                <span
+                                  className={cn(
+                                    "text-[13px] font-bold w-5 text-right",
+                                    result === "W"
+                                      ? "text-green-500"
+                                      : result === "D"
+                                        ? "text-amber-500"
+                                        : "text-red-500",
+                                  )}>
+                                  {result}
+                                </span>
+                              </div>
+                            );
+                          },
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Top scorers */}
+                    {coachMatchStats.scorers.length > 0 && (
+                      <div>
+                        <h4 className='text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2'>
+                          Top Scorers
+                        </h4>
+                        <div className='bg-white/80 dark:bg-gray-800 rounded-2xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-700'>
+                          {coachMatchStats.scorers.map(
+                            ({ name, number, count }) => (
+                              <div
+                                key={name}
+                                className='flex items-center justify-between px-4 py-3'>
+                                <div className='flex items-center gap-3'>
+                                  <span className='text-[13px] text-gray-400 dark:text-gray-500 w-5 text-right tabular-nums'>
+                                    {number}
+                                  </span>
+                                  <span className='text-[15px] text-gray-900 dark:text-white font-medium'>
+                                    {name}
+                                  </span>
+                                </div>
+                                <div className='flex items-center gap-1.5'>
+                                  <span className='text-[14px]'>⚽</span>
+                                  <span className='text-[15px] font-bold text-gray-900 dark:text-white tabular-nums'>
+                                    {count}
+                                  </span>
+                                </div>
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Value List with Bars - Show for non-workout, non-checklist, non-timer, non-coach types (including nutrition) */}
             {!isWorkoutType &&
               !isChecklistType &&
               !isTimerType &&
+              !isCoachType &&
               !(isNutritionType && nutritionGridView) && (
                 <div className={cn("p-4", isNutritionType && "-mt-4")}>
-                  {!isNutritionType && !isMoodType && !isTvSeriesType && !isMovieType && selectedStat && (() => {
-                    const rangeStart = new Date(currentRange.start + "T12:00:00");
-                    const today = new Date();
-                    today.setHours(12, 0, 0, 0);
-                    const rangeEnd = new Date(Math.min(new Date(currentRange.end + "T12:00:00").getTime(), today.getTime()));
-                    const totalDays = Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-                    const weeks = Math.max(1, totalDays / 7);
-                    const avg = Math.round((selectedStat.totalEntries / weeks) * 10) / 10;
-                    return (
-                      <div className='grid grid-cols-2 gap-3 mb-4'>
-                        <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
-                          <div className='text-[13px] text-gray-500 dark:text-gray-400 mb-1'>
-                            Days with activity
+                  {!isNutritionType &&
+                    !isMoodType &&
+                    !isTvSeriesType &&
+                    !isMovieType &&
+                    selectedStat &&
+                    (() => {
+                      const rangeStart = new Date(
+                        currentRange.start + "T12:00:00",
+                      );
+                      const today = new Date();
+                      today.setHours(12, 0, 0, 0);
+                      const rangeEnd = new Date(
+                        Math.min(
+                          new Date(currentRange.end + "T12:00:00").getTime(),
+                          today.getTime(),
+                        ),
+                      );
+                      const totalDays = Math.max(
+                        1,
+                        Math.round(
+                          (rangeEnd.getTime() - rangeStart.getTime()) /
+                            (1000 * 60 * 60 * 24),
+                        ) + 1,
+                      );
+                      const weeks = Math.max(1, totalDays / 7);
+                      const avg =
+                        Math.round((selectedStat.totalEntries / weeks) * 10) /
+                        10;
+                      return (
+                        <div className='grid grid-cols-2 gap-3 mb-4'>
+                          <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
+                            <div className='text-[13px] text-gray-500 dark:text-gray-400 mb-1'>
+                              Days with activity
+                            </div>
+                            <div className='text-[24px] font-bold text-gray-900 dark:text-white'>
+                              {selectedStat.uniqueDays}
+                            </div>
                           </div>
-                          <div className='text-[24px] font-bold text-gray-900 dark:text-white'>
-                            {selectedStat.uniqueDays}
+                          <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
+                            <div className='text-[13px] text-gray-500 dark:text-gray-400 mb-1'>
+                              Average a Week
+                            </div>
+                            <div className='text-[24px] font-bold text-ios-blue'>
+                              {avg}
+                            </div>
                           </div>
                         </div>
-                        <div className='bg-white/80 dark:bg-gray-800 rounded-2xl p-4'>
-                          <div className='text-[13px] text-gray-500 dark:text-gray-400 mb-1'>
-                            Average a Week
-                          </div>
-                          <div className='text-[24px] font-bold text-ios-blue'>
-                            {avg}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
+                      );
+                    })()}
                   {!isNutritionType && (
                     <h4 className='text-[13px] font-normal text-gray-500 dark:text-gray-400 mb-3'>
                       Tap to see dates
@@ -4617,20 +4864,38 @@ export default function StatsPage() {
                                   }}
                                 />
                               </div>
-                              {isSelected && (() => {
-                                const rangeStart = new Date(currentRange.start + "T12:00:00");
-                                const today = new Date();
-                                today.setHours(12, 0, 0, 0);
-                                const rangeEnd = new Date(Math.min(new Date(currentRange.end + "T12:00:00").getTime(), today.getTime()));
-                                const totalDays = Math.max(1, Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-                                const weeks = Math.max(1, totalDays / 7);
-                                const avg = Math.round((count / weeks) * 10) / 10;
-                                return (
-                                  <p className='text-[12px] text-gray-400 dark:text-gray-500 mt-1'>
-                                    {avg} average a week
-                                  </p>
-                                );
-                              })()}
+                              {isSelected &&
+                                (() => {
+                                  const rangeStart = new Date(
+                                    currentRange.start + "T12:00:00",
+                                  );
+                                  const today = new Date();
+                                  today.setHours(12, 0, 0, 0);
+                                  const rangeEnd = new Date(
+                                    Math.min(
+                                      new Date(
+                                        currentRange.end + "T12:00:00",
+                                      ).getTime(),
+                                      today.getTime(),
+                                    ),
+                                  );
+                                  const totalDays = Math.max(
+                                    1,
+                                    Math.round(
+                                      (rangeEnd.getTime() -
+                                        rangeStart.getTime()) /
+                                        (1000 * 60 * 60 * 24),
+                                    ) + 1,
+                                  );
+                                  const weeks = Math.max(1, totalDays / 7);
+                                  const avg =
+                                    Math.round((count / weeks) * 10) / 10;
+                                  return (
+                                    <p className='text-[12px] text-gray-400 dark:text-gray-500 mt-1'>
+                                      {avg} average a week
+                                    </p>
+                                  );
+                                })()}
                             </button>
 
                             {/* Calendar view when selected */}

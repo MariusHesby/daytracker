@@ -580,6 +580,11 @@ body {
   overflow-x: hidden;
 }
 
+/* Hide tab bar when coach match panel is in fullscreen mode */
+body[data-coach-expanded="true"] nav {
+  display: none !important;
+}
+
 /* Hide number input spinners for cleaner iOS look */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {

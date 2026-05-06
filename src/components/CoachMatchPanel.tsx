@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   ActivityType,
   LogEntry,
@@ -10,6 +11,7 @@ import {
   CoachPlayer,
   CoachConfig,
   FootballPosition,
+  FOOTBALL_POSITIONS,
 } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +19,7 @@ interface CoachMatchPanelProps {
   type: ActivityType;
   entry: LogEntry | null;
   onSave: (coachData: CoachData, value: string) => void;
+  onUpdateConfig?: (updatedType: ActivityType) => void;
   disabled?: boolean;
 }
 
@@ -110,12 +113,17 @@ function computeSuggestion(
   subConsiderTime: boolean,
   subConsiderPosition: boolean,
   subConsiderKeeper: boolean,
+  subConsiderSubOrder: boolean,
+  substitutions: CoachSubstitution[],
 ): [string, string] | null {
   const validPitch = pitchEntries.filter((l) => l.position !== "GK");
   if (validPitch.length === 0 || benchEntries.length === 0) return null;
 
   const anyConsideration =
-    subConsiderTime || subConsiderPosition || subConsiderKeeper;
+    subConsiderTime ||
+    subConsiderPosition ||
+    subConsiderKeeper ||
+    subConsiderSubOrder;
 
   if (!anyConsideration || isFirstInHalf) {
     const pi = Math.floor(Math.random() * validPitch.length);
@@ -127,6 +135,17 @@ function computeSuggestion(
     .map((l) => {
       let score = 0;
       if (subConsiderTime) score += getLineupMinutes(l, now, isRunning);
+      // sub order: player who came on most recently gets lowest come-off score
+      if (subConsiderSubOrder) {
+        // Find the most recent sub index where this player came on
+        let lastSubIndex = -1;
+        for (let i = 0; i < substitutions.length; i++) {
+          if (substitutions[i].playerOnId === l.playerId) lastSubIndex = i;
+        }
+        // Never subbed (lastSubIndex = -1) → highest bonus → comes off first
+        // Most recently subbed (lastSubIndex = n-1) → bonus of 1 → comes off last
+        score += substitutions.length - lastSubIndex;
+      }
       return { ...l, score };
     })
     .sort((a, b) => b.score - a.score);
@@ -144,6 +163,14 @@ function computeSuggestion(
       if (subConsiderKeeper && formerGKs.has(l.playerId)) {
         const isDefensive = ["CB", "LB", "RB"].includes(topPitchPosition ?? "");
         if (!isDefensive) score += 8;
+      }
+      if (subConsiderSubOrder) {
+        // Player who last came ON earliest (or never) has been waiting longest → comes on first
+        let lastOnIndex = -1;
+        for (let i = 0; i < substitutions.length; i++) {
+          if (substitutions[i].playerOnId === l.playerId) lastOnIndex = i;
+        }
+        score += substitutions.length - lastOnIndex;
       }
       return { ...l, score };
     })
@@ -311,10 +338,207 @@ function PlayerCard({
   );
 }
 
+// ─── PositionSelect (used in edit config sheet) ───────────────────────────────
+function PositionSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: FootballPosition;
+  onChange: (v: FootballPosition) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [favorites, setFavorites] = React.useState<FootballPosition[]>(() => {
+    try {
+      const s = localStorage.getItem("coachPositionFavorites");
+      return s ? JSON.parse(s) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleFav = (pos: FootballPosition, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFavorites((prev) => {
+      const next = prev.includes(pos)
+        ? prev.filter((p) => p !== pos)
+        : [...prev, pos];
+      try {
+        localStorage.setItem("coachPositionFavorites", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const groups = React.useMemo(() => {
+    const groupMap = new Map<string, typeof FOOTBALL_POSITIONS>();
+    for (const p of FOOTBALL_POSITIONS) {
+      if (!groupMap.has(p.group)) groupMap.set(p.group, []);
+      groupMap.get(p.group)!.push(p);
+    }
+    const sections: { group: string; positions: typeof FOOTBALL_POSITIONS }[] =
+      [];
+    if (favorites.length > 0)
+      sections.push({
+        group: "Favorites",
+        positions: FOOTBALL_POSITIONS.filter((p) =>
+          favorites.includes(p.value),
+        ),
+      });
+    groupMap.forEach((positions, group) => sections.push({ group, positions }));
+    return sections;
+  }, [favorites]);
+
+  return (
+    <div className={cn("relative", className)}>
+      <button
+        type='button'
+        onClick={() => setOpen(true)}
+        className='w-full flex items-center justify-between gap-1 px-2 py-2 rounded-lg text-[13px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600'>
+        <span className='font-semibold'>{value}</span>
+        <svg
+          className='w-3 h-3 text-gray-400'
+          fill='none'
+          viewBox='0 0 24 24'
+          stroke='currentColor'
+          strokeWidth={2}>
+          <path
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            d='M19 9l-7 7-7-7'
+          />
+        </svg>
+      </button>
+      {open &&
+        createPortal(
+          <div
+            className='fixed inset-0 z-200 flex items-center justify-center p-4'
+            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setOpen(false);
+            }}>
+            <div className='w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 overflow-hidden flex flex-col max-h-[75vh]'>
+              <div className='flex items-center justify-between px-5 pt-5 pb-3 shrink-0'>
+                <h3 className='text-[18px] font-semibold text-gray-900 dark:text-white'>
+                  Choose Position
+                </h3>
+                <button
+                  type='button'
+                  onClick={() => setOpen(false)}
+                  className='w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500'>
+                  <svg
+                    className='w-4 h-4'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2.5}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M6 18L18 6M6 6l12 12'
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className='overflow-y-auto px-3 pb-4'>
+                {groups.map(({ group, positions }) => (
+                  <div key={group} className='mb-1'>
+                    <p className='text-[11px] font-semibold uppercase tracking-widest text-gray-400 px-2 py-2'>
+                      {group === "Favorites" ? "⭐ Favorites" : group}
+                    </p>
+                    <div className='rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700/60'>
+                      {positions.map((p, i) => (
+                        <div
+                          key={`${group}-${p.value}`}
+                          className={cn(
+                            "flex items-center",
+                            i > 0 &&
+                              "border-t border-gray-100 dark:border-gray-700/60",
+                            value === p.value
+                              ? "bg-ios-blue/10 dark:bg-ios-blue/20"
+                              : "bg-white dark:bg-gray-800",
+                          )}>
+                          <button
+                            type='button'
+                            onClick={() => {
+                              onChange(p.value);
+                              setOpen(false);
+                            }}
+                            className='flex-1 flex items-center gap-3 px-4 py-3 text-left'>
+                            <span
+                              className={cn(
+                                "w-11 shrink-0 text-center text-[13px] font-bold rounded-lg py-1",
+                                value === p.value
+                                  ? "bg-ios-blue text-white"
+                                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300",
+                              )}>
+                              {p.value}
+                            </span>
+                            <span
+                              className={cn(
+                                "text-[15px]",
+                                value === p.value
+                                  ? "text-ios-blue font-medium"
+                                  : "text-gray-900 dark:text-white",
+                              )}>
+                              {p.label.split(" (")[0]}
+                            </span>
+                            {value === p.value && (
+                              <svg
+                                className='w-4 h-4 text-ios-blue shrink-0 ml-auto'
+                                fill='none'
+                                viewBox='0 0 24 24'
+                                stroke='currentColor'
+                                strokeWidth={2.5}>
+                                <path
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'
+                                  d='M5 13l4 4L19 7'
+                                />
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            type='button'
+                            onClick={(e) => toggleFav(p.value, e)}
+                            className='px-3 py-3 shrink-0'>
+                            <svg
+                              className={cn(
+                                "w-4 h-4",
+                                favorites.includes(p.value)
+                                  ? "text-yellow-400 fill-yellow-400"
+                                  : "text-gray-300 dark:text-gray-600",
+                              )}
+                              viewBox='0 0 24 24'
+                              stroke='currentColor'
+                              strokeWidth={1.5}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z'
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
 export function CoachMatchPanel({
   type,
   entry,
   onSave,
+  onUpdateConfig,
   disabled,
 }: CoachMatchPanelProps) {
   const config = type.coachConfig!;
@@ -342,6 +566,47 @@ export function CoachMatchPanel({
     [string, string] | null
   >(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<
+    "halfTime" | "fullTime" | null
+  >(null);
+  const [showGoals, setShowGoals] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [homeTeamName, setHomeTeamName] = useState("");
+  const [awayTeamName, setAwayTeamName] = useState("");
+
+  // ── edit config state ────────────────────────────────────────────────────────
+  const [showEditConfig, setShowEditConfig] = useState(false);
+  const [editTeamSize, setEditTeamSize] = useState(config.teamSize);
+  const [editHalfDuration, setEditHalfDuration] = useState(
+    config.halfDurationMinutes,
+  );
+  const [editTradeTimer, setEditTradeTimer] = useState(
+    config.tradeTimerMinutes,
+  );
+  const [editIsHome, setEditIsHome] = useState(config.isHomeTeam !== false);
+  const [editConsiderTime, setEditConsiderTime] = useState(
+    config.subConsiderTime ?? false,
+  );
+  const [editConsiderPosition, setEditConsiderPosition] = useState(
+    config.subConsiderPosition ?? false,
+  );
+  const [editConsiderKeeper, setEditConsiderKeeper] = useState(
+    config.subConsiderKeeper ?? false,
+  );
+  const [editConsiderSubOrder, setEditConsiderSubOrder] = useState(
+    config.subConsiderSubOrder ?? false,
+  );
+  const [editVibrate, setEditVibrate] = useState(
+    config.vibrateOnWarning ?? false,
+  );
+  const [editPlayers, setEditPlayers] = useState<CoachPlayer[]>(config.players);
+  const editTouchStartX = useRef<number>(0);
+  const [editSwipedPlayerId, setEditSwipedPlayerId] = useState<string | null>(
+    null,
+  );
+
+  type GoalEntry = { id: string; playerId: string; matchMinute: number };
+  const [goals, setGoals] = useState<GoalEntry[]>([]);
 
   type UndoSnapshot = {
     lineup: CoachLineupEntry[];
@@ -370,6 +635,9 @@ export function CoachMatchPanel({
       setLineup(d.lineup);
       setSubstitutions(d.substitutions);
       setLastTradeTime(d.lastTradeTime);
+      if (d.goals) setGoals(d.goals);
+      if (d.homeTeamName) setHomeTeamName(d.homeTeamName);
+      if (d.awayTeamName) setAwayTeamName(d.awayTeamName);
     } else {
       setLineup(
         config.players.map((p, i) => ({
@@ -408,6 +676,15 @@ export function CoachMatchPanel({
   const tradeAlert =
     timeSinceLastTrade !== null &&
     timeSinceLastTrade >= config.tradeTimerMinutes;
+  const timerWarning =
+    timeSinceLastTrade !== null &&
+    timeSinceLastTrade === config.tradeTimerMinutes - 1;
+
+  // minutes remaining in current half (negative = overtime)
+  const halfRemainingMinutes =
+    isRunning && halfStartTime
+      ? config.halfDurationMinutes - Math.floor(halfElapsed / 60)
+      : config.halfDurationMinutes;
 
   const pitchPlayers = lineup.filter((l) => l.position !== "Bench");
   const benchPlayers = lineup.filter((l) => l.position === "Bench");
@@ -426,6 +703,19 @@ export function CoachMatchPanel({
   }
 
   // ── suggestion trigger ───────────────────────────────────────────────────────
+  // ── Lock body when expanded (hides tab bar in all browsers) ─────────────────
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (expanded) {
+      document.body.dataset.coachExpanded = "true";
+    } else {
+      delete document.body.dataset.coachExpanded;
+    }
+    return () => {
+      delete document.body.dataset.coachExpanded;
+    };
+  }, [expanded]);
+
   useEffect(() => {
     if (!isRunning || matchComplete || benchPlayers.length === 0) return;
     if (timeSinceLastTrade === null) return;
@@ -436,6 +726,37 @@ export function CoachMatchPanel({
     lastSuggestionTradeRef.current = lastTradeTime;
     const isFirstInHalf = !halfFirstSuggestedRef.current.has(currentHalf);
     halfFirstSuggestedRef.current.add(currentHalf);
+
+    // Alert beep if enabled — uses Web Audio API (works on iOS + Android)
+    // Falls back to vibration on Android if audio context is unavailable
+    if (config.vibrateOnWarning && typeof window !== "undefined") {
+      try {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext })
+            .webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const playBeep = (startTime: number, duration: number) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = "sine";
+            osc.frequency.value = 880;
+            gain.gain.setValueAtTime(0.6, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+          };
+          playBeep(ctx.currentTime, 0.18);
+          playBeep(ctx.currentTime + 0.25, 0.18);
+        }
+      } catch {
+        // Silently fall back to vibration on Android
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      }
+    }
 
     const primary = computeSuggestion(
       pitchPlayers,
@@ -448,6 +769,8 @@ export function CoachMatchPanel({
       config.subConsiderTime ?? false,
       config.subConsiderPosition ?? false,
       config.subConsiderKeeper ?? false,
+      config.subConsiderSubOrder ?? false,
+      substitutions,
     );
     setSuggestionPair(primary);
 
@@ -468,6 +791,8 @@ export function CoachMatchPanel({
           config.subConsiderTime ?? false,
           config.subConsiderPosition ?? false,
           config.subConsiderKeeper ?? false,
+          config.subConsiderSubOrder ?? false,
+          substitutions,
         );
         setAltSuggestionPair(alt);
       } else {
@@ -491,6 +816,9 @@ export function CoachMatchPanel({
       lineup: lineupOverride ?? lineup,
       substitutions: subsOverride ?? substitutions,
       lastTradeTime,
+      goals,
+      homeTeamName: homeTeamName || undefined,
+      awayTeamName: awayTeamName || undefined,
       ...overrides,
     }),
     [
@@ -501,6 +829,9 @@ export function CoachMatchPanel({
       lineup,
       substitutions,
       lastTradeTime,
+      goals,
+      homeTeamName,
+      awayTeamName,
     ],
   );
 
@@ -658,6 +989,8 @@ export function CoachMatchPanel({
           config.subConsiderTime ?? false,
           config.subConsiderPosition ?? false,
           config.subConsiderKeeper ?? false,
+          config.subConsiderSubOrder ?? false,
+          substitutions,
         );
         if (suggestion) {
           setSuggestionPair(suggestion);
@@ -790,11 +1123,10 @@ export function CoachMatchPanel({
   }
 
   function handleResetTimePlayed() {
-    const t = Date.now();
     const nl = lineup.map((l) => ({
       ...l,
       totalMinutesPlayed: 0,
-      onPitchSince: l.onPitchSince && isRunning ? t : l.onPitchSince,
+      onPitchSince: null,
     }));
     setUndoStack([
       {
@@ -806,10 +1138,60 @@ export function CoachMatchPanel({
       },
       ...undoStack.slice(0, 9),
     ]);
-    setNow(t);
+    setMatchStartTime(null);
+    setHalfStartTime(null);
+    setCurrentHalf(1);
+    setIsRunning(false);
+    setSubstitutions([]);
+    setGoals([]);
+    setLastTradeTime(null);
+    setRecentSwitches({});
+    setFormerGKs(new Set());
     setLineup(nl);
     setShowResetConfirm(false);
-    onSave(buildCoachData({}, nl), buildValue(currentHalf, isRunning, false));
+    onSave(
+      {
+        matchStartTime: null,
+        halfStartTime: null,
+        currentHalf: 1,
+        isRunning: false,
+        lineup: nl,
+        substitutions: [],
+        lastTradeTime: null,
+        goals: [],
+        homeTeamName: homeTeamName || undefined,
+        awayTeamName: awayTeamName || undefined,
+      },
+      "",
+    );
+  }
+
+  function handleAddGoal(playerId: string) {
+    const g: GoalEntry = {
+      id: crypto.randomUUID(),
+      playerId,
+      matchMinute,
+    };
+    const next = [...goals, g];
+    setGoals(next);
+    onSave(
+      { ...buildCoachData(), goals: next },
+      buildValue(currentHalf, isRunning, matchComplete),
+    );
+  }
+
+  function handleRemoveGoal(playerId: string) {
+    setGoals((prev) => {
+      const idx = [...prev].reverse().findIndex((g) => g.playerId === playerId);
+      if (idx === -1) return prev;
+      const realIdx = prev.length - 1 - idx;
+      const next = prev.filter((_, i) => i !== realIdx);
+      onSave(
+        { ...buildCoachData(), goals: next },
+        buildValue(currentHalf, isRunning, matchComplete),
+      );
+      return next;
+    });
   }
 
   // ── render ───────────────────────────────────────────────────────────────────
@@ -834,8 +1216,26 @@ export function CoachMatchPanel({
           ? "Half Time"
           : "Paused";
 
-  return (
-    <div className='space-y-3 select-none'>
+  const content = (
+    <div
+      className={cn("select-none", !expanded && "space-y-3")}
+      style={
+        expanded
+          ? {
+              position: "fixed" as const,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 9999,
+              display: "flex",
+              flexDirection: "column" as const,
+              background: "#030712",
+              overflow: "hidden",
+              pointerEvents: "auto",
+            }
+          : undefined
+      }>
       <style>{`
         @keyframes playerSwitchFlash {
           0%   { transform: scale(1);    filter: brightness(1); }
@@ -843,460 +1243,1239 @@ export function CoachMatchPanel({
           100% { transform: scale(1);    filter: brightness(1); }
         }
       `}</style>
-      {/* ── Match clock ── */}
-      <div className='rounded-2xl bg-gray-950 dark:bg-black/80 overflow-hidden'>
-        <div className='flex items-center justify-between px-5 py-4'>
-          <div>
-            <p className='text-[11px] text-gray-400 uppercase tracking-widest font-semibold'>
-              {halfLabel}
-            </p>
-            <p className='text-[40px] font-bold tabular-nums leading-none text-white mt-1'>
-              {matchNotStarted ? "00:00" : fmtClock(halfElapsed)}
-            </p>
+      {/* ── Scrollable main area ── */}
+      <div
+        className={cn(
+          expanded
+            ? "flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-2 space-y-3"
+            : "contents",
+        )}>
+        {/* ── Team names ── */}
+        <div className='flex gap-2'>
+          <div className='flex-1'>
+            <label className='text-[10px] text-gray-500 uppercase tracking-widest font-semibold block mb-1 px-1'>
+              Home
+            </label>
+            <input
+              type='text'
+              value={homeTeamName}
+              onChange={(e) => setHomeTeamName(e.target.value)}
+              onBlur={() =>
+                onSave(
+                  buildCoachData(),
+                  buildValue(currentHalf, isRunning, matchComplete),
+                )
+              }
+              placeholder='Home team'
+              className='w-full rounded-xl bg-gray-900 text-white text-[14px] px-3 py-2 placeholder-gray-600 border border-white/8 focus:outline-none focus:border-white/20'
+            />
           </div>
-
-          {!matchNotStarted && (
-            <div className='text-center px-2'>
-              <p className='text-[11px] text-gray-400 uppercase tracking-widest'>
-                Min
-              </p>
-              <p className='text-[34px] font-bold tabular-nums text-white leading-none mt-1'>
-                {matchMinute}&apos;
-              </p>
-            </div>
-          )}
-
-          <div className='flex flex-col gap-1.5'>
-            {matchNotStarted && (
-              <button
-                type='button'
-                onClick={handleStartMatch}
-                disabled={disabled}
-                className='px-4 py-2 rounded-full text-[14px] font-semibold bg-green-500 text-white active:opacity-80'>
-                Kick Off
-              </button>
-            )}
-            {!matchNotStarted &&
-              !matchComplete &&
-              isRunning &&
-              currentHalf === 1 && (
-                <>
-                  <button
-                    type='button'
-                    onClick={handleHalfTime}
-                    className='px-3 py-2 rounded-full text-[13px] font-semibold bg-amber-500 text-white active:opacity-80'>
-                    Half Time
-                  </button>
-                  <button
-                    type='button'
-                    onClick={handlePause}
-                    className='px-3 py-2 rounded-full text-[13px] font-semibold bg-gray-700 text-white active:opacity-80'>
-                    Pause
-                  </button>
-                </>
-              )}
-            {!matchNotStarted &&
-              !matchComplete &&
-              isRunning &&
-              currentHalf === 2 && (
-                <>
-                  <button
-                    type='button'
-                    onClick={handleEndMatch}
-                    className='px-3 py-2 rounded-full text-[13px] font-semibold bg-red-500 text-white active:opacity-80'>
-                    Full Time
-                  </button>
-                  <button
-                    type='button'
-                    onClick={handlePause}
-                    className='px-3 py-2 rounded-full text-[13px] font-semibold bg-gray-700 text-white active:opacity-80'>
-                    Pause
-                  </button>
-                </>
-              )}
-            {!matchNotStarted &&
-              !matchComplete &&
-              !isRunning &&
-              currentHalf === 1 && (
-                <button
-                  type='button'
-                  onClick={handleResume}
-                  className='px-3 py-2 rounded-full text-[13px] font-semibold bg-green-500 text-white active:opacity-80'>
-                  Resume
-                </button>
-              )}
-            {!matchNotStarted &&
-              !matchComplete &&
-              !isRunning &&
-              currentHalf === 2 &&
-              halfStartTime === null && (
-                <button
-                  type='button'
-                  onClick={handleStartSecondHalf}
-                  className='px-3 py-2 rounded-full text-[13px] font-semibold bg-green-500 text-white active:opacity-80'>
-                  2nd Half
-                </button>
-              )}
-            {!matchNotStarted &&
-              !matchComplete &&
-              !isRunning &&
-              currentHalf === 2 &&
-              halfStartTime !== null && (
-                <button
-                  type='button'
-                  onClick={handleResume}
-                  className='px-3 py-2 rounded-full text-[13px] font-semibold bg-green-500 text-white active:opacity-80'>
-                  Resume
-                </button>
-              )}
+          <div className='flex-1'>
+            <label className='text-[10px] text-gray-500 uppercase tracking-widest font-semibold block mb-1 px-1'>
+              Away
+            </label>
+            <input
+              type='text'
+              value={awayTeamName}
+              onChange={(e) => setAwayTeamName(e.target.value)}
+              onBlur={() =>
+                onSave(
+                  buildCoachData(),
+                  buildValue(currentHalf, isRunning, matchComplete),
+                )
+              }
+              placeholder='Away team'
+              className='w-full rounded-xl bg-gray-900 text-white text-[14px] px-3 py-2 placeholder-gray-600 border border-white/8 focus:outline-none focus:border-white/20'
+            />
           </div>
         </div>
-      </div>
 
-      {/* ── Trade alert ── */}
-      {tradeAlert && (
-        <div className='flex items-center gap-3 px-4 py-3 rounded-2xl bg-orange-500/15 border border-orange-500/30'>
-          <span className='text-[22px] leading-none'>⚠️</span>
-          <div>
-            <p className='text-[13px] font-semibold text-orange-400'>
-              Substitution overdue
-            </p>
-            <p className='text-[12px] text-orange-400/70'>
-              {timeSinceLastTrade} min since last sub (goal: every{" "}
-              {config.tradeTimerMinutes} min)
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Swap hint ── */}
-      {selectedPlayerId && (
-        <div className='px-4 py-2.5 rounded-2xl bg-amber-500/12 border border-amber-500/25 text-center'>
-          <p className='text-[13px] font-medium text-amber-400'>
-            Tap another player to switch positions or substitute
-          </p>
-          <button
-            type='button'
-            onClick={() => setSelectedPlayerId(null)}
-            className='mt-1 text-[12px] text-amber-400/50'>
-            cancel
-          </button>
-        </div>
-      )}
-
-      {/* ── Suggestion banner ── */}
-      {suggestionPair && !selectedPlayerId && (
-        <div className='rounded-2xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-3 space-y-2'>
-          <div className='flex items-center justify-between'>
-            <p className='text-[12px] font-semibold text-cyan-400 uppercase tracking-wide'>
-              💡 Suggested sub
-            </p>
-            <button
-              type='button'
-              onClick={() => {
-                setSuggestionPair(null);
-                setAltSuggestionPair(null);
-              }}
-              className='text-[11px] text-cyan-400/50'>
-              dismiss
-            </button>
-          </div>
-          <div className='flex items-center gap-3 flex-wrap'>
-            {[
-              suggestionPair,
-              ...(altSuggestionPair ? [altSuggestionPair] : []),
-            ].map((pair, pi) => {
-              const offPlayer = config.players.find((p) => p.id === pair[0]);
-              const onPlayer = config.players.find((p) => p.id === pair[1]);
-              if (!offPlayer || !onPlayer) return null;
-              return (
-                <div
-                  key={pi}
+        {/* ── Match clock ── */}
+        <div className='rounded-2xl bg-gray-950 dark:bg-black/80 overflow-hidden'>
+          <div className='flex items-end justify-between px-5 py-4'>
+            {/* Numbers group – left */}
+            <div className='flex items-end gap-5'>
+              <div>
+                <p className='text-[11px] text-gray-400 uppercase tracking-widest font-semibold'>
+                  {halfLabel}
+                </p>
+                <p
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[13px]",
-                    pi === 0
-                      ? "bg-cyan-500/20 border border-cyan-400/40"
-                      : "bg-white/5 border border-white/15",
+                    "text-[40px] font-bold tabular-nums leading-none mt-1",
+                    tradeAlert
+                      ? "text-red-500"
+                      : timerWarning
+                        ? "text-yellow-400"
+                        : "text-white",
                   )}>
-                  <span className='text-red-400 font-medium'>
-                    ↓ {offPlayer.name.split(" ")[0]}
+                  {matchNotStarted ? "00:00" : fmtClock(halfElapsed)}
+                </p>
+              </div>
+
+              {!matchNotStarted && (
+                <div className='mb-0.5'>
+                  <p className='text-[11px] uppercase tracking-widest font-semibold text-gray-400'>
+                    {halfRemainingMinutes < 0 ? "ET" : "Min"}
+                  </p>
+                  <p
+                    className={cn(
+                      "text-[34px] font-bold tabular-nums leading-none mt-1",
+                      halfRemainingMinutes < 0 ? "text-red-500" : "text-white",
+                    )}>
+                    {halfRemainingMinutes < 0
+                      ? `+${Math.abs(halfRemainingMinutes)}`
+                      : halfRemainingMinutes}
+                    &apos;
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Icons group – right */}
+            <div className='flex flex-row gap-1.5 items-center'>
+              {matchNotStarted && (
+                <button
+                  type='button'
+                  onClick={handleStartMatch}
+                  disabled={disabled}
+                  className='px-4 py-2 rounded-full text-[14px] font-semibold bg-green-500 text-white active:opacity-80'>
+                  Kick Off
+                </button>
+              )}
+              {!matchNotStarted &&
+                !matchComplete &&
+                isRunning &&
+                currentHalf === 1 && (
+                  <>
+                    {/* Half Time icon */}
+                    <button
+                      type='button'
+                      onClick={() => setConfirmAction("halfTime")}
+                      title='Half Time'
+                      className='w-10 h-10 flex items-center justify-center rounded-xl bg-amber-500 text-white active:opacity-80'>
+                      <svg
+                        width='17'
+                        height='17'
+                        viewBox='0 0 17 17'
+                        fill='currentColor'>
+                        <rect
+                          x='3.5'
+                          y='1.5'
+                          width='1.8'
+                          height='14'
+                          rx='0.9'
+                        />
+                        <polygon points='5.3,1.5 14.5,5.5 5.3,9.5' />
+                      </svg>
+                    </button>
+                    {/* Pause icon */}
+                    <button
+                      type='button'
+                      onClick={handlePause}
+                      title='Pause'
+                      className='w-10 h-10 flex items-center justify-center rounded-xl bg-gray-700 text-white active:opacity-80'>
+                      <svg
+                        width='16'
+                        height='16'
+                        viewBox='0 0 16 16'
+                        fill='currentColor'>
+                        <rect x='2.5' y='2' width='4' height='12' rx='1.5' />
+                        <rect x='9.5' y='2' width='4' height='12' rx='1.5' />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              {!matchNotStarted &&
+                !matchComplete &&
+                isRunning &&
+                currentHalf === 2 && (
+                  <>
+                    {/* Full Time icon */}
+                    <button
+                      type='button'
+                      onClick={() => setConfirmAction("fullTime")}
+                      title='Full Time'
+                      className='w-10 h-10 flex items-center justify-center rounded-xl bg-red-500 text-white active:opacity-80'>
+                      <svg
+                        width='14'
+                        height='14'
+                        viewBox='0 0 14 14'
+                        fill='currentColor'>
+                        <rect x='1' y='1' width='12' height='12' rx='2.5' />
+                      </svg>
+                    </button>
+                    {/* Pause icon */}
+                    <button
+                      type='button'
+                      onClick={handlePause}
+                      title='Pause'
+                      className='w-10 h-10 flex items-center justify-center rounded-xl bg-gray-700 text-white active:opacity-80'>
+                      <svg
+                        width='16'
+                        height='16'
+                        viewBox='0 0 16 16'
+                        fill='currentColor'>
+                        <rect x='2.5' y='2' width='4' height='12' rx='1.5' />
+                        <rect x='9.5' y='2' width='4' height='12' rx='1.5' />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              {!matchNotStarted &&
+                !matchComplete &&
+                !isRunning &&
+                currentHalf === 1 && (
+                  <button
+                    type='button'
+                    onClick={handleResume}
+                    className='px-3 py-2 rounded-full text-[13px] font-semibold bg-green-500 text-white active:opacity-80'>
+                    Resume
+                  </button>
+                )}
+              {!matchNotStarted &&
+                !matchComplete &&
+                !isRunning &&
+                currentHalf === 2 &&
+                halfStartTime === null && (
+                  <button
+                    type='button'
+                    onClick={handleStartSecondHalf}
+                    className='px-3 py-2 rounded-full text-[13px] font-semibold bg-green-500 text-white active:opacity-80'>
+                    2nd Half
+                  </button>
+                )}
+              {!matchNotStarted &&
+                !matchComplete &&
+                !isRunning &&
+                currentHalf === 2 &&
+                halfStartTime !== null && (
+                  <button
+                    type='button'
+                    onClick={handleResume}
+                    className='px-3 py-2 rounded-full text-[13px] font-semibold bg-green-500 text-white active:opacity-80'>
+                    Resume
+                  </button>
+                )}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Pitch ── */}
+        <div
+          className='relative rounded-2xl overflow-hidden'
+          style={{
+            background:
+              "linear-gradient(180deg, #1d7032 0%, #1e7534 55%, #186028 100%)",
+          }}
+          onClick={() => setSelectedPlayerId(null)}>
+          {/* Pitch markings SVG — shows from centre circle down to own goal */}
+          <svg
+            className='absolute inset-0 w-full h-full pointer-events-none'
+            viewBox='0 58 100 92'
+            preserveAspectRatio='none'
+            style={{ opacity: 0.22 }}>
+            {/* Outer boundary (top is clipped, side lines + bottom goal line visible) */}
+            <rect
+              x='2'
+              y='2'
+              width='96'
+              height='146'
+              fill='none'
+              stroke='white'
+              strokeWidth='0.8'
+            />
+            {/* Centre line */}
+            <line
+              x1='2'
+              y1='75'
+              x2='98'
+              y2='75'
+              stroke='white'
+              strokeWidth='0.6'
+            />
+            {/* Centre circle */}
+            <ellipse
+              cx='50'
+              cy='75'
+              rx='13'
+              ry='9'
+              fill='none'
+              stroke='white'
+              strokeWidth='0.6'
+            />
+            <circle cx='50' cy='75' r='1.4' fill='white' />
+            {/* Own-goal penalty area */}
+            <rect
+              x='25'
+              y='128'
+              width='50'
+              height='20'
+              fill='none'
+              stroke='white'
+              strokeWidth='0.5'
+            />
+            {/* Own-goal box */}
+            <rect
+              x='36'
+              y='140'
+              width='28'
+              height='8'
+              fill='none'
+              stroke='white'
+              strokeWidth='0.5'
+            />
+          </svg>
+
+          {/* Score overlay — top left of pitch */}
+          {goals.length > 0 &&
+            (() => {
+              const ourGoals = goals.filter(
+                (g) => g.playerId !== "__away__",
+              ).length;
+              const theirGoals = goals.filter(
+                (g) => g.playerId === "__away__",
+              ).length;
+              const isHome = config.isHomeTeam !== false;
+              const left = isHome ? ourGoals : theirGoals;
+              const right = isHome ? theirGoals : ourGoals;
+              return (
+                <div className='absolute top-3 left-3 z-20 flex items-center gap-1.5 bg-black/50 rounded-xl px-2.5 py-1 backdrop-blur-sm'>
+                  <span className='text-white font-bold text-[17px] tabular-nums leading-none'>
+                    {left}
                   </span>
-                  <span className='text-white/30'>/</span>
-                  <span className='text-green-400 font-medium'>
-                    ↑ {onPlayer.name.split(" ")[0]}
+                  <span className='text-white/40 text-[13px] leading-none'>
+                    –
+                  </span>
+                  <span className='text-white font-bold text-[17px] tabular-nums leading-none'>
+                    {right}
                   </span>
                 </div>
               );
-            })}
+            })()}
+
+          {/* Players */}
+          <div className='relative z-10 flex flex-col justify-between gap-2 py-5 px-3 min-h-96'>
+            {pitchRows.map((row, rowIdx) => (
+              <div key={rowIdx} className='flex justify-around'>
+                {row.map((l) => {
+                  const p = getPlayer(l.playerId);
+                  if (!p) return null;
+                  return (
+                    <PlayerCard
+                      key={l.playerId}
+                      lineupEntry={l}
+                      playerName={p.name}
+                      playerNumber={p.number}
+                      minutes={getPlayerMinutes(l)}
+                      isSelected={selectedPlayerId === l.playerId}
+                      isTarget={
+                        !!selectedPlayerId && selectedPlayerId !== l.playerId
+                      }
+                      switchRank={getSwitchRank(l.playerId)}
+                      switchedAt={recentSwitches[l.playerId] ?? null}
+                      isSuggested={
+                        !!suggestionPair && suggestionPair[0] === l.playerId
+                      }
+                      onTap={(e) => handlePlayerTap(l.playerId, e)}
+                    />
+                  );
+                })}
+              </div>
+            ))}
+            {pitchRows.length === 0 && (
+              <div className='flex-1 flex items-center justify-center'>
+                <p className='text-white/30 text-[14px]'>No players on pitch</p>
+              </div>
+            )}
           </div>
         </div>
-      )}
 
-      {/* ── Pitch ── */}
-      <div
-        className='relative rounded-2xl overflow-hidden'
-        style={{
-          background:
-            "linear-gradient(180deg, #1d7032 0%, #1e7534 55%, #186028 100%)",
-        }}
-        onClick={() => setSelectedPlayerId(null)}>
-        {/* Pitch markings SVG — shows from centre circle down to own goal */}
-        <svg
-          className='absolute inset-0 w-full h-full pointer-events-none'
-          viewBox='0 58 100 92'
-          preserveAspectRatio='none'
-          style={{ opacity: 0.22 }}>
-          {/* Outer boundary (top is clipped, side lines + bottom goal line visible) */}
-          <rect
-            x='2'
-            y='2'
-            width='96'
-            height='146'
-            fill='none'
-            stroke='white'
-            strokeWidth='0.8'
-          />
-          {/* Centre line */}
-          <line
-            x1='2'
-            y1='75'
-            x2='98'
-            y2='75'
-            stroke='white'
-            strokeWidth='0.6'
-          />
-          {/* Centre circle */}
-          <ellipse
-            cx='50'
-            cy='75'
-            rx='13'
-            ry='9'
-            fill='none'
-            stroke='white'
-            strokeWidth='0.6'
-          />
-          <circle cx='50' cy='75' r='1.4' fill='white' />
-          {/* Own-goal penalty area */}
-          <rect
-            x='25'
-            y='128'
-            width='50'
-            height='20'
-            fill='none'
-            stroke='white'
-            strokeWidth='0.5'
-          />
-          {/* Own-goal box */}
-          <rect
-            x='36'
-            y='140'
-            width='28'
-            height='8'
-            fill='none'
-            stroke='white'
-            strokeWidth='0.5'
-          />
-        </svg>
-
-        {/* Players */}
-        <div className='relative z-10 flex flex-col justify-between gap-2 py-5 px-3 min-h-96'>
-          {pitchRows.map((row, rowIdx) => (
-            <div key={rowIdx} className='flex justify-around'>
-              {row.map((l) => {
-                const p = getPlayer(l.playerId);
-                if (!p) return null;
-                return (
-                  <PlayerCard
-                    key={l.playerId}
-                    lineupEntry={l}
-                    playerName={p.name}
-                    playerNumber={p.number}
-                    minutes={getPlayerMinutes(l)}
-                    isSelected={selectedPlayerId === l.playerId}
-                    isTarget={
-                      !!selectedPlayerId && selectedPlayerId !== l.playerId
-                    }
-                    switchRank={getSwitchRank(l.playerId)}
-                    switchedAt={recentSwitches[l.playerId] ?? null}
-                    isSuggested={
-                      !!suggestionPair && suggestionPair[0] === l.playerId
-                    }
-                    onTap={(e) => handlePlayerTap(l.playerId, e)}
-                  />
-                );
-              })}
-            </div>
-          ))}
-          {pitchRows.length === 0 && (
-            <div className='flex-1 flex items-center justify-center'>
-              <p className='text-white/30 text-[14px]'>No players on pitch</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Bench ── */}
-      {benchPlayers.length > 0 &&
-        (() => {
-          // Sort: most recently switched → leftmost (will wait longest)
-          // Oldest switch / never switched → rightmost (next up, biggest circle)
-          const sortedBench = [...benchPlayers].sort((a, b) => {
-            const ta = recentSwitches[a.playerId] ?? 0;
-            const tb = recentSwitches[b.playerId] ?? 0;
-            return tb - ta; // newest first (leftmost)
-          });
-          const n = sortedBench.length;
-          return (
-            <div>
-              <p className='text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1 mb-2'>
-                Bench ({n})
-              </p>
-              <div
-                className='rounded-2xl px-3 py-3'
-                style={{ background: "rgba(12, 16, 25, 0.8)" }}
-                onClick={() => setSelectedPlayerId(null)}>
-                <div className='flex gap-2 justify-start'>
-                  {sortedBench.map((l, i) => {
-                    const p = getPlayer(l.playerId);
-                    if (!p) return null;
-                    const circleScale = n === 1 ? 0.5 : i / (n - 1);
-                    const isNextUp = i === n - 1;
-                    return (
-                      <PlayerCard
-                        key={l.playerId}
-                        lineupEntry={l}
-                        playerName={p.name}
-                        playerNumber={p.number}
-                        minutes={getPlayerMinutes(l)}
-                        isSelected={selectedPlayerId === l.playerId}
-                        isTarget={
-                          !!selectedPlayerId && selectedPlayerId !== l.playerId
-                        }
-                        switchRank={getSwitchRank(l.playerId)}
-                        switchedAt={recentSwitches[l.playerId] ?? null}
-                        isSuggested={
-                          !!suggestionPair && suggestionPair[1] === l.playerId
-                        }
-                        isBench={true}
-                        circleScale={circleScale}
-                        isNextUp={isNextUp}
-                        onTap={(e) => handlePlayerTap(l.playerId, e)}
-                      />
-                    );
-                  })}
+        {/* ── Bench ── */}
+        {benchPlayers.length > 0 &&
+          (() => {
+            // Sort: most recently switched → leftmost (will wait longest)
+            // Oldest switch / never switched → rightmost (next up, biggest circle)
+            const sortedBench = [...benchPlayers].sort((a, b) => {
+              const ta = recentSwitches[a.playerId] ?? 0;
+              const tb = recentSwitches[b.playerId] ?? 0;
+              return tb - ta; // newest first (leftmost)
+            });
+            const n = sortedBench.length;
+            return (
+              <div>
+                <p className='text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1 mb-2'>
+                  Bench ({n})
+                </p>
+                <div
+                  className='rounded-2xl px-3 py-3'
+                  style={{ background: "rgba(12, 16, 25, 0.8)" }}
+                  onClick={() => setSelectedPlayerId(null)}>
+                  <div className='flex gap-2 justify-start items-end'>
+                    {sortedBench.map((l, i) => {
+                      const p = getPlayer(l.playerId);
+                      if (!p) return null;
+                      const circleScale = n === 1 ? 0.5 : i / (n - 1);
+                      const isNextUp = i === n - 1;
+                      return (
+                        <PlayerCard
+                          key={l.playerId}
+                          lineupEntry={l}
+                          playerName={p.name}
+                          playerNumber={p.number}
+                          minutes={getPlayerMinutes(l)}
+                          isSelected={selectedPlayerId === l.playerId}
+                          isTarget={
+                            !!selectedPlayerId &&
+                            selectedPlayerId !== l.playerId
+                          }
+                          switchRank={getSwitchRank(l.playerId)}
+                          switchedAt={recentSwitches[l.playerId] ?? null}
+                          isSuggested={
+                            !!suggestionPair && suggestionPair[1] === l.playerId
+                          }
+                          isBench={true}
+                          circleScale={circleScale}
+                          isNextUp={isNextUp}
+                          onTap={(e) => handlePlayerTap(l.playerId, e)}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
 
-      {/* ── Substitutions log (collapsible) ── */}
-      {substitutions.length > 0 && (
-        <div className='rounded-2xl overflow-hidden border border-gray-200/15 dark:border-gray-700/25'>
-          <button
-            type='button'
-            onClick={() => setShowSubs((v) => !v)}
-            className='w-full flex items-center justify-between px-4 py-3 bg-white/5 dark:bg-white/5'>
-            <p className='text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest'>
-              Substitutions ({substitutions.length})
-            </p>
-            <svg
-              className={cn(
-                "w-4 h-4 text-gray-400 transition-transform",
-                showSubs && "rotate-180",
-              )}
-              fill='none'
-              viewBox='0 0 24 24'
-              stroke='currentColor'
-              strokeWidth={2}>
-              <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M19 9l-7 7-7-7'
-              />
-            </svg>
-          </button>
-          {showSubs && (
-            <div className='px-4 pb-3 pt-1 space-y-0 bg-white/5 dark:bg-white/5'>
-              {substitutions.map((sub, i) => {
-                const off = getPlayer(sub.playerOffId);
-                const on = getPlayer(sub.playerOnId);
-                return (
-                  <div
-                    key={sub.id}
-                    className={cn(
-                      "flex items-center gap-2 text-[13px] py-2",
-                      i > 0 && "border-t border-white/10",
-                    )}>
-                    <span className='text-gray-500 w-7 shrink-0 tabular-nums font-semibold'>
-                      {sub.matchMinute}&apos;
-                    </span>
-                    <span className='text-red-400 font-semibold'>
-                      ↓ {off ? `#${off.number} ${off.name}` : "?"}
-                    </span>
-                    <span className='text-gray-500'>→</span>
-                    <span className='text-green-400 font-semibold'>
-                      ↑ {on ? `#${on.number} ${on.name}` : "?"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+        {/* ── Substitutions log (collapsible) ── */}
+        {substitutions.length > 0 && (
+          <div className='rounded-2xl overflow-hidden border border-gray-200/15 dark:border-gray-700/25'>
+            <button
+              type='button'
+              onClick={() => setShowSubs((v) => !v)}
+              className='w-full flex items-center justify-between px-4 py-3 bg-white/5 dark:bg-white/5'>
+              <p className='text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest'>
+                Substitutions ({substitutions.length})
+              </p>
+              <svg
+                className={cn(
+                  "w-4 h-4 text-gray-400 transition-transform",
+                  showSubs && "rotate-180",
+                )}
+                fill='none'
+                viewBox='0 0 24 24'
+                stroke='currentColor'
+                strokeWidth={2}>
+                <path
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                  d='M19 9l-7 7-7-7'
+                />
+              </svg>
+            </button>
+            {showSubs && (
+              <div className='px-4 pb-3 pt-1 space-y-0 bg-white/5 dark:bg-white/5'>
+                {substitutions.map((sub, i) => {
+                  const off = getPlayer(sub.playerOffId);
+                  const on = getPlayer(sub.playerOnId);
+                  return (
+                    <div
+                      key={sub.id}
+                      className={cn(
+                        "flex items-center gap-2 text-[13px] py-2",
+                        i > 0 && "border-t border-white/10",
+                      )}>
+                      <span className='text-gray-500 w-7 shrink-0 tabular-nums font-semibold'>
+                        {sub.matchMinute}&apos;
+                      </span>
+                      <span className='text-red-400 font-semibold'>
+                        ↓ {off ? `#${off.number} ${off.name}` : "?"}
+                      </span>
+                      <span className='text-gray-500'>→</span>
+                      <span className='text-green-400 font-semibold'>
+                        ↑ {on ? `#${on.number} ${on.name}` : "?"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      {/* end scrollable area */}
 
-      {/* ── Reset time played + Regret ── */}
-      <div className='flex justify-between items-center'>
+      {/* ── Bottom icon bar ── */}
+      <div
+        className={cn(
+          "flex justify-between items-center px-1",
+          expanded && "bg-gray-950 px-5 py-5 pb-8",
+        )}>
+        {/* Regret / undo */}
         <button
           type='button'
           onClick={handleRegret}
           disabled={undoStack.length === 0}
-          className='text-[12px] text-orange-400 dark:text-orange-400 active:opacity-60 disabled:opacity-30 disabled:pointer-events-none'>
-          ↩ Regret
+          title='Undo last action'
+          className='w-9 h-9 flex items-center justify-center rounded-xl text-orange-400 active:opacity-60 disabled:opacity-30 disabled:pointer-events-none'>
+          <svg
+            viewBox='0 0 24 24'
+            width='20'
+            height='20'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            strokeLinecap='round'
+            strokeLinejoin='round'>
+            <path d='M3 10h11a5 5 0 0 1 0 10H3' />
+            <polyline points='7 6 3 10 7 14' />
+          </svg>
         </button>
+
+        {/* Goal */}
+        <button
+          type='button'
+          onClick={() => setShowGoals(true)}
+          title='Goals'
+          className='h-9 px-3 flex items-center justify-center rounded-xl bg-white/10 text-white active:opacity-60'>
+          <span className='text-[13px] font-black tracking-widest'>GOAL</span>
+        </button>
+
+        {/* Expand / contract */}
+        <button
+          type='button'
+          onClick={() => setExpanded((v) => !v)}
+          title={expanded ? "Contract" : "Expand"}
+          className='w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 active:opacity-60'>
+          {expanded ? (
+            <svg
+              viewBox='0 0 24 24'
+              width='20'
+              height='20'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'>
+              <polyline points='4 14 10 14 10 20' />
+              <polyline points='20 10 14 10 14 4' />
+              <line x1='10' y1='14' x2='3' y2='21' />
+              <line x1='21' y1='3' x2='14' y2='10' />
+            </svg>
+          ) : (
+            <svg
+              viewBox='0 0 24 24'
+              width='20'
+              height='20'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'>
+              <polyline points='15 3 21 3 21 9' />
+              <polyline points='9 21 3 21 3 15' />
+              <line x1='21' y1='3' x2='14' y2='10' />
+              <line x1='3' y1='21' x2='10' y2='14' />
+            </svg>
+          )}
+        </button>
+
+        {/* Reset time played */}
         <button
           type='button'
           onClick={() => setShowResetConfirm(true)}
-          className='text-[12px] text-gray-500 dark:text-gray-500 active:opacity-60'>
-          Reset time played
+          title='Reset time played'
+          className='w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 active:opacity-60'>
+          <svg
+            viewBox='0 0 24 24'
+            width='20'
+            height='20'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            strokeLinecap='round'
+            strokeLinejoin='round'>
+            <path d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8' />
+            <path d='M21 3v5h-5' />
+            <line x1='12' y1='8' x2='12' y2='12' />
+            <line x1='12' y1='16' x2='12.01' y2='16' />
+          </svg>
         </button>
+
+        {/* Edit config */}
+        {onUpdateConfig && (
+          <button
+            type='button'
+            onClick={() => {
+              setEditTeamSize(config.teamSize);
+              setEditHalfDuration(config.halfDurationMinutes);
+              setEditTradeTimer(config.tradeTimerMinutes);
+              setEditIsHome(config.isHomeTeam !== false);
+              setEditConsiderTime(config.subConsiderTime ?? false);
+              setEditConsiderPosition(config.subConsiderPosition ?? false);
+              setEditConsiderKeeper(config.subConsiderKeeper ?? false);
+              setEditConsiderSubOrder(config.subConsiderSubOrder ?? false);
+              setEditVibrate(config.vibrateOnWarning ?? false);
+              setEditPlayers([...config.players]);
+              setShowEditConfig(true);
+            }}
+            title='Edit team setup'
+            className='w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 active:opacity-60'>
+            <svg
+              viewBox='0 0 24 24'
+              width='20'
+              height='20'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='2'
+              strokeLinecap='round'
+              strokeLinejoin='round'>
+              <path d='M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7' />
+              <path d='M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z' />
+            </svg>
+          </button>
+        )}
       </div>
 
-      {/* ── Reset confirmation dialog ── */}
-      {showResetConfirm && (
-        <div
-          className='fixed inset-0 z-50 flex items-center justify-center px-4'
-          style={{ background: "rgba(0,0,0,0.55)" }}
-          onClick={() => setShowResetConfirm(false)}>
+      {/* ── Edit Config Sheet ── */}
+      {showEditConfig &&
+        onUpdateConfig &&
+        createPortal(
           <div
-            className='w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 overflow-hidden'
-            onClick={(e) => e.stopPropagation()}>
-            <div className='px-5 pt-5 pb-4 text-center'>
-              <p className='text-[16px] font-semibold text-gray-900 dark:text-white'>
-                Reset time played?
-              </p>
-              <p className='text-[13px] text-gray-500 mt-1'>
-                All player minutes will be set back to zero.
-              </p>
+            className='fixed inset-0 z-50 flex items-end'
+            style={{ background: "rgba(0,0,0,0.65)" }}
+            onClick={() => setShowEditConfig(false)}>
+            <div
+              className='w-full rounded-t-2xl bg-ios-card-dark overflow-hidden flex flex-col max-h-[92vh]'
+              onClick={(e) => e.stopPropagation()}>
+              {/* Handle + header */}
+              <div className='flex justify-center pt-3 pb-1 shrink-0'>
+                <div className='w-10 h-1 rounded-full bg-white/20' />
+              </div>
+              <div className='flex items-center justify-between px-5 pt-2 pb-4 shrink-0'>
+                <p className='text-[18px] font-semibold text-white'>
+                  Team Setup
+                </p>
+                <button
+                  type='button'
+                  onClick={() => setShowEditConfig(false)}
+                  className='text-[15px] text-ios-blue active:opacity-60 font-medium'>
+                  Done
+                </button>
+              </div>
+
+              <div className='overflow-y-auto flex-1 px-4 space-y-5 pb-10'>
+                {/* Grid: team size, half duration, sub timer */}
+                <div className='grid grid-cols-3 gap-2'>
+                  {[
+                    {
+                      label: "Players on pitch",
+                      el: (
+                        <select
+                          value={editTeamSize}
+                          onChange={(e) =>
+                            setEditTeamSize(Number(e.target.value))
+                          }
+                          className='w-full px-2 py-2 rounded-lg text-[14px] bg-white/10 text-white border border-white/15 focus:outline-none'>
+                          {[4, 5, 6, 7, 8, 9, 10, 11].map((n) => (
+                            <option key={n} value={n}>
+                              {n}v{n}
+                            </option>
+                          ))}
+                        </select>
+                      ),
+                    },
+                    {
+                      label: "Half (min)",
+                      el: (
+                        <input
+                          type='number'
+                          min={5}
+                          max={90}
+                          value={editHalfDuration}
+                          onChange={(e) =>
+                            setEditHalfDuration(
+                              Math.max(1, Number(e.target.value) || 25),
+                            )
+                          }
+                          className='w-full px-2 py-2 rounded-lg text-[14px] bg-white/10 text-white border border-white/15 focus:outline-none text-center'
+                        />
+                      ),
+                    },
+                    {
+                      label: "Sub every (min)",
+                      el: (
+                        <input
+                          type='number'
+                          min={1}
+                          max={30}
+                          value={editTradeTimer}
+                          onChange={(e) =>
+                            setEditTradeTimer(
+                              Math.min(
+                                30,
+                                Math.max(1, Number(e.target.value) || 10),
+                              ),
+                            )
+                          }
+                          className='w-full px-2 py-2 rounded-lg text-[14px] bg-white/10 text-white border border-white/15 focus:outline-none text-center'
+                        />
+                      ),
+                    },
+                  ].map(({ label, el }) => (
+                    <div key={label}>
+                      <label className='text-[11px] text-white/40 mb-1 block'>
+                        {label}
+                      </label>
+                      {el}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Sub suggestions consider */}
+                <div>
+                  <p className='text-[11px] font-semibold text-white/35 uppercase tracking-wider px-1 mb-2'>
+                    Sub suggestions consider
+                  </p>
+                  <div className='rounded-xl overflow-hidden divide-y divide-white/8 bg-white/8'>
+                    {(
+                      [
+                        {
+                          id: "time",
+                          label: "Time played",
+                          desc: "Shortest time on pitch comes on first",
+                          val: editConsiderTime,
+                          set: setEditConsiderTime,
+                        },
+                        {
+                          id: "pos",
+                          label: "Position",
+                          desc: "Prefer natural position matches",
+                          val: editConsiderPosition,
+                          set: setEditConsiderPosition,
+                        },
+                        {
+                          id: "gk",
+                          label: "Keeper history",
+                          desc: "Former GK prioritised for non-defensive roles",
+                          val: editConsiderKeeper,
+                          set: setEditConsiderKeeper,
+                        },
+                        {
+                          id: "suborder",
+                          label: "Sub rotation order",
+                          desc: "Last player subbed on is last to come off",
+                          val: editConsiderSubOrder,
+                          set: setEditConsiderSubOrder,
+                        },
+                      ] as {
+                        id: string;
+                        label: string;
+                        desc: string;
+                        val: boolean;
+                        set: (v: boolean) => void;
+                      }[]
+                    ).map(({ id, label, desc, val, set }) => (
+                      <label
+                        key={id}
+                        className='flex items-center justify-between px-4 py-3 cursor-pointer active:bg-white/5'>
+                        <div className='flex-1 pr-3'>
+                          <p className='text-[15px] text-white'>{label}</p>
+                          <p className='text-[12px] text-white/40 mt-0.5'>
+                            {desc}
+                          </p>
+                        </div>
+                        <div
+                          className={cn(
+                            "relative shrink-0 w-12.75 h-7.75 rounded-full transition-colors duration-200",
+                            val ? "bg-ios-blue" : "bg-gray-600",
+                          )}>
+                          <div
+                            className={cn(
+                              "absolute top-0.5 left-0.5 w-6.75 h-6.75 rounded-full bg-white shadow-sm transition-transform duration-200",
+                              val && "translate-x-5",
+                            )}
+                          />
+                          <input
+                            type='checkbox'
+                            checked={val}
+                            onChange={(e) => set(e.target.checked)}
+                            className='sr-only'
+                          />
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Alerts */}
+                <div>
+                  <p className='text-[11px] font-semibold text-white/35 uppercase tracking-wider px-1 mb-2'>
+                    Alerts
+                  </p>
+                  <div className='rounded-xl overflow-hidden bg-white/8'>
+                    <label className='flex items-center justify-between px-4 py-3 cursor-pointer active:bg-white/5'>
+                      <div className='flex-1 pr-3'>
+                        <p className='text-[15px] text-white'>
+                          Sound alert on sub warning
+                        </p>
+                        <p className='text-[12px] text-white/40 mt-0.5'>
+                          Beep 1 min before sub is due
+                        </p>
+                      </div>
+                      <div
+                        className={cn(
+                          "relative shrink-0 w-12.75 h-7.75 rounded-full transition-colors duration-200",
+                          editVibrate ? "bg-ios-blue" : "bg-gray-600",
+                        )}>
+                        <div
+                          className={cn(
+                            "absolute top-0.5 left-0.5 w-6.75 h-6.75 rounded-full bg-white shadow-sm transition-transform duration-200",
+                            editVibrate && "translate-x-5",
+                          )}
+                        />
+                        <input
+                          type='checkbox'
+                          checked={editVibrate}
+                          onChange={(e) => setEditVibrate(e.target.checked)}
+                          className='sr-only'
+                        />
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Players */}
+                <div>
+                  <p className='text-[11px] font-semibold text-white/35 uppercase tracking-wider px-1 mb-2'>
+                    Players
+                  </p>
+                  {editPlayers.length > 0 && (
+                    <div className='rounded-xl overflow-hidden divide-y divide-white/8 bg-white/8 mb-2'>
+                      {editPlayers.map((player, i) => {
+                        const isSwiped = editSwipedPlayerId === player.id;
+                        return (
+                          <div
+                            key={player.id}
+                            className='relative overflow-hidden'>
+                            <div className='absolute right-0 top-0 bottom-0 flex items-center'>
+                              <button
+                                type='button'
+                                onClick={() =>
+                                  setEditPlayers(
+                                    editPlayers.filter((_, idx) => idx !== i),
+                                  )
+                                }
+                                className='h-full px-5 bg-red-500 text-white text-[14px] font-medium flex items-center'>
+                                Delete
+                              </button>
+                            </div>
+                            <div
+                              onTouchStart={(e) => {
+                                editTouchStartX.current = e.touches[0].clientX;
+                              }}
+                              onTouchMove={(e) => {
+                                const diff =
+                                  editTouchStartX.current -
+                                  e.touches[0].clientX;
+                                if (diff > 10) setEditSwipedPlayerId(player.id);
+                                else if (diff < -30)
+                                  setEditSwipedPlayerId(null);
+                              }}
+                              onClick={() => {
+                                if (
+                                  editSwipedPlayerId &&
+                                  editSwipedPlayerId !== player.id
+                                )
+                                  setEditSwipedPlayerId(null);
+                              }}
+                              style={{
+                                transform: isSwiped
+                                  ? "translateX(-80px)"
+                                  : "translateX(0)",
+                                transition:
+                                  "transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94)",
+                              }}
+                              className='flex items-center gap-1.5 px-3 py-2 bg-transparent'>
+                              <input
+                                type='number'
+                                min={0}
+                                max={99}
+                                value={player.number || ""}
+                                placeholder='#'
+                                onChange={(e) => {
+                                  const u = [...editPlayers];
+                                  u[i] = {
+                                    ...u[i],
+                                    number: parseInt(e.target.value) || 0,
+                                  };
+                                  setEditPlayers(u);
+                                }}
+                                className='w-11 px-1 py-1.5 rounded-md text-[13px] text-center font-semibold bg-white/10 text-white border border-white/15 focus:outline-none'
+                              />
+                              <input
+                                type='text'
+                                value={player.name}
+                                placeholder='Player name'
+                                onChange={(e) => {
+                                  const u = [...editPlayers];
+                                  u[i] = { ...u[i], name: e.target.value };
+                                  setEditPlayers(u);
+                                }}
+                                className='flex-1 px-2 py-1.5 rounded-md text-[13px] bg-white/10 text-white border border-white/15 focus:outline-none'
+                              />
+                              <PositionSelect
+                                value={player.preferredPosition}
+                                onChange={(pos) => {
+                                  const u = [...editPlayers];
+                                  u[i] = { ...u[i], preferredPosition: pos };
+                                  setEditPlayers(u);
+                                }}
+                                className='w-16'
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <button
+                    type='button'
+                    onClick={() =>
+                      setEditPlayers([
+                        ...editPlayers,
+                        {
+                          id: crypto.randomUUID(),
+                          name: "",
+                          number: 0,
+                          preferredPosition: "CM",
+                        },
+                      ])
+                    }
+                    className='w-full py-2.5 rounded-xl text-[14px] font-medium text-ios-blue border border-ios-blue/30 bg-ios-blue/10 active:opacity-70'>
+                    + Add player
+                  </button>
+                </div>
+
+                {/* Save button */}
+                <button
+                  type='button'
+                  onClick={() => {
+                    const updatedConfig: CoachConfig = {
+                      ...config,
+                      teamSize: editTeamSize,
+                      halfDurationMinutes: editHalfDuration,
+                      tradeTimerMinutes: editTradeTimer,
+                      isHomeTeam: editIsHome,
+                      subConsiderTime: editConsiderTime,
+                      subConsiderPosition: editConsiderPosition,
+                      subConsiderKeeper: editConsiderKeeper,
+                      subConsiderSubOrder: editConsiderSubOrder,
+                      vibrateOnWarning: editVibrate,
+                      players: editPlayers,
+                    };
+                    onUpdateConfig({ ...type, coachConfig: updatedConfig });
+                    setShowEditConfig(false);
+                  }}
+                  className='w-full py-3 rounded-xl text-[15px] font-semibold bg-ios-blue text-white active:opacity-80'>
+                  Save
+                </button>
+              </div>
             </div>
-            <div className='flex border-t border-gray-200 dark:border-gray-700'>
-              <button
-                type='button'
-                onClick={() => setShowResetConfirm(false)}
-                className='flex-1 py-3.5 text-[15px] text-gray-600 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800'>
-                Cancel
-              </button>
-              <button
-                type='button'
-                onClick={handleResetTimePlayed}
-                className='flex-1 py-3.5 text-[15px] font-semibold text-red-500 active:bg-gray-100 dark:active:bg-gray-800'>
-                Reset
-              </button>
+          </div>,
+          document.body,
+        )}
+
+      {/* ── Statistics sheet ── */}
+      {showGoals &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className='fixed inset-0 z-50 flex items-end'
+            style={{ background: "rgba(0,0,0,0.65)" }}
+            onClick={() => setShowGoals(false)}>
+            <div
+              className='w-full rounded-t-2xl bg-[#111] overflow-hidden flex flex-col max-h-[88vh]'
+              onClick={(e) => e.stopPropagation()}>
+              {/* Drag handle */}
+              <div className='flex justify-center pt-3 pb-1 shrink-0'>
+                <div className='w-10 h-1 rounded-full bg-white/20' />
+              </div>
+
+              {/* ── Scoreboard ── */}
+              {(() => {
+                const ourGoals = goals.filter(
+                  (g) => g.playerId !== "__away__",
+                ).length;
+                const theirGoals = goals.filter(
+                  (g) => g.playerId === "__away__",
+                ).length;
+                const isHome = config.isHomeTeam !== false;
+                const leftScore = isHome ? ourGoals : theirGoals;
+                const rightScore = isHome ? theirGoals : ourGoals;
+                const leftLabel = isHome
+                  ? homeTeamName || "Home"
+                  : awayTeamName || "Away";
+                const rightLabel = isHome
+                  ? awayTeamName || "Away"
+                  : homeTeamName || "Home";
+                return (
+                  <div className='px-6 pt-3 pb-6 text-center shrink-0'>
+                    <p className='text-[11px] uppercase tracking-widest text-white/30 font-semibold mb-4'>
+                      {halfLabel}
+                    </p>
+                    <div className='flex items-center justify-center gap-1'>
+                      <div className='flex-1 flex flex-col items-end gap-1.5'>
+                        <span className='text-[11px] font-semibold tracking-widest text-white/40 uppercase'>
+                          {leftLabel}
+                        </span>
+                      </div>
+                      <div className='flex items-baseline gap-3 px-5'>
+                        <span className='text-[64px] font-bold text-white tabular-nums leading-none'>
+                          {leftScore}
+                        </span>
+                        <span className='text-[36px] text-white/25 font-light leading-none mb-1'>
+                          –
+                        </span>
+                        <span className='text-[64px] font-bold text-white tabular-nums leading-none'>
+                          {rightScore}
+                        </span>
+                      </div>
+                      <div className='flex-1 flex flex-col items-start gap-1.5'>
+                        <span className='text-[11px] font-semibold tracking-widest text-white/40 uppercase'>
+                          {rightLabel}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* ── Goal events timeline ── */}
+              {(() => {
+                const isHome = config.isHomeTeam !== false;
+                const sorted = [...goals].sort(
+                  (a, b) => a.matchMinute - b.matchMinute,
+                );
+                if (sorted.length === 0) {
+                  return (
+                    <div className='px-6 pb-6 text-center shrink-0'>
+                      <p className='text-[13px] text-white/25'>No goals yet</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className='border-t border-white/8 shrink-0'>
+                    {sorted.map((g) => {
+                      const isOurGoal = g.playerId !== "__away__";
+                      const player = isOurGoal
+                        ? config.players.find((p) => p.id === g.playerId)
+                        : null;
+                      const name = player ? player.name : null;
+                      // If we are home, our goals appear on the left
+                      const goalOnLeft =
+                        (isHome && isOurGoal) || (!isHome && !isOurGoal);
+                      return (
+                        <div
+                          key={g.id}
+                          className='flex items-center px-5 py-2.5 border-b border-white/5 last:border-0'>
+                          {goalOnLeft ? (
+                            <>
+                              <span className='flex-1 text-[14px] font-medium text-white'>
+                                {name ?? "—"}
+                              </span>
+                              <span className='text-[13px] text-white/40 tabular-nums ml-3'>
+                                {g.matchMinute}&apos;
+                              </span>
+                              <span className='ml-2 text-[15px]'>⚽</span>
+                              <span className='flex-1' />
+                            </>
+                          ) : (
+                            <>
+                              <span className='flex-1' />
+                              <span className='mr-2 text-[15px]'>⚽</span>
+                              <span className='text-[13px] text-white/40 tabular-nums mr-3'>
+                                {g.matchMinute}&apos;
+                              </span>
+                              <span className='flex-1 text-[14px] font-medium text-white text-right'>
+                                {name ?? "—"}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              {/* ── Add goal controls ── */}
+              <div className='overflow-y-auto flex-1 border-t border-white/8'>
+                <p className='px-5 pt-4 pb-1 text-[11px] uppercase tracking-widest text-white/30 font-semibold'>
+                  Add Goal
+                </p>
+                {config.players.map((p) => {
+                  const count = goals.filter((g) => g.playerId === p.id).length;
+                  return (
+                    <div
+                      key={p.id}
+                      className='flex items-center justify-between px-5 py-2.5 border-b border-white/5 last:border-0'>
+                      <div className='flex items-center gap-3'>
+                        <span className='text-[13px] text-white/35 w-5 text-right tabular-nums'>
+                          {p.number}
+                        </span>
+                        <span className='text-[15px] text-white font-medium'>
+                          {p.name}
+                        </span>
+                      </div>
+                      <div className='flex items-center gap-3'>
+                        <button
+                          type='button'
+                          onClick={() => handleRemoveGoal(p.id)}
+                          disabled={count === 0}
+                          className='w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[20px] leading-none active:opacity-60 disabled:opacity-20'>
+                          −
+                        </button>
+                        <span className='text-[15px] font-semibold text-white w-4 text-center tabular-nums'>
+                          {count}
+                        </span>
+                        <button
+                          type='button'
+                          onClick={() => handleAddGoal(p.id)}
+                          className='w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[20px] leading-none active:opacity-60'>
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* Opponent */}
+                <div className='flex items-center justify-between px-5 py-2.5'>
+                  <span className='text-[15px] text-white/50 italic'>
+                    {config.isHomeTeam !== false
+                      ? awayTeamName || "Away team"
+                      : homeTeamName || "Home team"}
+                  </span>
+                  <div className='flex items-center gap-3'>
+                    <button
+                      type='button'
+                      onClick={() => handleRemoveGoal("__away__")}
+                      disabled={
+                        goals.filter((g) => g.playerId === "__away__")
+                          .length === 0
+                      }
+                      className='w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[20px] leading-none active:opacity-60 disabled:opacity-20'>
+                      −
+                    </button>
+                    <span className='text-[15px] font-semibold text-white w-4 text-center tabular-nums'>
+                      {goals.filter((g) => g.playerId === "__away__").length}
+                    </span>
+                    <button
+                      type='button'
+                      onClick={() => handleAddGoal("__away__")}
+                      className='w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-[20px] leading-none active:opacity-60'>
+                      +
+                    </button>
+                  </div>
+                </div>
+                {/* Safe-area spacer */}
+                <div className='h-24' />
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
+
+      {/* ── Half/Full time confirmation dialog ── */}
+      {confirmAction !== null &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className='fixed inset-0 z-50 flex items-center justify-center px-4'
+            style={{ background: "rgba(0,0,0,0.55)" }}
+            onClick={() => setConfirmAction(null)}>
+            <div
+              className='w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 overflow-hidden'
+              onClick={(e) => e.stopPropagation()}>
+              <div className='px-5 pt-5 pb-4 text-center'>
+                <p className='text-[16px] font-semibold text-gray-900 dark:text-white'>
+                  {confirmAction === "halfTime"
+                    ? "End 1st Half?"
+                    : "End Match?"}
+                </p>
+                <p className='text-[13px] text-gray-500 mt-1'>
+                  {confirmAction === "halfTime"
+                    ? "The clock will stop and you'll move to half time."
+                    : "The match will be marked as complete."}
+                </p>
+              </div>
+              <div className='flex border-t border-gray-200 dark:border-gray-700'>
+                <button
+                  type='button'
+                  onClick={() => setConfirmAction(null)}
+                  className='flex-1 py-3.5 text-[15px] text-gray-600 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800'>
+                  Cancel
+                </button>
+                <button
+                  type='button'
+                  onClick={() => {
+                    if (confirmAction === "halfTime") handleHalfTime();
+                    else handleEndMatch();
+                    setConfirmAction(null);
+                  }}
+                  className={cn(
+                    "flex-1 py-3.5 text-[15px] font-semibold active:bg-gray-100 dark:active:bg-gray-800",
+                    confirmAction === "halfTime"
+                      ? "text-amber-500"
+                      : "text-red-500",
+                  )}>
+                  {confirmAction === "halfTime" ? "Half Time" : "Full Time"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* ── Reset confirmation dialog ── */}
+      {showResetConfirm &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className='fixed inset-0 z-50 flex items-center justify-center px-4'
+            style={{ background: "rgba(0,0,0,0.55)" }}
+            onClick={() => setShowResetConfirm(false)}>
+            <div
+              className='w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 overflow-hidden'
+              onClick={(e) => e.stopPropagation()}>
+              <div className='px-5 pt-5 pb-4 text-center'>
+                <p className='text-[16px] font-semibold text-gray-900 dark:text-white'>
+                  Reset match?
+                </p>
+                <p className='text-[13px] text-gray-500 mt-1'>
+                  The match clock, all player timers, substitutions and goals
+                  will be cleared.
+                </p>
+              </div>
+              <div className='flex border-t border-gray-200 dark:border-gray-700'>
+                <button
+                  type='button'
+                  onClick={() => setShowResetConfirm(false)}
+                  className='flex-1 py-3.5 text-[15px] text-gray-600 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700 active:bg-gray-100 dark:active:bg-gray-800'>
+                  Cancel
+                </button>
+                <button
+                  type='button'
+                  onClick={handleResetTimePlayed}
+                  className='flex-1 py-3.5 text-[15px] font-semibold text-red-500 active:bg-gray-100 dark:active:bg-gray-800'>
+                  Reset
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
+
+  return content;
 }

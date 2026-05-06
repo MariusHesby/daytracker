@@ -360,6 +360,8 @@ export const ActivityTypeManager = forwardRef<
   const [coachConsiderTime, setCoachConsiderTime] = useState(false);
   const [coachConsiderPosition, setCoachConsiderPosition] = useState(false);
   const [coachConsiderKeeper, setCoachConsiderKeeper] = useState(false);
+  const [coachVibrateOnWarning, setCoachVibrateOnWarning] = useState(false);
+  const [coachIsHome, setCoachIsHome] = useState(true);
 
   // Standalone state
   const [standalone, setStandalone] = useState(false);
@@ -370,6 +372,11 @@ export const ActivityTypeManager = forwardRef<
   const touchStartX = useRef<number>(0);
   const touchCurrentX = useRef<number>(0);
   const swipeRef = useRef<HTMLDivElement | null>(null);
+
+  // Swipe-to-delete state for player roster rows
+  const [swipedPlayerId, setSwipedPlayerId] = useState<string | null>(null);
+  const playerTouchStartX = useRef<number>(0);
+  const playerTouchCurrentX = useRef<number>(0);
 
   const setIsAdding = (value: boolean) => {
     setIsAddingState(value);
@@ -420,6 +427,8 @@ export const ActivityTypeManager = forwardRef<
     setCoachConsiderTime(false);
     setCoachConsiderPosition(false);
     setCoachConsiderKeeper(false);
+    setCoachVibrateOnWarning(false);
+    setCoachIsHome(true);
   };
 
   const handleAddExercise = () => {
@@ -526,6 +535,8 @@ export const ActivityTypeManager = forwardRef<
                   subConsiderTime: coachConsiderTime,
                   subConsiderPosition: coachConsiderPosition,
                   subConsiderKeeper: coachConsiderKeeper,
+                  vibrateOnWarning: coachVibrateOnWarning,
+                  isHomeTeam: coachIsHome,
                 }
               : undefined,
           standalone,
@@ -571,6 +582,8 @@ export const ActivityTypeManager = forwardRef<
                 subConsiderTime: coachConsiderTime,
                 subConsiderPosition: coachConsiderPosition,
                 subConsiderKeeper: coachConsiderKeeper,
+                vibrateOnWarning: coachVibrateOnWarning,
+                isHomeTeam: coachIsHome,
               }
             : undefined,
         standalone,
@@ -602,6 +615,8 @@ export const ActivityTypeManager = forwardRef<
     setCoachConsiderTime(type.coachConfig?.subConsiderTime ?? false);
     setCoachConsiderPosition(type.coachConfig?.subConsiderPosition ?? false);
     setCoachConsiderKeeper(type.coachConfig?.subConsiderKeeper ?? false);
+    setCoachVibrateOnWarning(type.coachConfig?.vibrateOnWarning ?? false);
+    setCoachIsHome(type.coachConfig?.isHomeTeam ?? true);
     setCoachPlayerCount(
       type.coachConfig?.players?.length
         ? String(type.coachConfig.players.length)
@@ -1492,264 +1507,6 @@ export const ActivityTypeManager = forwardRef<
                   ))}
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Coach Config */}
-          {valueType === "coach" && (
-            <div className='space-y-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
-              <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300'>
-                Team Setup
-              </p>
-
-              {/* Team size + timers */}
-              <div className='grid grid-cols-3 gap-2'>
-                <div>
-                  <label className='text-[12px] text-gray-500 mb-1 block'>
-                    Players on pitch
-                  </label>
-                  <select
-                    value={coachTeamSize}
-                    onChange={(e) => setCoachTeamSize(Number(e.target.value))}
-                    className='w-full px-2 py-2 rounded-lg text-[14px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'>
-                    {[4, 5, 6, 7, 8, 9, 10, 11].map((n) => (
-                      <option key={n} value={n}>
-                        {n}v{n}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className='text-[12px] text-gray-500 mb-1 block'>
-                    Half (min)
-                  </label>
-                  <input
-                    type='number'
-                    min={5}
-                    max={90}
-                    value={coachHalfDuration}
-                    onChange={(e) =>
-                      setCoachHalfDuration(
-                        Math.max(1, Number(e.target.value) || 25),
-                      )
-                    }
-                    className='w-full px-2 py-2 rounded-lg text-[14px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
-                  />
-                </div>
-                <div>
-                  <label className='text-[12px] text-gray-500 mb-1 block'>
-                    Sub every (min)
-                  </label>
-                  <input
-                    type='number'
-                    min={1}
-                    max={30}
-                    value={coachTradeTimer}
-                    onChange={(e) =>
-                      setCoachTradeTimer(
-                        Math.min(30, Math.max(1, Number(e.target.value) || 10)),
-                      )
-                    }
-                    className='w-full px-2 py-2 rounded-lg text-[14px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
-                  />
-                </div>
-              </div>
-
-              {/* Sub suggestion considerations */}
-              <div className='space-y-1.5 pt-1'>
-                <p className='text-[12px] text-gray-500 mb-1.5'>
-                  Sub suggestions consider:
-                </p>
-                {(
-                  [
-                    {
-                      id: "time",
-                      label: "Time played",
-                      desc: "Shortest time on pitch comes on first",
-                      val: coachConsiderTime,
-                      set: setCoachConsiderTime,
-                    },
-                    {
-                      id: "position",
-                      label: "Position",
-                      desc: "Prefer natural position matches",
-                      val: coachConsiderPosition,
-                      set: setCoachConsiderPosition,
-                    },
-                    {
-                      id: "keeper",
-                      label: "Keeper history",
-                      desc: "Former GK prioritised for non-defensive roles",
-                      val: coachConsiderKeeper,
-                      set: setCoachConsiderKeeper,
-                    },
-                  ] as {
-                    id: string;
-                    label: string;
-                    desc: string;
-                    val: boolean;
-                    set: (v: boolean) => void;
-                  }[]
-                ).map(({ id, label, desc, val, set }) => (
-                  <label
-                    key={id}
-                    className='flex items-center gap-2.5 cursor-pointer py-1'>
-                    <input
-                      type='checkbox'
-                      checked={val}
-                      onChange={(e) => set(e.target.checked)}
-                      className='w-4 h-4 rounded accent-ios-blue'
-                    />
-                    <div>
-                      <span className='text-[13px] text-gray-700 dark:text-gray-300 font-medium'>
-                        {label}
-                      </span>
-                      <span className='text-[11px] text-gray-400 ml-1'>
-                        — {desc}
-                      </span>
-                    </div>
-                  </label>
-                ))}
-              </div>
-
-              {/* Players roster */}
-              <div className='space-y-2'>
-                <div className='flex items-center justify-between'>
-                  <p className='text-[13px] font-medium text-gray-600 dark:text-gray-400'>
-                    Players
-                  </p>
-                  <div className='flex items-center gap-1.5'>
-                    <label className='text-[12px] text-gray-400'>Total:</label>
-                    <input
-                      type='number'
-                      min={1}
-                      max={30}
-                      value={coachPlayerCount}
-                      placeholder='—'
-                      onChange={(e) => setCoachPlayerCount(e.target.value)}
-                      onBlur={() => {
-                        const n = parseInt(coachPlayerCount);
-                        if (!n || n < 1) return;
-                        setCoachPlayers((prev) => {
-                          if (n > prev.length) {
-                            return [
-                              ...prev,
-                              ...Array.from(
-                                { length: n - prev.length },
-                                () => ({
-                                  id: crypto.randomUUID(),
-                                  name: "",
-                                  number: 0,
-                                  preferredPosition: "CM" as FootballPosition,
-                                }),
-                              ),
-                            ];
-                          }
-                          return prev.slice(0, n);
-                        });
-                      }}
-                      className='w-14 px-2 py-1.5 rounded-lg text-[13px] text-center bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                    />
-                  </div>
-                </div>
-
-                {/* Inline-editable player rows */}
-                {coachPlayers.length > 0 && (
-                  <div className='space-y-1.5'>
-                    {coachPlayers.map((player, i) => (
-                      <div
-                        key={player.id}
-                        className='flex items-center gap-1.5 p-1.5 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600'>
-                        {/* Jersey number */}
-                        <input
-                          type='number'
-                          min={0}
-                          max={99}
-                          value={player.number || ""}
-                          onChange={(e) => {
-                            const updated = [...coachPlayers];
-                            updated[i] = {
-                              ...updated[i],
-                              number: parseInt(e.target.value) || 0,
-                            };
-                            setCoachPlayers(updated);
-                          }}
-                          placeholder='#'
-                          className='w-11 px-1 py-1.5 rounded-md text-[13px] text-center font-semibold bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                        />
-                        {/* Name */}
-                        <input
-                          type='text'
-                          value={player.name}
-                          onChange={(e) => {
-                            const updated = [...coachPlayers];
-                            updated[i] = {
-                              ...updated[i],
-                              name: e.target.value,
-                            };
-                            setCoachPlayers(updated);
-                          }}
-                          placeholder='Player name'
-                          className='flex-1 px-2 py-1.5 rounded-md text-[13px] bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
-                        />
-                        {/* Position */}
-                        <PositionSelect
-                          value={player.preferredPosition}
-                          onChange={(pos) => {
-                            const updated = [...coachPlayers];
-                            updated[i] = {
-                              ...updated[i],
-                              preferredPosition: pos,
-                            };
-                            setCoachPlayers(updated);
-                          }}
-                          className='w-16'
-                        />
-                        {/* Remove */}
-                        <button
-                          type='button'
-                          onClick={() =>
-                            setCoachPlayers(
-                              coachPlayers.filter((_, idx) => idx !== i),
-                            )
-                          }
-                          className='shrink-0 text-ios-red p-1'>
-                          <svg
-                            className='w-4 h-4'
-                            fill='none'
-                            viewBox='0 0 24 24'
-                            stroke='currentColor'
-                            strokeWidth={2}>
-                            <path
-                              strokeLinecap='round'
-                              strokeLinejoin='round'
-                              d='M6 18L18 6M6 6l12 12'
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add one more */}
-                <button
-                  type='button'
-                  onClick={() =>
-                    setCoachPlayers([
-                      ...coachPlayers,
-                      {
-                        id: crypto.randomUUID(),
-                        name: "",
-                        number: 0,
-                        preferredPosition: "CM",
-                      },
-                    ])
-                  }
-                  className='w-full py-2 rounded-lg text-[13px] font-medium text-ios-blue border border-ios-blue/30 dark:border-ios-blue/40 bg-ios-blue/5 dark:bg-ios-blue/10'>
-                  + Add player
-                </button>
-              </div>
             </div>
           )}
 

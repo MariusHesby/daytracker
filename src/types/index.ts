@@ -180,6 +180,9 @@ export interface CoachConfig {
   subConsiderTime?: boolean;    // prioritise players with least/most time played
   subConsiderPosition?: boolean; // prefer natural positional replacements
   subConsiderKeeper?: boolean;  // former GK prioritised for non-defensive positions
+  subConsiderSubOrder?: boolean; // last sub-in player is last to come off
+  vibrateOnWarning?: boolean;   // vibrate device when sub timer turns yellow
+  isHomeTeam?: boolean;          // true = home (our score left), false = away (our score right)
 }
 
 export interface CoachLineupEntry {
@@ -205,6 +208,9 @@ export interface CoachData {
   lineup: CoachLineupEntry[];       // all players with their current state
   substitutions: CoachSubstitution[];
   lastTradeTime: number | null;     // Date.now() of last substitution
+  goals?: { id: string; playerId: string; matchMinute: number }[];
+  homeTeamName?: string;
+  awayTeamName?: string;
 }
 
 export interface ActivityType {

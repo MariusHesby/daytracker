@@ -3,6 +3,7 @@
 import { LogEntry, ActivityType } from "@/types";
 import { useApp } from "@/context/AppContext";
 import { cn } from "@/lib/utils";
+import { Icon, icons, IconName } from "@/components/Icons";
 
 interface EntryListProps {
   entries: LogEntry[];
@@ -49,12 +50,17 @@ export function EntryList({ entries, onEdit }: EntryListProps) {
             className={cn(
               "p-4 rounded-lg border border-zinc-200 dark:border-zinc-700",
               "bg-white dark:bg-zinc-800",
-              "group hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
+              "group hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors",
             )}>
             <div className='flex items-start justify-between gap-3'>
               <div className='flex-1 min-w-0'>
                 <div className='flex items-center gap-2 mb-1'>
-                  {type?.icon && <span className='text-lg'>{type.icon}</span>}
+                  {type?.icon &&
+                    (type.icon in icons ? (
+                      <Icon name={type.icon as IconName} className='w-5 h-5' />
+                    ) : (
+                      <span className='text-lg'>{type.icon}</span>
+                    ))}
                   <span className='font-medium text-zinc-900 dark:text-zinc-100'>
                     {type?.name || "Unknown"}
                   </span>
