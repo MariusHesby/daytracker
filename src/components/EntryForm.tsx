@@ -27,11 +27,17 @@ import {
   TimerAdjustment,
   ROUTINE_COLORS,
   COMMON_EXERCISES,
+  CoachData,
+  CoachLineupEntry,
+  CoachSubstitution,
+  FootballPosition,
+  FOOTBALL_POSITIONS,
 } from "@/types";
 import { cn, addDays, getMonday, toDateStr } from "@/lib/utils";
 import { getMediaMetadata } from "@/lib/supabase-sync";
 import { Icon, icons, IconName } from "./Icons";
 import { MediaSearch } from "./MediaSearch";
+import { CoachMatchPanel } from "./CoachMatchPanel";
 import {
   fetchAllFunFacts,
   getSelectedCategories,
@@ -3350,8 +3356,11 @@ export function EntryForm({
   const standaloneChecklistTypes = standaloneTypes.filter(
     (t) => t.valueType === "checklist",
   );
+  const standaloneCoachTypes = standaloneTypes.filter(
+    (t) => t.valueType === "coach",
+  );
   const standaloneOtherTypes = standaloneTypes.filter(
-    (t) => t.valueType !== "checklist",
+    (t) => t.valueType !== "checklist" && t.valueType !== "coach",
   );
   const nextDay = addDays(date, 1);
 
@@ -3918,6 +3927,91 @@ export function EntryForm({
                           );
                         })()}
                     </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Coach standalone cards */}
+          {standaloneCoachTypes.map((type) => {
+            if (!type.coachConfig) return null;
+            const existingEntry =
+              entries.find(
+                (e) => e.activityTypeId === type.id && e.date === date,
+              ) ?? null;
+
+            async function handleCoachSave(
+              coachData: import("@/types").CoachData,
+              value: string,
+            ) {
+              if (existingEntry) {
+                await updateEntry({
+                  ...existingEntry,
+                  coachData,
+                  value: value || existingEntry.value,
+                });
+              } else {
+                await addEntry({
+                  date,
+                  activityTypeId: type.id,
+                  value: value || "In progress",
+                  coachData,
+                });
+              }
+            }
+
+            return (
+              <div
+                key={type.id}
+                className='mb-2 bg-white/80 dark:bg-ios-card-dark rounded-xl border border-gray-200/60 dark:border-gray-700/60 overflow-visible'>
+                {/* Header */}
+                <div
+                  className='flex items-center px-4 py-3 cursor-pointer active:bg-gray-100 dark:active:bg-gray-700'
+                  onClick={() =>
+                    setExpandedTypeId(
+                      expandedTypeId === type.id ? null : type.id,
+                    )
+                  }>
+                  <div className='w-8 h-8 flex items-center justify-center mr-3 shrink-0'>
+                    {type.icon && <span className='text-xl'>{type.icon}</span>}
+                  </div>
+                  <span className='text-[17px] font-medium text-gray-900 dark:text-white'>
+                    {type.name}
+                  </span>
+                  <div className='ml-auto flex items-center gap-2'>
+                    {existingEntry?.value && (
+                      <span className='text-[13px] text-gray-400 dark:text-gray-500'>
+                        {String(existingEntry.value)}
+                      </span>
+                    )}
+                    <svg
+                      className={cn(
+                        "w-4 h-4 text-gray-400 transition-transform",
+                        expandedTypeId === type.id && "rotate-180",
+                      )}
+                      fill='none'
+                      viewBox='0 0 24 24'
+                      stroke='currentColor'
+                      strokeWidth={2}>
+                      <path
+                        strokeLinecap='round'
+                        strokeLinejoin='round'
+                        d='M19 9l-7 7-7-7'
+                      />
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Match panel */}
+                {expandedTypeId === type.id && (
+                  <div className='px-4 pb-4'>
+                    <CoachMatchPanel
+                      type={type}
+                      entry={existingEntry}
+                      onSave={handleCoachSave}
+                      disabled={isViewingOther || isDayLocked(date)}
+                    />
                   </div>
                 )}
               </div>

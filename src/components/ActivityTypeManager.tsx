@@ -19,6 +19,10 @@ import {
   TimerLimitPeriod,
   ChecklistRepeat,
   COMMON_EXERCISES,
+  CoachPlayer,
+  CoachConfig,
+  FootballPosition,
+  FOOTBALL_POSITIONS,
 } from "@/types";
 import { cn } from "@/lib/utils";
 import { Icon, IconPicker, icons, IconName } from "./Icons";
@@ -32,7 +36,8 @@ type ValueType =
   | "nutrition"
   | "workout"
   | "checklist"
-  | "timer";
+  | "timer"
+  | "coach";
 
 const VALUE_TYPE_OPTIONS: {
   value: ValueType;
@@ -67,6 +72,11 @@ const VALUE_TYPE_OPTIONS: {
     label: "Time Tracker",
     description: "Track time per person/item with limits",
   },
+  {
+    value: "coach",
+    label: "Football Coach",
+    description: "Manage a football team: lineup, substitutions & timers",
+  },
 ];
 
 export interface ActivityTypeManagerRef {
@@ -76,6 +86,215 @@ export interface ActivityTypeManagerRef {
 
 interface ActivityTypeManagerProps {
   onAddingChange?: (isAdding: boolean) => void;
+}
+
+// Custom position picker: centered modal, grouped positions, favorites, includes Bench
+function PositionSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: FootballPosition;
+  onChange: (v: FootballPosition) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [favorites, setFavorites] = React.useState<FootballPosition[]>(() => {
+    try {
+      const stored = localStorage.getItem("coachPositionFavorites");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const toggleFavorite = (pos: FootballPosition, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFavorites((prev) => {
+      const next = prev.includes(pos)
+        ? prev.filter((p) => p !== pos)
+        : [...prev, pos];
+      try {
+        localStorage.setItem("coachPositionFavorites", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const groups = React.useMemo(() => {
+    const all = [...FOOTBALL_POSITIONS]; // includes Bench
+    const groupMap = new Map<string, typeof FOOTBALL_POSITIONS>();
+    for (const p of all) {
+      if (!groupMap.has(p.group)) groupMap.set(p.group, []);
+      groupMap.get(p.group)!.push(p);
+    }
+    const sections: { group: string; positions: typeof FOOTBALL_POSITIONS }[] =
+      [];
+    if (favorites.length > 0) {
+      sections.push({
+        group: "Favorites",
+        positions: all.filter((p) => favorites.includes(p.value)),
+      });
+    }
+    groupMap.forEach((positions, group) => {
+      sections.push({ group, positions });
+    });
+    return sections;
+  }, [favorites]);
+
+  return (
+    <div className={cn("relative", className)}>
+      {/* Trigger button */}
+      <button
+        type='button'
+        onClick={() => setOpen(true)}
+        className='w-full flex items-center justify-between gap-1 px-2 py-2 rounded-lg text-[13px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'>
+        <span className='font-semibold'>{value}</span>
+        <svg
+          className='w-3 h-3 text-gray-400'
+          fill='none'
+          viewBox='0 0 24 24'
+          stroke='currentColor'
+          strokeWidth={2}>
+          <path
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            d='M19 9l-7 7-7-7'
+          />
+        </svg>
+      </button>
+
+      {/* Portal modal */}
+      {open &&
+        createPortal(
+          <div
+            className='fixed inset-0 z-200 flex items-center justify-center p-4'
+            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setOpen(false);
+            }}>
+            <div className='w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 shadow-2xl overflow-hidden flex flex-col max-h-[75vh]'>
+              {/* Header */}
+              <div className='flex items-center justify-between px-5 pt-5 pb-3 shrink-0'>
+                <h3 className='text-[18px] font-semibold text-gray-900 dark:text-white'>
+                  Choose Position
+                </h3>
+                <button
+                  type='button'
+                  onClick={() => setOpen(false)}
+                  className='w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400'>
+                  <svg
+                    className='w-4 h-4'
+                    fill='none'
+                    viewBox='0 0 24 24'
+                    stroke='currentColor'
+                    strokeWidth={2.5}>
+                    <path
+                      strokeLinecap='round'
+                      strokeLinejoin='round'
+                      d='M6 18L18 6M6 6l12 12'
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Scrollable list */}
+              <div className='overflow-y-auto px-3 pb-4'>
+                {groups.map(({ group, positions }) => (
+                  <div key={group} className='mb-1'>
+                    <p className='text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 px-2 py-2'>
+                      {group === "Favorites" ? "⭐ Favorites" : group}
+                    </p>
+                    <div className='rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700/60'>
+                      {positions.map((p, i) => (
+                        <div
+                          key={`${group}-${p.value}`}
+                          className={cn(
+                            "flex items-center",
+                            i > 0 &&
+                              "border-t border-gray-100 dark:border-gray-700/60",
+                            value === p.value
+                              ? "bg-ios-blue/10 dark:bg-ios-blue/20"
+                              : "bg-white dark:bg-gray-800",
+                          )}>
+                          {/* Option select area */}
+                          <button
+                            type='button'
+                            onClick={() => {
+                              onChange(p.value);
+                              setOpen(false);
+                            }}
+                            className='flex-1 flex items-center gap-3 px-4 py-3 text-left active:bg-black/5 dark:active:bg-white/5'>
+                            {/* Abbreviation badge */}
+                            <span
+                              className={cn(
+                                "w-11 shrink-0 text-center text-[13px] font-bold rounded-lg py-1",
+                                value === p.value
+                                  ? "bg-ios-blue text-white"
+                                  : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300",
+                              )}>
+                              {p.value}
+                            </span>
+                            {/* Full name */}
+                            <span
+                              className={cn(
+                                "flex-1 text-[15px]",
+                                value === p.value
+                                  ? "font-medium text-ios-blue"
+                                  : "text-gray-800 dark:text-gray-100",
+                              )}>
+                              {p.label.split(" (")[0]}
+                            </span>
+                            {/* Checkmark */}
+                            {value === p.value && (
+                              <svg
+                                className='w-4 h-4 text-ios-blue shrink-0'
+                                fill='none'
+                                viewBox='0 0 24 24'
+                                stroke='currentColor'
+                                strokeWidth={2.5}>
+                                <path
+                                  strokeLinecap='round'
+                                  strokeLinejoin='round'
+                                  d='M5 13l4 4L19 7'
+                                />
+                              </svg>
+                            )}
+                          </button>
+                          {/* Favorite star — sibling button, NOT nested */}
+                          <button
+                            type='button'
+                            onClick={(e) => toggleFavorite(p.value, e)}
+                            className='px-3 py-3 shrink-0'>
+                            <svg
+                              className={cn(
+                                "w-4 h-4",
+                                favorites.includes(p.value)
+                                  ? "text-yellow-400 fill-yellow-400"
+                                  : "text-gray-300 dark:text-gray-600",
+                              )}
+                              viewBox='0 0 24 24'
+                              stroke='currentColor'
+                              strokeWidth={1.5}>
+                              <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                d='M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z'
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
 }
 
 export const ActivityTypeManager = forwardRef<
@@ -132,6 +351,16 @@ export const ActivityTypeManager = forwardRef<
   const [checklistRepeat, setChecklistRepeat] =
     useState<ChecklistRepeat>("none");
 
+  // Coach config state
+  const [coachPlayers, setCoachPlayers] = useState<CoachPlayer[]>([]);
+  const [coachTradeTimer, setCoachTradeTimer] = useState(10);
+  const [coachHalfDuration, setCoachHalfDuration] = useState(25);
+  const [coachTeamSize, setCoachTeamSize] = useState(7);
+  const [coachPlayerCount, setCoachPlayerCount] = useState("");
+  const [coachConsiderTime, setCoachConsiderTime] = useState(false);
+  const [coachConsiderPosition, setCoachConsiderPosition] = useState(false);
+  const [coachConsiderKeeper, setCoachConsiderKeeper] = useState(false);
+
   // Standalone state
   const [standalone, setStandalone] = useState(false);
 
@@ -183,6 +412,14 @@ export const ActivityTypeManager = forwardRef<
     setShowAddExercise(false);
     setChecklistRepeat("none");
     setStandalone(false);
+    setCoachPlayers([]);
+    setCoachTradeTimer(10);
+    setCoachHalfDuration(25);
+    setCoachTeamSize(7);
+    setCoachPlayerCount("");
+    setCoachConsiderTime(false);
+    setCoachConsiderPosition(false);
+    setCoachConsiderKeeper(false);
   };
 
   const handleAddExercise = () => {
@@ -279,6 +516,18 @@ export const ActivityTypeManager = forwardRef<
             valueType === "checklist" && checklistRepeat !== "none"
               ? checklistRepeat
               : undefined,
+          coachConfig:
+            valueType === "coach"
+              ? {
+                  players: coachPlayers,
+                  tradeTimerMinutes: coachTradeTimer,
+                  halfDurationMinutes: coachHalfDuration,
+                  teamSize: coachTeamSize,
+                  subConsiderTime: coachConsiderTime,
+                  subConsiderPosition: coachConsiderPosition,
+                  subConsiderKeeper: coachConsiderKeeper,
+                }
+              : undefined,
           standalone,
         });
       }
@@ -312,6 +561,18 @@ export const ActivityTypeManager = forwardRef<
           valueType === "checklist" && checklistRepeat !== "none"
             ? checklistRepeat
             : undefined,
+        coachConfig:
+          valueType === "coach"
+            ? {
+                players: coachPlayers,
+                tradeTimerMinutes: coachTradeTimer,
+                halfDurationMinutes: coachHalfDuration,
+                teamSize: coachTeamSize,
+                subConsiderTime: coachConsiderTime,
+                subConsiderPosition: coachConsiderPosition,
+                subConsiderKeeper: coachConsiderKeeper,
+              }
+            : undefined,
         standalone,
       });
     }
@@ -334,6 +595,18 @@ export const ActivityTypeManager = forwardRef<
     setTimerLimitPeriod(type.timerConfig?.limitPeriod || "weekly");
     setChecklistRepeat(type.checklistRepeat || "none");
     setStandalone(type.standalone || false);
+    setCoachPlayers(type.coachConfig?.players || []);
+    setCoachTradeTimer(type.coachConfig?.tradeTimerMinutes ?? 10);
+    setCoachHalfDuration(type.coachConfig?.halfDurationMinutes ?? 25);
+    setCoachTeamSize(type.coachConfig?.teamSize ?? 7);
+    setCoachConsiderTime(type.coachConfig?.subConsiderTime ?? false);
+    setCoachConsiderPosition(type.coachConfig?.subConsiderPosition ?? false);
+    setCoachConsiderKeeper(type.coachConfig?.subConsiderKeeper ?? false);
+    setCoachPlayerCount(
+      type.coachConfig?.players?.length
+        ? String(type.coachConfig.players.length)
+        : "",
+    );
     setIsAdding(true);
   };
 
@@ -1219,6 +1492,264 @@ export const ActivityTypeManager = forwardRef<
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Coach Config */}
+          {valueType === "coach" && (
+            <div className='space-y-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50'>
+              <p className='text-[15px] font-medium text-gray-700 dark:text-gray-300'>
+                Team Setup
+              </p>
+
+              {/* Team size + timers */}
+              <div className='grid grid-cols-3 gap-2'>
+                <div>
+                  <label className='text-[12px] text-gray-500 mb-1 block'>
+                    Players on pitch
+                  </label>
+                  <select
+                    value={coachTeamSize}
+                    onChange={(e) => setCoachTeamSize(Number(e.target.value))}
+                    className='w-full px-2 py-2 rounded-lg text-[14px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'>
+                    {[4, 5, 6, 7, 8, 9, 10, 11].map((n) => (
+                      <option key={n} value={n}>
+                        {n}v{n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className='text-[12px] text-gray-500 mb-1 block'>
+                    Half (min)
+                  </label>
+                  <input
+                    type='number'
+                    min={5}
+                    max={90}
+                    value={coachHalfDuration}
+                    onChange={(e) =>
+                      setCoachHalfDuration(
+                        Math.max(1, Number(e.target.value) || 25),
+                      )
+                    }
+                    className='w-full px-2 py-2 rounded-lg text-[14px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
+                  />
+                </div>
+                <div>
+                  <label className='text-[12px] text-gray-500 mb-1 block'>
+                    Sub every (min)
+                  </label>
+                  <input
+                    type='number'
+                    min={1}
+                    max={30}
+                    value={coachTradeTimer}
+                    onChange={(e) =>
+                      setCoachTradeTimer(
+                        Math.min(30, Math.max(1, Number(e.target.value) || 10)),
+                      )
+                    }
+                    className='w-full px-2 py-2 rounded-lg text-[14px] bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue text-center'
+                  />
+                </div>
+              </div>
+
+              {/* Sub suggestion considerations */}
+              <div className='space-y-1.5 pt-1'>
+                <p className='text-[12px] text-gray-500 mb-1.5'>
+                  Sub suggestions consider:
+                </p>
+                {(
+                  [
+                    {
+                      id: "time",
+                      label: "Time played",
+                      desc: "Shortest time on pitch comes on first",
+                      val: coachConsiderTime,
+                      set: setCoachConsiderTime,
+                    },
+                    {
+                      id: "position",
+                      label: "Position",
+                      desc: "Prefer natural position matches",
+                      val: coachConsiderPosition,
+                      set: setCoachConsiderPosition,
+                    },
+                    {
+                      id: "keeper",
+                      label: "Keeper history",
+                      desc: "Former GK prioritised for non-defensive roles",
+                      val: coachConsiderKeeper,
+                      set: setCoachConsiderKeeper,
+                    },
+                  ] as {
+                    id: string;
+                    label: string;
+                    desc: string;
+                    val: boolean;
+                    set: (v: boolean) => void;
+                  }[]
+                ).map(({ id, label, desc, val, set }) => (
+                  <label
+                    key={id}
+                    className='flex items-center gap-2.5 cursor-pointer py-1'>
+                    <input
+                      type='checkbox'
+                      checked={val}
+                      onChange={(e) => set(e.target.checked)}
+                      className='w-4 h-4 rounded accent-ios-blue'
+                    />
+                    <div>
+                      <span className='text-[13px] text-gray-700 dark:text-gray-300 font-medium'>
+                        {label}
+                      </span>
+                      <span className='text-[11px] text-gray-400 ml-1'>
+                        — {desc}
+                      </span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              {/* Players roster */}
+              <div className='space-y-2'>
+                <div className='flex items-center justify-between'>
+                  <p className='text-[13px] font-medium text-gray-600 dark:text-gray-400'>
+                    Players
+                  </p>
+                  <div className='flex items-center gap-1.5'>
+                    <label className='text-[12px] text-gray-400'>Total:</label>
+                    <input
+                      type='number'
+                      min={1}
+                      max={30}
+                      value={coachPlayerCount}
+                      placeholder='—'
+                      onChange={(e) => setCoachPlayerCount(e.target.value)}
+                      onBlur={() => {
+                        const n = parseInt(coachPlayerCount);
+                        if (!n || n < 1) return;
+                        setCoachPlayers((prev) => {
+                          if (n > prev.length) {
+                            return [
+                              ...prev,
+                              ...Array.from(
+                                { length: n - prev.length },
+                                () => ({
+                                  id: crypto.randomUUID(),
+                                  name: "",
+                                  number: 0,
+                                  preferredPosition: "CM" as FootballPosition,
+                                }),
+                              ),
+                            ];
+                          }
+                          return prev.slice(0, n);
+                        });
+                      }}
+                      className='w-14 px-2 py-1.5 rounded-lg text-[13px] text-center bg-white dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                    />
+                  </div>
+                </div>
+
+                {/* Inline-editable player rows */}
+                {coachPlayers.length > 0 && (
+                  <div className='space-y-1.5'>
+                    {coachPlayers.map((player, i) => (
+                      <div
+                        key={player.id}
+                        className='flex items-center gap-1.5 p-1.5 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600'>
+                        {/* Jersey number */}
+                        <input
+                          type='number'
+                          min={0}
+                          max={99}
+                          value={player.number || ""}
+                          onChange={(e) => {
+                            const updated = [...coachPlayers];
+                            updated[i] = {
+                              ...updated[i],
+                              number: parseInt(e.target.value) || 0,
+                            };
+                            setCoachPlayers(updated);
+                          }}
+                          placeholder='#'
+                          className='w-11 px-1 py-1.5 rounded-md text-[13px] text-center font-semibold bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                        />
+                        {/* Name */}
+                        <input
+                          type='text'
+                          value={player.name}
+                          onChange={(e) => {
+                            const updated = [...coachPlayers];
+                            updated[i] = {
+                              ...updated[i],
+                              name: e.target.value,
+                            };
+                            setCoachPlayers(updated);
+                          }}
+                          placeholder='Player name'
+                          className='flex-1 px-2 py-1.5 rounded-md text-[13px] bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-500 focus:outline-none focus:ring-2 focus:ring-ios-blue'
+                        />
+                        {/* Position */}
+                        <PositionSelect
+                          value={player.preferredPosition}
+                          onChange={(pos) => {
+                            const updated = [...coachPlayers];
+                            updated[i] = {
+                              ...updated[i],
+                              preferredPosition: pos,
+                            };
+                            setCoachPlayers(updated);
+                          }}
+                          className='w-16'
+                        />
+                        {/* Remove */}
+                        <button
+                          type='button'
+                          onClick={() =>
+                            setCoachPlayers(
+                              coachPlayers.filter((_, idx) => idx !== i),
+                            )
+                          }
+                          className='shrink-0 text-ios-red p-1'>
+                          <svg
+                            className='w-4 h-4'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'
+                            strokeWidth={2}>
+                            <path
+                              strokeLinecap='round'
+                              strokeLinejoin='round'
+                              d='M6 18L18 6M6 6l12 12'
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add one more */}
+                <button
+                  type='button'
+                  onClick={() =>
+                    setCoachPlayers([
+                      ...coachPlayers,
+                      {
+                        id: crypto.randomUUID(),
+                        name: "",
+                        number: 0,
+                        preferredPosition: "CM",
+                      },
+                    ])
+                  }
+                  className='w-full py-2 rounded-lg text-[13px] font-medium text-ios-blue border border-ios-blue/30 dark:border-ios-blue/40 bg-ios-blue/5 dark:bg-ios-blue/10'>
+                  + Add player
+                </button>
+              </div>
             </div>
           )}
 

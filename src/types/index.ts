@@ -139,11 +139,79 @@ export interface TimerData {
   entries: TimerEntry[];
 }
 
+// Football coach types
+export type FootballPosition =
+  | 'GK'
+  | 'RB' | 'CB' | 'LB'
+  | 'CDM' | 'CM' | 'RM' | 'LM' | 'CAM'
+  | 'RW' | 'LW'
+  | 'CF' | 'ST'
+  | 'Bench';
+
+export const FOOTBALL_POSITIONS: { value: FootballPosition; label: string; group: string }[] = [
+  { value: 'GK',  label: 'Goalkeeper (GK)',                group: 'Goalkeeper' },
+  { value: 'RB',  label: 'Right Back (RB)',                group: 'Defence' },
+  { value: 'CB',  label: 'Centre Back (CB)',               group: 'Defence' },
+  { value: 'LB',  label: 'Left Back (LB)',                 group: 'Defence' },
+  { value: 'CDM', label: 'Defensive Midfielder (CDM)',     group: 'Midfield' },
+  { value: 'CM',  label: 'Central Midfielder (CM)',        group: 'Midfield' },
+  { value: 'RM',  label: 'Right Midfielder (RM)',          group: 'Midfield' },
+  { value: 'LM',  label: 'Left Midfielder (LM)',           group: 'Midfield' },
+  { value: 'CAM', label: 'Attacking Midfielder (CAM)',     group: 'Midfield' },
+  { value: 'RW',  label: 'Right Winger (RW)',              group: 'Attack' },
+  { value: 'LW',  label: 'Left Winger (LW)',               group: 'Attack' },
+  { value: 'CF',  label: 'Centre Forward (CF)',            group: 'Attack' },
+  { value: 'ST',  label: 'Striker (ST)',                   group: 'Attack' },
+  { value: 'Bench', label: 'Bench',                        group: 'Bench' },
+];
+
+export interface CoachPlayer {
+  id: string;
+  name: string;
+  number: number;
+  preferredPosition: FootballPosition;
+}
+
+export interface CoachConfig {
+  players: CoachPlayer[];
+  tradeTimerMinutes: number;    // suggested interval between subs (1-30)
+  halfDurationMinutes: number;  // length of each half in minutes
+  teamSize: number;             // players on pitch at once (5, 7, 9, 11, etc.)
+  subConsiderTime?: boolean;    // prioritise players with least/most time played
+  subConsiderPosition?: boolean; // prefer natural positional replacements
+  subConsiderKeeper?: boolean;  // former GK prioritised for non-defensive positions
+}
+
+export interface CoachLineupEntry {
+  playerId: string;
+  position: FootballPosition;
+  onPitchSince: number | null;   // Date.now() when player last came on
+  totalMinutesPlayed: number;    // accumulated minutes from previous stints
+}
+
+export interface CoachSubstitution {
+  id: string;
+  timestamp: number;             // Date.now()
+  playerOffId: string;
+  playerOnId: string;
+  matchMinute: number;           // match minute when sub happened
+}
+
+export interface CoachData {
+  matchStartTime: number | null;    // Date.now() when current half started
+  halfStartTime: number | null;
+  currentHalf: number;              // 1 or 2
+  isRunning: boolean;
+  lineup: CoachLineupEntry[];       // all players with their current state
+  substitutions: CoachSubstitution[];
+  lastTradeTime: number | null;     // Date.now() of last substitution
+}
+
 export interface ActivityType {
   id: string;
   name: string;
   icon?: string;
-  valueType: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood' | 'nutrition' | 'workout' | 'checklist' | 'timer';
+  valueType: 'text' | 'boolean' | 'checkmark' | 'counter' | 'mood' | 'nutrition' | 'workout' | 'checklist' | 'timer' | 'coach';
   unit?: string; // e.g., "km", "minutes", "glasses"
   order?: number; // For custom ordering
   isDefault?: boolean; // True for built-in activity types that can't be deleted
@@ -160,6 +228,7 @@ export interface ActivityType {
   checklistRepeat?: ChecklistRepeat; // Repeat frequency for checklist type
   checklistTemplate?: ChecklistTemplateItem[]; // Master template for repeating checklists
   standalone?: boolean; // If true, shown as separate card on front page (not grouped)
+  coachConfig?: CoachConfig; // Config for coach/team management type
   createdAt: Date;
 }
 
@@ -184,6 +253,8 @@ export interface LogEntry {
   checklistData?: ChecklistData;
   // Timer/screen time data
   timerData?: TimerData;
+  // Coach/match data
+  coachData?: CoachData;
   createdAt: Date;
   updatedAt: Date;
 }

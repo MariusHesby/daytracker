@@ -29,6 +29,7 @@ export function dbToActivityType(db: DbActivityType): ActivityType {
     showDailyGoals: db.show_daily_goals || false,
     showProteinMap: db.show_protein_map || false,
     foodIcons: db.food_icons || undefined,
+    coachConfig: db.coach_config ? (db.coach_config as unknown as ActivityType['coachConfig']) : undefined,
     createdAt: new Date(db.created_at),
   };
 }
@@ -50,6 +51,7 @@ export function dbToLogEntry(db: DbLogEntry): LogEntry {
     workoutData: db.workout_data ? (db.workout_data as unknown as LogEntry['workoutData']) : undefined,
     checklistData: db.checklist_data ? (db.checklist_data as unknown as LogEntry['checklistData']) : undefined,
     timerData: db.timer_data ? (db.timer_data as unknown as LogEntry['timerData']) : undefined,
+    coachData: db.coach_data ? (db.coach_data as unknown as LogEntry['coachData']) : undefined,
     createdAt: new Date(db.created_at),
     updatedAt: new Date(db.updated_at),
   };
@@ -119,6 +121,7 @@ export async function addActivityTypeToSupabase(
       show_daily_goals: type.showDailyGoals || false,
       show_protein_map: type.showProteinMap || false,
       food_icons: type.foodIcons || null,
+      coach_config: type.coachConfig || null,
     }).select()
     .single();
 
@@ -147,6 +150,7 @@ export async function updateActivityTypeInSupabase(type: ActivityType): Promise<
       show_daily_goals: type.showDailyGoals || false,
       show_protein_map: type.showProteinMap || false,
       food_icons: type.foodIcons || null,
+      coach_config: type.coachConfig || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', type.id);
@@ -257,6 +261,7 @@ export async function addEntryToSupabase(
       workout_data: entry.workoutData || null,
       checklist_data: entry.checklistData || null,
       timer_data: entry.timerData || null,
+      coach_data: entry.coachData || null,
     })
     .select()
     .single();
@@ -283,6 +288,7 @@ export async function updateEntryInSupabase(entry: LogEntry): Promise<LogEntry> 
       workout_data: entry.workoutData || null,
       checklist_data: entry.checklistData || null,
       timer_data: entry.timerData || null,
+      coach_data: entry.coachData || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', entry.id)
