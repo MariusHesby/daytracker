@@ -413,8 +413,8 @@ function PositionSelect({
       {open &&
         createPortal(
           <div
-            className='fixed inset-0 z-200 flex items-center justify-center p-4'
-            style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            className='fixed inset-0 flex items-center justify-center p-4'
+            style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 10001 }}
             onMouseDown={(e) => {
               if (e.target === e.currentTarget) setOpen(false);
             }}>
@@ -2064,7 +2064,15 @@ export function CoachMatchPanel({
                           <div
                             key={player.id}
                             className='relative overflow-hidden'>
-                            <div className='absolute right-0 top-0 bottom-0 flex items-center'>
+                            <div
+                              className='absolute right-0 top-0 bottom-0 flex items-center'
+                              style={{
+                                transform: isSwiped
+                                  ? "translateX(0)"
+                                  : "translateX(100%)",
+                                transition:
+                                  "transform 0.3s cubic-bezier(0.25,0.46,0.45,0.94)",
+                              }}>
                               <button
                                 type='button'
                                 onClick={() =>
