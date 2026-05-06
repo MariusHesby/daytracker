@@ -635,6 +635,7 @@ export function CoachMatchPanel({
     config.vibrateOnWarning ?? false,
   );
   const [editPlayers, setEditPlayers] = useState<CoachPlayer[]>(config.players);
+  const [localPlayers, setLocalPlayers] = useState<CoachPlayer[]>(config.players);
   const editTouchStartX = useRef<number>(0);
   const [editSwipedPlayerId, setEditSwipedPlayerId] = useState<string | null>(
     null,
@@ -745,7 +746,7 @@ export function CoachMatchPanel({
     !isRunning && matchStartTime !== null && currentHalf > 2;
   const matchNotStarted = matchStartTime === null;
 
-  const getPlayer = (id: string) => config.players.find((p) => p.id === id);
+  const getPlayer = (id: string) => localPlayers.find((p) => p.id === id);
 
   function getPlayerMinutes(l: CoachLineupEntry): number {
     const base = l.totalMinutesPlayed;
@@ -1542,17 +1543,6 @@ export function CoachMatchPanel({
               stroke='white'
               strokeWidth='0.6'
             />
-            {/* Centre circle */}
-            <ellipse
-              cx='50'
-              cy='75'
-              rx='13'
-              ry='9'
-              fill='none'
-              stroke='white'
-              strokeWidth='0.6'
-            />
-            <circle cx='50' cy='75' r='1.4' fill='white' />
             {/* Own-goal penalty area */}
             <rect
               x='25'
@@ -2340,6 +2330,7 @@ export function CoachMatchPanel({
                       ...newEntries,
                     ];
                     setLineup(updatedLineup);
+                    setLocalPlayers(editPlayers);
                     onUpdateConfig({ ...type, coachConfig: updatedConfig });
                     onSave(
                       buildCoachData({}, updatedLineup),
@@ -2484,7 +2475,7 @@ export function CoachMatchPanel({
                 <p className='px-5 pt-4 pb-1 text-[11px] uppercase tracking-widest text-white/30 font-semibold'>
                   Add Goal
                 </p>
-                {config.players.map((p) => {
+                {localPlayers.map((p) => {
                   const count = goals.filter((g) => g.playerId === p.id).length;
                   return (
                     <div
