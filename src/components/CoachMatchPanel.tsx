@@ -199,12 +199,12 @@ function getPitchRows(players: CoachLineupEntry[]): CoachLineupEntry[][] {
 // ─── Formation helpers ────────────────────────────────────────────────────────
 
 const DEFAULT_FORMATION: Record<number, FootballPosition[]> = {
-  4:  ["GK", "CB", "CM", "ST"],
-  5:  ["GK", "LB", "RB", "CM", "ST"],
-  6:  ["GK", "LB", "RB", "CM", "CAM", "ST"],
-  7:  ["GK", "LB", "CB", "RB", "CM", "CAM", "ST"],
-  8:  ["GK", "LB", "CB", "RB", "CM", "CM", "CAM", "ST"],
-  9:  ["GK", "LB", "CB", "RB", "CDM", "CM", "CM", "CAM", "ST"],
+  4: ["GK", "CB", "CM", "ST"],
+  5: ["GK", "LB", "RB", "CM", "ST"],
+  6: ["GK", "LB", "RB", "CM", "CAM", "ST"],
+  7: ["GK", "LB", "CB", "RB", "CM", "CAM", "ST"],
+  8: ["GK", "LB", "CB", "RB", "CM", "CM", "CAM", "ST"],
+  9: ["GK", "LB", "CB", "RB", "CDM", "CM", "CM", "CAM", "ST"],
   10: ["GK", "LB", "CB", "CB", "RB", "CDM", "CM", "CM", "CAM", "ST"],
   11: ["GK", "LB", "CB", "CB", "RB", "CDM", "LM", "CM", "RM", "CAM", "ST"],
 };
@@ -222,8 +222,7 @@ function getFormationRows(slots: FormationSlot[]): FormationSlot[][] {
     .sort((a, b) => b[0] - a[0])
     .map(([, row]) =>
       [...row].sort(
-        (a, b) =>
-          (POSITION_COL[a.pos] ?? 1) - (POSITION_COL[b.pos] ?? 1),
+        (a, b) => (POSITION_COL[a.pos] ?? 1) - (POSITION_COL[b.pos] ?? 1),
       ),
     );
 }
@@ -725,12 +724,12 @@ export function CoachMatchPanel({
   const pitchPlayers = lineup.filter((l) => l.position !== "Bench");
   const benchPlayers = lineup.filter((l) => l.position === "Bench");
 
-  // Formation slots for pitch rendering
-  const _formationPositions: FootballPosition[] =
-    DEFAULT_FORMATION[teamSize] ??
-    Array.from({ length: teamSize }, () => "CM" as FootballPosition);
+  // Formation slots for pitch rendering — show all positions as tappable slots
+  const _allPositions = FOOTBALL_POSITIONS.filter(
+    (p) => p.value !== "Bench",
+  ).map((p) => p.value);
   const _usedSlotIds = new Set<string>();
-  const formationSlots: FormationSlot[] = _formationPositions.map((pos) => {
+  const formationSlots: FormationSlot[] = _allPositions.map((pos) => {
     const match = pitchPlayers.find(
       (l) => l.position === pos && !_usedSlotIds.has(l.playerId),
     );
@@ -1662,16 +1661,12 @@ export function CoachMatchPanel({
                           selectedPlayerId !== slot.entry.playerId
                         }
                         switchRank={getSwitchRank(slot.entry.playerId)}
-                        switchedAt={
-                          recentSwitches[slot.entry.playerId] ?? null
-                        }
+                        switchedAt={recentSwitches[slot.entry.playerId] ?? null}
                         isSuggested={
                           !!suggestionPair &&
                           suggestionPair[0] === slot.entry.playerId
                         }
-                        onTap={(e) =>
-                          handlePlayerTap(slot.entry!.playerId, e)
-                        }
+                        onTap={(e) => handlePlayerTap(slot.entry!.playerId, e)}
                       />
                     );
                   }
@@ -1744,8 +1739,7 @@ export function CoachMatchPanel({
                         minutes={getPlayerMinutes(l)}
                         isSelected={selectedPlayerId === l.playerId}
                         isTarget={
-                          !!selectedPlayerId &&
-                          selectedPlayerId !== l.playerId
+                          !!selectedPlayerId && selectedPlayerId !== l.playerId
                         }
                         switchRank={getSwitchRank(l.playerId)}
                         switchedAt={recentSwitches[l.playerId] ?? null}
@@ -2330,9 +2324,25 @@ export function CoachMatchPanel({
                       vibrateOnWarning: editVibrate,
                       players: editPlayers,
                     };
+                    // Sync lineup: keep existing entries, add new players as Bench, drop removed
+                    const existingIds = new Set(lineup.map((l) => l.playerId));
+                    const newEntries: CoachLineupEntry[] = editPlayers
+                      .filter((p) => !existingIds.has(p.id))
+                      .map((p) => ({
+                        playerId: p.id,
+                        position: "Bench" as FootballPosition,
+                        onPitchSince: null,
+                        totalMinutesPlayed: 0,
+                      }));
+                    const keepIds = new Set(editPlayers.map((p) => p.id));
+                    const updatedLineup = [
+                      ...lineup.filter((l) => keepIds.has(l.playerId)),
+                      ...newEntries,
+                    ];
+                    setLineup(updatedLineup);
                     onUpdateConfig({ ...type, coachConfig: updatedConfig });
                     onSave(
-                      buildCoachData(),
+                      buildCoachData({}, updatedLineup),
                       buildValue(currentHalf, isRunning, matchComplete),
                     );
                     setShowEditConfig(false);
