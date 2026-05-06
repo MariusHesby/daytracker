@@ -690,7 +690,9 @@ export function CoachMatchPanel({
   // ── sync localPlayers when config.players changes (e.g. after async DB save) ──
   const _configPlayersJson = JSON.stringify(config.players);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setLocalPlayers(config.players); }, [_configPlayersJson]);
+  useEffect(() => {
+    setLocalPlayers(config.players);
+  }, [_configPlayersJson]);
 
   // ── tick ────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1333,7 +1335,7 @@ export function CoachMatchPanel({
         )}>
         {/* ── Team name heading ── */}
         {(homeTeamName || awayTeamName) && (
-          <div className='flex items-center justify-center gap-2 px-1'>
+          <div className='flex items-center justify-center gap-2 px-1 pt-3 pb-0'>
             <span className='text-[17px] font-bold text-white truncate max-w-[40%]'>
               {homeTeamName || "Home"}
             </span>
@@ -1680,7 +1682,13 @@ export function CoachMatchPanel({
                         }
                       }}
                       className='flex flex-col items-center gap-1 py-3 px-2 w-[74px] shrink-0 active:opacity-60'>
-                      <div className={cn('w-10 h-10 rounded-full border-2 border-dashed flex items-center justify-center', hasBenchSelected ? 'border-amber-400/70 bg-amber-400/10' : 'border-white/25')}>
+                      <div
+                        className={cn(
+                          "w-10 h-10 rounded-full border-2 border-dashed flex items-center justify-center",
+                          hasBenchSelected
+                            ? "border-amber-400/70 bg-amber-400/10"
+                            : "border-white/25",
+                        )}>
                         <svg
                           viewBox='0 0 24 24'
                           width='14'
