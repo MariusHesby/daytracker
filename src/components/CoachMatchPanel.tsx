@@ -635,7 +635,9 @@ export function CoachMatchPanel({
     config.vibrateOnWarning ?? false,
   );
   const [editPlayers, setEditPlayers] = useState<CoachPlayer[]>(config.players);
-  const [localPlayers, setLocalPlayers] = useState<CoachPlayer[]>(config.players);
+  const [localPlayers, setLocalPlayers] = useState<CoachPlayer[]>(
+    config.players,
+  );
   const editTouchStartX = useRef<number>(0);
   const [editSwipedPlayerId, setEditSwipedPlayerId] = useState<string | null>(
     null,
@@ -676,10 +678,9 @@ export function CoachMatchPanel({
       if (d.awayTeamName) setAwayTeamName(d.awayTeamName);
     } else {
       setLineup(
-        config.players.map((p, i) => ({
+        config.players.map((p) => ({
           playerId: p.id,
-          position:
-            i < teamSize ? p.preferredPosition : ("Bench" as FootballPosition),
+          position: "Bench" as FootballPosition,
           onPitchSince: null,
           totalMinutesPlayed: 0,
         })),
