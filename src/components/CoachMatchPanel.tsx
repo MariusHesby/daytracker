@@ -196,6 +196,38 @@ function getPitchRows(players: CoachLineupEntry[]): CoachLineupEntry[][] {
     );
 }
 
+// ─── Formation helpers ────────────────────────────────────────────────────────
+
+const DEFAULT_FORMATION: Record<number, FootballPosition[]> = {
+  4:  ["GK", "CB", "CM", "ST"],
+  5:  ["GK", "LB", "RB", "CM", "ST"],
+  6:  ["GK", "LB", "RB", "CM", "CAM", "ST"],
+  7:  ["GK", "LB", "CB", "RB", "CM", "CAM", "ST"],
+  8:  ["GK", "LB", "CB", "RB", "CM", "CM", "CAM", "ST"],
+  9:  ["GK", "LB", "CB", "RB", "CDM", "CM", "CM", "CAM", "ST"],
+  10: ["GK", "LB", "CB", "CB", "RB", "CDM", "CM", "CM", "CAM", "ST"],
+  11: ["GK", "LB", "CB", "CB", "RB", "CDM", "LM", "CM", "RM", "CAM", "ST"],
+};
+
+type FormationSlot = { pos: FootballPosition; entry: CoachLineupEntry | null };
+
+function getFormationRows(slots: FormationSlot[]): FormationSlot[][] {
+  const zoneMap = new Map<number, FormationSlot[]>();
+  for (const slot of slots) {
+    const zone = POSITION_ZONE[slot.pos] ?? 3;
+    if (!zoneMap.has(zone)) zoneMap.set(zone, []);
+    zoneMap.get(zone)!.push(slot);
+  }
+  return [...zoneMap.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([, row]) =>
+      [...row].sort(
+        (a, b) =>
+          (POSITION_COL[a.pos] ?? 1) - (POSITION_COL[b.pos] ?? 1),
+      ),
+    );
+}
+
 // ─── PlayerCard ───────────────────────────────────────────────────────────────
 
 function PlayerCard({
@@ -329,11 +361,13 @@ function PlayerCard({
         {playerName.split(" ")[0]}
       </span>
       {/* Jersey number */}
-      <span
-        className='text-white/80 text-[11px] tabular-nums leading-none'
-        style={{ textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
-        #{playerNumber}
-      </span>
+      {playerNumber > 0 && (
+        <span
+          className='text-white/80 text-[11px] tabular-nums leading-none'
+          style={{ textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+          #{playerNumber}
+        </span>
+      )}
     </button>
   );
 }
@@ -570,6 +604,8 @@ export function CoachMatchPanel({
     "halfTime" | "fullTime" | null
   >(null);
   const [showGoals, setShowGoals] = useState(false);
+  const [showEmptySlots, setShowEmptySlots] = useState(true);
+  const [slotToFill, setSlotToFill] = useState<FootballPosition | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [homeTeamName, setHomeTeamName] = useState("");
   const [awayTeamName, setAwayTeamName] = useState("");
@@ -688,6 +724,24 @@ export function CoachMatchPanel({
 
   const pitchPlayers = lineup.filter((l) => l.position !== "Bench");
   const benchPlayers = lineup.filter((l) => l.position === "Bench");
+
+  // Formation slots for pitch rendering
+  const _formationPositions: FootballPosition[] =
+    DEFAULT_FORMATION[teamSize] ??
+    Array.from({ length: teamSize }, () => "CM" as FootballPosition);
+  const _usedSlotIds = new Set<string>();
+  const formationSlots: FormationSlot[] = _formationPositions.map((pos) => {
+    const match = pitchPlayers.find(
+      (l) => l.position === pos && !_usedSlotIds.has(l.playerId),
+    );
+    if (match) _usedSlotIds.add(match.playerId);
+    return { pos, entry: match ?? null };
+  });
+  pitchPlayers
+    .filter((l) => !_usedSlotIds.has(l.playerId))
+    .forEach((l) => formationSlots.push({ pos: l.position, entry: l }));
+  const formationRows = getFormationRows(formationSlots);
+
   const matchComplete =
     !isRunning && matchStartTime !== null && currentHalf > 2;
   const matchNotStarted = matchStartTime === null;
@@ -1122,6 +1176,31 @@ export function CoachMatchPanel({
     );
   }
 
+  function handleAssignToSlot(playerId: string, pos: FootballPosition) {
+    setUndoStack((prev) => [
+      {
+        lineup,
+        substitutions,
+        lastTradeTime,
+        recentSwitches,
+        formerGKs: new Set(formerGKs),
+      },
+      ...prev.slice(0, 9),
+    ]);
+    const t = Date.now();
+    const nl = lineup.map((l) =>
+      l.playerId === playerId
+        ? { ...l, position: pos, onPitchSince: isRunning ? t : null }
+        : l,
+    );
+    setLineup(nl);
+    setSlotToFill(null);
+    onSave(
+      buildCoachData({}, nl),
+      buildValue(currentHalf, isRunning, matchComplete),
+    );
+  }
+
   function handleResetTimePlayed() {
     const nl = lineup.map((l) => ({
       ...l,
@@ -1203,8 +1282,6 @@ export function CoachMatchPanel({
     const rank = sorted.indexOf(playerId) + 1;
     return Math.min(rank, 3);
   }
-
-  const pitchRows = getPitchRows(pitchPlayers);
 
   const halfLabel = matchComplete
     ? "Full Time"
@@ -1526,36 +1603,111 @@ export function CoachMatchPanel({
               );
             })()}
 
-          {/* Players */}
-          <div className='relative z-10 flex flex-col justify-between gap-2 py-5 px-3 min-h-96'>
-            {pitchRows.map((row, rowIdx) => (
-              <div key={rowIdx} className='flex justify-around'>
-                {row.map((l) => {
-                  const p = getPlayer(l.playerId);
-                  if (!p) return null;
+          {/* Hide/show empty slots toggle */}
+          <button
+            type='button'
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowEmptySlots((v) => !v);
+            }}
+            className='absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white/60 active:opacity-60'>
+            {showEmptySlots ? (
+              <svg
+                viewBox='0 0 24 24'
+                width='15'
+                height='15'
+                fill='none'
+                stroke='currentColor'
+                strokeWidth='2'
+                strokeLinecap='round'
+                strokeLinejoin='round'>
+                <path d='M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94' />
+                <path d='M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19' />
+                <line x1='1' y1='1' x2='23' y2='23' />
+              </svg>
+            ) : (
+              <svg
+                viewBox='0 0 24 24'
+                width='15'
+                height='15'
+                fill='none'
+                stroke='currentColor'
+                strokeWidth='2'
+                strokeLinecap='round'
+                strokeLinejoin='round'>
+                <path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z' />
+                <circle cx='12' cy='12' r='3' />
+              </svg>
+            )}
+          </button>
+
+          {/* Players + empty position slots */}
+          <div className='relative z-10 flex flex-col justify-between gap-2 py-5 px-3 min-h-[307px]'>
+            {formationRows.map((row, rowIdx) => (
+              <div key={rowIdx} className='flex justify-around items-end'>
+                {row.map((slot, si) => {
+                  if (slot.entry) {
+                    const p = getPlayer(slot.entry.playerId);
+                    if (!p) return null;
+                    return (
+                      <PlayerCard
+                        key={slot.entry.playerId}
+                        lineupEntry={slot.entry}
+                        playerName={p.name}
+                        playerNumber={p.number}
+                        minutes={getPlayerMinutes(slot.entry)}
+                        isSelected={selectedPlayerId === slot.entry.playerId}
+                        isTarget={
+                          !!selectedPlayerId &&
+                          selectedPlayerId !== slot.entry.playerId
+                        }
+                        switchRank={getSwitchRank(slot.entry.playerId)}
+                        switchedAt={
+                          recentSwitches[slot.entry.playerId] ?? null
+                        }
+                        isSuggested={
+                          !!suggestionPair &&
+                          suggestionPair[0] === slot.entry.playerId
+                        }
+                        onTap={(e) =>
+                          handlePlayerTap(slot.entry!.playerId, e)
+                        }
+                      />
+                    );
+                  }
+                  if (!showEmptySlots) return null;
                   return (
-                    <PlayerCard
-                      key={l.playerId}
-                      lineupEntry={l}
-                      playerName={p.name}
-                      playerNumber={p.number}
-                      minutes={getPlayerMinutes(l)}
-                      isSelected={selectedPlayerId === l.playerId}
-                      isTarget={
-                        !!selectedPlayerId && selectedPlayerId !== l.playerId
-                      }
-                      switchRank={getSwitchRank(l.playerId)}
-                      switchedAt={recentSwitches[l.playerId] ?? null}
-                      isSuggested={
-                        !!suggestionPair && suggestionPair[0] === l.playerId
-                      }
-                      onTap={(e) => handlePlayerTap(l.playerId, e)}
-                    />
+                    <button
+                      key={`empty-${slot.pos}-${si}`}
+                      type='button'
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSlotToFill(slot.pos);
+                      }}
+                      className='flex flex-col items-center gap-1 py-3 px-2 w-[74px] shrink-0 active:opacity-60'>
+                      <div className='w-10 h-10 rounded-full border-2 border-dashed border-white/25 flex items-center justify-center'>
+                        <svg
+                          viewBox='0 0 24 24'
+                          width='14'
+                          height='14'
+                          fill='none'
+                          stroke='rgba(255,255,255,0.4)'
+                          strokeWidth='2.5'
+                          strokeLinecap='round'
+                          strokeLinejoin='round'>
+                          <line x1='12' y1='5' x2='12' y2='19' />
+                          <line x1='5' y1='12' x2='19' y2='12' />
+                        </svg>
+                      </div>
+                      <span className='text-white/30 text-[12px] font-bold'>
+                        {slot.pos}
+                      </span>
+                    </button>
                   );
                 })}
               </div>
             ))}
-            {pitchRows.length === 0 && (
+            {formationRows.length === 0 && (
               <div className='flex-1 flex items-center justify-center'>
                 <p className='text-white/30 text-[14px]'>No players on pitch</p>
               </div>
@@ -1563,57 +1715,50 @@ export function CoachMatchPanel({
           </div>
         </div>
 
-        {/* ── Bench ── */}
+        {/* ── Players pool ── */}
         {benchPlayers.length > 0 &&
           (() => {
-            // Sort: most recently switched → leftmost (will wait longest)
-            // Oldest switch / never switched → rightmost (next up, biggest circle)
             const sortedBench = [...benchPlayers].sort((a, b) => {
               const ta = recentSwitches[a.playerId] ?? 0;
               const tb = recentSwitches[b.playerId] ?? 0;
-              return tb - ta; // newest first (leftmost)
+              return tb - ta;
             });
             const n = sortedBench.length;
             return (
-              <div>
-                <p className='text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1 mb-2'>
-                  Bench ({n})
-                </p>
-                <div
-                  className='rounded-2xl px-3 py-3'
-                  style={{ background: "rgba(12, 16, 25, 0.8)" }}
-                  onClick={() => setSelectedPlayerId(null)}>
-                  <div className='flex gap-2 justify-start items-end'>
-                    {sortedBench.map((l, i) => {
-                      const p = getPlayer(l.playerId);
-                      if (!p) return null;
-                      const circleScale = n === 1 ? 0.5 : i / (n - 1);
-                      const isNextUp = i === n - 1;
-                      return (
-                        <PlayerCard
-                          key={l.playerId}
-                          lineupEntry={l}
-                          playerName={p.name}
-                          playerNumber={p.number}
-                          minutes={getPlayerMinutes(l)}
-                          isSelected={selectedPlayerId === l.playerId}
-                          isTarget={
-                            !!selectedPlayerId &&
-                            selectedPlayerId !== l.playerId
-                          }
-                          switchRank={getSwitchRank(l.playerId)}
-                          switchedAt={recentSwitches[l.playerId] ?? null}
-                          isSuggested={
-                            !!suggestionPair && suggestionPair[1] === l.playerId
-                          }
-                          isBench={true}
-                          circleScale={circleScale}
-                          isNextUp={isNextUp}
-                          onTap={(e) => handlePlayerTap(l.playerId, e)}
-                        />
-                      );
-                    })}
-                  </div>
+              <div
+                className='rounded-2xl px-3 py-3'
+                style={{ background: "rgba(12, 16, 25, 0.8)" }}
+                onClick={() => setSelectedPlayerId(null)}>
+                <div className='flex gap-2 justify-start items-end'>
+                  {sortedBench.map((l, i) => {
+                    const p = getPlayer(l.playerId);
+                    if (!p) return null;
+                    const circleScale = n === 1 ? 0.5 : i / (n - 1);
+                    const isNextUp = i === n - 1;
+                    return (
+                      <PlayerCard
+                        key={l.playerId}
+                        lineupEntry={l}
+                        playerName={p.name}
+                        playerNumber={p.number}
+                        minutes={getPlayerMinutes(l)}
+                        isSelected={selectedPlayerId === l.playerId}
+                        isTarget={
+                          !!selectedPlayerId &&
+                          selectedPlayerId !== l.playerId
+                        }
+                        switchRank={getSwitchRank(l.playerId)}
+                        switchedAt={recentSwitches[l.playerId] ?? null}
+                        isSuggested={
+                          !!suggestionPair && suggestionPair[1] === l.playerId
+                        }
+                        isBench={true}
+                        circleScale={circleScale}
+                        isNextUp={isNextUp}
+                        onTap={(e) => handlePlayerTap(l.playerId, e)}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -1661,11 +1806,17 @@ export function CoachMatchPanel({
                         {sub.matchMinute}&apos;
                       </span>
                       <span className='text-red-400 font-semibold'>
-                        ↓ {off ? `#${off.number} ${off.name}` : "?"}
+                        ↓{" "}
+                        {off
+                          ? `${off.number ? "#" + off.number + " " : ""}${off.name}`
+                          : "?"}
                       </span>
                       <span className='text-gray-500'>→</span>
                       <span className='text-green-400 font-semibold'>
-                        ↑ {on ? `#${on.number} ${on.name}` : "?"}
+                        ↑{" "}
+                        {on
+                          ? `${on.number ? "#" + on.number + " " : ""}${on.name}`
+                          : "?"}
                       </span>
                     </div>
                   );
@@ -1709,7 +1860,7 @@ export function CoachMatchPanel({
           type='button'
           onClick={() => setShowGoals(true)}
           title='Goals'
-          className='h-9 px-3 flex items-center justify-center rounded-xl bg-white/10 text-white active:opacity-60'>
+          className='h-10 px-5 flex items-center justify-center rounded-xl bg-white/10 text-white active:opacity-60'>
           <span className='text-[13px] font-black tracking-widest'>GOAL</span>
         </button>
 
@@ -1718,7 +1869,7 @@ export function CoachMatchPanel({
           type='button'
           onClick={() => setExpanded((v) => !v)}
           title={expanded ? "Contract" : "Expand"}
-          className='w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 active:opacity-60'>
+          className='w-9 h-9 flex items-center justify-center rounded-xl text-orange-400 active:opacity-60'>
           {expanded ? (
             <svg
               viewBox='0 0 24 24'
@@ -1757,7 +1908,7 @@ export function CoachMatchPanel({
           type='button'
           onClick={() => setShowResetConfirm(true)}
           title='Reset time played'
-          className='w-9 h-9 flex items-center justify-center rounded-xl text-gray-500 active:opacity-60'>
+          className='w-9 h-9 flex items-center justify-center rounded-xl text-orange-400 active:opacity-60'>
           <svg
             viewBox='0 0 24 24'
             width='20'
@@ -1792,7 +1943,7 @@ export function CoachMatchPanel({
               setShowEditConfig(true);
             }}
             title='Edit team setup'
-            className='w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 active:opacity-60'>
+            className='w-9 h-9 flex items-center justify-center rounded-xl text-orange-400 active:opacity-60'>
             <svg
               viewBox='0 0 24 24'
               width='20'
@@ -2138,15 +2289,6 @@ export function CoachMatchPanel({
                                 }}
                                 className='flex-1 px-2 py-1.5 rounded-md text-[13px] bg-white/10 text-white border border-white/15 focus:outline-none'
                               />
-                              <PositionSelect
-                                value={player.preferredPosition}
-                                onChange={(pos) => {
-                                  const u = [...editPlayers];
-                                  u[i] = { ...u[i], preferredPosition: pos };
-                                  setEditPlayers(u);
-                                }}
-                                className='w-16'
-                              />
                             </div>
                           </div>
                         );
@@ -2398,6 +2540,65 @@ export function CoachMatchPanel({
                 </div>
                 {/* Safe-area spacer */}
                 <div className='h-24' />
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* ── Assign to slot picker ── */}
+      {slotToFill !== null &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className='fixed inset-0 flex items-end'
+            style={{ background: "rgba(0,0,0,0.65)", zIndex: 10001 }}
+            onClick={() => setSlotToFill(null)}>
+            <div
+              className='w-full rounded-t-2xl bg-gray-900 overflow-hidden flex flex-col max-h-[60vh]'
+              onClick={(e) => e.stopPropagation()}>
+              <div className='flex justify-center pt-3 pb-1 shrink-0'>
+                <div className='w-10 h-1 rounded-full bg-white/20' />
+              </div>
+              <div className='flex items-center justify-between px-5 pt-2 pb-3 shrink-0'>
+                <p className='text-[17px] font-semibold text-white'>
+                  Add player →{" "}
+                  <span className='text-ios-blue'>{slotToFill}</span>
+                </p>
+                <button
+                  type='button'
+                  onClick={() => setSlotToFill(null)}
+                  className='text-[15px] text-gray-400 active:opacity-60'>
+                  Cancel
+                </button>
+              </div>
+              <div className='overflow-y-auto flex-1 divide-y divide-white/8 px-4 pb-6'>
+                {benchPlayers.length === 0 ? (
+                  <p className='text-gray-500 text-[14px] py-4 text-center'>
+                    No players available
+                  </p>
+                ) : (
+                  benchPlayers.map((l) => {
+                    const p = getPlayer(l.playerId);
+                    if (!p) return null;
+                    return (
+                      <button
+                        key={l.playerId}
+                        type='button'
+                        onClick={() =>
+                          handleAssignToSlot(l.playerId, slotToFill)
+                        }
+                        className='w-full flex items-center gap-3 py-3 text-left active:opacity-60'>
+                        <span className='w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-[13px] font-bold text-white shrink-0'>
+                          {p.number || "–"}
+                        </span>
+                        <span className='text-[16px] text-white font-medium'>
+                          {p.name || "Unnamed"}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>,
