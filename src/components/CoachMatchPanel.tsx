@@ -1197,7 +1197,11 @@ export function CoachMatchPanel({
     const t = Date.now();
     const nl = lineup.map((l) =>
       l.playerId === playerId
-        ? { ...l, position: pos, onPitchSince: isRunning ? t : null }
+        ? {
+            ...l,
+            position: pos,
+            onPitchSince: pos === "Bench" ? null : isRunning ? t : null,
+          }
         : l,
     );
     setLineup(nl);
@@ -1673,7 +1677,8 @@ export function CoachMatchPanel({
                   const hasPitchSelected =
                     !!selectedPlayerId &&
                     pitchPlayers.some((l) => l.playerId === selectedPlayerId);
-                  const hasPlayerSelected = hasBenchSelected || hasPitchSelected;
+                  const hasPlayerSelected =
+                    hasBenchSelected || hasPitchSelected;
                   return (
                     <button
                       key={`empty-${slot.pos}-${si}`}
@@ -1723,7 +1728,9 @@ export function CoachMatchPanel({
         </div>
 
         {/* ── Players pool ── */}
-        {benchPlayers.length > 0 &&
+        {(benchPlayers.length > 0 ||
+          (!!selectedPlayerId &&
+            pitchPlayers.some((l) => l.playerId === selectedPlayerId))) &&
           (() => {
             const sortedBench = [...benchPlayers].sort((a, b) => {
               const ta = recentSwitches[a.playerId] ?? 0;
@@ -1731,12 +1738,41 @@ export function CoachMatchPanel({
               return tb - ta;
             });
             const n = sortedBench.length;
+            const hasPitchSelected =
+              !!selectedPlayerId &&
+              pitchPlayers.some((l) => l.playerId === selectedPlayerId);
             return (
               <div
                 className='rounded-2xl px-3 py-3'
                 style={{ background: "rgba(12, 16, 25, 0.8)" }}
                 onClick={() => setSelectedPlayerId(null)}>
                 <div className='flex flex-wrap gap-x-1 gap-y-0 justify-start items-start'>
+                  {hasPitchSelected && (
+                    <button
+                      type='button'
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAssignToSlot(selectedPlayerId!, "Bench");
+                        setSelectedPlayerId(null);
+                      }}
+                      className='flex flex-col items-center gap-1 py-3 px-2 w-[74px] shrink-0 active:opacity-60'>
+                      <div className='w-10 h-10 rounded-full border-2 border-dashed border-amber-400/70 bg-amber-400/10 flex items-center justify-center'>
+                        <svg
+                          viewBox='0 0 24 24'
+                          width='14'
+                          height='14'
+                          fill='none'
+                          stroke='rgba(251,146,60,0.8)'
+                          strokeWidth='2.5'
+                          strokeLinecap='round'
+                          strokeLinejoin='round'>
+                          <line x1='12' y1='5' x2='12' y2='19' />
+                          <line x1='5' y1='12' x2='19' y2='12' />
+                        </svg>
+                      </div>
+                      <span className='text-amber-400/70 text-[12px] font-bold'>Bench</span>
+                    </button>
+                  )}
                   {sortedBench.map((l, i) => {
                     const p = getPlayer(l.playerId);
                     if (!p) return null;
