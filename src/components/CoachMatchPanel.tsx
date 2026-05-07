@@ -1670,13 +1670,17 @@ export function CoachMatchPanel({
                   const hasBenchSelected =
                     !!selectedPlayerId &&
                     benchPlayers.some((l) => l.playerId === selectedPlayerId);
+                  const hasPitchSelected =
+                    !!selectedPlayerId &&
+                    pitchPlayers.some((l) => l.playerId === selectedPlayerId);
+                  const hasPlayerSelected = hasBenchSelected || hasPitchSelected;
                   return (
                     <button
                       key={`empty-${slot.pos}-${si}`}
                       type='button'
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (hasBenchSelected) {
+                        if (hasPlayerSelected) {
                           handleAssignToSlot(selectedPlayerId!, slot.pos);
                           setSelectedPlayerId(null);
                         }
@@ -1685,7 +1689,7 @@ export function CoachMatchPanel({
                       <div
                         className={cn(
                           "w-10 h-10 rounded-full border-2 border-dashed flex items-center justify-center",
-                          hasBenchSelected
+                          hasPlayerSelected
                             ? "border-amber-400/70 bg-amber-400/10"
                             : "border-white/25",
                         )}>
